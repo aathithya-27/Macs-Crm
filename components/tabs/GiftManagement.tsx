@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 // --- FIX: Import GiftMaster instead of the non-existent Gift ---
-import { GiftMaster, GiftMapping, Member } from '../types.ts';
-import Button from './ui/Button.tsx';
-import Input from './ui/Input.tsx';
+import { GiftMaster, GiftMapping, Member } from '../../types.ts';
+import Button from '../ui/Button.tsx';
+import Input from '../ui/Input.tsx';
 import { Gift as GiftIcon, Plus, Save, Edit, Trash2, X, Edit2 } from 'lucide-react';
-import ToggleSwitch from './ui/ToggleSwitch.tsx';
+import ToggleSwitch from '../ui/ToggleSwitch.tsx';
 
 interface GiftManagementProps {
     // --- FIX: Use GiftMaster[] ---
