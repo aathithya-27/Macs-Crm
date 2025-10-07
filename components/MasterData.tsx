@@ -133,7 +133,8 @@ const Button = React.forwardRef<
         title?: string;
     }
 >(({ onClick, children, variant = 'primary', size = 'medium', disabled = false, className = '', type = 'button', as = 'button', title }, ref) => {
-    const baseClasses = "flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed";
+    // Use inline-flex to avoid layout shrinking when buttons are placed inside flex parents
+    const baseClasses = "inline-flex items-center justify-center gap-2 font-semibold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-50 disabled:cursor-not-allowed";
     const sizeClasses = size === 'small' ? 'px-2.5 py-1.5 text-xs' : 'px-4 py-2 text-sm';
     const variantClasses = {
         primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
@@ -143,7 +144,8 @@ const Button = React.forwardRef<
         light: 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700/50 dark:text-gray-300 dark:hover:bg-gray-600/50 focus:ring-gray-400'
     };
 
-    const combinedClasses = `${baseClasses} ${sizeClasses[size]} ${variantClasses[variant]} ${className}`;
+    // sizeClasses is already the correct string for the selected size
+    const combinedClasses = `${baseClasses} ${sizeClasses} ${variantClasses[variant]} ${className}`;
 
     const handleClick = (e: React.MouseEvent<HTMLElement>) => {
         if (onClick) {
