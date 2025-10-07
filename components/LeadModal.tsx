@@ -1,0 +1,433 @@
+import React, { useState, useEffect, useMemo } from 'react';
+// MODIFIED: Import permission-related types
+import { Lead, User, LeadSource, LeadSourceMaster, LeadActivityLog, FinRootsBranch, InsuranceTypeMaster, Member, Designation, AppModule, PermissionLevel } from '../types.ts';
+import Modal from './ui/Modal.tsx';
+import Button from './ui/Button.tsx';
+import Input from './ui/Input.tsx';
+import { X, PlusCircle, Zap, Edit2, MessageSquare, Info, History, Plus } from 'lucide-react';
+import LeadSourceSelector from './LeadSourceSelector.tsx';
+import Tabs from './ui/Tabs.tsx';
+
+
+const ActivityTimeline: React.FC<{ lead: Lead; userMap: Map<string, string> }> = ({ lead, userMap }) => {
+    const sortedLog = useMemo(() => 
+        [...(lead.activityLog || [])].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()), 
+        [lead.activityLog]
+    );
+
+    const getIconForAction = (action: LeadActivityLog['action']) => {
+        switch (action) {
+            case 'Created': return <PlusCircle className="w-5 h-5 text-green-500" />;
+            case 'Status Change': return <Zap className="w-5 h-5 text-blue-500" />;
+            case 'Details Updated': return <Edit2 className="w-5 h-5 text-yellow-500" />;
+            case 'Note Added': return <MessageSquare className="w-5 h-5 text-purple-500" />;
+            default: return <Info className="w-5 h-5 text-gray-500" />;
+        }
+    };
+
+    if (!sortedLog || sortedLog.length === 0) {
+        return (
+            <div className="text-center py-10 text-gray-500 dark:text-gray-400">
+                <History size={40} className="mx-auto text-gray-300 dark:text-gray-600" />
+                <p className="mt-2 text-sm font-semibold">No Activity Yet</p>
+                <p className="mt-1 text-xs">Changes to this lead will be recorded here.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="flow-root">
+            <ul className="-mb-8">
+                {sortedLog.map((log, index) => (
+                    <li key={log.timestamp + index}>
+                        <div className="relative pb-8">
+                            {index !== sortedLog.length - 1 && (
+                                <span className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200 dark:bg-gray-700" aria-hidden="true" />
+                            )}
+                            <div className="relative flex space-x-3">
+                                <div>
+                                    <span className="h-8 w-8 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center ring-4 ring-white dark:ring-gray-800">
+                                        {getIconForAction(log.action)}
+                                    </span>
+                                </div>
+                                <div className="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+                                    <div>
+                                        <p className="text-sm text-gray-800 dark:text-gray-200">
+                                            {log.details}
+                                        </p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                                            by {userMap.get(log.by) || 'System'}
+                                        </p>
+                                    </div>
+                                    <div className="text-right text-xs whitespace-nowrap text-gray-500 dark:text-gray-400">
+                                        <time dateTime={log.timestamp}>
+                                            {new Date(log.timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                        </time>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+};
+
+
+interface NewReferrerModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (data: { name: string; mobile: string; email?: string }) => Promise<void>;
+    addToast: (message: string, type?: 'success' | 'error') => void;
+}
+
+const NewReferrerModal: React.FC<NewReferrerModalProps> = ({ isOpen, onClose, onSave, addToast }) => {
+    const [name, setName] = useState('');
+    const [mobile, setMobile] = useState('');
+    const [email, setEmail] = useState('');
+
+    const handleSave = async () => {
+        if (!name.trim()) return addToast('Referrer name is required.', 'error');
+        if (!mobile.trim() || !/^\+?[0-9\s-]{10,15}$/.test(mobile)) return addToast('A valid mobile number is required.', 'error');
+        
+        await onSave({ name, mobile, email });
+    };
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose}>
+            <div className="p-6">
+                <h2 className="text-xl font-bold text-brand-dark dark:text-white">Add New Referrer</h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">This will create a basic contact record for the referrer.</p>
+            </div>
+            <div className="p-6 overflow-y-auto flex-grow space-y-4">
+                <Input label="Full Name *" value={name} onChange={e => setName(e.target.value)} />
+                <Input label="Phone Number *" type="tel" value={mobile} onChange={e => setMobile(e.target.value)} />
+                <Input label="Email Address" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+            </div>
+            <div className="flex justify-end p-6 gap-3 border-t border-gray-200 dark:border-gray-700">
+                <Button variant="secondary" onClick={onClose}>Cancel</Button>
+                <Button variant="primary" onClick={handleSave}>Save Referrer</Button>
+            </div>
+        </Modal>
+    );
+};
+
+
+interface LeadModalProps {
+    isOpen: boolean;
+    onClose: () => void;
+    lead: Lead | null;
+    onSave: (lead: Lead) => void;
+    addToast: (message: string, type?: 'success' | 'error') => void;
+    currentUser: User | null;
+    users: User[];
+    leadSources: LeadSourceMaster[];
+    finrootsBranches: FinRootsBranch[];
+    insuranceTypes: InsuranceTypeMaster[];
+    allMembers: Member[];
+    onCreateReferrer: (referrerData: { name: string, mobile: string, email?: string }) => Promise<Member | null>;
+    designations: Designation[]; // NEW PROP
+    // NEW: Accept permissions prop
+    permissions: { [key in AppModule]?: PermissionLevel };
+}
+
+const LeadModal: React.FC<LeadModalProps> = ({ 
+    isOpen, onClose, lead, onSave, addToast, currentUser, users, 
+    leadSources, finrootsBranches, insuranceTypes, allMembers, 
+    onCreateReferrer, designations, permissions
+}) => {
+    const [formData, setFormData] = useState<Partial<Lead>>({});
+    const [errors, setErrors] = useState<Partial<Record<keyof Lead, string>>>({});
+    const [activeTab, setActiveTab] = useState('Details');
+    const [selectedParentType, setSelectedParentType] = useState<string | null>(null);
+    const [isNewReferrerModalOpen, setIsNewReferrerModalOpen] = useState(false);
+    const userMap = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users]);
+    const TABS = ['Details', 'Activity Timeline'];
+
+    // NEW: Permission checks for the pipeline module
+    const canModify = permissions?.pipeline === 'modify';
+    const canCreate = permissions?.pipeline === 'create' || canModify;
+    const isReadOnly = !!lead && !canModify;
+
+    const advisors = useMemo(() => {
+        const advisorDesignationIds = new Set(designations.filter(d => d.isAdvisor).map(d => d.id));
+        return users.filter(u => advisorDesignationIds.has(u.designationId));
+    }, [users, designations]);
+
+    const getInitialFormData = (lead: Lead | null): Partial<Lead> => {
+        const currentUserIsAdvisor = designations.find(d => d.id === currentUser?.designationId)?.isAdvisor;
+        if (lead) return JSON.parse(JSON.stringify(lead)); // Deep copy
+        return {
+            name: '',
+            phone: '',
+            email: '',
+            leadSource: { sourceId: null, detail: '' },
+            status: 'Lead',
+            estimatedValue: 0,
+            notes: '',
+            assignedTo: currentUserIsAdvisor ? currentUser!.id : '',
+            insuranceTypeId: null,
+            branchId: '',
+            followUpDate: '',
+            referrerId: undefined,
+        };
+    };
+
+    useEffect(() => {
+        if (isOpen) {
+            const initialData = getInitialFormData(lead);
+            setFormData(initialData);
+            setErrors({});
+            setActiveTab('Details');
+
+            if (initialData.insuranceTypeId) {
+                const type = insuranceTypes.find(t => t.id === initialData.insuranceTypeId);
+                if (type) {
+                    setSelectedParentType(type.parentId || type.id);
+                } else {
+                    setSelectedParentType(null);
+                }
+            } else {
+                setSelectedParentType(null);
+            }
+        }
+    }, [lead, isOpen, currentUser, insuranceTypes, designations]);
+
+    const handleChange = (field: keyof Lead, value: any) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+        if (errors[field]) {
+            setErrors(prev => ({ ...prev, [field]: undefined }));
+        }
+    };
+    
+    const validateForm = () => {
+        const newErrors: Partial<Record<keyof Lead, string>> = {};
+        if (!formData.name?.trim()) newErrors.name = 'Name is required.';
+        if (!formData.phone?.trim()) newErrors.phone = 'Phone number is required.';
+        if (formData.phone && !/^\+?[0-9\s-]{10,15}$/.test(formData.phone)) {
+            newErrors.phone = 'Please enter a valid phone number.';
+        }
+        if (!formData.email?.trim()) {
+            newErrors.email = 'Email is required.';
+        } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
+            newErrors.email = 'Please enter a valid email address.';
+        }
+        if (!formData.branchId) {
+            // @ts-ignore
+            newErrors.branchId = 'Branch is required.';
+        }
+        if (!formData.leadSource?.sourceId) {
+            // @ts-ignore
+            newErrors.leadSource = 'A lead source selection is required.';
+        }
+        if (!formData.followUpDate) {
+            newErrors.followUpDate = 'Follow-up date is required.';
+        }
+        if ((formData.estimatedValue || 0) <= 0) {
+            newErrors.estimatedValue = 'Estimated value must be greater than zero.';
+        }
+        if (!selectedParentType) {
+            // @ts-ignore
+            newErrors.insuranceTypeId = 'Policy of interest is required.';
+        }
+        if (!formData.assignedTo) {
+            newErrors.assignedTo = 'An employee with an advisor role must be assigned.';
+        }
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const handleSave = () => {
+        if (validateForm()) {
+            onSave(formData as Lead);
+        } else {
+            addToast('Please correct the errors before saving.', 'error');
+        }
+    };
+    
+    const handleSaveNewReferrer = async (referrerData: { name: string; mobile: string; email?: string }) => {
+        const newReferrer = await onCreateReferrer(referrerData);
+        if (newReferrer) {
+            handleChange('referrerId', newReferrer.id);
+            setIsNewReferrerModalOpen(false);
+        }
+    };
+
+    const parentTypeOptions = useMemo(() =>
+        insuranceTypes.filter(it => !it.parentId && it.active),
+    [insuranceTypes]);
+
+    const childTypeOptions = useMemo(() => {
+        if (!selectedParentType) return [];
+        return insuranceTypes.filter(it => it.parentId === selectedParentType && it.active);
+    }, [insuranceTypes, selectedParentType]);
+
+    const handleParentTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const newParentId = e.target.value || null;
+        setSelectedParentType(newParentId);
+        handleChange('insuranceTypeId', newParentId);
+    };
+
+    const selectClasses = "block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
+    const isAdmin = useMemo(() => designations.find(d => d.id === currentUser?.designationId)?.name === 'Admin', [currentUser, designations]);
+
+    return (
+        <>
+            <Modal isOpen={isOpen} onClose={onClose}>
+                <div className="flex-shrink-0 p-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-2xl font-bold text-brand-dark dark:text-white">{lead ? 'Edit Lead' : 'Create New Lead'}</h2>
+                        <button onClick={onClose} className="p-1 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-600 dark:hover:text-gray-300">
+                            <X className="w-6 h-6" />
+                        </button>
+                    </div>
+                     <div className="mt-4">
+                        <Tabs tabs={TABS} activeTab={activeTab} setActiveTab={setActiveTab} />
+                    </div>
+                </div>
+
+                <div className="p-6 overflow-y-auto flex-grow">
+                     {activeTab === 'Details' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                            <div className="md:col-span-2">
+                                <Input label="Name *" id="name" value={formData.name || ''} onChange={(e) => handleChange('name', e.target.value)} disabled={isReadOnly} />
+                                {errors.name && <p className="text-red-600 text-xs mt-1">{errors.name}</p>}
+                            </div>
+
+                            <div>
+                                <Input label="Phone *" id="phone" type="tel" value={formData.phone || ''} onChange={(e) => handleChange('phone', e.target.value)} disabled={isReadOnly} />
+                                {errors.phone && <p className="text-red-600 text-xs mt-1">{errors.phone}</p>}
+                            </div>
+
+                            <div>
+                                <Input label="Email *" id="email" type="email" value={formData.email || ''} onChange={(e) => handleChange('email', e.target.value)} disabled={isReadOnly} />
+                                {errors.email && <p className="text-red-600 text-xs mt-1">{errors.email}</p>}
+                            </div>
+                            
+                            <div className="md:col-span-2">
+                                <LeadSourceSelector 
+                                    value={formData.leadSource}
+                                    onLeadSourceChange={(newValue) => handleChange('leadSource', newValue)}
+                                    leadSources={leadSources}
+                                    allMembers={allMembers}
+                                    currentMemberId={formData.id}
+                                    referrerId={formData.referrerId}
+                                    onReferrerSelect={(memberId) => handleChange('referrerId', memberId)}
+                                    onAddNewReferrer={canCreate ? () => setIsNewReferrerModalOpen(true) : undefined}
+                                    disabled={isReadOnly} // MODIFIED: Pass disabled prop
+                                />
+                                {errors.leadSource && <p className="text-red-600 text-xs mt-1">{errors.leadSource as string}</p>}
+                            </div>
+                            
+                             <div>
+                                <label htmlFor="branchId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Branch *</label>
+                                <select 
+                                    id="branchId" 
+                                    value={formData.branchId || ''} 
+                                    onChange={(e) => handleChange('branchId', e.target.value)} 
+                                    className={selectClasses}
+                                    disabled={isReadOnly}
+                                >
+                                  <option value="">Select Branch...</option>
+                                  {finrootsBranches.map(branch => <option key={branch.id} value={branch.id}>{branch.branchName}</option>)}
+                                </select>
+                                {errors.branchId && <p className="text-red-600 text-xs mt-1">{errors.branchId as string}</p>}
+                            </div>
+                            
+                            <div>
+                                <Input label="Follow-up Date *" id="followUpDate" type="date" value={formData.followUpDate || ''} onChange={(e) => handleChange('followUpDate', e.target.value)} disabled={isReadOnly} />
+                                {errors.followUpDate && <p className="text-red-600 text-xs mt-1">{errors.followUpDate}</p>}
+                            </div>
+
+                            <div>
+                                <Input label="Estimated Value (Premium) *" type="number" value={formData.estimatedValue > 0 ? String(formData.estimatedValue) : ''} onChange={(e) => handleChange('estimatedValue', parseFloat(e.target.value) || 0)} disabled={isReadOnly} />
+                                {errors.estimatedValue && <p className="text-red-600 text-xs mt-1">{errors.estimatedValue}</p>}
+                            </div>
+
+                             <div className="md:col-span-2">
+                                <label htmlFor="policyInterestType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Policy of Interest *</label>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                     <select
+                                        value={selectedParentType || ''}
+                                        onChange={handleParentTypeChange}
+                                        className={selectClasses}
+                                        disabled={isReadOnly}
+                                    >
+                                        <option value="">Select Policy Type...</option>
+                                        {parentTypeOptions.map(type => (
+                                            <option key={type.id} value={type.id}>{type.name}</option>
+                                        ))}
+                                    </select>
+
+                                    {childTypeOptions.length > 0 && (
+                                        <select
+                                            value={formData.insuranceTypeId || ''}
+                                            onChange={(e) => handleChange('insuranceTypeId', e.target.value)}
+                                            className={`${selectClasses} animate-fade-in`}
+                                            disabled={isReadOnly}
+                                        >
+                                            <option value={selectedParentType || ''}>-- Select Sub-Type (Optional) --</option>
+                                            {childTypeOptions.map(type => (
+                                                <option key={type.id} value={type.id}>{type.name}</option>
+                                            ))}
+                                        </select>
+                                    )}
+                                </div>
+                                {errors.insuranceTypeId && <p className="text-red-600 text-xs mt-1">{errors.insuranceTypeId as string}</p>}
+                            </div>
+                            
+                            <div className="md:col-span-2">
+                               <label htmlFor="assignedTo" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assigned To *</label>
+                               <select 
+                                   id="assignedTo" 
+                                   value={formData.assignedTo || ''} 
+                                   onChange={(e) => handleChange('assignedTo', e.target.value)} 
+                                   className={selectClasses}
+                                   disabled={!isAdmin || isReadOnly}
+                               >
+                                 <option value="">Unassigned</option>
+                                 {advisors.map(adv => <option key={adv.id} value={adv.id}>{adv.name}</option>)}
+                               </select>
+                               {errors.assignedTo && <p className="text-red-600 text-xs mt-1">{errors.assignedTo}</p>}
+                            </div>
+
+                            <div className="md:col-span-2">
+                                <label htmlFor="notes" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+                                <textarea
+                                    id="notes"
+                                    value={formData.notes || ''}
+                                    onChange={(e) => handleChange('notes', e.target.value)}
+                                    rows={4}
+                                    className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white"
+                                    placeholder="Add any relevant notes about this lead..."
+                                    disabled={isReadOnly}
+                                />
+                            </div>
+                        </div>
+                    )}
+                    {activeTab === 'Activity Timeline' && lead && (
+                        <ActivityTimeline lead={lead} userMap={userMap} />
+                    )}
+                </div>
+
+                <div className="flex-shrink-0 flex justify-end p-6 pt-4 border-t border-gray-200 dark:border-gray-700 gap-3">
+                    <Button onClick={onClose} variant="secondary">Cancel</Button>
+                    {/* MODIFIED: Save button is disabled in read-only mode */}
+                    <Button onClick={handleSave} variant="primary" disabled={isReadOnly}>{lead ? 'Save Changes' : 'Create Lead'}</Button>
+                </div>
+            </Modal>
+            
+            {isNewReferrerModalOpen && (
+                <NewReferrerModal
+                    isOpen={isNewReferrerModalOpen}
+                    onClose={() => setIsNewReferrerModalOpen(false)}
+                    onSave={handleSaveNewReferrer}
+                    addToast={addToast}
+                />
+            )}
+        </>
+    );
+};
+
+export default LeadModal;

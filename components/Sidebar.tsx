@@ -1,0 +1,185 @@
+import React, { useRef, useEffect, useMemo } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
+import {
+    Shield, User, Users, MapPin, LayoutDashboard, FileText, LogOut, BarChart2, NotebookText,
+    X, MessageSquare, Briefcase, Zap, UserPlus, TrendingUp, Database, Wrench, ListTodo, 
+    IndianRupee, Calendar as CalendarIcon, BarChart3, UserCog
+} from 'lucide-react';
+// MODIFIED: Imported AppModule and PermissionLevel
+import { Tab, AppModule, PermissionLevel } from '../types.ts';
+import { User as UserType } from '../types.ts';
+
+interface SidebarProps {
+    isSidebarOpen: boolean;
+    setIsSidebarOpen: (isOpen: boolean) => void;
+    onLogout: () => void;
+    user: UserType | null;
+    // MODIFIED: The permissions prop is now more specific
+    permissions: { [key in AppModule]?: PermissionLevel } | null;
+}
+
+interface NavItem {
+    tab: Tab;
+    path: string;
+    label: string;
+    icon: React.ReactNode;
+}
+
+const ALL_NAV_ITEMS: NavItem[] = [
+    { tab: 'dashboard', path: '/dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20}/> },
+    { tab: 'reports & insights', path: '/reports-insights', label: 'Reports & Insights', icon: <BarChart2 size={20}/> },
+    { tab: 'advancedReports', path: '/advancedReports', label: 'Advanced Reports', icon: <BarChart3 size={20}/> },
+    { tab: 'profitAndLoss', path: '/profitAndLoss', label: 'Profit & Loss', icon: <IndianRupee size={20}/> },
+    { tab: 'employees', path: '/employees', label: 'Employee Management', icon: <UserCog size={20}/> },
+    { tab: 'pipeline', path: '/pipeline', label: 'Lead Management', icon: <Briefcase size={20}/> },
+    { tab: 'customers', path: '/customers', label: 'Customers', icon: <Users size={20}/> },
+    { tab: 'taskManagement', path: '/taskManagement', label: 'Task Management', icon: <ListTodo size={20}/> },
+    { tab: 'policies', path: '/policies', label: 'Policies', icon: <FileText size={20}/> },
+    { tab: 'mutualFunds', path: '/mutualFunds', label: 'Mutual Funds', icon: <TrendingUp size={20}/> },
+    { tab: 'upselling', path: '/upselling', label: 'Upselling', icon: <TrendingUp size={20} /> },
+    { tab: 'calendar', path: '/calendar', label: 'Calendar', icon: <CalendarIcon size={20}/> },
+    { tab: 'notes', path: '/notes', label: 'Notes', icon: <NotebookText size={20}/> },
+    { tab: 'actionHub', path: '/actionHub', label: 'Action Hub', icon: <Zap size={20}/> },
+    { tab: 'servicesHub', path: '/servicesHub', label: 'Services Hub', icon: <Wrench size={20}/> },
+    { tab: 'location', path: '/location', label: 'Location Services', icon: <MapPin size={20}/> },
+    { tab: 'chatbot', path: '/chatbot', label: 'Chatbot', icon: <MessageSquare size={20}/> },
+    { tab: 'masterMember', path: '/masterMember', label: 'Master Data', icon: <Database size={20} /> }
+];
+
+const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen, setIsSidebarOpen, onLogout, user, permissions }) => {
+    const sidebarRef = useRef<HTMLDivElement>(null);
+    const location = useLocation();
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+          if (sidebarRef.current && !sidebarRef.current.contains(event.target as Node)) {
+            setIsSidebarOpen(false);
+          }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => {
+          document.removeEventListener("mousedown", handleClickOutside);
+        };
+    }, [sidebarRef, setIsSidebarOpen]);
+    
+    useEffect(() => {
+        function handleKeyDown(event: KeyboardEvent) {
+          if (event.key === 'Escape') {
+            setIsSidebarOpen(false);
+          }
+        }
+    
+        if (isSidebarOpen) {
+          document.addEventListener("keydown", handleKeyDown);
+        }
+    
+        return () => {
+          document.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [isSidebarOpen, setIsSidebarOpen]);
+
+    // MODIFIED: This now filters the navigation items based on the user's permissions.
+    // A user will only see a link if their permission level for that module is not 'none'.
+    const navItems = useMemo(() => {
+        if (!permissions) return [];
+        return ALL_NAV_ITEMS.filter(item => permissions[item.tab as AppModule] && permissions[item.tab as AppModule] !== 'none');
+    }, [permissions]);
+    
+    const handleLogoutClick = (e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onLogout();
+    };
+    
+    const SidebarContent = () => (
+        <div className="flex flex-col h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+            <div className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                    <div
+                        className="flex items-center gap-3 w-full text-left"
+                        aria-label="Company Name"
+                    >
+                        <Shield className="text-brand-primary" size={28} />
+                        <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                            {user?.company}
+                        </h1>
+                    </div>
+                    <button onClick={() => setIsSidebarOpen(false)} className="md:hidden p-1 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700" aria-label="Close menu">
+                        <X className="w-6 h-6" />
+                    </button>
+                </div>
+            </div>
+
+            <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">
+                {navItems.map(item => (
+                    <NavLink
+                        key={item.tab}
+                        to={item.path}
+                        onClick={() => setIsSidebarOpen(false)}
+                        className={({ isActive }) =>
+                            `w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors duration-200 text-sm font-medium ${
+                                isActive
+                                    ? 'bg-brand-primary text-white shadow-sm'
+                                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                            }`
+                        }
+                    >
+                        {item.icon}
+                        {item.label}
+                    </NavLink>
+                ))}
+            </nav>
+
+            {user && (
+                <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+                    <NavLink
+                        to="/profile"
+                        onClick={() => setIsSidebarOpen(false)}
+                        className={({ isActive }) =>
+                            `w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors duration-200 text-sm font-medium ${
+                                isActive
+                                    ? 'bg-brand-primary text-white shadow-sm'
+                                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                            }`
+                        }
+                    >
+                        <User size={20}/> My Profile
+                    </NavLink>
+                    <button
+                        onClick={handleLogoutClick}
+                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors duration-200 text-sm font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/30 mt-1.5"
+                    >
+                        <LogOut size={20}/> Logout
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+
+    return (
+        <>
+            {/* Mobile Sidebar */}
+             <div 
+                className={`fixed inset-0 z-40 md:hidden transition-opacity duration-300 ease-in-out ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
+                onClick={() => setIsSidebarOpen(false)}
+                role="dialog" 
+                aria-modal="true"
+            >
+                <div className="absolute inset-0 bg-black bg-opacity-60"></div>
+            </div>
+             <div 
+                ref={sidebarRef}
+                className={`fixed top-0 left-0 h-full w-64 z-50 transform transition-transform ease-in-out duration-300 md:hidden ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+            >
+                <SidebarContent />
+            </div>
+
+            {/* Desktop Sidebar */}
+            <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-20">
+                <SidebarContent />
+            </aside>
+        </>
+    );
+};
+
+export default Sidebar;
