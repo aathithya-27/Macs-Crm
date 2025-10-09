@@ -412,40 +412,7 @@ let members: Member[] = [
     familyName: 'The Sharmas',
     religionId: 'rel-1' // Hinduism
   },
-  {
-    id: '9', // New member for family tree
-    sno: 6, // New permanent ID for Finroots
-    name: 'Rohan Sharma',
-    memberId: 'RO9876543',
-    dob: '2012-09-10',
-    gender: 'Male',
-    maritalStatus: 'Single',
-    mobile: '+91 9876543313',
-    state: 'Maharashtra',
-    city: 'Mumbai City',
-    address: '101, Thirupathi Valley, Goregaon East',
-    memberType: 'Silver',
-    tierId: 'tier-1',
-    active: true,
-    panCard: '',
-    aadhaar: '',
-    policies: [],
-    voiceNotes: [],
-    documents: [],
-    checkIns: [],
-    digipin: '7JFJ3Q6H+3X', // Mumbai, slightly offset
-    lat: 19.1679,
-    lng: 72.8648,
-    assignedTo: ['user-2'],
-    isSPOC: false,
-    spocId: 1, // Linked to Priya Sharma's sno
-    familyName: 'The Sharmas',
-    company: 'Finroots',
-    companyId: 'FIN01',
-    branchId: 'frb-2', // Coimbatore Hub
-    processStage: 'Initial Contact',
-    leadSource: { sourceId: null }
-  },
+
   {
     id: '2',
     sno: 2, // New permanent ID
@@ -615,7 +582,7 @@ let members: Member[] = [
   },
    {
     id: '6',
-    sno: 7, // New permanent ID for Finroots
+    sno: 6, // New permanent ID for Finroots
     name: 'Arjun Mehta',
     memberId: 'AR1176655',
     dob: '1992-07-22',

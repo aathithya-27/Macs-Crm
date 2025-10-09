@@ -455,6 +455,7 @@ const DesignationManager: React.FC<{
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0">
                         <tr>
+                            <th className="px-6 py-3 text-left text-xs font-bold uppercase w-12">ID</th>
                             <th className="px-6 py-3 text-left text-xs font-bold uppercase">Name</th>
                             <th className="px-6 py-3 text-left text-xs font-bold uppercase">Is Advisor Role?</th>
                             <th className="px-6 py-3 text-left text-xs font-bold uppercase">Status</th>
@@ -462,8 +463,9 @@ const DesignationManager: React.FC<{
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {items.map(item => (
+                        {items.map((item, index) => (
                             <tr key={item.id}>
+                                <td className="px-6 py-4 text-sm text-grey-500">{index + 1}</td>
                                 <td className="px-6 py-4 font-medium">{item.name}</td>
                                 <td className="px-6 py-4">
                                     <ToggleSwitch
