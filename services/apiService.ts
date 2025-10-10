@@ -3,7 +3,8 @@
 import { 
     Member, Policy, PolicyType, Lead, User, Route, ProcessStage, EmployeeProfile, Company, 
     FinRootsBranch, Religion, Festival, FestivalDate, AdvisorLocation, CheckIn, 
-    CheckInOutcome, UpsellCategory, Designation, DesignationPermissions, AppModule, PermissionLevel // MODIFIED: Imported new types
+    CheckInOutcome, UpsellCategory, Designation, DesignationPermissions, AppModule, PermissionLevel, 
+    Gender, MaritalStatus, CustomerType, CustomerTier // MODIFIED: Imported new types
 } from '../types.ts';
 
 // --- NEW: LOCAL STORAGE PERSISTENCE LOGIC ---
@@ -293,6 +294,36 @@ let upsellCategoriesData: UpsellCategory[] = [
 ];
 // --- END OF CORRECTION ---
 
+// --- NEW: Mock Data for Gender, Marital Status, and Customer Type ---
+let gendersData: Gender[] = [
+    { id: 'gen-1', name: 'Male', active: true, order: 0 },
+    { id: 'gen-2', name: 'Female', active: true, order: 1 },
+    { id: 'gen-3', name: 'Transgender', active: true, order: 2 },
+    { id: 'gen-4', name: 'Other', active: true, order: 3 },
+];
+
+let maritalStatusesData: MaritalStatus[] = [
+    { id: 'mar-1', name: 'Single', active: true, order: 0 },
+    { id: 'mar-2', name: 'Married', active: true, order: 1 },
+    { id: 'mar-3', name: 'Divorced', active: true, order: 2 },
+    { id: 'mar-4', name: 'Widowed', active: true, order: 3 },
+];
+
+let customerTypesData: CustomerType[] = [
+    { id: 'ct-1', name: 'Silver', active: true, order: 0 },
+    { id: 'ct-2', name: 'Gold', active: true, order: 1 },
+    { id: 'ct-3', name: 'Diamond', active: true, order: 2 },
+    { id: 'ct-4', name: 'Platinum', active: true, order: 3 },
+];
+
+// MODIFIED: initialCustomerTiers now uses customerTypeId
+const initialCustomerTiers: CustomerTier[] = [
+    { id: 'tier-1', customerTypeId: 'ct-1', name: 'Silver', minimumSumAssured: 0, minimumPremium: 0, giftId: 'gift-1', active: true, order: 0 },
+    { id: 'tier-2', customerTypeId: 'ct-2', name: 'Gold', minimumSumAssured: 500000, minimumPremium: 25000, giftId: 'gift-2', active: true, order: 1 },
+    { id: 'tier-3', customerTypeId: 'ct-3', name: 'Diamond', minimumSumAssured: 1500000, minimumPremium: 75000, giftId: 'gift-3', active: true, order: 2 },
+    { id: 'tier-4', customerTypeId: 'ct-4', name: 'Platinum', minimumSumAssured: 3000000, minimumPremium: 150000, giftId: 'gift-4', active: true, order: 3 },
+];
+
 
 // Premium Calculation Logic
 export const calculatePremium = (policyType: PolicyType, coverage: number): number => {
@@ -345,6 +376,7 @@ deepaRenewal.setDate(today.getDate() + 25);
 const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
 // In-memory database simulation
+// MODIFIED: gender and maritalStatus now use IDs
 let members: Member[] = [
   {
     id: '1',
@@ -352,9 +384,9 @@ let members: Member[] = [
     name: 'Priya Sharma',
     memberId: 'PR1043312',
     dob: formatDate(priyaDob), // Dynamic Birthday
-    gender: 'Female',
+    gender: 'gen-2', // Female
     bloodGroup: 'O+',
-    maritalStatus: 'Married',
+    maritalStatus: 'mar-2', // Married
     mobile: '+91 9876543312',
     state: 'Maharashtra',
     city: 'Mumbai City',
@@ -419,9 +451,9 @@ let members: Member[] = [
     name: 'Deepa Verma',
     memberId: 'DEA286543',
     dob: '1990-11-12',
-    gender: 'Female',
+    gender: 'gen-2', // Female
     bloodGroup: 'A+',
-    maritalStatus: 'Single',
+    maritalStatus: 'mar-1', // Single
     mobile: '+91 9043386543',
     state: 'Delhi',
     city: 'New Delhi',
@@ -461,9 +493,9 @@ let members: Member[] = [
     name: 'Kavya Reddy',
     memberId: 'KA5446573',
     dob: '1982-03-30',
-    gender: 'Female',
+    gender: 'gen-2', // Female
     bloodGroup: 'B-',
-    maritalStatus: 'Married',
+    maritalStatus: 'mar-2', // Married
     mobile: '+91 9675346573',
     state: 'Karnataka',
     city: 'Bengaluru (Bangalore) Urban',
@@ -503,9 +535,9 @@ let members: Member[] = [
     name: 'Ramya Iyer',
     memberId: 'RA3483536',
     dob: '1995-08-25',
-    gender: 'Female',
+    gender: 'gen-2', // Female
     bloodGroup: 'AB+',
-    maritalStatus: 'Single',
+    maritalStatus: 'mar-1', // Single
     mobile: '+91 8736283536',
     state: 'Tamil Nadu',
     city: 'Chennai',
@@ -544,9 +576,9 @@ let members: Member[] = [
     name: 'Vikram Singh',
     memberId: 'VI7B56789',
     dob: '1978-01-15',
-    gender: 'Male',
+    gender: 'gen-1', // Male
     bloodGroup: 'O-',
-    maritalStatus: 'Married',
+    maritalStatus: 'mar-2', // Married
     mobile: '+91 9123456789',
     state: 'Maharashtra',
     city: 'Pune',
@@ -586,9 +618,9 @@ let members: Member[] = [
     name: 'Arjun Mehta',
     memberId: 'AR1176655',
     dob: '1992-07-22',
-    gender: 'Male',
+    gender: 'gen-1', // Male
     bloodGroup: 'A-',
-    maritalStatus: 'Single',
+    maritalStatus: 'mar-1', // Single
     mobile: '+91 9988776655',
     state: 'Karnataka',
     city: 'Bengaluru (Bangalore) Urban',
@@ -855,6 +887,7 @@ export const createMember = async (memberData: Omit<Member, 'id' | 'sno'>): Prom
     processStage: memberData.processStage || 'Initial Contact',
     stageLastChanged: memberData.stageLastChanged || new Date().toISOString(),
     companyId: memberData.companyId,
+    maritalStatus: memberData.maritalStatus || null, // Ensure default
   };
 
   if ((newMember.lat && newMember.lng) && !newMember.digipin) {
@@ -1158,6 +1191,28 @@ export const getFestivalsByDateRange = async (startDate: Date, endDate: Date): P
 export const getUpsellCategories = async (): Promise<UpsellCategory[]> => {
     await simulateDelay(100);
     return JSON.parse(JSON.stringify(upsellCategoriesData));
+};
+
+// --- NEW: Gender, Marital Status, and Customer Type API Functions ---
+export const getGenders = async (): Promise<Gender[]> => {
+    await simulateDelay(50);
+    return JSON.parse(JSON.stringify(gendersData));
+};
+
+export const getMaritalStatuses = async (): Promise<MaritalStatus[]> => {
+    await simulateDelay(50);
+    return JSON.parse(JSON.stringify(maritalStatusesData));
+};
+
+export const getCustomerTypes = async (): Promise<CustomerType[]> => {
+    await simulateDelay(50);
+    return JSON.parse(JSON.stringify(customerTypesData));
+};
+
+// --- NEW: Customer Tiers API Function ---
+export const getCustomerTiers = async (): Promise<CustomerTier[]> => {
+    await simulateDelay(50);
+    return JSON.parse(JSON.stringify(initialCustomerTiers));
 };
 
 

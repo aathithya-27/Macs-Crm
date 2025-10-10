@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 // MODIFIED: Import permission types
-import { User, EmployeeModalTab, EmployeeProfile, Member, Geography, BankMaster, Designation, AppModule, PermissionLevel } from '../types.ts';
+import { User, EmployeeModalTab, EmployeeProfile, Member, Geography, BankMaster, Designation, AppModule, PermissionLevel,Gender } from '../types.ts';
 import Button from './ui/Button.tsx';
 import { User as UserIcon, MapPin, BookOpen, Save, Edit, KeyRound, Users } from 'lucide-react';
 import { GeneralInfoTab, AddressTab, EducationTab, EmployeeCustomersTab } from './tabs/EmployeeProfileTabs.tsx';
@@ -17,14 +17,15 @@ interface ProfilePageProps {
   geographies: Geography[];
   onUpdateGeographies: (data: Geography[]) => void;
   bankMasters: BankMaster[];
-  designations: Designation[]; // NEW PROP
-  // NEW: Accept permissions prop
+  designations: Designation[]; 
   permissions: { [key in AppModule]?: PermissionLevel };
+  genders: Gender[]; // MODIFIED: Added genders prop
 }
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ 
     user, onUpdateProfile, onUpdatePassword, addToast, allMembers, 
-    users, geographies, onUpdateGeographies, bankMasters, designations, permissions
+    users, geographies, onUpdateGeographies, bankMasters, designations, permissions,
+    genders // MODIFIED: Destructure genders from props
 }) => {
   const [formData, setFormData] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<EmployeeModalTab>(EmployeeModalTab.GeneralInfo);
@@ -118,9 +119,9 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
             </nav>
         </div>
         
-        <div className="p-6 bg-white dark:bg-gray-800 rounded-b-lg shadow-sm border border-t-0 dark:border-gray-700">
-            {/* MODIFIED: Pass permissions to child tabs */}
-            {activeTab === EmployeeModalTab.GeneralInfo && <GeneralInfoTab data={formData} onChange={handleChange} onSave={onUpdateProfile} addToast={addToast} bankMasters={bankMasters} designations={designations} permissions={permissions} />}
+            <div className="p-6 bg-white dark:bg-gray-800 rounded-b-lg shadow-sm border border-t-0 dark:border-gray-700">
+            {/* MODIFIED: Pass permissions and genders to child tabs */}
+            {activeTab === EmployeeModalTab.GeneralInfo && <GeneralInfoTab data={formData} onChange={handleChange} onSave={onUpdateProfile} addToast={addToast} bankMasters={bankMasters} designations={designations} permissions={permissions} genders={genders} />}
             {activeTab === EmployeeModalTab.Address && <AddressTab data={formData} onChange={handleChange} geographies={geographies} onUpdateGeographies={onUpdateGeographies} addToast={addToast} />}
             {activeTab === EmployeeModalTab.Education && <EducationTab data={formData} onChange={handleChange} />}
             {activeTab === EmployeeModalTab.Customers && <EmployeeCustomersTab employee={formData} allMembers={allMembers} users={users} />}

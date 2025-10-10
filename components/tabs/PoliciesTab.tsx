@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 // CORRECTED: Fixed import path and added permission types
-import { Member, Policy, PolicyType, GeneralInsuranceType, LICData, LICFamilyMember, LICPreviousPolicy, CoveredMember, Traveler, User, SchemeMaster, Company, InsuranceTypeMaster, InsuranceFieldMaster, HealthInsuranceData, Designation, AppModule, PermissionLevel } from '../../types.ts';
+import { Member, Policy, PolicyType, GeneralInsuranceType, LICData, LICFamilyMember, LICPreviousPolicy, CoveredMember, Traveler, User, SchemeMaster, Company, InsuranceTypeMaster, InsuranceFieldMaster, HealthInsuranceData, Designation, AppModule, PermissionLevel, Gender } from '../../types.ts';
 import Input from '../ui/Input';
 // CORRECTED: Fixed import path
 import Button from '../ui/Button';
@@ -223,7 +223,8 @@ const EditableCoveredMemberCard: React.FC<{
     onRemove: () => void;
     isReadOnly: boolean;
     spocAddress?: string;
-}> = ({ member, onUpdate, onRemove, isReadOnly, spocAddress }) => {
+    genders: Gender[]; // MODIFIED: Added genders prop
+}> = ({ member, onUpdate, onRemove, isReadOnly, spocAddress, genders }) => {
     const isNewMember = !member.name.trim() && !member.dob.trim();
     const [isEditing, setIsEditing] = useState(isNewMember);
     const [localMember, setLocalMember] = useState(member);
@@ -296,7 +297,7 @@ const EditableCoveredMemberCard: React.FC<{
         }
     };
 
-    const selectClasses = 'w-full px-2 py-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:ring-brand-primary focus:border-brand-primary';
+    const selectClasses = 'w-full px-2 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:ring-brand-primary focus:border-brand-primary';
 
     if (isEditing) {
         return (
@@ -376,12 +377,21 @@ const EditableCoveredMemberCard: React.FC<{
                     )}
 
                     <Input label="Relationship *" value={localMember.relationship} onChange={e => handleChange('relationship', e.target.value)} />
+                    {/* --- MODIFICATION START: Replaced hardcoded gender with dynamic dropdown --- */}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Gender</label>
-                        <select value={localMember.gender || ''} onChange={e => handleChange('gender', e.target.value as any)} className={selectClasses}>
-                            <option value="">Select...</option><option>Male</option><option>Female</option><option>Transgender</option><option>Other</option>
+                        <select 
+                            value={localMember.gender || ''} 
+                            onChange={e => handleChange('gender', e.target.value || null)} 
+                            className={selectClasses}
+                        >
+                            <option value="">Select...</option>
+                            {genders.filter(g => g.active).map(g => (
+                                <option key={g.id} value={g.id}>{g.name}</option>
+                            ))}
                         </select>
                     </div>
+                    {/* --- MODIFICATION END --- */}
                     <Input label="Height (cm)" type="number" value={localMember.height || ''} onChange={e => handleChange('height', parseFloat(e.target.value) || undefined)} />
                     <Input label="Weight (kg)" type="number" value={localMember.weight || ''} onChange={e => handleChange('weight', parseFloat(e.target.value) || undefined)} />
                     <Input label="Occupation" value={localMember.occupation || ''} onChange={e => handleChange('occupation', e.target.value)} />
@@ -462,7 +472,8 @@ const CoveredMembersManager: React.FC<{
     onMembersChange: (newMembers: CoveredMember[]) => void,
     isReadOnly: boolean,
     spocAddress?: string;
-}> = ({ coveredMembers, onMembersChange, isReadOnly, spocAddress }) => {
+    genders: Gender[]; // MODIFIED: Added genders prop
+}> = ({ coveredMembers, onMembersChange, isReadOnly, spocAddress, genders }) => {
 
     const handleAdd = () => onMembersChange([...coveredMembers, {
         id: `mem-${Date.now()}`,
@@ -492,6 +503,7 @@ const CoveredMembersManager: React.FC<{
                         onRemove={() => handleRemove(i)}
                         isReadOnly={isReadOnly}
                         spocAddress={spocAddress}
+                        genders={genders} // MODIFIED: Pass prop down
                     />
                 ))}
             </div>
@@ -528,11 +540,12 @@ const PolicyEditor: React.FC<{
     onUpdateInsuranceFields: (data: InsuranceFieldMaster[]) => void;
     designations: Designation[]; 
     permissions: { [key in AppModule]?: PermissionLevel };
+    genders: Gender[]; // MODIFIED: Added genders prop
 }> = ({ 
     policy, data, handlePolicyChange, handleFileUpload, handlePaymentVerification, 
     verifyingPayment, onGenerateProposal, onSave, currentUser, schemes, companies, 
     setEditingPolicyId, getPaymentStatusIcon, addToast, insuranceTypes, 
-    insuranceFields, onUpdateInsuranceFields, designations, permissions
+    insuranceFields, onUpdateInsuranceFields, designations, permissions, genders
 }) => {
     
     const [selectedCompanyId, setSelectedCompanyId] = useState<string>(policy.companyId || '');
@@ -838,6 +851,7 @@ const PolicyEditor: React.FC<{
                             onMembersChange={(newMembers) => handlePolicyChange(policy.id, { coveredMembers: newMembers })}
                             isReadOnly={isReadOnly}
                             spocAddress={data.address}
+                            genders={genders} // MODIFIED: Pass prop down
                         />
                     </FormSection>
                 )}
@@ -1247,11 +1261,13 @@ interface PoliciesTabProps {
     setEditingPolicyId: (id: string | null) => void;
     designations: Designation[];
     permissions: { [key in AppModule]?: PermissionLevel }; // CORRECTED: Added permissions prop
+    genders: Gender[]; // MODIFIED: Added genders prop
 }
 export const PoliciesTab: React.FC<PoliciesTabProps> = ({
     allMembers, data, onChange, onSave, addToast, onGenerateProposal, currentUser,
     onFindUpsell, schemes, companies, insuranceTypes, insuranceFields, 
-    onUpdateInsuranceFields, editingPolicyId, setEditingPolicyId, designations, permissions
+    onUpdateInsuranceFields, editingPolicyId, setEditingPolicyId, designations, permissions,
+    genders // MODIFIED
 }) => {
     const [verifyingPayment, setVerifyingPayment] = useState<string | null>(null);
     const [isFindingUpsell, setIsFindingUpsell] = useState(false);
@@ -1516,6 +1532,7 @@ export const PoliciesTab: React.FC<PoliciesTabProps> = ({
                     onUpdateInsuranceFields={onUpdateInsuranceFields}
                     designations={designations}
                     permissions={permissions} 
+                    genders={genders} // MODIFIED: Pass prop down
                 />
             ) : (
                 <>
@@ -1586,4 +1603,4 @@ export const PoliciesTab: React.FC<PoliciesTabProps> = ({
             )}
         </div>
     );
-};
+};  

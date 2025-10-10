@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
-// MODIFIED: Added AppModule and PermissionLevel
-import { User, EmployeeProfile, AdvisorEducation, AdvisorAddress, Member, FinRootsBranch, Geography, BankMaster, BusinessVertical, InsuranceTypeMaster, AMC, Designation, AppModule, PermissionLevel, DesignationPermissions } from '../../types.ts';
+// MODIFIED: Added AppModule, PermissionLevel, and Gender
+import { User, EmployeeProfile, AdvisorEducation, AdvisorAddress, Member, FinRootsBranch, Geography, BankMaster, BusinessVertical, InsuranceTypeMaster, AMC, Designation, AppModule, PermissionLevel, DesignationPermissions, Gender } from '../../types.ts';
 import Input from '../ui/Input.tsx';
 import Button from '../ui/Button.tsx';
 import { Trash2, PlusCircle, X, Users, Copy, Banknote, KeyRound } from 'lucide-react';
@@ -242,9 +242,10 @@ export const GeneralInfoTab: React.FC<{
     businessVerticals?: BusinessVertical[];
     insuranceTypes?: InsuranceTypeMaster[];
     amcs?: AMC[];
-    designations: Designation[]; // NEW PROP
+    designations: Designation[];
     permissions: { [key in AppModule]?: PermissionLevel };
-}> = ({ data, onChange, onSave, finrootsBranches, addToast, bankMasters, businessVerticals, insuranceTypes, amcs, designations, permissions }) => {
+    genders: Gender[]; // MODIFIED: Added genders prop
+}> = ({ data, onChange, onSave, finrootsBranches, addToast, bankMasters, businessVerticals, insuranceTypes, amcs, designations, permissions, genders }) => {
     const profile = data.profile || { status: 'Active' };
     const [isResettingPassword, setIsResettingPassword] = useState(false);
     const [newPassword, setNewPassword] = useState('');
@@ -431,14 +432,21 @@ export const GeneralInfoTab: React.FC<{
                 </div>
                 
                 <Input label="Father/Mother Name *" value={profile.fatherMotherName || ''} onChange={(e) => handleProfileChange('fatherMotherName', e.target.value)} />
+                {/* --- MODIFICATION START: Replaced radio buttons with dynamic select --- */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Gender *</label>
-                    <div className="flex gap-4 pt-2">
-                        {(['Male', 'Female', 'Other'] as const).map(g => (
-                            <label key={g} className="flex items-center gap-2 text-gray-800 dark:text-gray-300"><input type="radio" name="gender" value={g} checked={profile.gender === g} onChange={(e) => handleProfileChange('gender', e.target.value as any)} className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 dark:border-gray-600"/> {g}</label>
+                    <select
+                        value={profile.gender || ''}
+                        onChange={(e) => handleProfileChange('gender', e.target.value || null)}
+                        className={selectClasses}
+                    >
+                        <option value="">Select Gender...</option>
+                        {genders.filter(g => g.active).map(g => (
+                            <option key={g.id} value={g.id}>{g.name}</option>
                         ))}
-                    </div>
+                    </select>
                 </div>
+                {/* --- MODIFICATION END --- */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Driving Licence?</label>
                     <input type="checkbox" checked={!!profile.drivingLicenceObtained} onChange={(e) => handleProfileChange('drivingLicenceObtained', e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"/>

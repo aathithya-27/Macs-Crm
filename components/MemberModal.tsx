@@ -7,7 +7,8 @@ import {
     TaskStatusMaster, TaskMaster, PolicyChecklistMaster, InsuranceTypeMaster, InsuranceFieldMaster, 
     BusinessVertical, CoveredMember, FinRootsBranch, Religion, CustomerFieldMaster, AMC, 
     MutualFundScheme, MutualFundHolding, MutualFundTransaction, MutualFundFieldMaster, Designation,
-    AppModule, PermissionLevel
+    AppModule, PermissionLevel,
+    Gender, MaritalStatus // MODIFIED: Imported new types
 } from '../types.ts';
 import Modal from './ui/Modal.tsx';
 import Button from './ui/Button.tsx';
@@ -453,6 +454,8 @@ interface MemberModalProps {
   designations: Designation[];
   // NEW: Accept permissions prop
   permissions: { [key in AppModule]?: PermissionLevel };
+  genders: Gender[]; // MODIFIED: Added genders prop
+  maritalStatuses: MaritalStatus[]; // MODIFIED: Added maritalStatuses prop
 }
 
 export const MemberModal: React.FC<MemberModalProps> = ({
@@ -464,7 +467,8 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     policyChecklistMasters, onUpdatePolicyChecklistMasters, insuranceTypes, insuranceFields, 
     onUpdateInsuranceFields, customerFieldMasters, onUpdateCustomerFieldMasters, 
     onCreateReferrer, finrootsBranches, religions, onAddDocumentMaster, amcs, 
-    mutualFundSchemes, mutualFundFields, designations, permissions
+    mutualFundSchemes, mutualFundFields, designations, permissions,
+    genders, maritalStatuses // MODIFIED
 }) => {
   const [activeTab, setActiveTab] = useState<ModalTab | string>(ModalTab.BasicInfo);
   const [formData, setFormData] = useState<Partial<Member>>({});
@@ -496,7 +500,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     if (member) return JSON.parse(JSON.stringify(member));
     const isCurrentUserAdvisor = designations.find(d => d.id === currentUser?.designationId)?.isAdvisor;
     return {
-      name: '', dob: '', maritalStatus: 'Single', mobile: '', state: 'Maharashtra', city: 'Mumbai City', address: '',
+      name: '', dob: '', maritalStatus: null, gender: null, mobile: '', state: 'Maharashtra', city: 'Mumbai City', address: '',
       memberType: 'Silver', active: true, panCard: '', aadhaar: '', policies: [], voiceNotes: [], documents: [],
       documentChecklist: {}, lat: 0, lng: 0,
       assignedTo: isCurrentUserAdvisor ? [currentUser!.id] : [],
@@ -770,8 +774,9 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                         customerFieldMasters={customerFieldMasters}
                         onUpdateCustomerFieldMasters={onUpdateCustomerFieldMasters}
                         designations={designations}
-                        // MODIFIED: Pass permissions
                         permissions={permissions}
+                        genders={genders}
+                        maritalStatuses={maritalStatuses}
                     />}
                 {activeTab === ModalTab.Documents && 
                     <DocumentsTab 
@@ -786,7 +791,6 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                         documentMasters={documentMasters} 
                         onAddDocumentMaster={onAddDocumentMaster} 
                         insuranceTypes={insuranceTypes}
-                        // MODIFIED: Pass permissions
                         permissions={permissions}
                     />}
                 {activeTab === ModalTab.Policies && 
@@ -807,8 +811,8 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                         editingPolicyId={editingPolicyId} 
                         setEditingPolicyId={setEditingPolicyId} 
                         designations={designations}
-                        // MODIFIED: Pass permissions
                         permissions={permissions}
+                        genders={genders} // FIX: Pass genders prop
                     />}
                 {activeTab === ModalTab.Investments &&
                     <InvestmentsTab
@@ -818,7 +822,6 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                         schemes={mutualFundSchemes}
                         addToast={addToast}
                         mutualFundFields={mutualFundFields}
-                        // MODIFIED: Pass permissions
                         permissions={permissions}
                     />
                 }
@@ -827,7 +830,6 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                         currentStage={formData.processStage || processFlow[0]}
                         processSteps={processFlow}
                         onStageClick={handleStageClick}
-                        // MODIFIED: Pass permissions
                         canModify={canModify}
                     />
                 )}
@@ -836,7 +838,6 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                         data={formData} 
                         onChange={handleChange} 
                         addToast={addToast} 
-                        // MODIFIED: Pass permissions
                         permissions={permissions}
                     />}
                 {activeTab === ModalTab.NotesAndReminders && 
@@ -848,7 +849,6 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                         onChange={handleChange} 
                         currentUser={currentUser} 
                         designations={designations}
-                        // MODIFIED: Pass permissions
                         permissions={permissions}
                     />}
                 {activeTab === ModalTab.Family && 
@@ -868,7 +868,6 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                         users={users} 
                         onCreateTask={onCreateTask} 
                         addToast={addToast} 
-                        // MODIFIED: Pass permissions
                         permissions={permissions}
                     />}
             </div>

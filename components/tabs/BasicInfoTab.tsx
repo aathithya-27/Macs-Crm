@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Member, User, LeadSource, Route, LeadSourceMaster, Geography, CustomerCategory, CustomerSubCategory, CustomerGroup, FinRootsBranch, Religion, CustomerFieldMaster, Designation,AppModule,PermissionLevel } from '../../types.ts'; // MODIFIED
+// MODIFIED: Added Gender and MaritalStatus
+import { Member, User, LeadSource, Route, LeadSourceMaster, Geography, CustomerCategory, CustomerSubCategory, CustomerGroup, FinRootsBranch, Religion, CustomerFieldMaster, Designation,AppModule,PermissionLevel, Gender, MaritalStatus } from '../../types.ts';
 import Input from '../ui/Input.tsx';
 import Button from '../ui/Button.tsx';
 import { ShieldCheck, Loader2, Info, MapPin, Copy, Target, BrainCircuit, Link as LinkIcon, Plus, Trash2, X } from 'lucide-react';
@@ -466,6 +467,8 @@ interface BasicInfoTabProps {
   onUpdateCustomerFieldMasters: (data: CustomerFieldMaster[]) => void;
   designations: Designation[]; // NEW PROP
   permissions: { [key in AppModule]?: PermissionLevel };
+  genders: Gender[]; // MODIFIED: Added genders prop
+  maritalStatuses: MaritalStatus[]; // MODIFIED: Added maritalStatuses prop
 }
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -506,7 +509,8 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     data, onChange, errors, addToast, currentUser, users, routes, onUpdateRoutes, 
     allMembers, leadSources, geographies, onUpdateGeographies, customerCategories, 
     customerSubCategories, customerGroups, onAddNewReferrer, finrootsBranches, 
-    religions, customerFieldMasters, onUpdateCustomerFieldMasters, designations
+    religions, customerFieldMasters, onUpdateCustomerFieldMasters, designations,
+    genders, maritalStatuses // MODIFIED: Destructure new props
 }) => {
   const selectClasses = "block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
 
@@ -916,24 +920,23 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                         onChange={(e) => onChange('anniversary', e.target.value)} 
                     />
                 </div>
+                {/* --- MODIFICATION START: Replaced hardcoded gender with dynamic dropdown --- */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Gender</label>
-                    <div className="flex items-center gap-4 pt-2">
-                        {(['Male', 'Female', 'Transgender', 'Other'] as const).map(g => (
-                            <label key={g} className="flex items-center gap-2 text-sm text-gray-800 dark:text-gray-300">
-                                <input 
-                                    type="radio" 
-                                    name="gender" 
-                                    value={g} 
-                                    checked={data.gender === g} 
-                                    onChange={(e) => onChange('gender', e.target.value as any)} 
-                                    className="h-4 w-4 text-brand-primary focus:ring-brand-primary border-gray-300 dark:border-gray-600" 
-                                />
-                                {g}
-                            </label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Gender *</label>
+                    <select
+                        id="gender"
+                        value={data.gender || ''}
+                        onChange={(e) => onChange('gender', e.target.value || null)}
+                        className={selectClasses}
+                    >
+                        <option value="">-- Select Gender --</option>
+                        {genders.filter(g => g.active).map(g => (
+                            <option key={g.id} value={g.id}>{g.name}</option>
                         ))}
-                    </div>
+                    </select>
+                    {errors.gender && <p className="text-red-600 text-xs mt-1">{errors.gender}</p>}
                 </div>
+                {/* --- MODIFICATION END --- */}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                  <div>
@@ -1019,25 +1022,27 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
         <div className="space-y-4">
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* --- MODIFICATION START: Replaced hardcoded marital status with dynamic dropdown --- */}
                 <div>
-                    <label 
-                        htmlFor="maritalStatus" 
+                    <label
+                        htmlFor="maritalStatus"
                         className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                     >
                         Marital Status
                     </label>
-                    <select 
-                        id="maritalStatus" 
-                        value={data.maritalStatus || 'Single'} 
-                        onChange={(e) => onChange('maritalStatus', e.target.value as any)} 
+                    <select
+                        id="maritalStatus"
+                        value={data.maritalStatus || ''}
+                        onChange={(e) => onChange('maritalStatus', e.target.value || null)}
                         className={selectClasses}
                     >
-                        <option>Single</option>
-                        <option>Married</option>
-                        <option>Divorced</option>
-                        <option>Widowed</option>
+                        <option value="">-- Select Status --</option>
+                        {maritalStatuses.filter(ms => ms.active).map(ms => (
+                            <option key={ms.id} value={ms.id}>{ms.name}</option>
+                        ))}
                     </select>
                 </div>
+                {/* --- MODIFICATION END --- */}
                 <div>
                     <SearchableSelect 
                         label="Assigned Advisor(s)" 

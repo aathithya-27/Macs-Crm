@@ -116,7 +116,7 @@ export interface EmployeeProfile { // RENAMED from AdvisorProfile
   agentCode?: string; // NEW: To store the agent code for agent appointments
   branchName?: string;
   fatherMotherName?: string;
-  gender?: 'Male' | 'Female' | 'Other';
+  gender?: string | null; // MODIFIED from 'Male' | 'Female' | 'Other';
   workExperienceYears?: number;
   workExperienceMonths?: number;
   industry?: string;
@@ -368,7 +368,7 @@ export interface CoveredMember {
     name: string;
     relationship: string;
     dob: string;
-    gender?: 'Male' | 'Female' | 'Transgender' | 'Other';
+    gender?: string | null; // MODIFIED from 'Male' | 'Female' | 'Transgender' | 'Other';
     email?: string;
     mobile?: string;
     address?: string;
@@ -414,9 +414,9 @@ export interface Member {
   name: string;
   memberId: string;
   dob: string;
-  gender?: 'Male' | 'Female' | 'Transgender' | 'Other';
+  gender?: string | null; // MODIFIED from 'Male' | 'Female' | 'Transgender' | 'Other';
   bloodGroup?: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
-  maritalStatus: 'Single' | 'Married' | 'Divorced' | 'Widowed';
+  maritalStatus: string | null; // MODIFIED from 'Single' | 'Married' | 'Divorced' | 'Widowed';
   mobile: string;
   mobile2?: string;
   email?: string;
@@ -746,7 +746,8 @@ export interface GiftMapping {
 
 export interface CustomerTier {
     id: string;
-    name: string;
+    name?: string; // Kept for display purposes
+    customerTypeId: string; // REPLACES name for logic
     minimumSumAssured?: number; 
     minimumPremium?: number; 
     giftId: string | null;
@@ -1157,4 +1158,26 @@ export interface CheckIn {
   nextActionDate?: string; 
   checkInType: 'Automatic' | 'Manual'; 
   manualCheckInReason?: string; 
+}
+
+// --- NEW MASTER DATA TYPES ---
+export interface Gender {
+  id: string;
+  name: string;
+  active?: boolean;
+  order?: number;
+}
+
+export interface MaritalStatus {
+  id: string;
+  name: string;
+  active?: boolean;
+  order?: number;
+}
+
+export interface CustomerType {
+  id: string;
+  name: string;
+  active?: boolean;
+  order?: number;
 }

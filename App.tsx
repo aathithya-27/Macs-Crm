@@ -56,7 +56,8 @@ import {
     MutualFundScheme,
     MutualFundFieldMaster,
     AppModule,
-    PermissionLevel
+    PermissionLevel,
+    Gender, MaritalStatus, CustomerType // MODIFIED: Imported new types
 } from './types.ts';
 import { 
     getMembers, createMember, updateMember, deleteMember, getLeads, createLead, updateLead, deleteLead, 
@@ -64,7 +65,8 @@ import {
     updateOperatingCompany, getFinrootsBranches, getDesignations, getDesignationPermissions, 
     updateDesignationPermissions, getReligions, getFestivals, getFestivalDates, getAdvisorLocations, 
     getCheckIns, updateAdvisorLocation, createCheckIn, getAdvisorLocationHistory, checkOut, 
-    getActiveCheckIn, getUpsellCategories 
+    getActiveCheckIn, getUpsellCategories,
+    getGenders, getMaritalStatuses, getCustomerTypes,getCustomerTiers // MODIFIED: Imported new API functions
 } from './services/apiService.ts';
 import { getPolicySuggestions, generateAnnualReview, generateUpsellOpportunityForMember, generateTodaysFocus } from './services/geminiService.ts';
 import { indianStates } from './constants.tsx';
@@ -1061,16 +1063,6 @@ const initialTaskStatusMasters: TaskStatusMaster[] = [
     {id:'ts-4', name: 'Cancelled', active: true, order: 5},
 ];
 const initialCustomerCategories: CustomerCategory[] = [ {id:'cc-1', name: 'Salaried', active: true, order: 0}, {id:'cc-2', name: 'Business', active: true, order: 1}, {id:'cc-3', name: 'Professional', active: true, order: 2}, ];
-
-// NEW: Initial Customer Type based on Sum Assured
-const initialCustomerTiers: CustomerTier[] = [
-    { id: 'tier-1', name: 'Silver', minimumSumAssured: 0, minimumPremium: 0, giftId: 'gift-1', active: true, order: 0 },
-    { id: 'tier-2', name: 'Gold', minimumSumAssured: 500000, minimumPremium: 25000, giftId: 'gift-2', active: true, order: 1 },
-    { id: 'tier-3', name: 'Diamond', minimumSumAssured: 1500000, minimumPremium: 75000, giftId: 'gift-3', active: true, order: 2 },
-    { id: 'tier-4', name: 'Platinum', minimumSumAssured: 3000000, minimumPremium: 150000, giftId: 'gift-4', active: true, order: 3 },
-];
-
-// NEW MASTER DATA
 const initialCustomerSubCategories: CustomerSubCategory[] = [
     { id: 'csc-1', name: 'IT/Software', parentId: 'cc-1', active: true, order: 0 },
     { id: 'csc-2', name: 'Government', parentId: 'cc-1', active: true, order: 1 },
@@ -1357,7 +1349,7 @@ const App: React.FC = () => {
     const [policyChecklistMasters, setPolicyChecklistMasters] = useState<PolicyChecklistMaster[]>(initialPolicyChecklistMasters);
     const [insuranceTypes, setInsuranceTypes] = useState<InsuranceTypeMaster[]>(initialInsuranceTypes);
     const [insuranceFields, setInsuranceFields] = useState<InsuranceFieldMaster[]>(initialInsuranceFields);
-    const [customerTiers, setCustomerTiers] = useState<CustomerTier[]>(initialCustomerTiers);
+    const [customerTiers, setCustomerTiers] = useState<CustomerTier[]>([]); // MODIFIED: Start empty, will be hydrated
     const [customerTierCalculationMethod, setCustomerTierCalculationMethod] = useState<TierCalculationMethod>('sumAssured');
     const [expenseCategoriesLevel1, setExpenseCategoriesLevel1] = useState<ExpenseCategoryLevel1[]>(initialExpenseCategoriesLevel1);
     const [expenseCategoriesLevel2, setExpenseCategoriesLevel2] = useState<ExpenseCategoryLevel2[]>(initialExpenseCategoriesLevel2);
@@ -1374,6 +1366,10 @@ const App: React.FC = () => {
     const [amcs, setAmcs] = useState<AMC[]>(initialAmcs);
     const [mutualFundSchemes, setMutualFundSchemes] = useState<MutualFundScheme[]>(initialMutualFundSchemes);
     const [mutualFundFields, setMutualFundFields] = useState<MutualFundFieldMaster[]>(initialMutualFundFields); // NEW STATE
+    // --- NEW STATES FOR NEW MASTER DATA ---
+    const [genders, setGenders] = useState<Gender[]>([]);
+    const [maritalStatuses, setMaritalStatuses] = useState<MaritalStatus[]>([]);
+    const [customerTypes, setCustomerTypes] = useState<CustomerType[]>([]);
 
 
     // --- Multi-tenancy Filtered Data ---
@@ -1500,6 +1496,10 @@ const App: React.FC = () => {
     const handleUpdateMutualFundFields = useCallback((newData: MutualFundFieldMaster[]) => setMutualFundFields([...newData]), []); // NEW
     const handleUpdateAgencies = useCallback((newData: Company[]) => setAgencies(newData), []);
     const handleUpdateDesignations = useCallback((newData: Designation[]) => setDesignations(newData), []);
+    // --- NEW HANDLERS ---
+    const handleUpdateGenders = useCallback((newData: Gender[]) => setGenders([...newData]), []);
+    const handleUpdateMaritalStatuses = useCallback((newData: MaritalStatus[]) => setMaritalStatuses([...newData]), []);
+    const handleUpdateCustomerTypes = useCallback((newData: CustomerType[]) => setCustomerTypes([...newData]), []);
     const handleUpdateDesignationPermissions = useCallback(async (permissions: DesignationPermissions) => {
         try {
             const updated = await updateDesignationPermissions(permissions);
@@ -1696,7 +1696,9 @@ const App: React.FC = () => {
                 const [
                     membersData, leadsData, usersData, routesData, opCompaniesData, branchesData, 
                     religionsData, festivalsData, festivalDatesData, upsellCategoriesData,
-                    designationsData, designationPermissionsData // NEW
+                    designationsData, designationPermissionsData,
+                    gendersData, maritalStatusesData, customerTypesData,
+                    customerTiersData // MODIFIED: Correctly call the new API function
                 ] = await Promise.all([
                     getMembers(),
                     getLeads(),
@@ -1708,8 +1710,12 @@ const App: React.FC = () => {
                     getFestivals(),
                     getFestivalDates(),
                     getUpsellCategories(),
-                    getDesignations(), // NEW
-                    getDesignationPermissions(), // NEW
+                    getDesignations(),
+                    getDesignationPermissions(),
+                    getGenders(), 
+                    getMaritalStatuses(), 
+                    getCustomerTypes(), 
+                    getCustomerTiers() // MODIFIED: Call the new API function
                 ]);
                 setAllMembers(membersData);
                 setAllLeads(leadsData);
@@ -1721,8 +1727,17 @@ const App: React.FC = () => {
                 setFestivals(festivalsData);
                 setFestivalDates(festivalDatesData);
                 setUpsellCategories(upsellCategoriesData);
-                setDesignations(designationsData); // NEW
-                setDesignationPermissions(designationPermissionsData); // NEW
+                setDesignations(designationsData);
+                setDesignationPermissions(designationPermissionsData);
+                // --- MODIFIED: Set new states ---
+                setGenders(gendersData);
+                setMaritalStatuses(maritalStatusesData);
+                setCustomerTypes(customerTypesData);
+                // Hydrate the names in customerTiers
+                const typeMap = new Map(customerTypesData.map(t => [t.id, t.name]));
+                const hydratedTiers = customerTiersData.map(tier => ({...tier, name: typeMap.get(tier.customerTypeId) || 'Unknown'}));
+                setCustomerTiers(hydratedTiers);
+
             } catch (error) {
                 console.error("Failed to load initial data:", error);
                 addToast("Could not load app data. Please refresh.", "error");
@@ -1732,6 +1747,7 @@ const App: React.FC = () => {
         };
         loadData();
     }, [addToast]);
+
     
     useEffect(() => {
         const isAdmin = designations.find(d => d.id === currentUser?.designationId)?.name === 'Admin';
@@ -2951,11 +2967,11 @@ const App: React.FC = () => {
                                 <Route path="/notes" element={<NotesPage {...{ members: companyMembers, leads: companyLeads, onSaveMember: handleSaveMember, onSaveLeadNote: handleSaveLeadNote, onCreateTask: (desc, due, memberName, memberId) => handleCreateTask({triggeringPoint: 'Manual', taskDescription: desc, expectedCompletionDateTime: due || new Date().toISOString(), memberId, taskType: 'Manual', isCompleted: false}), addToast, currentUser, users: companyUsers, finrootsBranches: companyBranches, designations, permissions: currentUserPermissions }} />} />
                                 <Route path="/location" element={<LocationServices members={companyMembers} addToast={addToast} currentUser={currentUser} allUsers={companyUsers} onUpdateAdvisorLocation={handleUpdateAdvisorLocation} onCreateCheckIn={handleCreateCheckIn} advisorLocations={advisorLocations} checkIns={checkIns} onFetchAdvisorTrail={handleFetchAdvisorTrail} activeCheckIn={activeCheckIn} onCheckOut={handleCheckOut} onGetActiveCheckIn={getActiveCheckIn} designations={designations} />} />
                                 <Route path="/chatbot" element={<Chatbot members={companyMembers} leads={companyLeads} tasks={allTasks} expenses={expenses} manualIncomes={manualIncomes} manualCommissions={manualCommissions} addToast={addToast} />} />
-                                <Route path="/profile" element={currentUser.designationId === 'des-admin' ? <AdminProfile {...{ user: currentUser, users: companyUsers, allMembers: companyMembers, onOpenEmployeeModal: () => handleOpenEmployeeModal(null), onUpdateProfile: handleSaveEmployee, addToast, designations, permissions: currentUserPermissions }} /> : <ProfilePage {...{ user: currentUser, onUpdateProfile: handleSaveEmployee, onUpdatePassword: handleUpdatePassword, addToast, allMembers: companyMembers, users: companyUsers, geographies, onUpdateGeographies: handleUpdateGeographies, bankMasters, designations, permissions: currentUserPermissions }} />} />
+                                <Route path="/profile" element={currentUser.designationId === 'des-admin' ? <AdminProfile {...{ user: currentUser, users: companyUsers, allMembers: companyMembers, onOpenEmployeeModal: () => handleOpenEmployeeModal(null), onUpdateProfile: handleSaveEmployee, addToast, designations, permissions: currentUserPermissions }} /> : <ProfilePage {...{ user: currentUser, onUpdateProfile: handleSaveEmployee, onUpdatePassword: handleUpdatePassword, addToast, allMembers: companyMembers, users: companyUsers, geographies, onUpdateGeographies: handleUpdateGeographies, bankMasters, designations, permissions: currentUserPermissions, genders }} />} />
                                 <Route path="/employees" element={<EmployeeManagement {...{ users: companyUsers, allMembers: companyMembers, onOpenEmployeeModal: handleOpenEmployeeModal, onToggleStatus: async (userId) => { const user = allUsers.find(u => u.id === userId); if(user) { const newStatus = user.profile?.status === 'Active' ? 'Inactive' : 'Active'; await handleSaveEmployee({...user, profile: {...user.profile, status: newStatus} as EmployeeProfile}); addToast("Employee status updated.", "success"); }}, attendance, onUpdateAttendance: handleUpdateAttendanceByAdmin, finrootsBranches: companyBranches, addToast, designations, permissions: currentUserPermissions }} />} />
                                 <Route path="/servicesHub" element={<ServicesHub addToast={addToast} allMembers={companyMembers} onViewMember={handleOpenMemberModal} onUpdateCommissionStatus={handleUpdateCommissionStatus} currentUser={currentUser} designations={designations} />} />
                                 <Route path="/actionHub" element={<ActionAutomationHub {...{ notifications: hubNotifications, onRenewPolicy: handleRenewPolicy, activityLog: hubActivityLog, addToast, onNotificationSent: () => {}, appointments: hubAppointments, tasks: hubTasks, onToggleTask: handleToggleTask, onDismissItem: handleDismissItem, savedGreetingUrl: null, setSavedGreetingUrl: () => {}, upsellOpportunities, onDismissOpportunity: (id) => setUpsellOpportunities(prev => prev.filter(o => o.id !== id)), members: companyMembers, onScheduleMessage: (msg) => { setCustomMessages(prev => [...prev, {...msg, id: `cm-${Date.now()}`}]); addToast('Custom message scheduled!', 'success'); }, onClearAll: handleClearActionHubNotifications, onScheduleAppointment: (appt) => { const member = companyMembers.find(m => m.id === appt.memberId); if(member) { setAppointments(prev => [...prev, { ...appt, id: `appt-${Date.now()}`, memberName: member.name }]); addToast('Appointment scheduled!', 'success'); } }, rules: automationRules, onUpdateRule: (rule) => setAutomationRules(prev => prev.map(r => r.id === rule.id ? rule : r)), onAddRule: handleAddAutomationRule, processFlow, onUpdateProcessFlow: setProcessFlow, docTemplates, onUpdateTemplates: setDocTemplates, currentUser, users: companyUsers, onViewMember: onViewMember, permissions: currentUserPermissions }} />} />
-                                <Route path="/masterMember/" element={<MasterData {...{addToast, allMembers: companyMembers, users: companyUsers, customerFieldMasters, onUpdateCustomerFieldMasters: handleUpdateCustomerFieldMasters, businessVerticals, onUpdateBusinessVerticals: handleUpdateBusinessVerticals, leadSources, onUpdateLeadSources: handleUpdateLeadSources, schemes, onUpdateSchemes: handleUpdateSchemes, agencies, onUpdateAgencies: handleUpdateAgencies, operatingCompanies, onUpdateOperatingCompanies: handleUpdateOperatingCompany, finrootsBranches: allBranches, onUpdateFinrootsBranches: handleUpdateFinrootsBranches, finrootsCompanyInfo, onUpdateFinRootsCompanyInfo: setFinrootsCompanyInfo, geographies, onUpdateGeographies: handleUpdateGeographies, relationshipTypes, onUpdateRelationshipTypes: handleUpdateRelationshipTypes, documentMasters, onUpdateDocumentMasters: handleUpdateDocumentMasters, schemeDocumentMappings, onUpdateSchemeDocumentMappings: handleUpdateSchemeDocumentMappings, giftMasters, onUpdateGiftMasters: handleUpdateGiftMasters, customerTiers, onUpdateCustomerTiers: handleUpdateCustomerTiers, taskStatuses: taskStatusMasters, onUpdateTaskStatuses: handleUpdateTaskStatusMasters, customerCategories, onUpdateCustomerCategories: handleUpdateCustomerCategories, bankMasters, onUpdateBankMasters: handleUpdateBankMasters, customerSubCategories, onUpdateCustomerSubCategories: handleUpdateCustomerSubCategories, customerGroups, onUpdateCustomerGroups: handleUpdateCustomerGroups, taskMasters, onUpdateTaskMasters: handleUpdateTaskMasters, policyChecklistMasters, onUpdatePolicyChecklistMasters: handleUpdatePolicyChecklistMasters, insuranceTypes, onUpdateInsuranceTypes: handleUpdateInsuranceTypes, insuranceFields, onUpdateInsuranceFields: handleUpdateInsuranceFields, routes, onUpdateRoutes: handleUpdateRoutes, designations, onUpdateDesignations: handleUpdateDesignations, designationPermissions, onUpdateDesignationPermissions: handleUpdateDesignationPermissions, currentUser, customerTierCalculationMethod, onUpdateCustomerTierCalculationMethod: handleUpdateAllMemberTiers, expenseCategoriesLevel1, onUpdateExpenseCategoriesLevel1: handleUpdateExpenseCategoriesLevel1, expenseCategoriesLevel2, onUpdateExpenseCategoriesLevel2: handleUpdateExpenseCategoriesLevel2, expenseCategoriesLevel3, onUpdateExpenseCategoriesLevel3: handleUpdateExpenseCategoriesLevel3, incomeCategoriesLevel1, onUpdateIncomeCategoriesLevel1: handleUpdateIncomeCategoriesLevel1, incomeCategoriesLevel2, onUpdateIncomeCategoriesLevel2: handleUpdateIncomeCategoriesLevel2, religions, onUpdateReligions: handleUpdateReligions, festivals, onUpdateFestivals: handleUpdateFestivals, festivalDates, onUpdateFestivalDates: handleUpdateFestivalDates, amcs, onUpdateAmcs: handleUpdateAmcs, mutualFundSchemes, onUpdateMutualFundSchemes: handleUpdateMutualFundSchemes, mutualFundFields, onUpdateMutualFundFields: handleUpdateMutualFundFields, permissions: currentUserPermissions}} />} />
+                                <Route path="/masterMember/" element={<MasterData {...{addToast, allMembers: companyMembers, users: companyUsers, customerFieldMasters, onUpdateCustomerFieldMasters: handleUpdateCustomerFieldMasters, businessVerticals, onUpdateBusinessVerticals: handleUpdateBusinessVerticals, leadSources, onUpdateLeadSources: handleUpdateLeadSources, schemes, onUpdateSchemes: handleUpdateSchemes, agencies, onUpdateAgencies: handleUpdateAgencies, operatingCompanies, onUpdateOperatingCompanies: handleUpdateOperatingCompany, finrootsBranches: allBranches, onUpdateFinrootsBranches: handleUpdateFinrootsBranches, finrootsCompanyInfo, onUpdateFinRootsCompanyInfo: setFinrootsCompanyInfo, geographies, onUpdateGeographies: handleUpdateGeographies, relationshipTypes, onUpdateRelationshipTypes: handleUpdateRelationshipTypes, documentMasters, onUpdateDocumentMasters: handleUpdateDocumentMasters, schemeDocumentMappings, onUpdateSchemeDocumentMappings: handleUpdateSchemeDocumentMappings, giftMasters, onUpdateGiftMasters: handleUpdateGiftMasters, customerTiers, onUpdateCustomerTiers: handleUpdateCustomerTiers, taskStatuses: taskStatusMasters, onUpdateTaskStatuses: handleUpdateTaskStatusMasters, customerCategories, onUpdateCustomerCategories: handleUpdateCustomerCategories, bankMasters, onUpdateBankMasters: handleUpdateBankMasters, customerSubCategories, onUpdateCustomerSubCategories: handleUpdateCustomerSubCategories, customerGroups, onUpdateCustomerGroups: handleUpdateCustomerGroups, taskMasters, onUpdateTaskMasters: handleUpdateTaskMasters, policyChecklistMasters, onUpdatePolicyChecklistMasters: handleUpdatePolicyChecklistMasters, insuranceTypes, onUpdateInsuranceTypes: handleUpdateInsuranceTypes, insuranceFields, onUpdateInsuranceFields: handleUpdateInsuranceFields, routes, onUpdateRoutes: handleUpdateRoutes, designations, onUpdateDesignations: handleUpdateDesignations, designationPermissions, onUpdateDesignationPermissions: handleUpdateDesignationPermissions, currentUser, customerTierCalculationMethod, onUpdateCustomerTierCalculationMethod: handleUpdateAllMemberTiers, expenseCategoriesLevel1, onUpdateExpenseCategoriesLevel1: handleUpdateExpenseCategoriesLevel1, expenseCategoriesLevel2, onUpdateExpenseCategoriesLevel2: handleUpdateExpenseCategoriesLevel2, expenseCategoriesLevel3, onUpdateExpenseCategoriesLevel3: handleUpdateExpenseCategoriesLevel3, incomeCategoriesLevel1, onUpdateIncomeCategoriesLevel1: handleUpdateIncomeCategoriesLevel1, incomeCategoriesLevel2, onUpdateIncomeCategoriesLevel2: handleUpdateIncomeCategoriesLevel2, religions, onUpdateReligions: handleUpdateReligions, festivals, onUpdateFestivals: handleUpdateFestivals, festivalDates, onUpdateFestivalDates: handleUpdateFestivalDates, amcs, onUpdateAmcs: handleUpdateAmcs, mutualFundSchemes, onUpdateMutualFundSchemes: handleUpdateMutualFundSchemes, mutualFundFields, onUpdateMutualFundFields: handleUpdateMutualFundFields, permissions: currentUserPermissions, genders, onUpdateGenders: handleUpdateGenders, maritalStatuses, onUpdateMaritalStatuses: handleUpdateMaritalStatuses, customerTypes, onUpdateCustomerTypes: handleUpdateCustomerTypes }} />} />
                                 <Route path="/reports-insights" element={<ReportsAndInsights members={companyMembers} users={companyUsers} tasks={allTasks} attendance={attendance} onUpdateAttendance={handleUpdateAttendanceByAdmin} addToast={addToast} allLeads={companyLeads} currentUser={currentUser} leadSources={leadSources} schemes={schemes} insuranceTypes={insuranceTypes} onOpenAttendanceReport={() => setIsAttendanceReportModalOpen(true)} designations={designations} />} />
                                 <Route path="/taskManagement" element={<TaskManagement allTasks={allTasks} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} onCreateTask={handleCreateTask} onCreateBulkTask={handleCreateBulkTask} onOpenTask={handleOpenTask} users={companyUsers} members={companyMembers} leads={companyLeads} taskStatusMasters={taskStatusMasters} taskMasters={taskMasters} addToast={addToast} currentUser={currentUser} finrootsBranches={companyBranches} onReassignTask={handleReassignTask} designations={designations} />} />
                                 <Route path="/profitAndLoss" element={<ProfitAndLoss allMembers={companyMembers} expenses={expenses} manualIncomes={manualIncomes} manualCommissions={manualCommissions} expenseCategoriesLevel1={expenseCategoriesLevel1} expenseCategoriesLevel2={expenseCategoriesLevel2} expenseCategoriesLevel3={expenseCategoriesLevel3} incomeCategoriesLevel1={incomeCategoriesLevel1} incomeCategoriesLevel2={incomeCategoriesLevel2} onAddExpense={handleAddExpense} onUpdateExpense={handleUpdateExpense} onDeleteExpense={handleDeleteExpense} onDeleteVoucher={handleDeleteVoucher} onAddManualIncome={handleAddManualIncome} onUpdateManualIncome={handleUpdateManualIncome} onDeleteManualIncome={handleDeleteManualIncome} onAddManualCommission={handleAddManualCommission} onUpdateManualCommission={handleUpdateManualCommission} onDeleteManualCommission={handleDeleteManualCommission} currentUser={currentUser} companyInfo={operatingCompanies.find(c => c.id === currentUser?.companyId)} branches={companyBranches} onSaveVoucher={handleSaveVoucherDetails} lastVoucherNumber={lastVoucherNumber} insuranceTypes={insuranceTypes} permissions={currentUserPermissions} />} />
@@ -3045,7 +3061,9 @@ const App: React.FC = () => {
                             mutualFundSchemes={mutualFundSchemes}
                             mutualFundFields={mutualFundFields}
                             designations={designations}
-                            permissions={currentUserPermissions} // CORRECTED
+                            permissions={currentUserPermissions}
+                            genders={genders} // MODIFIED: Pass new props
+                            maritalStatuses={maritalStatuses} // MODIFIED: Pass new props
                         />
                     )}
                      {isEmployeeModalOpen && (
@@ -3066,7 +3084,8 @@ const App: React.FC = () => {
                             insuranceTypes={insuranceTypes}
                             amcs={amcs}
                             designations={designations}
-                            designationPermissions={designationPermissions} // CORRECTED
+                            designationPermissions={designationPermissions}
+                            genders={genders} // MODIFIED: Pass new props
                         />
                     )}
                     {isLeadModalOpen && currentUser && (

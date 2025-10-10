@@ -23,7 +23,8 @@ import {
     AMC,
     MutualFundScheme,
     MutualFundSchemeCategory,
-    MutualFundFieldMaster
+    MutualFundFieldMaster,
+    Gender, MaritalStatus, CustomerType // MODIFIED: Imported new types
 } from '../types.ts';
 import { Database, Briefcase, Users, GitBranch, MapPin, Link as LinkIcon, FileText as FileTextIcon, Gift, CheckSquare, Settings, Plus, Save, Edit2, Trash2, X, Building, Search, AlertTriangle, ChevronRight, ListTodo, SlidersHorizontal, ArrowUp, ArrowDown, CornerDownRight, GripVertical, ChevronDown, Lock, Award, IndianRupee, Calendar as CalendarIcon, Check, TrendingUp, UserCog } from 'lucide-react';
 
@@ -110,6 +111,13 @@ interface MasterDataProps {
     onUpdateMutualFundSchemes: (data: MutualFundScheme[]) => void;
     mutualFundFields: MutualFundFieldMaster[];
     onUpdateMutualFundFields: (data: MutualFundFieldMaster[]) => void;
+    // --- NEW PROPS ---
+    genders: Gender[];
+    onUpdateGenders: (data: Gender[]) => void;
+    maritalStatuses: MaritalStatus[];
+    onUpdateMaritalStatuses: (data: MaritalStatus[]) => void;
+    customerTypes: CustomerType[];
+    onUpdateCustomerTypes: (data: CustomerType[]) => void;
 }
 
 // --- MOVED SHARED CONSTANTS TO TOP LEVEL ---
@@ -519,10 +527,6 @@ const DesignationManager: React.FC<{
     );
 };
 // --- END: NEW Designation Management Component ---
-
-
-// --- NEW: Designation Permissions Manager Component (Replaces RolePermissionsManager) ---
-// REMOVED: This component is no longer needed in MasterData.tsx
 
 
 // --- NEW: Income Category Management Component ---
@@ -1396,8 +1400,112 @@ const ReligionsAndFestivalsManager: React.FC<MasterDataProps> = (props) => {
 // --- END: MODIFICATION ---
 
 
-// --- Role Permissions Manager Component ---
+// --- REFACTORED: Tier & Gift Management Component ---
+// --- START: NEW DEDICATED MODAL COMPONENT ---
+// This new component manages its own state to prevent re-renders and focus loss.
+const TierRuleModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (tierData: CustomerTier) => void;
+    initialData: Partial<CustomerTier> | null;
+    tiers: CustomerTier[];
+    customerTypes: CustomerType[];
+    gifts: GiftMaster[];
+    mode: 'sumAssured' | 'premium' | 'edit';
+}> = ({ isOpen, onClose, onSave, initialData, tiers, customerTypes, gifts, mode }) => {
+    const [formData, setFormData] = useState<Partial<CustomerTier>>({});
 
+    useEffect(() => {
+        // When the modal opens, initialize its internal state from the props.
+        if (isOpen) {
+            setFormData(initialData || { name: '', customerTypeId: '', minimumSumAssured: 0, minimumPremium: 0, giftId: null, active: true });
+        }
+    }, [isOpen, initialData]);
+
+    const handleChange = (field: keyof CustomerTier, value: any) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+    };
+    
+    const handleNumericChange = (field: 'minimumSumAssured' | 'minimumPremium', value: string) => {
+        const numericValue = value.replace(/[^0-9]/g, '');
+        handleChange(field, numericValue === '' ? 0 : Number(numericValue));
+    };
+
+    const handleSaveClick = () => {
+        if (!formData.customerTypeId) {
+            // This is a placeholder for your addToast function.
+            // You would pass addToast as a prop in a real app to show a message.
+            alert('A Customer Type must be selected.');
+            return;
+        }
+        onSave(formData as CustomerTier);
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose}>
+            <div className="p-6">
+                <h2 className="text-xl font-bold text-brand-dark dark:text-white">{initialData?.id ? 'Edit' : 'Add'} Tier Rule</h2>
+            </div>
+            <div className="p-6 space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Customer Type</label>
+                    <select
+                        value={formData.customerTypeId || ''}
+                        onChange={e => handleChange('customerTypeId', e.target.value)}
+                        className={selectClasses}
+                    >
+                        <option value="">-- Select a Type --</option>
+                        {customerTypes.map(type => {
+                            const isUsed = tiers.some(t => t.customerTypeId === type.id && t.id !== initialData?.id);
+                            return (
+                                <option key={type.id} value={type.id} disabled={isUsed} className={isUsed ? 'text-gray-400' : ''}>
+                                    {type.name} {isUsed ? '(In Use)' : ''}
+                                </option>
+                            );
+                        })}
+                    </select>
+                </div>
+
+                {(mode === 'sumAssured' || mode === 'edit') && (
+                    <Input
+                        label="Minimum Sum Assured (₹)"
+                        type="text"
+                        inputMode="numeric"
+                        value={formData.minimumSumAssured === 0 ? '' : String(formData.minimumSumAssured || '')}
+                        onChange={e => handleNumericChange('minimumSumAssured', e.target.value)}
+                        placeholder="e.g., 50000"
+                    />
+                )}
+
+                {(mode === 'premium' || mode === 'edit') && (
+                    <Input
+                        label="Minimum Premium (₹)"
+                        type="text"
+                        inputMode="numeric"
+                        value={formData.minimumPremium === 0 ? '' : String(formData.minimumPremium || '')}
+                        onChange={e => handleNumericChange('minimumPremium', e.target.value)}
+                        placeholder="e.g., 5000"
+                    />
+                )}
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assign Gift</label>
+                    <select value={formData.giftId || ''} onChange={e => handleChange('giftId', e.target.value || null)} className={selectClasses}>
+                        <option value="">-- No Gift --</option>
+                        {gifts.filter(g => g.active).map(gift => <option key={gift.id} value={gift.id}>{gift.name}</option>)}
+                    </select>
+                </div>
+            </div>
+            <div className="flex justify-end p-6 gap-3 border-t border-gray-200 dark:border-gray-700">
+                <Button variant="secondary" onClick={onClose}>Cancel</Button>
+                <Button variant="primary" onClick={handleSaveClick}>Save Tier</Button>
+            </div>
+        </Modal>
+    );
+};
+// --- END: NEW DEDICATED MODAL COMPONENT ---
 
 
 // --- REFACTORED: Tier & Gift Management Component ---
@@ -1409,48 +1517,43 @@ const TierManager: React.FC<{
     addToast: MasterDataProps['addToast'];
     calculationMethod: 'sumAssured' | 'premium';
     onUpdateCalculationMethod: (method: 'sumAssured' | 'premium') => void;
-}> = ({ tiers, onUpdateTiers, gifts, onUpdateGifts, addToast, calculationMethod, onUpdateCalculationMethod }) => {
+    customerTypes: CustomerType[];
+}> = ({ tiers, onUpdateTiers, gifts, onUpdateGifts, addToast, calculationMethod, onUpdateCalculationMethod, customerTypes }) => {
     const [isTierModalOpen, setIsTierModalOpen] = useState(false);
     const [editingTier, setEditingTier] = useState<Partial<CustomerTier> | null>(null);
     const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
     const [editingGift, setEditingGift] = useState<Partial<GiftMaster> | null>(null);
     const [draggedTierId, setDraggedTierId] = useState<string | null>(null);
-    // NEW STATE: To control which fields appear in the modal
     const [tierModalMode, setTierModalMode] = useState<'sumAssured' | 'premium' | 'edit'>('edit');
     const triggerButtonRef = useRef<HTMLButtonElement>(null);
 
 
     const sortedTiers = useMemo(() => [...tiers].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)), [tiers]);
     const sortedGifts = useMemo(() => [...gifts].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)), [gifts]);
+    const customerTypeMap = useMemo(() => new Map(customerTypes.map(ct => [ct.id, ct.name])), [customerTypes]);
 
     const openTierModal = (tier: CustomerTier | null, mode: 'sumAssured' | 'premium' | 'edit', event: React.MouseEvent<HTMLElement>) => {
         triggerButtonRef.current = event.currentTarget as HTMLButtonElement;
-        setEditingTier(tier ? { ...tier } : { name: '', minimumSumAssured: 0, minimumPremium: 0, giftId: null, active: true });
+        setEditingTier(tier ? { ...tier } : { name: '', customerTypeId: '', minimumSumAssured: 0, minimumPremium: 0, giftId: null, active: true });
         setTierModalMode(mode);
         setIsTierModalOpen(true);
     };
     
     const closeTierModal = () => {
         setIsTierModalOpen(false);
+        setEditingTier(null);
         triggerButtonRef.current?.focus();
     }
 
-    const handleSaveTier = () => {
-        if (!editingTier || !editingTier.name?.trim()) {
-            addToast('Tyoe name is required.', 'error');
-            return;
-        }
-
+    const handleSaveTier = (tierData: CustomerTier) => {
         let updatedTiers;
-        if (editingTier.id) { // Update
-            updatedTiers = tiers.map(t => t.id === editingTier.id ? editingTier as CustomerTier : t);
+        if (tierData.id) { // Update
+            updatedTiers = tiers.map(t => t.id === tierData.id ? tierData : t);
         } else { // Create
             const newTier: CustomerTier = {
+                ...tierData,
                 id: `tier-${Date.now()}`,
-                name: editingTier.name,
-                minimumSumAssured: Number(editingTier.minimumSumAssured) || 0,
-                minimumPremium: Number(editingTier.minimumPremium) || 0,
-                giftId: editingTier.giftId || null,
+                name: customerTypeMap.get(tierData.customerTypeId) || 'Unnamed Tier',
                 active: true,
                 order: tiers.length,
             };
@@ -1585,7 +1688,7 @@ const TierManager: React.FC<{
                                         className={`border-b dark:border-gray-700/50 cursor-move ${draggedTierId === tier.id ? 'opacity-50' : ''} ${!tier.active ? 'opacity-50' : ''}`}
                                     >
                                         <td className="py-2"><GripVertical size={16} className="text-gray-400"/></td>
-                                        <td className="py-2 font-medium">{tier.name}</td>
+                                        <td className="py-2 font-medium">{customerTypeMap.get(tier.customerTypeId) || tier.name}</td>
                                         <td className="py-2">{tier.minimumSumAssured?.toLocaleString('en-IN') || '-'}</td>
                                         <td className="py-2">{gifts.find(g => g.id === tier.giftId)?.name || <span className="text-gray-400 italic">None</span>}</td>
                                         <td className="py-2 text-center"><ToggleSwitch enabled={tier.active !== false} onChange={() => handleToggleTier(tier.id)} /></td>
@@ -1626,7 +1729,7 @@ const TierManager: React.FC<{
                                         className={`border-b dark:border-gray-700/50 cursor-move ${draggedTierId === tier.id ? 'opacity-50' : ''} ${!tier.active ? 'opacity-50' : ''}`}
                                     >
                                         <td className="py-2"><GripVertical size={16} className="text-gray-400"/></td>
-                                        <td className="py-2 font-medium">{tier.name}</td>
+                                        <td className="py-2 font-medium">{customerTypeMap.get(tier.customerTypeId) || tier.name}</td>
                                         <td className="py-2">{tier.minimumPremium?.toLocaleString('en-IN') || '-'}</td>
                                         <td className="py-2">{gifts.find(g => g.id === tier.giftId)?.name || <span className="text-gray-400 italic">None</span>}</td>
                                         <td className="py-2 text-center"><ToggleSwitch enabled={tier.active !== false} onChange={() => handleToggleTier(tier.id)} /></td>
@@ -1663,36 +1766,16 @@ const TierManager: React.FC<{
                 </div>
             </div>
 
-            {isTierModalOpen && (
-                <Modal isOpen={isTierModalOpen} onClose={closeTierModal}>
-                    <div className="p-6">
-                        <h2 className="text-xl font-bold text-brand-dark dark:text-white">{editingTier?.id ? 'Edit' : 'Add'} Tier</h2>
-                    </div>
-                    <div className="p-6 space-y-4">
-                        <Input label="Type Name" value={editingTier?.name || ''} onChange={e => setEditingTier(p => p ? {...p, name: e.target.value} : null)} />
-                        
-                        {(tierModalMode === 'sumAssured' || tierModalMode === 'edit') && (
-                             <Input label="Minimum Sum Assured (₹)" type="number" value={String(editingTier?.minimumSumAssured || 0)} onChange={e => setEditingTier(p => p ? {...p, minimumSumAssured: Number(e.target.value)} : null)} />
-                        )}
-
-                        {(tierModalMode === 'premium' || tierModalMode === 'edit') && (
-                            <Input label="Minimum Premium (₹)" type="number" value={String(editingTier?.minimumPremium || 0)} onChange={e => setEditingTier(p => p ? {...p, minimumPremium: Number(e.target.value)} : null)} />
-                        )}
-                       
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assign Gift</label>
-                            <select value={editingTier?.giftId || ''} onChange={e => setEditingTier(p => p ? {...p, giftId: e.target.value || null} : null)} className={selectClasses}>
-                                <option value="">-- No Gift --</option>
-                                {gifts.filter(g => g.active).map(gift => <option key={gift.id} value={gift.id}>{gift.name}</option>)}
-                            </select>
-                        </div>
-                    </div>
-                    <div className="flex justify-end p-6 gap-3 border-t border-gray-200 dark:border-gray-700">
-                        <Button variant="secondary" onClick={closeTierModal}>Cancel</Button>
-                        <Button variant="primary" onClick={handleSaveTier}>Save Tier</Button>
-                    </div>
-                </Modal>
-            )}
+            <TierRuleModal
+                isOpen={isTierModalOpen}
+                onClose={closeTierModal}
+                onSave={handleSaveTier}
+                initialData={editingTier}
+                tiers={tiers}
+                customerTypes={customerTypes}
+                gifts={gifts}
+                mode={tierModalMode}
+            />
 
             {isGiftModalOpen && (
                 <Modal isOpen={isGiftModalOpen} onClose={closeGiftModal}>
@@ -2451,27 +2534,13 @@ const GenericMasterManager: React.FC<{
                                 </div>
 
                                 {['select', 'checkbox'].includes(editingItem?.fieldType) && (
-                                    <div className="space-y-2 p-3 border dark:border-gray-600 rounded-lg animate-fade-in">
+                                     <div className="space-y-2 p-3 border dark:border-gray-600 rounded-lg animate-fade-in">
                                         <h4 className="text-sm font-semibold">Define Options</h4>
-                                        {(editingItem.options || []).map((option: string, index: number) => (
-                                            <div key={index} className="flex items-center gap-2">
-                                                <Input
-                                                    label=""
-                                                    placeholder={`Option ${index + 1}`}
-                                                    value={option}
-                                                    onChange={e => handleOptionChange(index, e.target.value)}
-                                                />
-                                                <Button type="button" variant="danger" size="small" className="!p-2" onClick={() => removeOption(index)}>
-                                                    <Trash2 size={14} />
-                                                </Button>
-                                            </div>
-                                        ))}
-                                        <Button type="button" variant="light" size="small" onClick={addOption}>
-                                            <Plus size={14} /> Add Option
-                                        </Button>
+                                        {(editingItem.options || []).map((option: string, index: number) => (<div key={index} className="flex items-center gap-2"><Input label="" placeholder={`Option ${index + 1}`} value={option} onChange={e => handleOptionChange(index, e.target.value)} /><Button type="button" variant="danger" size="small" className="!p-2" onClick={() => removeOption(index)}><Trash2 size={14} /></Button></div>))}
+                                        <Button type="button" variant="light" size="small" onClick={addOption}><Plus size={14} /> Add Option</Button>
                                     </div>
                                 )}
-
+                                
                                 {editingItem?.fieldType === 'table' && (
                                     <div className="space-y-4 p-3 border dark:border-gray-600 rounded-lg animate-fade-in">
                                         <div className="space-y-2">
@@ -4270,7 +4339,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
         };
     }, [focusArea]);
 
-    // MODIFIED: Navigation items updated to remove Designation Permissions
+    // MODIFIED: Navigation items updated to add new sections
     const navItems = [
         { id: 'companyMaster', label: 'Company Master', icon: <Building size={18}/> },
         { id: 'branches', label: 'Branch', icon: <GitBranch size={18}/> },
@@ -4287,6 +4356,8 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
         { id: 'bankMasters', label: 'Bank Master', icon: <Building size={18} /> },
         { id: 'taskStatuses', label: 'Task Status', icon: <CheckSquare size={18}/> },
         { id: 'customerSegments', label: 'Customer Segment', icon: <Users size={18}/> },
+        { id: 'genders', label: 'Gender', icon: <Users size={18}/> }, // NEW
+        { id: 'maritalStatuses', label: 'Marital Status', icon: <Users size={18}/> }, // NEW
         { id: 'taskMasters', label: 'Task Type', icon: <CheckSquare size={18}/> },
         { id: 'tierManagement', label: 'Type & Gift Management', icon: <Award size={18}/> },
         { id: 'expenseCategories', label: 'Expense Categories', icon: <IndianRupee size={18}/> },
@@ -4302,15 +4373,12 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
         switch(activeTab) {
             case 'companyMaster': return <CompanyMasterManager {...props} />;
             case 'branches': return <BranchesManager {...props} />;
-            // REMOVED: designationPermissions case is now gone
             case 'designation': return <DesignationManager items={props.designations} onUpdate={props.onUpdateDesignations} addToast={props.addToast} users={props.users} />;
             case 'policyConfiguration': return <PolicyConfigurationManager {...props} />;
             case 'businessVerticals': return <GenericMasterManager key="businessVerticals" title="Manage Business Vertical" items={props.businessVerticals} onUpdate={props.onUpdateBusinessVerticals} addToast={props.addToast} noun="Business Vertical" reorderable={true} codeColumnDisplay="hidden" dependencyCheck={(id) => props.insuranceTypes.filter(it => it.verticalId === id).map(it => ({ name: it.name, type: 'field' }))} />;
             case 'leadSources': return <LeadSourceManager items={props.leadSources} onUpdate={props.onUpdateLeadSources} addToast={props.addToast} />;
             case 'schemesAndMappings': return <SchemesAndMappingsManager {...props} />;
             
-            // ... (rest of the cases remain the same) ...
-
             case 'mutualFunds':
                 const mfCategories: { value: string; label: string }[] = ['Equity', 'Debt', 'Hybrid', 'Solution Oriented', 'Other'].map(c => ({ value: c, label: c }));
                 return (
@@ -4393,6 +4461,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                 addToast={props.addToast}
                 calculationMethod={props.customerTierCalculationMethod}
                 onUpdateCalculationMethod={props.onUpdateCustomerTierCalculationMethod}
+                customerTypes={props.customerTypes} // MODIFIED: Pass customerTypes
                 />;
             case 'taskStatuses': return <GenericMasterManager key="taskStatuses" title="Manage Task Status" items={props.taskStatuses} onUpdate={props.onUpdateTaskStatuses} addToast={props.addToast} noun="Task Status" reorderable={true} codeColumnDisplay="hidden" dependencyCheck={(id) => props.allMembers.flatMap(m => m.policies.flatMap(p => (p as any).tasks || [])).filter((t: any) => t.statusId === id).map((t: any) => ({ name: t.taskDescription, type: 'task' }))} />;
             case 'routes':
@@ -4423,7 +4492,8 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                 onUpdateLevel2={props.onUpdateIncomeCategoriesLevel2}
                 addToast={props.addToast}
                 />;
-
+            
+            // --- MODIFICATION START: Added new cases and refactored customerSegments ---
             case 'customerSegments': return (
                 <div className="space-y-8">
                     <GenericMasterManager 
@@ -4462,8 +4532,41 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                         reorderable={true}
                         codeColumnDisplay="hidden"
                     />
+                    <GenericMasterManager 
+                        title="Manage Customer Type"
+                        items={props.customerTypes}
+                        onUpdate={props.onUpdateCustomerTypes}
+                        addToast={props.addToast}
+                        noun="Customer Type"
+                        reorderable={true}
+                        codeColumnDisplay="hidden"
+                        dependencyCheck={(id) => props.customerTiers.filter(t => t.customerTypeId === id).map(t => ({ name: t.name || 'Unnamed Tier', type: 'policy' }))}
+                    />
                 </div>
             );
+            case 'genders': return <GenericMasterManager 
+                key="genders" 
+                title="Manage Genders" 
+                items={props.genders} 
+                onUpdate={props.onUpdateGenders} 
+                addToast={props.addToast} 
+                noun="Gender" 
+                reorderable={true} 
+                codeColumnDisplay="hidden"
+                dependencyCheck={(id) => props.allMembers.filter(m => m.gender === id).map(m => ({ name: m.name, type: 'member' }))}
+            />;
+            case 'maritalStatuses': return <GenericMasterManager 
+                key="maritalStatuses" 
+                title="Manage Marital Statuses" 
+                items={props.maritalStatuses} 
+                onUpdate={props.onUpdateMaritalStatuses} 
+                addToast={props.addToast} 
+                noun="Marital Status" 
+                reorderable={true} 
+                codeColumnDisplay="hidden"
+                dependencyCheck={(id) => props.allMembers.filter(m => m.maritalStatus === id).map(m => ({ name: m.name, type: 'member' }))}
+            />;
+            // --- MODIFICATION END ---
              case 'customerMaster': return (
                 <GenericMasterManager
                     key="customerMaster"
