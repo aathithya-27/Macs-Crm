@@ -679,8 +679,6 @@ const AddressForm: React.FC<{
         />
         <Input label={`Pin Code ${isPermanent ? '*' : ''}`} value={formData.pinCode || ''} onChange={(e) => handleChange('pinCode', e.target.value)} />
         <Input label="Phone 1" value={formData.phone1 || ''} onChange={(e) => handleChange('phone1', e.target.value)} />
-        <Input label="Phone 2" value={formData.phone2 || ''} onChange={(e) => handleChange('phone2', e.target.value)} />
-        <Input label="FAX No" value={formData.faxNo || ''} onChange={(e) => handleChange('faxNo', e.target.value)} />
     </div>
   );
 });
