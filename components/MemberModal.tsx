@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-// MODIFIED: Import permission-related types
+// MODIFIED: Import ProcessStageMaster
 import { 
     Member, ModalTab, User, Route, ProcessStage, ProcessLog, Policy, BankDetails, SchemeMaster, 
     Company, DocumentMaster, SchemeDocumentMapping, RelationshipType, LeadSourceMaster, Geography, 
@@ -8,7 +8,7 @@ import {
     BusinessVertical, CoveredMember, FinRootsBranch, Religion, CustomerFieldMaster, AMC, 
     MutualFundScheme, MutualFundHolding, MutualFundTransaction, MutualFundFieldMaster, Designation,
     AppModule, PermissionLevel,
-    Gender, MaritalStatus // MODIFIED: Imported new types
+    Gender, MaritalStatus, ProcessStageMaster // MODIFIED: Imported new type
 } from '../types.ts';
 import Modal from './ui/Modal.tsx';
 import Button from './ui/Button.tsx';
@@ -27,10 +27,18 @@ const FamilyTreeTab: React.FC<{
     member: Member;
     allMembers: Member[];
     onRelieveMember: (memberId: string) => void;
+    onCreateDependent: (dependentData: Partial<Member>) => void; 
+    onSetSpoc: () => void;
     currentUser: User | null;
     designations: Designation[];
-}> = ({ member, allMembers, onRelieveMember, currentUser, designations }) => {
+    genders: Gender[]; 
+    maritalStatuses: MaritalStatus[];
+    relationshipTypes: RelationshipType[]; // NEW PROP
+}> = ({ member, allMembers, onRelieveMember, onCreateDependent, onSetSpoc, currentUser, designations, genders, maritalStatuses, relationshipTypes }) => {
 
+    const [isAdding, setIsAdding] = useState(false);
+    const [newDependent, setNewDependent] = useState<Partial<Member>>({});
+    
     const isAdmin = useMemo(() => designations.find(d => d.id === currentUser?.designationId)?.name === 'Admin', [currentUser, designations]);
 
     const titleSpoc = useMemo(() => {
@@ -57,7 +65,9 @@ const FamilyTreeTab: React.FC<{
     }, [member, allMembers]);
 
     const buildTree = useCallback((spocToBuildFrom: Member): FamilyMemberNode => {
-        const dependentMembers = allMembers.filter(m => m.spocId === spocToBuildFrom.sno && m.id !== spocToBuildFrom.id);
+        const dependentMembers = (spocToBuildFrom.sno)
+            ? allMembers.filter(m => m.spocId === spocToBuildFrom.sno && m.id !== spocToBuildFrom.id)
+            : [];
 
         const policyDependents = (spocToBuildFrom.policies || [])
             .filter(p => p.policyHolderType === 'Family')
@@ -95,17 +105,53 @@ const FamilyTreeTab: React.FC<{
         return treeRootSpoc ? buildTree(treeRootSpoc) : null;
     }, [treeRootSpoc, buildTree]);
 
+    const handleAddClick = () => {
+        setNewDependent({
+            name: '',
+            dob: '',
+            gender: genders.length > 0 ? genders[0].id : '',
+            maritalStatus: maritalStatuses.length > 0 ? maritalStatuses[0].id : '',
+            state: member.state,
+            district: member.district,
+            city: member.city,
+            address: member.address,
+        });
+        setIsAdding(true);
+    };
+    
+    const handleSaveDependent = () => {
+        const dep = newDependent as Member & { relationship?: string };
+        if (!dep.name || !dep.dob || !dep.relationship) {
+            alert("Name, Date of Birth, and Relationship are required.");
+            return;
+        }
+        onCreateDependent(newDependent);
+        setIsAdding(false);
+    };
 
     const handleRelieveClick = (memberToRelieve: Member) => {
         if (window.confirm(`Are you sure you want to relieve ${memberToRelieve.name} from the family group? They will become an independent customer.`)) {
             onRelieveMember(memberToRelieve.id);
         }
     };
+    
+    const handleCopyAddress = () => {
+        setNewDependent(p => ({
+            ...p,
+            address: member.address,
+            state: member.state,
+            district: member.district,
+            city: member.city,
+            pincode: member.pincode,
+        }));
+    };
+
 
     const TreeNode: React.FC<{ node: FamilyMemberNode; isRoot?: boolean; }> = ({ node, isRoot = false }) => {
         const memberNode = allMembers.find(m => m.id === node.id);
         const isRelieved = !!memberNode?.relievedTimestamp;
         const hasChildren = node.children && node.children.length > 0;
+        const relationship = memberNode?.dynamicData?.relationship;
 
         return (
             <li className={`relative ${hasChildren ? 'pl-8' : 'pl-1'} before:absolute before:left-3 before:top-4 before:h-full before:w-px before:bg-gray-300 dark:before:bg-gray-600 last:before:h-0`}>
@@ -117,7 +163,10 @@ const FamilyTreeTab: React.FC<{
                         <div className="flex justify-between items-center">
                             <div>
                                 <p className="font-semibold text-gray-800 dark:text-white">{node.name}</p>
-                                <p className="text-xs text-gray-500 dark:text-gray-400">{node.isSPOC ? `${node.memberId} (SPOC)` : node.memberId}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    {node.isSPOC ? `${node.memberId} (SPOC)` : node.memberId}
+                                    {relationship && ` • ${relationship}`}
+                                </p>
                                 {isRelieved && <span className="mt-1 text-xs font-bold bg-yellow-200 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300 px-2 py-0.5 rounded-full">Relieved</span>}
                             </div>
                             {memberNode && !memberNode.isSPOC && isAdmin && !isRelieved && (
@@ -141,15 +190,103 @@ const FamilyTreeTab: React.FC<{
         );
     };
 
-    if (!familyTree || !treeRootSpoc || !titleSpoc) {
-        return <div className="text-center p-8 text-gray-500 dark:text-gray-400">This member is not part of a family group. To create one, go to the 'Policies' tab, edit a policy, and change the 'Policy Holder Type' to 'Family'.</div>;
+    if (!treeRootSpoc || !titleSpoc) {
+        return (
+            <div className="text-center p-8 text-gray-500 dark:text-gray-400">
+                <Users size={48} className="mx-auto text-gray-300 dark:text-gray-600"/>
+                <p className="mt-4 text-lg font-semibold">This member is not yet part of a family group.</p>
+                <p className="mt-1 text-sm">To start adding family members, you must first designate this customer as the primary contact.</p>
+                <Button onClick={onSetSpoc} variant="primary" className="mt-4">
+                    <UserCheck size={16}/> Become SPOC and Create Family
+                </Button>
+            </div>
+        );
     }
 
     return (
         <div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-                Family Group: {titleSpoc.familyName || `${titleSpoc.name}'s Family`}
-            </h3>
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">
+                    Family Group: {titleSpoc.familyName || `${titleSpoc.name}'s Family`}
+                </h3>
+                {!isAdding && member.isSPOC && (
+                    <Button onClick={handleAddClick} variant="primary">
+                        <UserPlusIcon size={16}/> Add Family Member
+                    </Button>
+                )}
+            </div>
+
+            {isAdding && (
+                <div className="p-4 mb-4 border-2 border-dashed border-blue-400 dark:border-blue-600 rounded-lg bg-blue-50 dark:bg-gray-700/50 space-y-4 animate-fade-in">
+                    <h4 className="font-semibold text-lg text-brand-dark dark:text-white">New Family Member</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <Input label="Name *" value={newDependent.name || ''} onChange={e => setNewDependent(p => ({...p, name: e.target.value}))} />
+                        <Input label="Date of Birth *" type="date" value={newDependent.dob || ''} onChange={e => setNewDependent(p => ({...p, dob: e.target.value}))} />
+                        <Input label="Email" type="email" value={newDependent.email || ''} onChange={e => setNewDependent(p => ({...p, email: e.target.value}))} />
+                        <Input label="Mobile" type="tel" value={newDependent.mobile || ''} onChange={e => setNewDependent(p => ({...p, mobile: e.target.value}))} />
+                         <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Relationship *</label>
+                            <select
+                                value={(newDependent as any).relationship || ''}
+                                onChange={e => setNewDependent(p => ({...p, relationship: e.target.value}))}
+                                className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            >
+                                <option value="">Select...</option>
+                                {relationshipTypes.filter(rt => rt.active).map(rt => (
+                                    <option key={rt.id} value={rt.name}>{rt.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                         <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Gender *</label>
+                            <select
+                                value={newDependent.gender || ''}
+                                onChange={(e) => setNewDependent(p => ({...p, gender: e.target.value}))}
+                                className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                            >
+                                <option value="">-- Select Gender --</option>
+                                {genders.filter(g => g.active).map(g => (
+                                    <option key={g.id} value={g.id}>{g.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                     <div className="mt-4 space-y-2">
+                        <div className="flex justify-between items-center">
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Address</label>
+                            <Button size="small" variant="light" type="button" onClick={handleCopyAddress}>
+                                Copy Primary Customer's Address
+                            </Button>
+                        </div>
+                        <Input 
+                            label="" 
+                            placeholder="Address Line 1" 
+                            value={(newDependent.address || '').split('\n')[0]} 
+                            onChange={e => {
+                                const lines = (newDependent.address || '').split('\n');
+                                lines[0] = e.target.value;
+                                setNewDependent(p => ({...p, address: lines.join('\n')}));
+                            }} 
+                        />
+                        <Input 
+                            label="" 
+                            placeholder="Address Line 2" 
+                            value={(newDependent.address || '\n').split('\n')[1] || ''} 
+                            onChange={e => {
+                                const lines = (newDependent.address || '\n').split('\n');
+                                if (lines.length === 1) lines.push('');
+                                lines[1] = e.target.value;
+                                setNewDependent(p => ({...p, address: lines.join('\n')}));
+                            }} 
+                        />
+                    </div>
+                     <div className="flex justify-end gap-2 mt-4">
+                        <Button variant="secondary" onClick={() => setIsAdding(false)}>Cancel</Button>
+                        <Button variant="success" onClick={handleSaveDependent}><Save size={14}/> Save Member</Button>
+                    </div>
+                </div>
+            )}
+            
             <ul className="space-y-4">
                 <TreeNode node={familyTree} isRoot />
             </ul>
@@ -411,6 +548,7 @@ interface MemberModalProps {
   member: Member | null;
   initialTab: ModalTab | null;
   onSave: (member: Member, closeModal?: boolean) => void;
+  onCreateDependentMember: (spoc: Member, dependentData: Partial<Member>) => Promise<Member | null>;
   addToast: (message: string, type?: 'success' | 'error') => void;
   onCreateTask: (task: Omit<Task, 'id'>) => void;
   onRelieveMember: (memberId: string) => void; 
@@ -418,7 +556,8 @@ interface MemberModalProps {
   users: User[];
   routes: Route[];
   onUpdateRoutes: (data: Route[]) => void;
-  processFlow: ProcessStage[];
+  // MODIFIED: Prop type changed to ProcessStageMaster[]
+  processFlow: ProcessStageMaster[];
   onGenerateProposal: (member: Member, policy: Policy) => void;
   onFindUpsell: (member: Member) => Promise<string | null>;
   allMembers: Member[];
@@ -452,14 +591,13 @@ interface MemberModalProps {
   mutualFundSchemes: MutualFundScheme[];
   mutualFundFields: MutualFundFieldMaster[];
   designations: Designation[];
-  // NEW: Accept permissions prop
   permissions: { [key in AppModule]?: PermissionLevel };
-  genders: Gender[]; // MODIFIED: Added genders prop
-  maritalStatuses: MaritalStatus[]; // MODIFIED: Added maritalStatuses prop
+  genders: Gender[];
+  maritalStatuses: MaritalStatus[];
 }
 
 export const MemberModal: React.FC<MemberModalProps> = ({
-    isOpen, onClose, member, initialTab, onSave, addToast, onCreateTask, onRelieveMember, 
+    isOpen, onClose, member, initialTab, onSave, onCreateDependentMember, addToast, onCreateTask, onRelieveMember, 
     currentUser, users, routes, onUpdateRoutes, processFlow, onGenerateProposal, onFindUpsell, 
     allMembers, schemes, companies, documentMasters, schemeDocumentMappings, relationshipTypes, 
     leadSources, geographies, onUpdateGeographies, bankMasters, customerCategories, 
@@ -468,23 +606,24 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     onUpdateInsuranceFields, customerFieldMasters, onUpdateCustomerFieldMasters, 
     onCreateReferrer, finrootsBranches, religions, onAddDocumentMaster, amcs, 
     mutualFundSchemes, mutualFundFields, designations, permissions,
-    genders, maritalStatuses // MODIFIED
+    genders, maritalStatuses
 }) => {
   const [activeTab, setActiveTab] = useState<ModalTab | string>(ModalTab.BasicInfo);
   const [formData, setFormData] = useState<Partial<Member>>({});
   const [errors, setErrors] = useState<Partial<Record<keyof Member | 'bankDetailsError' | 'email' | 'address', string>>>({});
   const [editingPolicyId, setEditingPolicyId] = useState<string | null>(null);
 
+  // --- MODIFICATION START: State management for multiple process flows ---
+  const [selectedProcessFlowKey, setSelectedProcessFlowKey] = useState<string | null>(null);
   const [jumpState, setJumpState] = useState<{isOpen: boolean; targetStage: ProcessStage | null; skippedStages: ProcessStage[]}>({ isOpen: false, targetStage: null, skippedStages: [] });
   const [jumpRemarks, setJumpRemarks] = useState('');
+  // --- MODIFICATION END ---
 
   const prevMemberIdRef = useRef<string | null>(null);
   const [isNewReferrerModalOpen, setIsNewReferrerModalOpen] = useState(false);
   
-  // NEW: Permission checks for the customer module
   const canCreate = permissions?.customers === 'create' || permissions?.customers === 'modify';
   const canModify = permissions?.customers === 'modify';
-  // If we are editing an existing member but don't have modify rights, the modal is read-only.
   const isReadOnly = !!member && !canModify;
 
   const userMap = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users]);
@@ -504,7 +643,8 @@ export const MemberModal: React.FC<MemberModalProps> = ({
       memberType: 'Silver', active: true, panCard: '', aadhaar: '', policies: [], voiceNotes: [], documents: [],
       documentChecklist: {}, lat: 0, lng: 0,
       assignedTo: isCurrentUserAdvisor ? [currentUser!.id] : [],
-      routeId: null, processStage: processFlow[0] || 'Initial Contact', processHistory: [],
+      routeId: null, 
+      processStages: {}, processHistories: {}, stageLastChangedMap: {}, // New structure
       financialProfile: {}, bankDetails: {}, otherSpecialOccasions: [], isSPOC: false,
       spocId: null, familyName: null, leadSource: { sourceId: null, detail: '' },
       dynamicData: {}, mutualFundHoldings: [],
@@ -528,7 +668,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
       } else {
           prevMemberIdRef.current = null;
       }
-  }, [member, isOpen, initialTab, currentUser, processFlow, designations]);
+  }, [member, isOpen, initialTab, currentUser, designations]);
 
   useEffect(() => {
     return () => {
@@ -621,55 +761,149 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     setFormData(prev => ({...prev, ...memberData}));
   }, [onSave]);
 
+  // --- MODIFICATION START: Logic for multiple process flows ---
+  const insuranceTypeMap = useMemo(() => new Map(insuranceTypes.map(it => [it.id, it])), [insuranceTypes]);
+
+  const getParentInsuranceType = useCallback((typeId: string): InsuranceTypeMaster | null => {
+      let current = insuranceTypeMap.get(typeId);
+      if (!current) return null;
+      while(current.parentId) {
+          const parent = insuranceTypeMap.get(current.parentId);
+          if (!parent) break;
+          current = parent;
+      }
+      return current;
+  }, [insuranceTypeMap]);
+
+  // --- MODIFICATION: Reworked workflow generation to be policy-specific ---
+  const applicableWorkflows = useMemo(() => {
+      const workflows: { key: string; name: string }[] = [];
+      (formData.policies || []).forEach(policy => {
+          if (policy.insuranceTypeId) {
+              const parentType = getParentInsuranceType(policy.insuranceTypeId);
+              if (parentType) {
+                  // Use the unique policy ID as the key
+                  workflows.push({
+                      key: policy.id,
+                      name: `${parentType.name} - (${policy.schemeName || 'Unspecified'})`
+                  });
+              }
+          }
+      });
+      if (formData.mutualFundHoldings && formData.mutualFundHoldings.length > 0) {
+          workflows.push({ key: 'mutual-fund', name: 'Mutual Funds' });
+      }
+      return workflows;
+  }, [formData, getParentInsuranceType]);
+
+  useEffect(() => {
+      // If the previously selected key (policy) is removed, reset the selection
+      if (applicableWorkflows.length > 0) {
+          if (!selectedProcessFlowKey || !applicableWorkflows.some(w => w.key === selectedProcessFlowKey)) {
+              setSelectedProcessFlowKey(applicableWorkflows[0].key);
+          }
+      } else {
+          setSelectedProcessFlowKey(null);
+      }
+  }, [applicableWorkflows, selectedProcessFlowKey]);
+
+  const currentProcessStages = useMemo(() => {
+      if (!selectedProcessFlowKey) return [];
+
+      const isMF = selectedProcessFlowKey === 'mutual-fund';
+      if (isMF) {
+          return processFlow
+              .filter(p => p.isMutualFund)
+              .sort((a, b) => a.order - b.order);
+      }
+
+      // Find the policy corresponding to the selected key
+      const selectedPolicy = formData.policies?.find(p => p.id === selectedProcessFlowKey);
+      if (!selectedPolicy || !selectedPolicy.insuranceTypeId) return [];
+
+      const parentType = getParentInsuranceType(selectedPolicy.insuranceTypeId);
+
+      return processFlow
+          .filter(p => p.insuranceTypeId === parentType?.id)
+          .sort((a, b) => a.order - b.order);
+  }, [processFlow, selectedProcessFlowKey, formData.policies, getParentInsuranceType]);
+
+  const currentStageForTracker = useMemo(() => {
+      if (!selectedProcessFlowKey || !formData.processStages) return currentProcessStages[0]?.name;
+      return formData.processStages[selectedProcessFlowKey] || currentProcessStages[0]?.name;
+  }, [formData.processStages, selectedProcessFlowKey, currentProcessStages]);
+
   const handleStageClick = useCallback((stage: ProcessStage) => {
-    const currentIndex = processFlow.indexOf(formData.processStage || processFlow[0]);
-    const clickedIndex = processFlow.indexOf(stage);
+      if (!selectedProcessFlowKey) return;
+      
+      const stageNames = currentProcessStages.map(s => s.name);
+      const currentIndex = stageNames.indexOf(currentStageForTracker || stageNames[0]);
+      const clickedIndex = stageNames.indexOf(stage);
 
-    if (clickedIndex <= currentIndex) return;
+      if (clickedIndex <= currentIndex) return;
 
-    if (clickedIndex > currentIndex + 1) {
-      const skipped = processFlow.slice(currentIndex + 1, clickedIndex);
-      setJumpState({ isOpen: true, targetStage: stage, skippedStages: skipped });
-    } else {
-      const updatedHistory: ProcessLog[] = [
-          ...(formData.processHistory || []),
-          { stage: formData.processStage!, timestamp: new Date().toISOString(), skipped: false }
-      ];
-      const updatedData = { ...formData, processStage: stage, processHistory: updatedHistory, stageLastChanged: new Date().toISOString() };
-      setFormData(updatedData);
-      onSave(updatedData as Member, false);
-      addToast(`Stage updated to "${stage}"`, 'success');
-    }
-  }, [formData, processFlow, onSave, addToast]);
+      const performUpdate = (targetStage: string, history: ProcessLog[]) => {
+          const updatedData = {
+              ...formData,
+              processStages: { ...formData.processStages, [selectedProcessFlowKey]: targetStage },
+              processHistories: { ...formData.processHistories, [selectedProcessFlowKey]: history },
+              stageLastChangedMap: { ...formData.stageLastChangedMap, [selectedProcessFlowKey]: new Date().toISOString() }
+          };
+          setFormData(updatedData);
+          onSave(updatedData as Member, false);
+          addToast(`Stage updated to "${targetStage}"`, 'success');
+      };
+
+      const currentHistory = formData.processHistories?.[selectedProcessFlowKey] || [];
+
+      if (clickedIndex > currentIndex + 1) {
+          const skipped = stageNames.slice(currentIndex + 1, clickedIndex);
+          setJumpState({ isOpen: true, targetStage: stage, skippedStages: skipped });
+      } else {
+          const updatedHistory: ProcessLog[] = [
+              ...currentHistory,
+              { stage: currentStageForTracker!, timestamp: new Date().toISOString(), skipped: false }
+          ];
+          performUpdate(stage, updatedHistory);
+      }
+  }, [formData, onSave, addToast, currentProcessStages, currentStageForTracker, selectedProcessFlowKey]);
 
   const handleSaveJumpRemarks = () => {
-    if (!jumpState.targetStage || !jumpRemarks.trim()) {
-      addToast('Remarks are mandatory for skipped stages.', 'error');
-      return;
-    }
-    const timestamp = new Date().toISOString();
-    const newHistory: ProcessLog[] = [...(formData.processHistory || [])];
+      if (!jumpState.targetStage || !jumpRemarks.trim() || !selectedProcessFlowKey) {
+          addToast('Remarks are mandatory for skipped stages.', 'error');
+          return;
+      }
+      const timestamp = new Date().toISOString();
+      const newHistory: ProcessLog[] = [...(formData.processHistories?.[selectedProcessFlowKey] || [])];
 
-    newHistory.push({ stage: formData.processStage!, timestamp, skipped: false });
+      newHistory.push({ stage: currentStageForTracker!, timestamp, skipped: false });
 
-    jumpState.skippedStages.forEach(skipped => {
-        newHistory.push({ stage: skipped, timestamp, remarks: jumpRemarks, skipped: true });
-    });
+      jumpState.skippedStages.forEach(skipped => {
+          newHistory.push({ stage: skipped, timestamp, remarks: jumpRemarks, skipped: true });
+      });
 
-    const updatedData = {
-        ...formData,
-        processStage: jumpState.targetStage,
-        processHistory: newHistory,
-        stageLastChanged: timestamp,
+      const updatedData = {
+          ...formData,
+          processStages: { ...formData.processStages, [selectedProcessFlowKey]: jumpState.targetStage },
+          processHistories: { ...formData.processHistories, [selectedProcessFlowKey]: newHistory },
+          stageLastChangedMap: { ...formData.stageLastChangedMap, [selectedProcessFlowKey]: timestamp }
+      };
+
+      setFormData(updatedData);
+      onSave(updatedData as Member, false);
+      addToast(`Jumped to stage "${jumpState.targetStage}" with remarks.`, 'success');
+
+      setJumpState({ isOpen: false, targetStage: null, skippedStages: [] });
+      setJumpRemarks('');
+  };
+  
+    const handleCreateDependent = async (dependentData: Partial<Member>) => {
+        const newMember = await onCreateDependentMember(formData as Member, dependentData);
+        if (newMember) {
+            addToast(`${newMember.name} has been added to the family.`, 'success');
+        }
     };
 
-    setFormData(updatedData);
-    onSave(updatedData as Member, false);
-    addToast(`Jumped to stage "${jumpState.targetStage}" with remarks.`, 'success');
-
-    setJumpState({ isOpen: false, targetStage: null, skippedStages: [] });
-    setJumpRemarks('');
-  };
 
   const handleLinkNewMember = useCallback((newMemberData: Partial<Member>) => {
       addToast(`Creating and linking ${newMemberData.name}... (simulation)`, 'success');
@@ -812,7 +1046,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                         setEditingPolicyId={setEditingPolicyId} 
                         designations={designations}
                         permissions={permissions}
-                        genders={genders} // FIX: Pass genders prop
+                        genders={genders}
                     />}
                 {activeTab === ModalTab.Investments &&
                     <InvestmentsTab
@@ -826,12 +1060,37 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     />
                 }
                 {activeTab === ModalTab.ProcessFlow && (
-                    <ProcessFlowTracker
-                        currentStage={formData.processStage || processFlow[0]}
-                        processSteps={processFlow}
-                        onStageClick={handleStageClick}
-                        canModify={canModify}
-                    />
+                    <div>
+                        {applicableWorkflows.length > 0 ? (
+                            <>
+                                {applicableWorkflows.length > 1 && (
+                                    <div className="mb-4 max-w-sm">
+                                        <label htmlFor="workflow-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Workflow</label>
+                                        <select
+                                            id="workflow-select"
+                                            value={selectedProcessFlowKey || ''}
+                                            onChange={(e) => setSelectedProcessFlowKey(e.target.value)}
+                                            className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        >
+                                            {applicableWorkflows.map(wf => (
+                                                <option key={wf.key} value={wf.key}>{wf.name}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+                                <ProcessFlowTracker
+                                    currentStage={currentStageForTracker}
+                                    processSteps={currentProcessStages.map(s => s.name)}
+                                    onStageClick={handleStageClick}
+                                    canModify={canModify}
+                                />
+                            </>
+                        ) : (
+                            <div className="text-center p-8 text-gray-500 dark:text-gray-400">
+                                No policies or investments have been added for this customer yet. Add a product in the 'Policies' or 'Investments' tab to see its process flow.
+                            </div>
+                        )}
+                    </div>
                 )}
                 {activeTab === ModalTab.NeedsAnalysis && 
                     <NeedsAnalysisTab 
@@ -856,8 +1115,13 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                         member={formData as Member} 
                         allMembers={allMembers} 
                         onRelieveMember={onRelieveMember} 
+                        onCreateDependent={handleCreateDependent}
+                        onSetSpoc={() => handleChange('isSPOC', true)}
                         currentUser={currentUser} 
                         designations={designations}
+                        genders={genders}
+                        maritalStatuses={maritalStatuses}
+                        relationshipTypes={relationshipTypes}
                     />}
                 {activeTab === ModalTab.Tasks && 
                     <TasksTab 
@@ -888,7 +1152,6 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                 >
                     Cancel
                 </Button>
-                {/* MODIFIED: Save/Create buttons are now permission-gated */}
                 {member?.id ? (
                     <>
                         <Button 

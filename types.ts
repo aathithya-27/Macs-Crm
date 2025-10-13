@@ -447,9 +447,17 @@ export interface Member {
   assignedTo: string[];
   leadSource?: LeadSource;
   routeId?: string | null;
+  // --- MODIFICATION START ---
+  /** @deprecated Use `processStages` instead. A member can have multiple process flows. */
   processStage: ProcessStage;
+  processStages?: Record<string, ProcessStage>; // Key is policy.id or 'mutual-fund'
+  /** @deprecated Use `stageLastChangedMap` instead. */
   stageLastChanged?: string;
+  stageLastChangedMap?: Record<string, string>; // Key is policy.id or 'mutual-fund'
+  /** @deprecated Use `processHistories` instead. */
   processHistory?: ProcessLog[];
+  processHistories?: Record<string, ProcessLog[]>; // Key is policy.id or 'mutual-fund'
+  // --- MODIFICATION END ---
   financialProfile?: FinancialProfile;
   bankDetails?: BankDetails;
   createdBy?: string;
@@ -501,7 +509,21 @@ export interface LeadSource {
     detail?: string;
 }
 
+// --- MODIFICATION START ---
+// This is now the universal type for a stage name string.
 export type ProcessStage = string;
+
+// This new interface will be used in Master Data to define the stages themselves.
+export interface ProcessStageMaster {
+  id: string;
+  name: string;
+  order: number;
+  active: boolean;
+  insuranceTypeId?: string | null; // Links to a main insurance type
+  isMutualFund?: boolean; // Flag for the single MF workflow
+}
+// --- MODIFICATION END ---
+
 
 export interface ProcessLog {
     stage: ProcessStage;
@@ -977,6 +999,7 @@ export interface TaskStatusMaster { id: string; name: string; active?: boolean; 
 export interface GiftMaster { id: string; name: string; active?: boolean; order?: number; }
 export interface RelationshipType { id: string; name: string; active?: boolean; }
 export interface DocumentMaster { id: string; name: string; active?: boolean; order?: number; }
+export interface RelationshipType {id: string; name: string; active?: boolean;  order?: number;}
 export interface SchemeDocumentMapping { schemeId: string; documentId: string; }
 export interface CustomerCategory { id: string; name: string; active?: boolean; order?: number; }
 export interface CustomerSubCategory { id: string; name: string; parentId: string; active?: boolean; order?: number; }

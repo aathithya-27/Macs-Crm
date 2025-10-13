@@ -1,16 +1,16 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 // CORRECTED: Fixed import path and added permission types
 import { Member, Policy, PolicyType, GeneralInsuranceType, LICData, LICFamilyMember, LICPreviousPolicy, CoveredMember, Traveler, User, SchemeMaster, Company, InsuranceTypeMaster, InsuranceFieldMaster, HealthInsuranceData, Designation, AppModule, PermissionLevel, Gender } from '../../types.ts';
-import Input from '../ui/Input';
+import Input from '../ui/Input.tsx';
 // CORRECTED: Fixed import path
-import Button from '../ui/Button';
+import Button from '../ui/Button.tsx';
 import { getPolicySuggestions, analyzePaymentProof } from '../../services/geminiService.ts';
 import { calculatePremium } from '../../services/apiService.ts';
 import { X, Loader2, UploadCloud, CheckCircle, AlertTriangle, XCircle, Trash2, Eye, Check, PlusCircle, User as UserIcon, Users, FileSignature, Lightbulb, Percent, Plus, ArrowLeft, Save, Edit2, Info, ChevronDown } from 'lucide-react';
-import ToggleSwitch from '../ui/ToggleSwitch';
-import { bloodGroups } from '../../constants';
-import Modal from '../ui/Modal'; 
-import SearchableSelect from '../ui/SearchableSelect'; 
+import ToggleSwitch from '../ui/ToggleSwitch.tsx';
+import { bloodGroups } from '../../constants.ts';
+import Modal from '../ui/Modal.tsx'; 
+import SearchableSelect from '../ui/SearchableSelect.tsx'; 
 
 
 const getPremiumForFrequency = (annualPremium: number, frequency: Policy['premiumFrequency']) => {
@@ -216,220 +216,13 @@ const EditableTable: React.FC<{
     );
 };
 
-// --- REFACTORED Covered Members Manager (Card-based) ---
-const EditableCoveredMemberCard: React.FC<{
+const PolicyCoveredMemberCard: React.FC<{
     member: CoveredMember;
     onUpdate: (updatedMember: CoveredMember) => void;
     onRemove: () => void;
     isReadOnly: boolean;
-    spocAddress?: string;
-    genders: Gender[]; // MODIFIED: Added genders prop
-}> = ({ member, onUpdate, onRemove, isReadOnly, spocAddress, genders }) => {
-    const isNewMember = !member.name.trim() && !member.dob.trim();
-    const [isEditing, setIsEditing] = useState(isNewMember);
-    const [localMember, setLocalMember] = useState(member);
-    const age = useMemo(() => calculateAge(localMember.dob), [localMember.dob]);
-    const isAgeManual = !localMember.dob;
-
-    useEffect(() => {
-        setLocalMember(member);
-        if (!isNewMember && isEditing) {
-            setIsEditing(false);
-        }
-    }, [member, isNewMember]);
-
-    const handleChange = (field: keyof CoveredMember, value: any) => {
-        setLocalMember(prev => ({ ...prev, [field]: value }));
-    };
-
-    const handleAgeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newAge = e.target.value;
-        if (/^\d*$/.test(newAge)) {
-            if (newAge) {
-                const ageNum = parseInt(newAge, 10);
-                const currentYear = new Date().getFullYear();
-                const birthYear = currentYear - ageNum;
-                handleChange('dob', `${birthYear}-01-01`);
-            } else {
-                handleChange('dob', '');
-            }
-        }
-    };
-
-
-    const handleSave = () => {
-        if (isNewMember && (!localMember.name.trim() || !localMember.dob.trim())) {
-            alert('Name and Date of Birth are required for a new member.');
-            return;
-        }
-        onUpdate(localMember);
-        setIsEditing(false);
-    };
-
-    const [addressLine1, addressLine2 = ''] = useMemo(() => (localMember.address || '').split('\n'), [localMember.address]);
-
-    const handleAddressChange = useCallback((line: 1 | 2, value: string) => {
-        let lines = (localMember.address || '').split('\n');
-        if (lines.length < 2) {
-            lines = [lines[0] || '', ''];
-        }
-        if (line === 1) {
-            lines[0] = value;
-        } else {
-            lines[1] = value;
-        }
-        handleChange('address', lines.join('\n'));
-    }, [localMember.address]);
-
-    const handleCopyAddress = () => {
-        if (spocAddress) {
-            handleChange('address', spocAddress);
-        }
-    };
-
-
-    const handleCancel = () => {
-        if (isNewMember) {
-            onRemove();
-        } else {
-            setLocalMember(member);
-            setIsEditing(false);
-        }
-    };
-
-    const selectClasses = 'w-full px-2 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded border border-gray-300 dark:border-gray-600 focus:ring-brand-primary focus:border-brand-primary';
-
-    if (isEditing) {
-        return (
-            <div className="p-4 rounded-lg shadow-sm border-2 border-brand-primary bg-white dark:bg-gray-800 animate-fade-in space-y-4">
-                <div className="flex justify-between items-center">
-                    <h4 className="font-semibold text-gray-800 dark:text-white">{isNewMember ? 'Adding New Member' : 'Editing Member Details'}</h4>
-                    <div className="flex gap-2">
-                        <Button 
-                            variant="secondary" 
-                            size="small" 
-                            onClick={handleCancel}
-                        >
-                            Cancel
-                        </Button>
-                        <Button 
-                            variant="success" 
-                            size="small" 
-                            onClick={handleSave}
-                        >
-                            <Save size={14}/> Save
-                        </Button>
-                    </div>
-                </div>
-
-                {!isNewMember && (
-                    <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md text-blue-800 dark:text-blue-200 text-xs flex items-start gap-2">
-                        <Info size={16} className="flex-shrink-0 mt-0.5" />
-                        <span>
-                            To edit core details like Name or DOB, please go to this member's own profile.
-                            Changes made there will automatically update here. You can only edit policy-specific details below.
-                        </span>
-                    </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {isNewMember ? (
-                        <>
-                            <Input label="Name *" value={localMember.name} onChange={e => handleChange('name', e.target.value)} />
-                            <div className="grid grid-cols-2 gap-2">
-                                <Input label="Date of Birth *" type="date" value={localMember.dob} onChange={e => handleChange('dob', e.target.value)} />
-                                <Input
-                                    label="Age"
-                                    type="text"
-                                    value={age !== null ? String(age) : ''}
-                                    onChange={handleAgeChange}
-                                    placeholder={isAgeManual ? "Enter age" : ""}
-                                />
-                            </div>
-                            <Input label="Email" type="email" value={localMember.email || ''} onChange={e => handleChange('email', e.target.value)} />
-                            <Input label="Mobile" type="tel" value={localMember.mobile || ''} onChange={e => handleChange('mobile', e.target.value)} />
-                        </>
-                    ) : (
-                        <>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Name</label>
-                                <p className="font-semibold text-gray-900 dark:text-white p-2 bg-gray-100 dark:bg-gray-700/50 rounded-md min-h-[40px] flex items-center">{localMember.name}</p>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Date of Birth</label>
-                                    <p className="font-semibold text-gray-900 dark:text-white p-2 bg-gray-100 dark:bg-gray-700/50 rounded-md min-h-[40px] flex items-center">{localMember.dob}</p>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Age</label>
-                                    <p className="font-semibold text-gray-900 dark:text-white p-2 bg-gray-100 dark:bg-gray-700/50 rounded-md min-h-[40px] flex items-center">{age !== null ? String(age) : 'N/A'}</p>
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Email</label>
-                                <p className="font-semibold text-gray-900 dark:text-white p-2 bg-gray-100 dark:bg-gray-700/50 rounded-md min-h-[40px] flex items-center">{localMember.email || 'N/A'}</p>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Mobile</label>
-                                <p className="font-semibold text-gray-900 dark:text-white p-2 bg-gray-100 dark:bg-gray-700/50 rounded-md min-h-[40px] flex items-center">{localMember.mobile || 'N/A'}</p>
-                            </div>
-                        </>
-                    )}
-
-                    <Input label="Relationship *" value={localMember.relationship} onChange={e => handleChange('relationship', e.target.value)} />
-                    {/* --- MODIFICATION START: Replaced hardcoded gender with dynamic dropdown --- */}
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Gender</label>
-                        <select 
-                            value={localMember.gender || ''} 
-                            onChange={e => handleChange('gender', e.target.value || null)} 
-                            className={selectClasses}
-                        >
-                            <option value="">Select...</option>
-                            {genders.filter(g => g.active).map(g => (
-                                <option key={g.id} value={g.id}>{g.name}</option>
-                            ))}
-                        </select>
-                    </div>
-                    {/* --- MODIFICATION END --- */}
-                    <Input label="Height (cm)" type="number" value={localMember.height || ''} onChange={e => handleChange('height', parseFloat(e.target.value) || undefined)} />
-                    <Input label="Weight (kg)" type="number" value={localMember.weight || ''} onChange={e => handleChange('weight', parseFloat(e.target.value) || undefined)} />
-                    <Input label="Occupation" value={localMember.occupation || ''} onChange={e => handleChange('occupation', e.target.value)} />
-                    <Input label="Annual Income (₹)" type="number" value={localMember.annualIncome || ''} onChange={e => handleChange('annualIncome', parseFloat(e.target.value) || undefined)} />
-                    <div className="flex items-center gap-2 pt-6">
-                        <label className="font-medium text-gray-700 dark:text-gray-300">Is in Good Health?</label>
-                        <ToggleSwitch enabled={!!localMember.isGoodHealth} onChange={val => handleChange('isGoodHealth', val)} srLabel="Toggle good health"/>
-                    </div>
-                </div>
-                <div className="mt-4 space-y-2">
-                    <div className="flex justify-between items-center">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Address</label>
-                        <Button 
-                            size="small" 
-                            variant="light" 
-                            type="button" 
-                            onClick={handleCopyAddress}
-                        >
-                            Copy Primary Customer's Address
-                        </Button>
-                    </div>
-                    <Input 
-                        label="" 
-                        placeholder="Address Line 1" 
-                        value={addressLine1} 
-                        onChange={e => handleAddressChange(1, e.target.value)} 
-                    />
-                    <Input 
-                        label="" 
-                        placeholder="Address Line 2" 
-                        value={addressLine2} 
-                        onChange={e => handleAddressChange(2, e.target.value)} 
-                    />
-                </div>
-            </div>
-        )
-    }
-
+}> = ({ member, onUpdate, onRemove, isReadOnly }) => {
+    const age = useMemo(() => calculateAge(member.dob), [member.dob]);
 
     return (
         <div className="p-4 rounded-lg shadow-sm border bg-gray-50 dark:bg-gray-700/50 dark:border-gray-700">
@@ -446,7 +239,6 @@ const EditableCoveredMemberCard: React.FC<{
                         <Button 
                             variant="light" 
                             size="small" 
-                            onClick={() => setIsEditing(true)}
                         >
                             <Edit2 size={14}/> Edit
                         </Button>
@@ -467,62 +259,10 @@ const EditableCoveredMemberCard: React.FC<{
     );
 };
 
-const CoveredMembersManager: React.FC<{
-    coveredMembers: CoveredMember[],
-    onMembersChange: (newMembers: CoveredMember[]) => void,
-    isReadOnly: boolean,
-    spocAddress?: string;
-    genders: Gender[]; // MODIFIED: Added genders prop
-}> = ({ coveredMembers, onMembersChange, isReadOnly, spocAddress, genders }) => {
-
-    const handleAdd = () => onMembersChange([...coveredMembers, {
-        id: `mem-${Date.now()}`,
-        name: '',
-        relationship: '',
-        dob: '',
-    }]);
-
-    const handleUpdate = (index: number, updatedMember: CoveredMember) => {
-        const newMembers = [...coveredMembers];
-        newMembers[index] = updatedMember;
-        onMembersChange(newMembers);
-    };
-
-    const handleRemove = (index: number) => {
-        onMembersChange(coveredMembers.filter((_, i) => i !== index));
-    };
-
-    return (
-        <div className="space-y-4">
-            <div className="space-y-3">
-                {coveredMembers.map((m, i) => (
-                    <EditableCoveredMemberCard
-                        key={m.id}
-                        member={m}
-                        onUpdate={(updated) => handleUpdate(i, updated)}
-                        onRemove={() => handleRemove(i)}
-                        isReadOnly={isReadOnly}
-                        spocAddress={spocAddress}
-                        genders={genders} // MODIFIED: Pass prop down
-                    />
-                ))}
-            </div>
-             {!isReadOnly && (
-                <Button 
-                    variant="secondary" 
-                    size="small" 
-                    onClick={handleAdd}
-                >
-                    <PlusCircle size={14}/> Add Covered Member
-                </Button>
-            )}
-        </div>
-    );
-};
-
 const PolicyEditor: React.FC<{
     policy: Policy;
     data: Partial<Member>;
+    allMembers: Member[]; 
     handlePolicyChange: (policyId: string, updatedFields: Partial<Policy>) => void;
     handleFileUpload: (e: React.ChangeEvent<HTMLInputElement>, policyId: string) => void;
     handlePaymentVerification: (policyId: string) => Promise<void>;
@@ -540,9 +280,9 @@ const PolicyEditor: React.FC<{
     onUpdateInsuranceFields: (data: InsuranceFieldMaster[]) => void;
     designations: Designation[]; 
     permissions: { [key in AppModule]?: PermissionLevel };
-    genders: Gender[]; // MODIFIED: Added genders prop
+    genders: Gender[]; 
 }> = ({ 
-    policy, data, handlePolicyChange, handleFileUpload, handlePaymentVerification, 
+    policy, data, allMembers, handlePolicyChange, handleFileUpload, handlePaymentVerification, 
     verifyingPayment, onGenerateProposal, onSave, currentUser, schemes, companies, 
     setEditingPolicyId, getPaymentStatusIcon, addToast, insuranceTypes, 
     insuranceFields, onUpdateInsuranceFields, designations, permissions, genders
@@ -555,10 +295,42 @@ const PolicyEditor: React.FC<{
     const [newFieldErrors, setNewFieldErrors] = useState<{ label?: string; options?: string; headers?: string }>({});
     const [groupOptions, setGroupOptions] = useState<{value: string, label: string}[]>([]);
     
-    // CORRECTED: Permission check is now based on the passed prop
     const canModify = permissions?.policies === 'modify';
     const isReadOnly = !canModify;
     const isAdmin = useMemo(() => designations.find(d => d.id === currentUser?.designationId)?.name === 'Admin', [currentUser, designations]);
+
+    const familyMemberOptions = useMemo(() => {
+        if (!data.sno) return [];
+        return allMembers
+            .filter(m => m.spocId === data.sno)
+            .map(m => ({ value: m.id, label: `${m.name} (DOB: ${m.dob})` }));
+    }, [data.sno, allMembers]);
+
+    const handleCoveredMembersChange = (selectedIds: string[]) => {
+        const newCoveredMembers = selectedIds.map(memberId => {
+            const existingCoveredMember = policy.coveredMembers?.find(cm => cm.id === memberId);
+            if (existingCoveredMember) {
+                return existingCoveredMember;
+            }
+            const memberDetails = allMembers.find(m => m.id === memberId);
+            if (memberDetails) {
+                return {
+                    id: memberDetails.id,
+                    memberId: memberDetails.memberId,
+                    name: memberDetails.name,
+                    relationship: (memberDetails as any).relationship || 'Family Member',
+                    dob: memberDetails.dob,
+                    gender: memberDetails.gender,
+                    email: memberDetails.email,
+                    mobile: memberDetails.mobile,
+                    address: memberDetails.address,
+                } as CoveredMember;
+            }
+            return null;
+        }).filter((m): m is CoveredMember => m !== null);
+
+        handlePolicyChange(policy.id, { coveredMembers: newCoveredMembers });
+    };
 
     const selectedParentTypeId = useMemo(() => {
         if (!policy.insuranceTypeId) return null;
@@ -846,13 +618,35 @@ const PolicyEditor: React.FC<{
 
                 {policy.policyHolderType === 'Family' && (
                     <FormSection title="Covered Family Members">
-                        <CoveredMembersManager
-                            coveredMembers={policy.coveredMembers || []}
-                            onMembersChange={(newMembers) => handlePolicyChange(policy.id, { coveredMembers: newMembers })}
-                            isReadOnly={isReadOnly}
-                            spocAddress={data.address}
-                            genders={genders} // MODIFIED: Pass prop down
+                        <SearchableSelect
+                            isMulti
+                            label="Select family members to cover under this policy"
+                            options={familyMemberOptions}
+                            value={policy.coveredMembers?.map(cm => cm.id) || []}
+                            onChange={handleCoveredMembersChange}
+                            placeholder="Click to select members..."
+                            disabled={isReadOnly}
                         />
+                         <p className="text-xs text-gray-500 mt-2">
+                            Only members created in the 'Family' tab are shown here. If a member is missing, please add them there first.
+                        </p>
+                        <div className="space-y-3 mt-4">
+                            {(policy.coveredMembers || []).map(member => (
+                                <PolicyCoveredMemberCard 
+                                    key={member.id}
+                                    member={member}
+                                    onUpdate={(updatedMember) => {
+                                        const updatedList = (policy.coveredMembers || []).map(m => m.id === updatedMember.id ? updatedMember : m);
+                                        handlePolicyChange(policy.id, { coveredMembers: updatedList });
+                                    }}
+                                    onRemove={() => {
+                                        const updatedList = (policy.coveredMembers || []).filter(m => m.id !== member.id);
+                                        handlePolicyChange(policy.id, { coveredMembers: updatedList });
+                                    }}
+                                    isReadOnly={isReadOnly}
+                                />
+                            ))}
+                        </div>
                     </FormSection>
                 )}
 
@@ -1288,10 +1082,10 @@ export const PoliciesTab: React.FC<PoliciesTabProps> = ({
 
                 (spoc.policies || []).forEach(policy => {
                     if (policy.policyHolderType === 'Family') {
-                        const isCurrentlyCovered = policy.coveredMembers?.some(cm =>
-                            cm.name.toLowerCase() === data.name?.toLowerCase() && cm.dob === data.dob
+                        const isCurrentlyCovered = policy.coveredMembers?.some(cm => 
+                            (cm.memberId && cm.memberId === data.memberId) || 
+                            (!cm.memberId && cm.name.toLowerCase() === data.name?.toLowerCase() && cm.dob === data.dob)
                         );
-
                         if (isCurrentlyCovered || isRelieved) {
                             if (!ownPolicies.some(p => p.id === policy.id)) {
                                 inheritedPolicies.push({
@@ -1462,7 +1256,10 @@ export const PoliciesTab: React.FC<PoliciesTabProps> = ({
                          <span className={`px-2 py-0.5 inline-flex text-xs leading-5 font-semibold rounded-full ${policyTypeInfo.colorClass}`}>
                             {policyTypeInfo.name}
                         </span>
-                        <h4 className="font-semibold text-brand-dark dark:text-white mt-1">{policy.schemeName || 'Unspecified Scheme'}</h4>
+                        <div className="flex items-center gap-2 mt-1">
+                            <h4 className="font-semibold text-brand-dark dark:text-white">{policy.schemeName || 'Unspecified Scheme'}</h4>
+                            {policy.policyHolderType === 'Family' && <span className="px-2 py-0.5 text-xs font-semibold bg-indigo-100 text-indigo-800 rounded-full dark:bg-indigo-900/50 dark:text-indigo-200 flex items-center gap-1"><Users size={12}/> Family Plan</span>}
+                        </div>
                     </div>
                     <div className="flex items-center gap-2">
                          <Button 
@@ -1515,6 +1312,7 @@ export const PoliciesTab: React.FC<PoliciesTabProps> = ({
                 <PolicyEditor
                     policy={editingPolicy}
                     data={data}
+                    allMembers={allMembers}
                     handlePolicyChange={(policyId, updatedFields) => handlePolicyChange(policyId, updatedFields)}
                     handleFileUpload={handleFileUpload}
                     handlePaymentVerification={handlePaymentVerification}
@@ -1532,7 +1330,7 @@ export const PoliciesTab: React.FC<PoliciesTabProps> = ({
                     onUpdateInsuranceFields={onUpdateInsuranceFields}
                     designations={designations}
                     permissions={permissions} 
-                    genders={genders} // MODIFIED: Pass prop down
+                    genders={genders}
                 />
             ) : (
                 <>
@@ -1580,7 +1378,7 @@ export const PoliciesTab: React.FC<PoliciesTabProps> = ({
                         {isFindingUpsell && (
                             <div className="text-center p-4 text-gray-500">
                                 <Loader2 className="w-6 h-6 animate-spin mx-auto" />
-                                <p className="mt-2 text-sm">Gemini is analyzing the profile...</p>
+                                <p className="mt-2 text-sm">Analyzing with Gemini...</p>
                             </div>
                         )}
                         {localUpsellSuggestion && (
@@ -1603,4 +1401,4 @@ export const PoliciesTab: React.FC<PoliciesTabProps> = ({
             )}
         </div>
     );
-};  
+};

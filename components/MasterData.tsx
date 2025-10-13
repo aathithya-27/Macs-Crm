@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+// MODIFIED: Added ProcessStageMaster to imports
 import { 
     BusinessVertical, LeadSourceMaster, SchemeMaster, Company, FinRootsBranch, Geography, RelationshipType, 
     DocumentMaster, SchemeDocumentMapping, GiftMaster, TaskStatusMaster, CustomerCategory, PolicyType, GeneralInsuranceType,
@@ -24,7 +25,8 @@ import {
     MutualFundScheme,
     MutualFundSchemeCategory,
     MutualFundFieldMaster,
-    Gender, MaritalStatus, CustomerType // MODIFIED: Imported new types
+    Gender, MaritalStatus, CustomerType,
+    ProcessStageMaster // MODIFIED: Imported ProcessStageMaster
 } from '../types.ts';
 import { Database, Briefcase, Users, GitBranch, MapPin, Link as LinkIcon, FileText as FileTextIcon, Gift, CheckSquare, Settings, Plus, Save, Edit2, Trash2, X, Building, Search, AlertTriangle, ChevronRight, ListTodo, SlidersHorizontal, ArrowUp, ArrowDown, CornerDownRight, GripVertical, ChevronDown, Lock, Award, IndianRupee, Calendar as CalendarIcon, Check, TrendingUp, UserCog } from 'lucide-react';
 
@@ -84,9 +86,6 @@ interface MasterDataProps {
     onUpdateRoutes: (data: Route[]) => void;
     designations: Designation[];
     onUpdateDesignations: (data: Designation[]) => void;
-    // REMOVED: Designation permissions are no longer managed here
-    // designationPermissions: DesignationPermissions[];
-    // onUpdateDesignationPermissions: (permissions: DesignationPermissions) => void;
     customerTierCalculationMethod: 'sumAssured' | 'premium';
     onUpdateCustomerTierCalculationMethod: (method: 'sumAssured' | 'premium') => void;
     expenseCategoriesLevel1: ExpenseCategoryLevel1[];
@@ -111,13 +110,16 @@ interface MasterDataProps {
     onUpdateMutualFundSchemes: (data: MutualFundScheme[]) => void;
     mutualFundFields: MutualFundFieldMaster[];
     onUpdateMutualFundFields: (data: MutualFundFieldMaster[]) => void;
-    // --- NEW PROPS ---
     genders: Gender[];
     onUpdateGenders: (data: Gender[]) => void;
     maritalStatuses: MaritalStatus[];
     onUpdateMaritalStatuses: (data: MaritalStatus[]) => void;
     customerTypes: CustomerType[];
     onUpdateCustomerTypes: (data: CustomerType[]) => void;
+    // --- MODIFICATION START ---
+    processStageMasters: ProcessStageMaster[];
+    onUpdateProcessStageMasters: (data: ProcessStageMaster[]) => void;
+    // --- MODIFICATION END ---
 }
 
 // --- MOVED SHARED CONSTANTS TO TOP LEVEL ---
@@ -1401,114 +1403,6 @@ const ReligionsAndFestivalsManager: React.FC<MasterDataProps> = (props) => {
 
 
 // --- REFACTORED: Tier & Gift Management Component ---
-// --- START: NEW DEDICATED MODAL COMPONENT ---
-// This new component manages its own state to prevent re-renders and focus loss.
-const TierRuleModal: React.FC<{
-    isOpen: boolean;
-    onClose: () => void;
-    onSave: (tierData: CustomerTier) => void;
-    initialData: Partial<CustomerTier> | null;
-    tiers: CustomerTier[];
-    customerTypes: CustomerType[];
-    gifts: GiftMaster[];
-    mode: 'sumAssured' | 'premium' | 'edit';
-}> = ({ isOpen, onClose, onSave, initialData, tiers, customerTypes, gifts, mode }) => {
-    const [formData, setFormData] = useState<Partial<CustomerTier>>({});
-
-    useEffect(() => {
-        // When the modal opens, initialize its internal state from the props.
-        if (isOpen) {
-            setFormData(initialData || { name: '', customerTypeId: '', minimumSumAssured: 0, minimumPremium: 0, giftId: null, active: true });
-        }
-    }, [isOpen, initialData]);
-
-    const handleChange = (field: keyof CustomerTier, value: any) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
-    };
-    
-    const handleNumericChange = (field: 'minimumSumAssured' | 'minimumPremium', value: string) => {
-        const numericValue = value.replace(/[^0-9]/g, '');
-        handleChange(field, numericValue === '' ? 0 : Number(numericValue));
-    };
-
-    const handleSaveClick = () => {
-        if (!formData.customerTypeId) {
-            // This is a placeholder for your addToast function.
-            // You would pass addToast as a prop in a real app to show a message.
-            alert('A Customer Type must be selected.');
-            return;
-        }
-        onSave(formData as CustomerTier);
-    };
-
-    if (!isOpen) return null;
-
-    return (
-        <Modal isOpen={isOpen} onClose={onClose}>
-            <div className="p-6">
-                <h2 className="text-xl font-bold text-brand-dark dark:text-white">{initialData?.id ? 'Edit' : 'Add'} Tier Rule</h2>
-            </div>
-            <div className="p-6 space-y-4">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Customer Type</label>
-                    <select
-                        value={formData.customerTypeId || ''}
-                        onChange={e => handleChange('customerTypeId', e.target.value)}
-                        className={selectClasses}
-                    >
-                        <option value="">-- Select a Type --</option>
-                        {customerTypes.map(type => {
-                            const isUsed = tiers.some(t => t.customerTypeId === type.id && t.id !== initialData?.id);
-                            return (
-                                <option key={type.id} value={type.id} disabled={isUsed} className={isUsed ? 'text-gray-400' : ''}>
-                                    {type.name} {isUsed ? '(In Use)' : ''}
-                                </option>
-                            );
-                        })}
-                    </select>
-                </div>
-
-                {(mode === 'sumAssured' || mode === 'edit') && (
-                    <Input
-                        label="Minimum Sum Assured (₹)"
-                        type="text"
-                        inputMode="numeric"
-                        value={formData.minimumSumAssured === 0 ? '' : String(formData.minimumSumAssured || '')}
-                        onChange={e => handleNumericChange('minimumSumAssured', e.target.value)}
-                        placeholder="e.g., 50000"
-                    />
-                )}
-
-                {(mode === 'premium' || mode === 'edit') && (
-                    <Input
-                        label="Minimum Premium (₹)"
-                        type="text"
-                        inputMode="numeric"
-                        value={formData.minimumPremium === 0 ? '' : String(formData.minimumPremium || '')}
-                        onChange={e => handleNumericChange('minimumPremium', e.target.value)}
-                        placeholder="e.g., 5000"
-                    />
-                )}
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assign Gift</label>
-                    <select value={formData.giftId || ''} onChange={e => handleChange('giftId', e.target.value || null)} className={selectClasses}>
-                        <option value="">-- No Gift --</option>
-                        {gifts.filter(g => g.active).map(gift => <option key={gift.id} value={gift.id}>{gift.name}</option>)}
-                    </select>
-                </div>
-            </div>
-            <div className="flex justify-end p-6 gap-3 border-t border-gray-200 dark:border-gray-700">
-                <Button variant="secondary" onClick={onClose}>Cancel</Button>
-                <Button variant="primary" onClick={handleSaveClick}>Save Tier</Button>
-            </div>
-        </Modal>
-    );
-};
-// --- END: NEW DEDICATED MODAL COMPONENT ---
-
-
-// --- REFACTORED: Tier & Gift Management Component ---
 const TierManager: React.FC<{
     tiers: CustomerTier[];
     onUpdateTiers: (tiers: CustomerTier[]) => void;
@@ -1517,7 +1411,7 @@ const TierManager: React.FC<{
     addToast: MasterDataProps['addToast'];
     calculationMethod: 'sumAssured' | 'premium';
     onUpdateCalculationMethod: (method: 'sumAssured' | 'premium') => void;
-    customerTypes: CustomerType[];
+    customerTypes: CustomerType[]; // MODIFIED: Added customerTypes prop
 }> = ({ tiers, onUpdateTiers, gifts, onUpdateGifts, addToast, calculationMethod, onUpdateCalculationMethod, customerTypes }) => {
     const [isTierModalOpen, setIsTierModalOpen] = useState(false);
     const [editingTier, setEditingTier] = useState<Partial<CustomerTier> | null>(null);
@@ -1541,19 +1435,26 @@ const TierManager: React.FC<{
     
     const closeTierModal = () => {
         setIsTierModalOpen(false);
-        setEditingTier(null);
         triggerButtonRef.current?.focus();
     }
 
-    const handleSaveTier = (tierData: CustomerTier) => {
+    const handleSaveTier = () => {
+        if (!editingTier || !editingTier.customerTypeId) {
+            addToast('A Customer Type must be selected.', 'error');
+            return;
+        }
+
         let updatedTiers;
-        if (tierData.id) { // Update
-            updatedTiers = tiers.map(t => t.id === tierData.id ? tierData : t);
+        if (editingTier.id) { // Update
+            updatedTiers = tiers.map(t => t.id === editingTier.id ? editingTier as CustomerTier : t);
         } else { // Create
             const newTier: CustomerTier = {
-                ...tierData,
                 id: `tier-${Date.now()}`,
-                name: customerTypeMap.get(tierData.customerTypeId) || 'Unnamed Tier',
+                name: customerTypeMap.get(editingTier.customerTypeId),
+                customerTypeId: editingTier.customerTypeId,
+                minimumSumAssured: Number(editingTier.minimumSumAssured) || 0,
+                minimumPremium: Number(editingTier.minimumPremium) || 0,
+                giftId: editingTier.giftId || null,
                 active: true,
                 order: tiers.length,
             };
@@ -1766,16 +1667,55 @@ const TierManager: React.FC<{
                 </div>
             </div>
 
-            <TierRuleModal
-                isOpen={isTierModalOpen}
-                onClose={closeTierModal}
-                onSave={handleSaveTier}
-                initialData={editingTier}
-                tiers={tiers}
-                customerTypes={customerTypes}
-                gifts={gifts}
-                mode={tierModalMode}
-            />
+            {isTierModalOpen && (
+                <Modal isOpen={isTierModalOpen} onClose={closeTierModal}>
+                    <div className="p-6">
+                        <h2 className="text-xl font-bold text-brand-dark dark:text-white">{editingTier?.id ? 'Edit' : 'Add'} Tier Rule</h2>
+                    </div>
+                    <div className="p-6 space-y-4">
+                        {/* --- MODIFICATION START: Replaced Input with Select for Customer Type --- */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Customer Type</label>
+                            <select 
+                                value={editingTier?.customerTypeId || ''}
+                                onChange={e => setEditingTier(p => p ? {...p, customerTypeId: e.target.value} : null)}
+                                className={selectClasses}
+                            >
+                                <option value="">-- Select a Type --</option>
+                                {customerTypes.map(type => {
+                                    const isUsed = tiers.some(t => t.customerTypeId === type.id && t.id !== editingTier?.id);
+                                    return (
+                                        <option key={type.id} value={type.id} disabled={isUsed} className={isUsed ? 'text-gray-400' : ''}>
+                                            {type.name} {isUsed ? '(In Use)' : ''}
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                        </div>
+                        {/* --- MODIFICATION END --- */}
+                        
+                        {(tierModalMode === 'sumAssured' || tierModalMode === 'edit') && (
+                             <Input label="Minimum Sum Assured (₹)" type="number" value={String(editingTier?.minimumSumAssured || 0)} onChange={e => setEditingTier(p => p ? {...p, minimumSumAssured: Number(e.target.value)} : null)} />
+                        )}
+
+                        {(tierModalMode === 'premium' || tierModalMode === 'edit') && (
+                            <Input label="Minimum Premium (₹)" type="number" value={String(editingTier?.minimumPremium || 0)} onChange={e => setEditingTier(p => p ? {...p, minimumPremium: Number(e.target.value)} : null)} />
+                        )}
+                       
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assign Gift</label>
+                            <select value={editingTier?.giftId || ''} onChange={e => setEditingTier(p => p ? {...p, giftId: e.target.value || null} : null)} className={selectClasses}>
+                                <option value="">-- No Gift --</option>
+                                {gifts.filter(g => g.active).map(gift => <option key={gift.id} value={gift.id}>{gift.name}</option>)}
+                            </select>
+                        </div>
+                    </div>
+                    <div className="flex justify-end p-6 gap-3 border-t border-gray-200 dark:border-gray-700">
+                        <Button variant="secondary" onClick={closeTierModal}>Cancel</Button>
+                        <Button variant="primary" onClick={handleSaveTier}>Save Tier</Button>
+                    </div>
+                </Modal>
+            )}
 
             {isGiftModalOpen && (
                 <Modal isOpen={isGiftModalOpen} onClose={closeGiftModal}>
@@ -2637,13 +2577,154 @@ const GenericMasterManager: React.FC<{
     );
 };
 
-// --- REFACTORED: Policy Configuration Component with 4-Table Layout ---
+// --- MODIFICATION START: New component for managing process stages ---
+const ProcessStageManager: React.FC<{
+    title: string;
+    items: ProcessStageMaster[];
+    onUpdate: (items: ProcessStageMaster[]) => void;
+    addToast: MasterDataProps['addToast'];
+    allMembers: Member[];
+    typeId: string | null; // insuranceTypeId or 'mutual-fund' for dependency check
+}> = ({ title, items, onUpdate, addToast, allMembers, typeId }) => {
+    
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingItem, setEditingItem] = useState<Partial<ProcessStageMaster> | null>(null);
+    const triggerButtonRef = useRef<HTMLButtonElement>(null);
+    const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+    
+    const sortedItems = useMemo(() => [...items].sort((a, b) => a.order - b.order), [items]);
+
+    const openModal = (item: ProcessStageMaster | null, event?: React.MouseEvent<HTMLElement>) => {
+        if (event) triggerButtonRef.current = event.currentTarget as HTMLButtonElement;
+        setEditingItem(item ? { ...item } : { name: '', active: true });
+        setIsModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setIsModalOpen(false);
+        setEditingItem(null);
+        triggerButtonRef.current?.focus();
+    };
+    
+    const handleSave = () => {
+        if (!editingItem || !editingItem.name?.trim()) {
+            addToast('Stage name is required.', 'error');
+            return;
+        }
+
+        if (editingItem.id) { // Update
+            onUpdate(items.map(i => i.id === editingItem.id ? (editingItem as ProcessStageMaster) : i));
+        } else { // Create
+            const newItem: ProcessStageMaster = {
+                id: `ps-${Date.now()}`,
+                name: editingItem.name.trim(),
+                active: true,
+                order: items.length,
+            };
+            onUpdate([...items, newItem]);
+        }
+        closeModal();
+    };
+    
+    const handleToggle = (id: string) => onUpdate(items.map(i => i.id === id ? { ...i, active: !i.active } : i));
+    
+    const handleDelete = (id: string) => {
+        const stage = items.find(i => i.id === id);
+        if (!stage || !typeId) return;
+
+        const dependents = allMembers.filter(m => m.processStages && m.processStages[typeId] === stage.name);
+        
+        if (dependents.length > 0) {
+            addToast(`Cannot delete: ${dependents.length} customer(s) are currently in this stage.`, 'error');
+            return;
+        }
+
+        const newItems = items.filter(i => i.id !== id).map((item, index) => ({ ...item, order: index }));
+        onUpdate(newItems);
+        addToast('Stage deleted successfully.', 'success');
+    };
+    
+    const handleDragStart = (e: React.DragEvent<HTMLTableRowElement>, id: string) => {
+        e.dataTransfer.setData('text/plain', id);
+        setDraggedItemId(id);
+    };
+    const handleDragOver = (e: React.DragEvent<HTMLTableRowElement>) => e.preventDefault();
+    const handleDrop = (e: React.DragEvent<HTMLTableRowElement>, dropTargetId: string) => {
+        e.preventDefault();
+        const draggedId = e.dataTransfer.getData('text/plain');
+        setDraggedItemId(null);
+        if (draggedId === dropTargetId) return;
+
+        const currentItems = [...sortedItems];
+        const draggedIndex = currentItems.findIndex(item => item.id === draggedId);
+        const targetIndex = currentItems.findIndex(item => item.id === dropTargetId);
+
+        if (draggedIndex === -1 || targetIndex === -1) return;
+
+        const [draggedItem] = currentItems.splice(draggedIndex, 1);
+        currentItems.splice(targetIndex, 0, draggedItem);
+        
+        onUpdate(currentItems.map((item, index) => ({ ...item, order: index })));
+    };
+    const handleDragEnd = () => setDraggedItemId(null);
+    
+    return (
+        <div>
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{title}</h3>
+                <Button onClick={(e) => openModal(null, e)} size="small"><Plus size={14}/> Add Stage</Button>
+            </div>
+            <div className="overflow-y-auto border dark:border-gray-700 rounded-lg max-h-96">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0"><tr>
+                        <th className="px-2 py-3"></th>
+                        <th className="px-6 py-3 text-left text-xs font-bold uppercase w-16">ID</th>
+                        <th className="px-6 py-3 text-left text-xs font-bold uppercase">Name</th>
+                        <th className="px-6 py-3 text-left text-xs font-bold uppercase">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-bold uppercase">Actions</th>
+                    </tr></thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700" onDragEnd={handleDragEnd}>
+                        {sortedItems.map((item, index) => (
+                            <tr key={item.id} draggable onDragStart={e => handleDragStart(e, item.id)} onDragOver={handleDragOver} onDrop={e => handleDrop(e, item.id)}
+                                className={`transition-all ${!item.active ? 'opacity-60' : ''} ${draggedItemId === item.id ? 'opacity-30' : ''} hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-move`}>
+                                <td className="px-2 py-3"><GripVertical size={16} className="text-gray-400" /></td>
+                                <td className="px-6 py-3 text-sm text-gray-500">{index + 1}</td>
+                                <td className="px-6 py-3 font-medium">{item.name}</td>
+                                <td className="px-6 py-3"><ToggleSwitch enabled={!!item.active} onChange={() => handleToggle(item.id)} /></td>
+                                <td className="px-6 py-3">
+                                    <div className="flex gap-2">
+                                        <Button size="small" variant="light" className="!p-1.5" onClick={(e) => openModal(item, e)}><Edit2 size={14}/></Button>
+                                        <Button size="small" variant="danger" className="!p-1.5" onClick={() => handleDelete(item.id)}><Trash2 size={14}/></Button>
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+             {isModalOpen && editingItem && (
+                <Modal isOpen={isModalOpen} onClose={closeModal}>
+                    <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+                        <div className="p-6"><h2 className="text-xl font-bold">{editingItem.id ? 'Edit' : 'Add'} Stage</h2></div>
+                        <div className="p-6"><Input label="Stage Name" value={editingItem.name || ''} onChange={e => setEditingItem(p => p ? {...p, name: e.target.value} : null)} /></div>
+                        <div className="flex justify-end p-6 gap-3 border-t"><Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button><Button type="submit">Save</Button></div>
+                    </form>
+                </Modal>
+            )}
+        </div>
+    );
+};
+// --- MODIFICATION END ---
+
+
+// --- MODIFICATION START: Updated PolicyConfigurationManager to include ProcessStageManager ---
 const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
     const { 
         insuranceTypes, onUpdateInsuranceTypes, 
         insuranceFields, onUpdateInsuranceFields, 
         policyChecklistMasters, onUpdatePolicyChecklistMasters, 
-        addToast, allMembers, businessVerticals
+        addToast, allMembers, businessVerticals,
+        processStageMasters, onUpdateProcessStageMasters // new props
     } = props;
     
     const [selectedParentTypeId, setSelectedParentTypeId] = useState<string | null>(null);
@@ -2652,7 +2733,6 @@ const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
     const [editingType, setEditingType] = useState<Partial<InsuranceTypeMaster> | null>(null);
     const triggerButtonRef = useRef<HTMLButtonElement>(null);
 
-    // --- MODIFICATION: Added unified search state ---
     const [searchQuery, setSearchQuery] = useState('');
 
     const parentTypes = useMemo(() => insuranceTypes.filter(it => !it.parentId).sort((a,b) => (a.order ?? 0) - (b.order ?? 0)), [insuranceTypes]);
@@ -2683,13 +2763,12 @@ const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
         }
     }, [insuranceTypes, policyChecklistMasters, onUpdatePolicyChecklistMasters]);
     
-    // --- MODIFICATION: Centralized filtering logic based on unified search ---
     const filteredData = useMemo(() => {
         const lowerCaseQuery = searchQuery.toLowerCase();
         if (!lowerCaseQuery) {
             return {
                 parentTypes,
-                childTypes: selectedParentTypeId ? insuranceTypes.filter(it => it.parentId === selectedParentTypeId).sort((a,b) => (b.order ?? 0) - (a.order ?? 0)) : [],
+                childTypes: selectedParentTypeId ? insuranceTypes.filter(it => it.parentId === selectedParentTypeId).sort((a,b) => (a.order ?? 0) - (b.order ?? 0)) : [],
                 fields: selectedConfigTypeId ? insuranceFields.filter(f => f.insuranceTypeId === selectedConfigTypeId) : [],
                 checklistItems: selectedConfigTypeId ? policyChecklistMasters.filter(p => {
                     const selectedType = insuranceTypes.find(it => it.id === selectedConfigTypeId);
@@ -2701,7 +2780,6 @@ const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
 
         const visibleTypeIds = new Set<string>();
 
-        // Find matching fields and checklists, and add their parent types to the visible set
         const filteredFields = insuranceFields.filter(f => f.label.toLowerCase().includes(lowerCaseQuery));
         filteredFields.forEach(f => visibleTypeIds.add(f.insuranceTypeId));
 
@@ -2712,14 +2790,12 @@ const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
             if (type) visibleTypeIds.add(type.id);
         });
         
-        // Find matching types directly
         insuranceTypes.forEach(type => {
             if (type.name.toLowerCase().includes(lowerCaseQuery)) {
                 visibleTypeIds.add(type.id);
             }
         });
 
-        // Add parent types of visible child types
         visibleTypeIds.forEach(id => {
             const type = insuranceTypes.find(it => it.id === id);
             if (type?.parentId) {
@@ -2782,7 +2858,6 @@ const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
             return;
         }
         
-        // --- MODIFICATION: VALIDATION LOGIC ---
         if (!editingType.parentId) { // This check applies only to Parent types
             const selectedVertical = businessVerticals.find(bv => bv.id === editingType.verticalId);
             if (selectedVertical && selectedVertical.name.toLowerCase() !== 'insurance') {
@@ -2790,7 +2865,6 @@ const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
                 return; // Stop the save
             }
         }
-        // --- END OF MODIFICATION ---
 
         let updatedTypes : InsuranceTypeMaster[];
         if (editingType.id) {
@@ -2888,7 +2962,6 @@ const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
         );
     };
 
-    // NEW: Dependency check function for insurance fields
     const checkFieldDependencies = (fieldId: string) => {
         const field = insuranceFields.find(f => f.id === fieldId);
         if (!field) return [];
@@ -2897,12 +2970,10 @@ const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
         for (const member of allMembers) {
             for (const policy of member.policies || []) {
                 if (policy.insuranceTypeId === field.insuranceTypeId && policy.dynamicData) {
-                    // Check both by fieldName (for most fields) and label (for tables)
                     if ( (policy.dynamicData[field.fieldName] !== undefined && policy.dynamicData[field.fieldName] !== '' && policy.dynamicData[field.fieldName]?.length !== 0) ||
                          (policy.dynamicData[field.label] !== undefined) ) 
                     {
                         dependents.push({ name: `${member.name} (Policy: ${policy.schemeName || 'N/A'})`, type: 'policy' });
-                        // Break early from this member's policies if found
                         break; 
                     }
                 }
@@ -2910,13 +2981,14 @@ const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
         }
         return dependents;
     };
+    
+    const isParentTypeSelected = selectedConfigTypeId && parentTypes.some(p => p.id === selectedConfigTypeId);
 
     return (
         <div>
             <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Policy Configuration</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Define Insurance types, their Sub-Type, and the specific fields & checklists for each.</p>
             
-            {/* --- MODIFICATION: Added unified search bar --- */}
             <div className="relative my-4">
                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                     <Search className="h-5 w-5 text-gray-400" />
@@ -2959,10 +3031,27 @@ const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
             </div>
 
             {selectedConfigTypeId && (
-                <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg animate-fade-in">
-                    <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-4">
-                        Configure Fields & Checklist for: <span className="text-blue-600 dark:text-blue-400">{insuranceTypes.find(it => it.id === selectedConfigTypeId)?.name}</span>
+                <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg animate-fade-in space-y-8">
+                    <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
+                        Configure for: <span className="text-blue-600 dark:text-blue-400">{insuranceTypes.find(it => it.id === selectedConfigTypeId)?.name}</span>
                     </h4>
+                    
+                    {isParentTypeSelected && (
+                        <ProcessStageManager
+                            key={`psm-${selectedConfigTypeId}`}
+                            title="Manage Process Flow"
+                            items={processStageMasters.filter(psm => psm.insuranceTypeId === selectedConfigTypeId)}
+                            onUpdate={(updatedStages) => {
+                                const otherStages = processStageMasters.filter(psm => psm.insuranceTypeId !== selectedConfigTypeId);
+                                const newStagesForType = updatedStages.map(s => ({ ...s, insuranceTypeId: selectedConfigTypeId, isMutualFund: false }));
+                                onUpdateProcessStageMasters([...otherStages, ...newStagesForType]);
+                            }}
+                            addToast={addToast}
+                            allMembers={allMembers}
+                            typeId={selectedConfigTypeId}
+                        />
+                    )}
+                    
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <div>
                             <GenericMasterManager
@@ -2997,7 +3086,6 @@ const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
                             <p className="text-sm text-gray-500">{editingType.parentId ? `Adding as a Sub-Type of "${parentTypes.find(p=>p.id === editingType.parentId)?.name}"` : 'Adding as a new Insurance type.'}</p>
                         </div>
                         <div className="p-6 space-y-4">
-                            {/* FIX: Conditionally render Business Vertical for parent types only */}
                             {!editingType.parentId && (
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Business Vertical</label>
@@ -3027,6 +3115,7 @@ const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
         </div>
     );
 };
+// --- MODIFICATION END ---
 // --- MOVED TO TOP LEVEL ---
 // const SchemeCompanyDataTable: React.FC<{...}> = (...) => { ... };
 
@@ -4351,6 +4440,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
         { id: 'designation', label: 'Designation', icon: <UserCog size={18}/> }, 
         { id: 'religionsAndFestivals', label: 'Religions & Festivals', icon: <CalendarIcon size={18}/> },
         { id: 'leadSources', label: 'Lead/Referral', icon: <Users size={18}/> },
+        { id: 'relationshipTypes', label: 'Relationship', icon: <LinkIcon size={18}/> },
         { id: 'geography', label: 'Geography', icon: <MapPin size={18}/> },
         { id: 'documentMasters', label: 'Document Master', icon: <FileTextIcon size={18}/> },
         { id: 'bankMasters', label: 'Bank Master', icon: <Building size={18} /> },
@@ -4449,6 +4539,21 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                             reorderable={true}
                             codeColumnDisplay="group"
                         />
+                        {/* --- MODIFICATION START: Added ProcessStageManager for Mutual Funds --- */}
+                        <ProcessStageManager
+                            key="psm-mf"
+                            title="Manage Mutual Fund Process Flow"
+                            items={props.processStageMasters.filter(psm => psm.isMutualFund)}
+                            onUpdate={(updatedStages) => {
+                                const otherStages = props.processStageMasters.filter(psm => !psm.isMutualFund);
+                                const newStagesForMF = updatedStages.map(s => ({ ...s, isMutualFund: true, insuranceTypeId: null }));
+                                props.onUpdateProcessStageMasters([...otherStages, ...newStagesForMF]);
+                            }}
+                            addToast={props.addToast}
+                            allMembers={props.allMembers}
+                            typeId="mutual-fund"
+                        />
+                        {/* --- MODIFICATION END --- */}
                     </div>
                 );
             case 'geography': return <GeographyManager geographies={props.geographies} onUpdateGeographies={props.onUpdateGeographies} addToast={props.addToast} allMembers={props.allMembers} />;
@@ -4492,8 +4597,22 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                 onUpdateLevel2={props.onUpdateIncomeCategoriesLevel2}
                 addToast={props.addToast}
                 />;
+            case 'relationshipTypes': return <GenericMasterManager 
+                key="relationshipTypes" 
+                title="Manage Relationship Types" 
+                items={props.relationshipTypes} 
+                onUpdate={props.onUpdateRelationshipTypes}
+                addToast={props.addToast}
+                noun="Relationship Type" 
+                reorderable={true}
+                codeColumnDisplay="hidden"
+                dependencyCheck={(id) => props.allMembers.filter(m => m.dynamicData?.relationship === props.relationshipTypes.find(rt => rt.id === id)?.name).map(m => ({ name: m.name, type: 'member' }))} 
+                />;
+
             
             // --- MODIFICATION START: Added new cases and refactored customerSegments ---
+            // ... (code from previous response)
+
             case 'customerSegments': return (
                 <div className="space-y-8">
                     <GenericMasterManager 

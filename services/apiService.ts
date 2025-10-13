@@ -4,7 +4,7 @@ import {
     Member, Policy, PolicyType, Lead, User, Route, ProcessStage, EmployeeProfile, Company, 
     FinRootsBranch, Religion, Festival, FestivalDate, AdvisorLocation, CheckIn, 
     CheckInOutcome, UpsellCategory, Designation, DesignationPermissions, AppModule, PermissionLevel, 
-    Gender, MaritalStatus, CustomerType, CustomerTier // MODIFIED: Imported new types
+    Gender, MaritalStatus, CustomerType, CustomerTier, ProcessStageMaster, RelationshipType // MODIFIED: Imported RelationshipType
 } from '../types.ts';
 
 // --- NEW: LOCAL STORAGE PERSISTENCE LOGIC ---
@@ -238,6 +238,17 @@ let routes: Route[] = [
     { id: 'route-4', name: 'Chennai Route', active: true, order: 3 },
 ];
 
+// --- CORRECTION: Moved variable declaration to the top level ---
+let relationshipTypesData: RelationshipType[] = [
+    { id: 'rel-1', name: 'Self', active: true, order: 0 },
+    { id: 'rel-2', name: 'Spouse', active: true, order: 1 },
+    { id: 'rel-3', name: 'Son', active: true, order: 2 },
+    { id: 'rel-4', name: 'Daughter', active: true, order: 3 },
+    { id: 'rel-5', name: 'Father', active: true, order: 4 },
+    { id: 'rel-6', name: 'Mother', active: true, order: 5 },
+];
+
+
 // --- NEW: Mock Data for Religions and Festivals ---
 let religionsData: Religion[] = [
     { id: 'rel-1', name: 'Hinduism', active: true, order: 0 },
@@ -325,6 +336,42 @@ const initialCustomerTiers: CustomerTier[] = [
 ];
 
 
+// --- MODIFICATION START: Replaced single process flow with product-specific flows ---
+let processStageMastersData: ProcessStageMaster[] = [
+    // Life Insurance
+    { id: 'ps-life-1', name: 'Initial Contact', insuranceTypeId: 'it-life', order: 0, active: true },
+    { id: 'ps-life-2', name: 'Requirement Analysis', insuranceTypeId: 'it-life', order: 1, active: true },
+    { id: 'ps-life-3', name: 'Plan Presentation', insuranceTypeId: 'it-life', order: 2, active: true },
+    { id: 'ps-life-4', name: 'Application Form Filling', insuranceTypeId: 'it-life', order: 3, active: true },
+    { id: 'ps-life-5', name: 'Premium Collection', insuranceTypeId: 'it-life', order: 4, active: true },
+    { id: 'ps-life-6', name: 'Policy Issuance', insuranceTypeId: 'it-life', order: 5, active: true },
+    { id: 'ps-life-7', name: 'Policy Delivery', insuranceTypeId: 'it-life', order: 6, active: true },
+    
+    // Health Insurance
+    { id: 'ps-health-1', name: 'Lead Generation', insuranceTypeId: 'it-health', order: 0, active: true },
+    { id: 'ps-health-2', name: 'Consultation', insuranceTypeId: 'it-health', order: 1, active: true },
+    { id: 'ps-health-3', name: 'Plan Comparison', insuranceTypeId: 'it-health', order: 2, active: true },
+    { id: 'ps-health-4', name: 'Proposal Submission', insuranceTypeId: 'it-health', order: 3, active: true },
+    { id: 'ps-health-5', name: 'Medical Underwriting', insuranceTypeId: 'it-health', order: 4, active: true },
+    { id: 'ps-health-6', name: 'Policy Activation', insuranceTypeId: 'it-health', order: 5, active: true },
+
+    // General Insurance
+    { id: 'ps-general-1', name: 'Inquiry', insuranceTypeId: 'it-general', order: 0, active: true },
+    { id: 'ps-general-2', name: 'Quotation', insuranceTypeId: 'it-general', order: 1, active: true },
+    { id: 'ps-general-3', name: 'Inspection (if any)', insuranceTypeId: 'it-general', order: 2, active: true },
+    { id: 'ps-general-4', name: 'Payment', insuranceTypeId: 'it-general', order: 3, active: true },
+    { id: 'ps-general-5', name: 'Cover Note Issuance', insuranceTypeId: 'it-general', order: 4, active: true },
+
+    // Mutual Funds
+    { id: 'ps-mf-1', name: 'Risk Profiling', isMutualFund: true, order: 0, active: true },
+    { id: 'ps-mf-2', name: 'KYC Verification', isMutualFund: true, order: 1, active: true },
+    { id: 'ps-mf-3', name: 'Scheme Selection', isMutualFund: true, order: 2, active: true },
+    { id: 'ps-mf-4', name: 'Investment Execution', isMutualFund: true, order: 3, active: true },
+    { id: 'ps-mf-5', name: 'Portfolio Review', isMutualFund: true, order: 4, active: true },
+];
+// --- MODIFICATION END ---
+
+
 // Premium Calculation Logic
 export const calculatePremium = (policyType: PolicyType, coverage: number): number => {
     switch (policyType) {
@@ -377,6 +424,7 @@ const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
 // In-memory database simulation
 // MODIFIED: gender and maritalStatus now use IDs
+// MODIFICATION START: Updated members to use new process stage structure
 let members: Member[] = [
   {
     id: '1',
@@ -427,9 +475,12 @@ let members: Member[] = [
     inactiveSince: null,
     assignedTo: ['user-2'], // Rohan Patel
     leadSource: { sourceId: 'rt-3', detail: 'Arjun Mehta' },
-    processStage: 'Premium Collection',
-    stageLastChanged: '2024-07-10T10:00:00.000Z',
-    processHistory: [],
+    processStage: 'Premium Collection', // DEPRECATED - kept for fallback
+    processStages: { 'it-life': 'Premium Collection' },
+    stageLastChanged: '2024-07-10T10:00:00.000Z', // DEPRECATED
+    stageLastChangedMap: { 'it-life': '2024-07-10T10:00:00.000Z' },
+    processHistory: [], // DEPRECATED
+    processHistories: { 'it-life': [] },
     createdBy: 'user-1',
     createdAt: '2024-01-10T10:00:00.000Z',
     financialProfile: {
@@ -473,9 +524,12 @@ let members: Member[] = [
     inactiveSince: null,
     assignedTo: ['user-3'], // Priya Singh
     leadSource: { sourceId: 'ls-3' },
-    processStage: 'Policy Entry',
+    processStage: 'Proposal Submission',
+    processStages: { 'it-health': 'Proposal Submission' },
     stageLastChanged: '2024-07-15T10:00:00.000Z',
+    stageLastChangedMap: { 'it-health': '2024-07-15T10:00:00.000Z' },
     processHistory: [],
+    processHistories: { 'it-health': [] },
     createdBy: 'user-2',
     createdAt: '2024-02-15T10:00:00.000Z',
     financialProfile: {
@@ -518,9 +572,12 @@ let members: Member[] = [
     inactiveSince: null,
     assignedTo: ['user-3'], // Priya Singh
     leadSource: { sourceId: 'ls-8' },
-    processStage: 'Policy Document Received',
+    processStage: 'Payment',
+    processStages: { 'it-general': 'Payment' },
     stageLastChanged: '2024-06-20T10:00:00.000Z',
+    stageLastChangedMap: { 'it-general': '2024-06-20T10:00:00.000Z' },
     processHistory: [],
+    processHistories: { 'it-general': [] },
     createdBy: 'user-2',
     createdAt: '2024-03-20T10:00:00.000Z',
     financialProfile: {},
@@ -560,8 +617,11 @@ let members: Member[] = [
     assignedTo: [],
     leadSource: { sourceId: 'ls-4' },
     processStage: 'Initial Contact',
+    processStages: { 'it-life': 'Initial Contact' },
     stageLastChanged: '2024-02-01T10:00:00.000Z',
+    stageLastChangedMap: { 'it-life': '2024-02-01T10:00:00.000Z' },
     processHistory: [],
+    processHistories: {},
     createdBy: 'user-1',
     createdAt: '2024-04-01T10:00:00.000Z',
     financialProfile: {},
@@ -598,9 +658,12 @@ let members: Member[] = [
     inactiveSince: null,
     assignedTo: ['user-2'], // Rohan Patel
     leadSource: { sourceId: 'ls-5' },
-    processStage: 'Policy Handed Over',
+    processStage: 'Policy Activation',
+    processStages: { 'it-health': 'Policy Activation' },
     stageLastChanged: '2024-05-15T10:00:00.000Z',
+    stageLastChangedMap: { 'it-health': '2024-05-15T10:00:00.000Z' },
     processHistory: [],
+    processHistories: {},
     createdBy: 'user-2',
     createdAt: '2024-05-15T10:00:00.000Z',
     financialProfile: {
@@ -664,9 +727,12 @@ let members: Member[] = [
     inactiveSince: null,
     assignedTo: ['user-2', 'user-3'], // Rohan & Priya
     leadSource: { sourceId: 'ls-7' },
-    processStage: 'Premium Reminders',
-    stageLastChanged: '2024-07-22T10:00:00.000Z',
+    processStage: 'Initial Contact', // Fallback
+    processStages: { 'it-health': 'Consultation', 'it-life': 'Requirement Analysis', 'mutual-fund': 'KYC Verification' },
+    stageLastChanged: '2024-07-22T10:00:00.000Z', // Fallback
+    stageLastChangedMap: { 'it-health': '2024-07-22T10:00:00.000Z', 'it-life': '2024-07-22T10:00:00.000Z', 'mutual-fund': '2024-07-22T10:00:00.000Z' },
     processHistory: [],
+    processHistories: {},
     createdBy: 'user-2',
     createdAt: '2024-07-22T10:00:00.000Z',
     financialProfile: {
@@ -679,7 +745,7 @@ let members: Member[] = [
     branchId: 'frb-2', // Coimbatore Hub
   }
 ];
-
+// MODIFICATION END
 
 // --- START: AUTOMATIC DATA HYDRATION LOGIC ---
 const hydrateInitialData = (memberData: Member[]): Member[] => {
@@ -884,8 +950,10 @@ export const createMember = async (memberData: Omit<Member, 'id' | 'sno'>): Prom
     documents: memberData.documents || [],
     checkIns: memberData.checkIns || [],
     assignedTo: memberData.assignedTo || [],
-    processStage: memberData.processStage || 'Initial Contact',
-    stageLastChanged: memberData.stageLastChanged || new Date().toISOString(),
+    processStage: memberData.processStage || 'Initial Contact', // Keep for fallback
+    processStages: memberData.processStages || {},
+    stageLastChanged: memberData.stageLastChanged || new Date().toISOString(), // Keep for fallback
+    stageLastChangedMap: memberData.stageLastChangedMap || {},
     companyId: memberData.companyId,
     maritalStatus: memberData.maritalStatus || null, // Ensure default
   };
@@ -1117,6 +1185,33 @@ export const updateDesignationPermissions = async (updatedPermissions: Designati
     }
     return JSON.parse(JSON.stringify(updatedPermissions));
 };
+
+
+// --- NEW: Relationship Type API Functions ---
+export const getRelationshipTypes = async (): Promise<RelationshipType[]> => {
+    await simulateDelay(100);
+    return JSON.parse(JSON.stringify(relationshipTypesData));
+};
+
+export const updateRelationshipTypes = async (updatedData: RelationshipType[]): Promise<RelationshipType[]> => {
+    await simulateDelay(200);
+    relationshipTypesData = JSON.parse(JSON.stringify(updatedData));
+    return relationshipTypesData;
+};
+
+
+// --- MODIFICATION START: New API functions for ProcessStageMaster ---
+export const getProcessStageMasters = async (): Promise<ProcessStageMaster[]> => {
+    await simulateDelay(100);
+    return JSON.parse(JSON.stringify(processStageMastersData));
+};
+
+export const updateProcessStageMasters = async (updatedData: ProcessStageMaster[]): Promise<ProcessStageMaster[]> => {
+    await simulateDelay(200);
+    processStageMastersData = JSON.parse(JSON.stringify(updatedData));
+    return processStageMastersData;
+};
+// --- MODIFICATION END ---
 
 
 // --- REFACTORED & NEW: Religion & Festival API Functions ---

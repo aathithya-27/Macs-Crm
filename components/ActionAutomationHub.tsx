@@ -1,13 +1,16 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-// MODIFIED: Corrected the import path for permission types
+// MODIFIED: Removed ProcessStage from imports as it's no longer managed here
 import { 
     Bell, Gift, Shield, Calendar as CalendarIcon, Mic, StopCircle, Trash2, AlertCircle, CheckSquare, MessageSquare, 
     Link, MessageCircle as WhatsAppIcon, Save, Star, X, Check, Loader2, User, Send, Watch, History, 
     Cog, Clock, Workflow, Plus, Edit2, Zap, FileArchive
 } from 'lucide-react';
 import Button from './ui/Button.tsx';
-// MODIFIED: Corrected the import path for permission types
-import { Member, ActivityLog, Appointment, Task, UpsellOpportunity, CustomScheduledMessage, AutomationRule, ProcessStage, DocTemplate, User as UserType, Notification, ModalTab, AppModule, PermissionLevel } from '../types.ts';
+// MODIFIED: Removed ProcessStage from imports
+import { 
+    Member, ActivityLog, Appointment, Task, UpsellOpportunity, CustomScheduledMessage, AutomationRule, DocTemplate, 
+    User as UserType, Notification, ModalTab, AppModule, PermissionLevel 
+} from '../types.ts';
 import Input from './ui/Input.tsx';
 import DocumentHub from './DocumentHub.tsx';
 import Modal from './ui/Modal.tsx';
@@ -100,7 +103,7 @@ const AppointmentScheduler: React.FC<{ members: Member[]; onSchedule: (details: 
                         <label htmlFor="member-select-appt" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Member</label>
                         <select id="member-select-appt" value={memberId} onChange={(e) => setMemberId(e.target.value)} className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white" disabled={disabled}>
                             <option value="" disabled>-- Choose a member --</option>
-                            {members.map(m => <option key={m.id} value={m.id}>{m.name} ({m.processStage})</option>)}
+                            {members.map(m => <option key={m.id} value={m.id}>{m.name} ({m.processStages ? 'Has Process' : 'No Process'})</option>)}
                         </select>
                     </div>
                     <div>
@@ -204,6 +207,7 @@ const ChannelTag: React.FC<{ channel: 'whatsapp' | 'sms' | 'email' | 'call' | st
 };
 
 // Main Component Props
+// MODIFIED: Removed processFlow and onUpdateProcessFlow from props
 interface ActionAutomationHubProps {
     notifications: Notification[];
     onRenewPolicy: (memberId: string, policyId: string) => Promise<boolean>;
@@ -225,8 +229,6 @@ interface ActionAutomationHubProps {
     rules: AutomationRule[];
     onUpdateRule: (rule: AutomationRule) => void;
     onAddRule: (rule: Omit<AutomationRule, 'id' | 'icon'>) => void;
-    processFlow: ProcessStage[];
-    onUpdateProcessFlow: (newFlow: ProcessStage[]) => void;
     docTemplates: DocTemplate[];
     onUpdateTemplates: (templates: DocTemplate[]) => void;
     currentUser: UserType | null;
@@ -335,7 +337,8 @@ const AddRuleModal: React.FC<{
     );
 }
 
-type HubTab = 'actions' | 'automation' | 'workflow' | 'tools';
+// MODIFIED: Renamed from HubTab to avoid conflict
+type ActionHubTab = 'actions' | 'automation' | 'tools';
 
 const UpsellOpportunityCard: React.FC<{
     opportunity: UpsellOpportunity;
@@ -373,18 +376,18 @@ const UpsellOpportunityCard: React.FC<{
 };
 
 // Main Component
+// MODIFIED: Removed processFlow and onUpdateProcessFlow from destructuring
 export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
     notifications, onRenewPolicy, activityLog, addToast, onNotificationSent, appointments, tasks, onToggleTask,
     onDismissItem, savedGreetingUrl, setSavedGreetingUrl, upsellOpportunities, onDismissOpportunity, members,
-    onScheduleMessage, onClearAll, onScheduleAppointment, rules, onUpdateRule, onAddRule, processFlow, onUpdateProcessFlow,
+    onScheduleMessage, onClearAll, onScheduleAppointment, rules, onUpdateRule, onAddRule,
     docTemplates, onUpdateTemplates, currentUser, users, onViewMember, permissions
 }) => {
-    const [activeHubTab, setActiveHubTab] = useState<HubTab>('actions');
+    const [activeHubTab, setActiveHubTab] = useState<ActionHubTab>('actions');
 
     // NEW: Permission checks
     const canModifyActions = permissions?.actionHub === 'modify';
     const canModifyAutomation = permissions?.masterMember === 'modify';
-    const canModifyWorkflow = permissions?.masterMember === 'modify';
     const canModifyPolicies = permissions?.policies === 'modify';
 
     // --- State for Automation Rules ---
@@ -393,9 +396,10 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
     const [editedTiming, setEditedTiming] = useState<{ value: number; unit: 'days' | 'weeks' }>({ value: 7, unit: 'days' });
     const [isAddRuleModalOpen, setIsAddRuleModalOpen] = useState(false);
 
-    // --- State for Workflow Management ---
-    const [editingStage, setEditingStage] = useState<{ index: number; name: string } | null>(null);
-    const [newStageName, setNewStageName] = useState('');
+    // --- MODIFICATION START: All state and logic for Workflow Management has been removed ---
+    // const [editingStage, setEditingStage] = useState<{ index: number; name: string } | null>(null);
+    // const [newStageName, setNewStageName] = useState('');
+    // --- MODIFICATION END ---
 
     const [upcoming, setUpcoming] = useState<any[]>([]);
     const [overdue, setOverdue] = useState<any[]>([]);
@@ -443,28 +447,11 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
     };
     const handleCancelClick = () => setEditingRuleId(null);
 
-    // --- Workflow Management Logic ---
-    const handleAddStage = (e?: React.FormEvent) => {
-        if (e) e.preventDefault();
-        if (newStageName.trim() === '') return addToast('Stage name cannot be empty.', 'error');
-        onUpdateProcessFlow([...processFlow, newStageName.trim()]);
-        setNewStageName('');
-    };
-    const handleRenameStage = () => {
-        if (!editingStage) return;
-        if (editingStage.name.trim() === '') return addToast('Stage name cannot be empty.', 'error');
-        const newFlow = [...processFlow];
-        newFlow[editingStage.index] = editingStage.name.trim();
-        onUpdateProcessFlow(newFlow);
-        setEditingStage(null);
-    };
-    const handleDeleteStage = (index: number) => {
-        if (processFlow.length <= 1) return addToast('Cannot delete the last stage.', 'error');
-        if (window.confirm(`Are you sure you want to delete the stage "${processFlow[index]}"?`)) {
-            const newFlow = processFlow.filter((_, i) => i !== index);
-            onUpdateProcessFlow(newFlow);
-        }
-    };
+    // --- MODIFICATION START: All handler functions for Workflow have been removed ---
+    // const handleAddStage = ...
+    // const handleRenameStage = ...
+    // const handleDeleteStage = ...
+    // --- MODIFICATION END ---
     
     // --- Notification Center Logic ---
     const handleAction = (notificationId: string) => onNotificationSent(notificationId);
@@ -555,7 +542,8 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <SummaryCard title="Pending Actions" value={notifications.length} icon={<Clock size={24} />} color="text-orange-500" />
                 <SummaryCard title="Active Rules" value={rules.filter(r => r.enabled).length} icon={<Cog size={24} />} color="text-blue-500" />
-                <SummaryCard title="Workflow Stages" value={processFlow.length} icon={<Workflow size={24} />} color="text-purple-500" />
+                {/* MODIFIED: Workflow stages count is removed */}
+                <SummaryCard title="Doc Templates" value={docTemplates.length} icon={<FileArchive size={24} />} color="text-purple-500" />
                 <SummaryCard title="Upcoming Appts" value={appointments.length} icon={<CalendarIcon size={24} />} color="text-green-500" />
             </div>
 
@@ -563,7 +551,7 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
                 <div className="flex items-center gap-2 overflow-x-auto">
                     <TabButton label="Action Center" icon={<Bell size={16}/>} isActive={activeHubTab === 'actions'} onClick={() => setActiveHubTab('actions')} />
                     <TabButton label="Automation & Docs" icon={<Cog size={16}/>} isActive={activeHubTab === 'automation'} onClick={() => setActiveHubTab('automation')} />
-                    <TabButton label="Workflow" icon={<Workflow size={16}/>} isActive={activeHubTab === 'workflow'} onClick={() => setActiveHubTab('workflow')} />
+                    {/* MODIFIED: Workflow tab button is removed */}
                     <TabButton label="Other Tools" icon={<Zap size={16}/>} isActive={activeHubTab === 'tools'} onClick={() => setActiveHubTab('tools')} />
                 </div>
             </div>
@@ -700,13 +688,8 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
                 <DocumentHub templates={docTemplates} onUpdateTemplates={onUpdateTemplates} isReadOnly={!canModifyAutomation} />
             </div>}
             
-            {activeHubTab === 'workflow' && <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700 animate-fade-in">
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4 flex items-center gap-2"><Workflow className="text-purple-500" /> Workflow Management</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Customize the stages of your customer journey. Changes will apply to all customers.</p>
-                <div className="space-y-2 max-h-72 overflow-y-auto pr-2">{processFlow.map((stage, index) => (<div key={index} className="flex items-center gap-2 p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700/50"><span className="font-bold text-gray-500 dark:text-gray-400">{index + 1}.</span>{editingStage?.index === index ? (<Input value={editingStage.name} onChange={(e) => setEditingStage({ ...editingStage, name: e.target.value })} onKeyDown={(e) => e.key === 'Enter' && handleRenameStage()} className="flex-grow"/>) : (<p className="flex-grow text-gray-700 dark:text-gray-200">{stage}</p>)}<div className="flex items-center gap-2">{editingStage?.index === index ? (<><Button size="small" variant="light" onClick={() => setEditingStage(null)}><X size={14}/></Button><Button size="small" variant="success" onClick={handleRenameStage}><Save size={14}/></Button></>) : (<><Button size="small" variant="light" onClick={() => setEditingStage({ index, name: stage })} disabled={!canModifyWorkflow}><Edit2 size={14}/></Button><Button size="small" variant="danger" onClick={() => handleDeleteStage(index)} disabled={!canModifyWorkflow}><Trash2 size={14}/></Button></>)}</div></div>))}</div>
-                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700/50"><form onSubmit={handleAddStage} className="flex items-center gap-2"><input type="text" value={newStageName} onChange={(e) => setNewStageName(e.target.value)} placeholder="New stage name" aria-label="New stage name" className="flex-grow w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white" disabled={!canModifyWorkflow}/><Button type="submit" variant="secondary" disabled={!canModifyWorkflow}><Plus size={16}/> Add Stage</Button></form></div>
-            </div>}
-            
+            {/* MODIFICATION: This entire 'workflow' block is removed */}
+
             {activeHubTab === 'tools' && <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 animate-fade-in">
                 <AppointmentScheduler members={members} onSchedule={onScheduleAppointment} addToast={addToast} disabled={!canModifyActions} />
                 <CustomMessageScheduler members={members} onSchedule={onScheduleMessage} addToast={addToast} disabled={!canModifyActions} />

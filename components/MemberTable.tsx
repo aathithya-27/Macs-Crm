@@ -1,10 +1,11 @@
 import React, { useMemo, useCallback, useState, useRef, useEffect } from 'react';
-// MODIFIED: Import permission types
-import { Member, ModalTab, User, ProcessStage, FinRootsBranch, Designation, AppModule, PermissionLevel } from '../types.ts';
+// MODIFIED: Removed ProcessStage from imports
+import { Member, ModalTab, User, FinRootsBranch, Designation, AppModule, PermissionLevel } from '../types.ts';
 import { Edit, Users, Mic, Phone, FileSignature, UserCheck, ArrowUp, ArrowDown, ChevronDown } from 'lucide-react';
 import { ViewIcon } from './ui/Icons.tsx';
 import ToggleSwitch from './ui/ToggleSwitch.tsx';
 
+// MODIFIED: Removed 'processFlow' from props
 interface MemberTableProps {
   members: Member[];
   allMembers: Member[];
@@ -14,25 +15,22 @@ interface MemberTableProps {
   onDelete: (memberId: string) => void;
   onToggleStatus: (memberId: string) => void;
   onGenerateReview: (memberId: string) => void;
-  processFlow: ProcessStage[];
   finrootsBranches: FinRootsBranch[];
   sortConfig: { key: string; direction: 'asc' | 'desc' };
   onSort: (key: string) => void;
-  designations: Designation[]; // NEW PROP
-  // NEW: Accept permissions prop
+  designations: Designation[];
   permissions: { [key in AppModule]?: PermissionLevel };
 }
 
 const MemberTable: React.FC<MemberTableProps> = ({ 
     members, allMembers, currentUser, users, onEdit, onDelete, 
-    onToggleStatus, onGenerateReview, processFlow, finrootsBranches, 
+    onToggleStatus, onGenerateReview, finrootsBranches, 
     sortConfig, onSort, designations, permissions
 }) => {
 
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
-  // NEW: Permission checks for the customer module
   const canModify = permissions?.customers === 'modify';
 
   useEffect(() => {
@@ -188,7 +186,6 @@ const MemberTable: React.FC<MemberTableProps> = ({
                   )}
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                {/* MODIFIED: Toggle is disabled if user lacks modify permission */}
                 <ToggleSwitch
                     enabled={member.active}
                     onChange={() => onToggleStatus(member.id)}
@@ -199,7 +196,6 @@ const MemberTable: React.FC<MemberTableProps> = ({
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{member.createdAt ? new Date(member.createdAt).toLocaleDateString('en-GB') : 'N/A'}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                 <div className="flex items-center space-x-2">
-                  {/* MODIFIED: Edit, Note, and Review buttons are now permission-gated */}
                   {canModify && (
                     <>
                         <button onClick={() => onEdit(member, ModalTab.BasicInfo)} className="text-brand-primary hover:text-blue-800 p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-600" aria-label={`Edit ${member.name}`}>
@@ -245,7 +241,6 @@ const MemberTable: React.FC<MemberTableProps> = ({
                 )}
               </div>
               <div className="flex items-center space-x-2 flex-shrink-0">
-                  {/* MODIFIED: Action buttons are now permission-gated */}
                   {canModify && (
                     <>
                         <button onClick={() => onEdit(member, ModalTab.BasicInfo)} className="text-brand-primary hover:text-blue-800 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700" aria-label={`Edit ${member.name}`}>
@@ -283,7 +278,6 @@ const MemberTable: React.FC<MemberTableProps> = ({
                 </div>
                  <div className="flex items-center gap-2">
                     <p className="text-gray-500 dark:text-gray-400 font-medium">Status:</p>
-                    {/* MODIFIED: Toggle is disabled if user lacks modify permission */}
                     <ToggleSwitch enabled={member.active} onChange={() => onToggleStatus(member.id)} disabled={!canModify && !isAdmin} />
                 </div>
                 <div>

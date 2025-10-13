@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 // MODIFIED: Import permission types
-import { Member, ModalTab, User, ProcessStage, FinRootsBranch, Designation, AppModule, PermissionLevel } from '../types.ts';
+import { Member, ModalTab, User, FinRootsBranch, Designation, AppModule, PermissionLevel } from '../types.ts';
 import MemberTable from './MemberTable.tsx';
 import Button from './ui/Button.tsx';
 import { Plus, Search, BrainCircuit, Loader2, ArrowLeft, Settings2, Bot } from 'lucide-react';
@@ -8,6 +8,7 @@ import { searchMembersWithNL } from '../services/geminiService.ts';
 import Input from './ui/Input.tsx';
 import Pagination from './ui/Pagination.tsx';
 
+// MODIFICATION: Removed 'processFlow' from the props interface
 interface MemberDashboardProps {
   members: Member[];
   allMembers: Member[];
@@ -20,10 +21,8 @@ interface MemberDashboardProps {
   onToggleStatus: (memberId: string) => void;
   onGenerateReview: (memberId: string) => void;
   addToast: (message: string, type?: 'success' | 'error') => void;
-  processFlow: ProcessStage[];
   finrootsBranches: FinRootsBranch[];
   designations: Designation[];
-  // NEW: Accept permissions prop
   permissions: { [key in AppModule]?: PermissionLevel };
 }
 
@@ -39,7 +38,7 @@ const ITEMS_PER_PAGE = 10;
 const MemberDashboard: React.FC<MemberDashboardProps> = ({ 
     members, allMembers, currentUser, users, onEditMember, onCreateMember, 
     onConversationalCreate, onDeleteMember, onToggleStatus, onGenerateReview, 
-    addToast, processFlow, finrootsBranches, designations, permissions
+    addToast, finrootsBranches, designations, permissions
 }) => {
   const [searchMode, setSearchMode] = useState<SearchMode>('ai');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('Active');
@@ -55,9 +54,7 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'createdAt', direction: 'desc' });
   const [currentPage, setCurrentPage] = useState(1);
 
-  // NEW: Permission checks for the customer module
   const canCreate = permissions?.customers === 'create' || permissions?.customers === 'modify';
-  const canModify = permissions?.customers === 'modify';
   
   useEffect(() => {
     setCurrentPage(1);
@@ -205,7 +202,6 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({
     <div className="bg-white shadow-lg rounded-xl dark:bg-gray-800">
       <div className="flex flex-col md:flex-row justify-between items-center p-6 border-b dark:border-gray-700 gap-4">
         <h2 className="text-xl font-semibold text-brand-dark dark:text-white">Customer Management</h2>
-        {/* MODIFIED: "Create" buttons are now controlled by permissions */}
         {canCreate && (
             <div className="flex items-center gap-2">
                 <Button onClick={onConversationalCreate} variant="light">
@@ -328,12 +324,10 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({
               onDelete={onDeleteMember}
               onToggleStatus={onToggleStatus}
               onGenerateReview={onGenerateReview}
-              processFlow={processFlow}
               finrootsBranches={finrootsBranches}
               sortConfig={sortConfig}
               onSort={handleSort}
               designations={designations}
-              // NEW: Pass permissions down to the table
               permissions={permissions}
             />
         )}

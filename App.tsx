@@ -33,9 +33,10 @@ import { VoucherSaveData } from './components/PaymentVoucherModal.tsx';
 import AdvancedReports from './components/AdvancedReports.tsx';
 import UpsellingDashboard from './components/UpsellingDashboard.tsx';
 
+// MODIFIED: Removed ProcessStage, added ProcessStageMaster
 import {
     Member, ToastData, ActivityLog, Appointment, Task, UpsellOpportunity, AutomationRule, CustomScheduledMessage, ModalTab,
-    Lead, User, Policy, Route as RouteType, ProcessStage, DocTemplate, EmployeeProfile, Tab, GiftMapping, BusinessVertical,
+    Lead, User, Policy, Route as RouteType, DocTemplate, EmployeeProfile, Tab, GiftMapping, BusinessVertical,
     SchemeMaster, Company, FinRootsBranch, Geography, RelationshipType, DocumentMaster, SchemeDocumentMapping, GiftMaster, TaskStatusMaster, CustomerCategory,
     Notification, BankMaster, FinRootsCompanyInfo, CustomerSubCategory, CustomerGroup, TaskMaster, TodaysFocusItem, PolicyChecklistMaster,
     InsuranceTypeMaster, InsuranceFieldMaster, LeadActivityLog, VoiceNote, TaskActivityLog,
@@ -57,16 +58,19 @@ import {
     MutualFundFieldMaster,
     AppModule,
     PermissionLevel,
-    Gender, MaritalStatus, CustomerType // MODIFIED: Imported new types
+    Gender, MaritalStatus, CustomerType,
+    ProcessStageMaster 
 } from './types.ts';
+// MODIFIED: Added getProcessStageMasters and updateProcessStageMasters
 import { 
     getMembers, createMember, updateMember, deleteMember, getLeads, createLead, updateLead, deleteLead, 
     getUsers, getRoutes, updateRoute, createEmployee, updateEmployee, getOperatingCompanies, 
     updateOperatingCompany, getFinrootsBranches, getDesignations, getDesignationPermissions, 
-    updateDesignationPermissions, getReligions, getFestivals, getFestivalDates, getAdvisorLocations, 
+    updateDesignationPermissions, getReligions, getFestivals, getFestivalDates, getRelationshipTypes, updateRelationshipTypes, getAdvisorLocations, 
     getCheckIns, updateAdvisorLocation, createCheckIn, getAdvisorLocationHistory, checkOut, 
     getActiveCheckIn, getUpsellCategories,
-    getGenders, getMaritalStatuses, getCustomerTypes,getCustomerTiers // MODIFIED: Imported new API functions
+    getGenders, getMaritalStatuses, getCustomerTypes, getCustomerTiers,
+    getProcessStageMasters, updateProcessStageMasters
 } from './services/apiService.ts';
 import { getPolicySuggestions, generateAnnualReview, generateUpsellOpportunityForMember, generateTodaysFocus } from './services/geminiService.ts';
 import { indianStates } from './constants.tsx';
@@ -898,10 +902,8 @@ const initialAutomationRules: AutomationRule[] = [
     },
 ];
 
-const initialProcessFlow: ProcessStage[] = [
-    'Initial Contact', 'Coverage Schemes', 'Customer Meeting', 'Decision Point', 'Policy Entry', 'Policy Documents', 'Premium Collection',
-    'Premium Reminder Setup', 'Policy Document Received', 'Policy Handed Over', 'Premium Reminders', 'Receipt Sent'
-];
+// MODIFIED: This array is now removed, as its data is managed by processStageMasters
+// const initialProcessFlow: ProcessStage[] = [ ... ];
 
 const initialDocTemplates: DocTemplate[] = [
     { id: 'tpl-1', name: 'Life Insurance Proposal', content: `Dear {clientName},\n\nThank you for your interest...` },
@@ -1051,7 +1053,6 @@ const initialSchemes: SchemeMaster[] = [
     {id: 'sch-icici-travel', name: 'Travel Insurance', type: 'General Insurance', companyId: 'comp-icici-lombard', active: true, order: 1, insuranceTypeId: 'it-travel'},
     {id: 'sch-bajaj-home', name: 'My Home Insurance', type: 'General Insurance', companyId: 'comp-bajaj', active: true, order: 1, insuranceTypeId: 'it-home'},
 ];
-const initialRelationshipTypes: RelationshipType[] = [ {id:'rel-1', name: 'Self', active: true}, {id:'rel-2', name: 'Spouse', active: true}, {id:'rel-3', name: 'Son', active: true}, {id:'rel-4', name: 'Daughter', active: true}, {id:'rel-5', name: 'Father', active: true}, {id:'rel-6', name: 'Mother', active: true}, ];
 const initialDocumentMasters: DocumentMaster[] = [ {id:'doc-1', name: 'PAN Card', active: true, order: 0}, {id:'doc-2', name: 'Aadhaar Card', active: true, order: 1}, {id:'doc-3', name: 'Passport', active: true, order: 2}, {id:'doc-4', name: 'Driving License', active: true, order: 3}, {id:'doc-5', name: 'Bank Statement', active: true, order: 4}, ];
 const initialGiftMasters: GiftMaster[] = [ {id:'gift-1', name: 'Premium Pen Set', active: true, order: 0}, {id:'gift-2', name: 'Leather Wallet', active: true, order: 1}, {id:'gift-3', name: 'Amazon Gift Card ₹500', active: true, order: 2}, {id:'gift-4', name: 'Custom Diary 2024', active: true, order: 3}, ];
 const initialTaskStatusMasters: TaskStatusMaster[] = [
@@ -1282,7 +1283,7 @@ const App: React.FC = () => {
     const [upsellOpportunities, setUpsellOpportunities] = useState<UpsellOpportunity[]>([]);
     const [automationRules, setAutomationRules] = useState<AutomationRule[]>(initialAutomationRules);
     const [customMessages, setCustomMessages] = useState<CustomScheduledMessage[]>([]);
-    const [processFlow, setProcessFlow] = useState<ProcessStage[]>(initialProcessFlow);
+    // MODIFICATION: Removed processFlow state
     const [docTemplates, setDocTemplates] = useState<DocTemplate[]>(initialDocTemplates);
     const [attendance, setAttendance] = useState<AttendanceState>({});
     
@@ -1332,7 +1333,7 @@ const App: React.FC = () => {
     const [agencies, setAgencies] = useState<Company[]>(initialAgencies);
     const [operatingCompanies, setOperatingCompanies] = useState<Company[]>([]);
     const [geographies, setGeographies] = useState<Geography[]>(generateInitialGeographies());
-    const [relationshipTypes, setRelationshipTypes] = useState<RelationshipType[]>(initialRelationshipTypes);
+    const [relationshipTypes, setRelationshipTypes] = useState<RelationshipType[]>([]);
     const [documentMasters, setDocumentMasters] = useState<DocumentMaster[]>(initialDocumentMasters);
     const [schemeDocumentMappings, setSchemeDocumentMappings] = useState<SchemeDocumentMapping[]>([]);
     const [giftMasters, setGiftMasters] = useState<GiftMaster[]>(initialGiftMasters);
@@ -1370,7 +1371,9 @@ const App: React.FC = () => {
     const [genders, setGenders] = useState<Gender[]>([]);
     const [maritalStatuses, setMaritalStatuses] = useState<MaritalStatus[]>([]);
     const [customerTypes, setCustomerTypes] = useState<CustomerType[]>([]);
-
+    // MODIFICATION START: New state for process stage masters
+    const [processStageMasters, setProcessStageMasters] = useState<ProcessStageMaster[]>([]);
+    // MODIFICATION END
 
     // --- Multi-tenancy Filtered Data ---
     const companyMembers = useMemo(() => allMembers.filter(m => m.companyId === currentUser?.companyId), [allMembers, currentUser]);
@@ -1442,7 +1445,7 @@ const App: React.FC = () => {
             sortedTiers = [...sortedTiers].sort((a, b) => (b.minimumSumAssured ?? 0) - (a.minimumSumAssured ?? 0));
             assignedTier = sortedTiers.find(tier => totalSumAssured >= (tier.minimumSumAssured ?? 0));
         } else { // 'premium'
-            sortedTiers = [...sortedTiers].sort((a, b) => (b.minimumPremium ?? 0) - (b.minimumPremium ?? 0));
+            sortedTiers = [...sortedTiers].sort((a, b) => (b.minimumPremium ?? 0) - (a.minimumPremium ?? 0));
             assignedTier = sortedTiers.find(tier => totalPremium >= (tier.minimumPremium ?? 0));
         }
 
@@ -1500,6 +1503,17 @@ const App: React.FC = () => {
     const handleUpdateGenders = useCallback((newData: Gender[]) => setGenders([...newData]), []);
     const handleUpdateMaritalStatuses = useCallback((newData: MaritalStatus[]) => setMaritalStatuses([...newData]), []);
     const handleUpdateCustomerTypes = useCallback((newData: CustomerType[]) => setCustomerTypes([...newData]), []);
+    // MODIFICATION START: New handler for process stage masters
+    const handleUpdateProcessStageMasters = useCallback(async (newData: ProcessStageMaster[]) => {
+        try {
+            const updated = await updateProcessStageMasters(newData);
+            setProcessStageMasters(updated);
+            addToast('Process flow updated successfully!', 'success');
+        } catch (error) {
+            addToast(`Failed to update process flow: ${(error as Error).message}`, 'error');
+        }
+    }, [addToast]);
+    // MODIFICATION END
     const handleUpdateDesignationPermissions = useCallback(async (permissions: DesignationPermissions) => {
         try {
             const updated = await updateDesignationPermissions(permissions);
@@ -1693,12 +1707,14 @@ const App: React.FC = () => {
         const loadData = async () => {
             setIsLoading(true);
             try {
+                // MODIFICATION: Added getProcessStageMasters to the promise array
                 const [
                     membersData, leadsData, usersData, routesData, opCompaniesData, branchesData, 
-                    religionsData, festivalsData, festivalDatesData, upsellCategoriesData,
+                    religionsData, festivalsData, relationshipTypesData, festivalDatesData, upsellCategoriesData,
                     designationsData, designationPermissionsData,
                     gendersData, maritalStatusesData, customerTypesData,
-                    customerTiersData // MODIFIED: Correctly call the new API function
+                    customerTiersData,
+                    processStagesData
                 ] = await Promise.all([
                     getMembers(),
                     getLeads(),
@@ -1708,6 +1724,7 @@ const App: React.FC = () => {
                     getFinrootsBranches(),
                     getReligions(),
                     getFestivals(),
+                    getRelationshipTypes(),
                     getFestivalDates(),
                     getUpsellCategories(),
                     getDesignations(),
@@ -1715,7 +1732,8 @@ const App: React.FC = () => {
                     getGenders(), 
                     getMaritalStatuses(), 
                     getCustomerTypes(), 
-                    getCustomerTiers() // MODIFIED: Call the new API function
+                    getCustomerTiers(),
+                    getProcessStageMasters()
                 ]);
                 setAllMembers(membersData);
                 setAllLeads(leadsData);
@@ -1725,11 +1743,11 @@ const App: React.FC = () => {
                 setAllBranches(branchesData);
                 setReligions(religionsData);
                 setFestivals(festivalsData);
+                setRelationshipTypes(relationshipTypesData);
                 setFestivalDates(festivalDatesData);
                 setUpsellCategories(upsellCategoriesData);
                 setDesignations(designationsData);
                 setDesignationPermissions(designationPermissionsData);
-                // --- MODIFIED: Set new states ---
                 setGenders(gendersData);
                 setMaritalStatuses(maritalStatusesData);
                 setCustomerTypes(customerTypesData);
@@ -1737,6 +1755,8 @@ const App: React.FC = () => {
                 const typeMap = new Map(customerTypesData.map(t => [t.id, t.name]));
                 const hydratedTiers = customerTiersData.map(tier => ({...tier, name: typeMap.get(tier.customerTypeId) || 'Unknown'}));
                 setCustomerTiers(hydratedTiers);
+                // MODIFICATION: Set the new state for process stage masters
+                setProcessStageMasters(processStagesData);
 
             } catch (error) {
                 console.error("Failed to load initial data:", error);
@@ -2064,6 +2084,61 @@ const App: React.FC = () => {
         setIsViewByTierModalOpen(true);
     }, []);
  
+    // --- MODIFICATION START: New handler for creating dependent members ---
+    const handleCreateDependentMember = useCallback(async (spoc: Member, dependentData: Partial<Member>): Promise<Member | null> => {
+        if (!currentUser || !spoc || !spoc.sno) {
+            addToast('Cannot create dependent: primary contact is not saved.', 'error');
+            return null;
+        }
+        
+        try {
+            // Generate a unique memberId
+            const namePart = (dependentData.name || '').replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase().padEnd(2, '_');
+            const mobilePart = (dependentData.mobile || spoc.mobile || '').replace(/[^0-9]/g, '').slice(-5).padEnd(5, '_');
+            const dobPart = (dependentData.dob || '0101').replace(/-/g, '').slice(-4);
+            const newMemberId = `${namePart}${dobPart}${mobilePart}`;
+
+            const newDependentPayload: Omit<Member, 'id' | 'sno'> = {
+                name: dependentData.name || '',
+                memberId: newMemberId,
+                dob: dependentData.dob || '',
+                gender: dependentData.gender,
+                mobile: dependentData.mobile || spoc.mobile,
+                email: dependentData.email || spoc.email,
+                maritalStatus: dependentData.maritalStatus || null,
+                state: dependentData.state || spoc.state,
+                city: dependentData.city || spoc.city,
+                address: dependentData.address || spoc.address,
+                memberType: 'No Tier',
+                tierId: null,
+                active: true,
+                panCard: '',
+                aadhaar: '',
+                policies: [],
+                voiceNotes: [],
+                documents: [],
+                checkIns: [],
+                assignedTo: spoc.assignedTo,
+                isSPOC: false,
+                spocId: spoc.sno,
+                familyName: spoc.familyName,
+                company: spoc.company,
+                companyId: spoc.companyId,
+                createdBy: currentUser.id,
+                createdAt: new Date().toISOString(),
+                processStage: 'Initial Contact',
+            };
+
+            const created = await createMember(newDependentPayload);
+            setAllMembers(prev => [...prev, created]);
+            return created;
+
+        } catch (error) {
+            addToast(`Error creating family member: ${(error as Error).message}`, "error");
+            return null;
+        }
+    }, [currentUser, addToast]);
+    // --- MODIFICATION END ---
 
 
     const handleSaveMember = useCallback(async (memberData: Member, closeModal: boolean = true) => {
@@ -2082,63 +2157,16 @@ const App: React.FC = () => {
                     return;
                 }
 
-                const isSPOC = (updatedMemberData.policies || []).some(p => p.policyHolderType === 'Family');
+                const isSPOC = (updatedMemberData.policies || []).some(p => p.policyHolderType === 'Family') || updatedMemberData.isSPOC;
                 updatedMemberData.isSPOC = isSPOC;
                 if (isSPOC && !updatedMemberData.familyName) {
                     updatedMemberData.familyName = `${updatedMemberData.name}'s Family`;
                 }
 
                 const newMemberPayload = { ...updatedMemberData, company: currentUser?.company || '', companyId: currentUser?.companyId || '', createdBy: currentUser?.id, createdAt: new Date().toISOString() };
-                let createdSpoc = await createMember(newMemberPayload as Omit<Member, 'id' | 'sno'>);
+                const createdMember = await createMember(newMemberPayload as Omit<Member, 'id' | 'sno'>);
                 
-                let newDependentsToCreate: Omit<Member, 'id' | 'sno'>[] = [];
-                if (isSPOC) {
-                    for (const policy of (createdSpoc.policies || [])) {
-                        if (policy.policyHolderType === 'Family') {
-                            for (const coveredMember of (policy.coveredMembers || [])) {
-                                const existing = allMembers.find(m => m.name.toLowerCase() === coveredMember.name.toLowerCase() && m.dob === coveredMember.dob);
-                                if (!existing) {
-                                    const namePart = (coveredMember.name || '').replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase().padEnd(2, '_');
-                                    const dependentAddress = coveredMember.address || createdSpoc.address;
-                                    const addressDigits = (dependentAddress || '').replace(/[^0-9]/g, '');
-                                    const addressPart = addressDigits.slice(0, 2).padEnd(2, '0');
-                                    const mobilePart = (coveredMember.mobile || createdSpoc.mobile || '').replace(/[^0-9]/g, '').slice(-5).padEnd(5, '_');
-                                    const newMemberId = `${namePart}${addressPart}${mobilePart}`;
-                                    newDependentsToCreate.push({
-                                        name: coveredMember.name, memberId: newMemberId, dob: coveredMember.dob, gender: coveredMember.gender, mobile: coveredMember.mobile || createdSpoc.mobile, email: coveredMember.email || createdSpoc.email, state: createdSpoc.state, city: createdSpoc.city, address: dependentAddress, memberType: 'No Tier', tierId: null, active: true, panCard: '', aadhaar: '', policies: [], voiceNotes: [], documents: [], checkIns: [], assignedTo: createdSpoc.assignedTo, isSPOC: false, spocId: createdSpoc.sno, familyName: createdSpoc.familyName, company: createdSpoc.company, companyId: createdSpoc.companyId, createdBy: currentUser?.id, createdAt: new Date().toISOString(), processStage: 'Initial Contact', maritalStatus: 'Single',
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-
-                const createdDependents = newDependentsToCreate.length > 0 ? await Promise.all(newDependentsToCreate.map(createMember)) : [];
-
-                let wasSpocUpdated = false;
-                if (isSPOC && createdDependents.length > 0) {
-                    createdSpoc.policies = createdSpoc.policies.map(policy => {
-                        if (policy.policyHolderType === 'Family') {
-                            return {
-                                ...policy,
-                                coveredMembers: (policy.coveredMembers || []).map(cm => {
-                                    const dependent = createdDependents.find(d => d.name === cm.name && d.dob === cm.dob);
-                                    if (dependent) {
-                                        wasSpocUpdated = true;
-                                        return { ...cm, memberId: dependent.memberId }; 
-                                    }
-                                    return cm;
-                                })
-                            };
-                        }
-                        return policy;
-                    });
-                     if (wasSpocUpdated) {
-                        createdSpoc = await updateMember(createdSpoc);
-                    }
-                }
-
-                setAllMembers(prev => [...prev, createdSpoc, ...createdDependents]);
+                setAllMembers(prev => [...prev, createdMember]);
                 addToast("Customer created successfully!", "success");
 
                 if (leadToConvertId) {
@@ -2158,10 +2186,9 @@ const App: React.FC = () => {
                 if (!oldMember) throw new Error("Original member not found for update.");
 
                 let membersToUpdate: Member[] = [];
-                let newDependentsToCreate: Omit<Member, 'id' | 'sno'>[] = [];
 
                 const wasSPOC = oldMember.isSPOC;
-                const isNowSPOC = (updatedMemberData.policies || []).some(p => p.policyHolderType === 'Family');
+                const isNowSPOC = (updatedMemberData.policies || []).some(p => p.policyHolderType === 'Family') || updatedMemberData.isSPOC;
                 updatedMemberData.isSPOC = isNowSPOC;
 
                 if (isNowSPOC && !wasSPOC) {
@@ -2169,7 +2196,7 @@ const App: React.FC = () => {
                 } else if (isNowSPOC && !updatedMemberData.familyName) {
                     updatedMemberData.familyName = `${updatedMemberData.name}'s Family`;
                 }
-
+                
                 if (updatedMemberData.isSPOC && oldMember.name !== updatedMemberData.name) {
                     updatedMemberData.familyName = `${updatedMemberData.name}'s Family`;
                     const dependentsToUpdate = allMembers.filter(m => m.spocId === oldMember.sno);
@@ -2178,36 +2205,11 @@ const App: React.FC = () => {
                     });
                 }
 
-                if (isNowSPOC) {
-                    const oldCmMap = new Map((oldMember.policies || []).flatMap(p => p.coveredMembers || []).map(cm => [cm.id, cm]));
-
-                    for (const policy of (updatedMemberData.policies || []).filter(p => p.policyHolderType === 'Family')) {
-                        policy.familyHeadMemberId = updatedMemberData.memberId;
-                        for (const updatedCm of (policy.coveredMembers || [])) {
-                            const oldCm = oldCmMap.get(updatedCm.id);
-
-                            if (oldCm) {
-                                const dependentRecord = allMembers.find(m => m.memberId === updatedCm.memberId);
-                            } else { 
-                                const existingMember = allMembers.find(m => m.name.toLowerCase().trim() === updatedCm.name.toLowerCase().trim() && m.dob === updatedCm.dob);
-                                if (!existingMember) {
-                                    const namePart = (updatedCm.name || '').replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase().padEnd(2, '_');
-                                    const dependentAddress = updatedCm.address || updatedMemberData.address;
-                                    const addressDigits = (dependentAddress || '').replace(/[^0-9]/g, '');
-                                    const addressPart = addressDigits.slice(0, 2).padEnd(2, '0');
-                                    const mobilePart = (updatedCm.mobile || updatedMemberData.mobile || '').replace(/[^0-9]/g, '').slice(-5).padEnd(5, '_');
-                                    const newMemberId = `${namePart}${addressPart}${mobilePart}`;
-                                    newDependentsToCreate.push({
-                                         name: updatedCm.name, memberId: newMemberId, dob: updatedCm.dob, gender: updatedCm.gender, mobile: updatedCm.mobile || updatedMemberData.mobile, email: updatedCm.email || updatedMemberData.email, state: updatedMemberData.state, city: updatedMemberData.city, address: dependentAddress, memberType: 'No Tier', tierId: null, active: true, panCard: '', aadhaar: '', policies: [], voiceNotes: [], documents: [], checkIns: [], assignedTo: updatedMemberData.assignedTo, isSPOC: false, spocId: updatedMemberData.sno, familyName: updatedMemberData.familyName, company: updatedMemberData.company, companyId: updatedMemberData.companyId, createdBy: currentUser?.id, createdAt: new Date().toISOString(), processStage: 'Initial Contact', maritalStatus: 'Single',
-                                    });
-                                } else if (!existingMember.spocId) {
-                                    membersToUpdate.push({ ...existingMember, spocId: updatedMemberData.sno, familyName: updatedMemberData.familyName });
-                                }
-                            }
-                        }
-                    }
-                }
-
+                // --- MODIFICATION START: Removed automatic dependent creation logic ---
+                // The logic that looped through `coveredMembers` to find new members and create them has been removed.
+                // The assumption is now that members are created in the Family Tab first.
+                // --- MODIFICATION END ---
+                
                 if (oldMember.spocId) {
                     const spoc = allMembers.find(m => m.sno === oldMember.spocId && m.isSPOC);
                     if (spoc) {
@@ -2225,26 +2227,6 @@ const App: React.FC = () => {
                     }
                 }
 
-                const createdDependents = await Promise.all(newDependentsToCreate.map(m => createMember(m as Omit<Member, 'id' | 'sno'>)));
-
-                if (createdDependents.length > 0) {
-                    updatedMemberData.policies = updatedMemberData.policies.map(policy => {
-                         if (policy.policyHolderType === 'Family') {
-                             return {
-                                 ...policy,
-                                 coveredMembers: (policy.coveredMembers || []).map(cm => {
-                                     const dependent = createdDependents.find(d => d.name === cm.name && d.dob === cm.dob);
-                                     if (dependent && !cm.memberId) {
-                                         return { ...cm, memberId: dependent.memberId }; 
-                                     }
-                                     return cm;
-                                 })
-                             };
-                         }
-                         return policy;
-                    });
-                }
-
                 const updatedMemberResult = await updateMember(updatedMemberData as Member);
                 const updatedDependents = await Promise.all(membersToUpdate.map(m => updateMember(m)));
 
@@ -2252,7 +2234,6 @@ const App: React.FC = () => {
                     const memberMap = new Map(prev.map(m => [m.id, m]));
                     memberMap.set(updatedMemberResult.id, updatedMemberResult);
                     updatedDependents.forEach(ud => memberMap.set(ud.id, ud));
-                    createdDependents.forEach(cd => memberMap.set(cd.id, cd));
                     return Array.from(memberMap.values());
                 });
 
@@ -2960,7 +2941,8 @@ const App: React.FC = () => {
                                 {/* CORRECTED: Pass permissions to all components */}
                                 <Route path="/" element={<Navigate to="/dashboard" />} />
                                 <Route path="/dashboard" element={<Dashboard {...{ members: companyMembers, leads: companyLeads, notifications, upsellOpportunities, onOpenModal: handleOpenMemberModal, onOpenLeadModal: handleOpenLeadModal, currentUser, users: companyUsers, dismissedFocusItems, onDismissFocusItem: handleDismissItem, allTasks, onToggleTask: handleToggleTask, onUpdateTask: handleUpdateTask, onDeleteTask: handleDeleteTask, todaysFocusItems, isFocusLoading, focusError, onRefreshFocus: fetchTodaysFocus, customerTiers, onViewTier: handleViewTier, taskStatusMasters, addToast, designations, permissions: currentUserPermissions }} />} />
-                                <Route path="/customers" element={<MemberDashboard {...{ members: companyMembers, allMembers, currentUser, users: companyUsers, onEditMember: handleOpenMemberModal, onCreateMember: () => handleOpenMemberModal(null), onConversationalCreate: () => setIsConversationalCreatorOpen(true), onDeleteMember: handleDeleteMember, onToggleStatus: handleToggleMemberStatus, onGenerateReview: handleGenerateReview, addToast, processFlow, finrootsBranches: companyBranches, designations, permissions: currentUserPermissions }} />} />
+                                {/* MODIFIED: Removed processFlow from MemberDashboard */}
+                                <Route path="/customers" element={<MemberDashboard {...{ members: companyMembers, allMembers, currentUser, users: companyUsers, onEditMember: handleOpenMemberModal, onCreateMember: () => handleOpenMemberModal(null), onConversationalCreate: () => setIsConversationalCreatorOpen(true), onDeleteMember: handleDeleteMember, onToggleStatus: handleToggleMemberStatus, onGenerateReview: handleGenerateReview, addToast, finrootsBranches: companyBranches, designations, permissions: currentUserPermissions }} />} />
                                 <Route path="/policies" element={<PolicyManager {...{ members: companyMembers, onRenewPolicy: handleRenewPolicy, onViewMember: handleOpenMemberModal, addToast, users: companyUsers, finrootsBranches: companyBranches, insuranceTypes, designations, permissions: currentUserPermissions }} />} />
                                 <Route path="/mutualFunds" element={<MutualFunds {...{ allMembers: companyMembers, onUpdateMember: (member) => handleSaveMember(member, false), amcs, schemes: mutualFundSchemes, addToast, onViewMember: onViewMember, permissions: currentUserPermissions }} />} />
                                 <Route path="/pipeline" element={<SalesPipeline {...{ leads: leadsForPipeline, users: companyUsers, onOpenLeadModal: handleOpenLeadModal, onUpdateLead: async (lead) => { if (!currentUser) return; const oldLead = allLeads.find(l => l.id === lead.id); if (!oldLead) return; const newLogs = generateLeadActivityLog(oldLead, lead, currentUser.id); const updatedLeadData = { ...lead, lastUpdatedAt: new Date().toISOString(), activityLog: [...(oldLead.activityLog || []), ...newLogs]}; const updated = await updateLead(updatedLeadData); setAllLeads(prev => prev.map(l => l.id === updated.id ? updated : l)); addToast("Lead updated.", "success"); }, onConvertLead: (lead) => { const newMemberFromLead: Partial<Member> = { name: lead.name, mobile: lead.phone, email: lead.email, leadSource: lead.leadSource, assignedTo: lead.assignedTo ? [lead.assignedTo] : [], branchId: lead.branchId, company: lead.company, companyId: lead.companyId, active: true, policies: [], voiceNotes: [], documents: [], checkIns: [], processStage: 'Initial Contact', }; handleOpenMemberModal(newMemberFromLead as Member, ModalTab.BasicInfo, lead.id); addToast(`Converting ${lead.name} to customer. Please review and save.`, "success"); }, leadSources, onDeleteLead: handleDeleteLead, finrootsBranches: companyBranches, insuranceTypes, addToast, permissions: currentUserPermissions }} />} />
@@ -2970,8 +2952,10 @@ const App: React.FC = () => {
                                 <Route path="/profile" element={currentUser.designationId === 'des-admin' ? <AdminProfile {...{ user: currentUser, users: companyUsers, allMembers: companyMembers, onOpenEmployeeModal: () => handleOpenEmployeeModal(null), onUpdateProfile: handleSaveEmployee, addToast, designations, permissions: currentUserPermissions }} /> : <ProfilePage {...{ user: currentUser, onUpdateProfile: handleSaveEmployee, onUpdatePassword: handleUpdatePassword, addToast, allMembers: companyMembers, users: companyUsers, geographies, onUpdateGeographies: handleUpdateGeographies, bankMasters, designations, permissions: currentUserPermissions, genders }} />} />
                                 <Route path="/employees" element={<EmployeeManagement {...{ users: companyUsers, allMembers: companyMembers, onOpenEmployeeModal: handleOpenEmployeeModal, onToggleStatus: async (userId) => { const user = allUsers.find(u => u.id === userId); if(user) { const newStatus = user.profile?.status === 'Active' ? 'Inactive' : 'Active'; await handleSaveEmployee({...user, profile: {...user.profile, status: newStatus} as EmployeeProfile}); addToast("Employee status updated.", "success"); }}, attendance, onUpdateAttendance: handleUpdateAttendanceByAdmin, finrootsBranches: companyBranches, addToast, designations, permissions: currentUserPermissions }} />} />
                                 <Route path="/servicesHub" element={<ServicesHub addToast={addToast} allMembers={companyMembers} onViewMember={handleOpenMemberModal} onUpdateCommissionStatus={handleUpdateCommissionStatus} currentUser={currentUser} designations={designations} />} />
-                                <Route path="/actionHub" element={<ActionAutomationHub {...{ notifications: hubNotifications, onRenewPolicy: handleRenewPolicy, activityLog: hubActivityLog, addToast, onNotificationSent: () => {}, appointments: hubAppointments, tasks: hubTasks, onToggleTask: handleToggleTask, onDismissItem: handleDismissItem, savedGreetingUrl: null, setSavedGreetingUrl: () => {}, upsellOpportunities, onDismissOpportunity: (id) => setUpsellOpportunities(prev => prev.filter(o => o.id !== id)), members: companyMembers, onScheduleMessage: (msg) => { setCustomMessages(prev => [...prev, {...msg, id: `cm-${Date.now()}`}]); addToast('Custom message scheduled!', 'success'); }, onClearAll: handleClearActionHubNotifications, onScheduleAppointment: (appt) => { const member = companyMembers.find(m => m.id === appt.memberId); if(member) { setAppointments(prev => [...prev, { ...appt, id: `appt-${Date.now()}`, memberName: member.name }]); addToast('Appointment scheduled!', 'success'); } }, rules: automationRules, onUpdateRule: (rule) => setAutomationRules(prev => prev.map(r => r.id === rule.id ? rule : r)), onAddRule: handleAddAutomationRule, processFlow, onUpdateProcessFlow: setProcessFlow, docTemplates, onUpdateTemplates: setDocTemplates, currentUser, users: companyUsers, onViewMember: onViewMember, permissions: currentUserPermissions }} />} />
-                                <Route path="/masterMember/" element={<MasterData {...{addToast, allMembers: companyMembers, users: companyUsers, customerFieldMasters, onUpdateCustomerFieldMasters: handleUpdateCustomerFieldMasters, businessVerticals, onUpdateBusinessVerticals: handleUpdateBusinessVerticals, leadSources, onUpdateLeadSources: handleUpdateLeadSources, schemes, onUpdateSchemes: handleUpdateSchemes, agencies, onUpdateAgencies: handleUpdateAgencies, operatingCompanies, onUpdateOperatingCompanies: handleUpdateOperatingCompany, finrootsBranches: allBranches, onUpdateFinrootsBranches: handleUpdateFinrootsBranches, finrootsCompanyInfo, onUpdateFinRootsCompanyInfo: setFinrootsCompanyInfo, geographies, onUpdateGeographies: handleUpdateGeographies, relationshipTypes, onUpdateRelationshipTypes: handleUpdateRelationshipTypes, documentMasters, onUpdateDocumentMasters: handleUpdateDocumentMasters, schemeDocumentMappings, onUpdateSchemeDocumentMappings: handleUpdateSchemeDocumentMappings, giftMasters, onUpdateGiftMasters: handleUpdateGiftMasters, customerTiers, onUpdateCustomerTiers: handleUpdateCustomerTiers, taskStatuses: taskStatusMasters, onUpdateTaskStatuses: handleUpdateTaskStatusMasters, customerCategories, onUpdateCustomerCategories: handleUpdateCustomerCategories, bankMasters, onUpdateBankMasters: handleUpdateBankMasters, customerSubCategories, onUpdateCustomerSubCategories: handleUpdateCustomerSubCategories, customerGroups, onUpdateCustomerGroups: handleUpdateCustomerGroups, taskMasters, onUpdateTaskMasters: handleUpdateTaskMasters, policyChecklistMasters, onUpdatePolicyChecklistMasters: handleUpdatePolicyChecklistMasters, insuranceTypes, onUpdateInsuranceTypes: handleUpdateInsuranceTypes, insuranceFields, onUpdateInsuranceFields: handleUpdateInsuranceFields, routes, onUpdateRoutes: handleUpdateRoutes, designations, onUpdateDesignations: handleUpdateDesignations, designationPermissions, onUpdateDesignationPermissions: handleUpdateDesignationPermissions, currentUser, customerTierCalculationMethod, onUpdateCustomerTierCalculationMethod: handleUpdateAllMemberTiers, expenseCategoriesLevel1, onUpdateExpenseCategoriesLevel1: handleUpdateExpenseCategoriesLevel1, expenseCategoriesLevel2, onUpdateExpenseCategoriesLevel2: handleUpdateExpenseCategoriesLevel2, expenseCategoriesLevel3, onUpdateExpenseCategoriesLevel3: handleUpdateExpenseCategoriesLevel3, incomeCategoriesLevel1, onUpdateIncomeCategoriesLevel1: handleUpdateIncomeCategoriesLevel1, incomeCategoriesLevel2, onUpdateIncomeCategoriesLevel2: handleUpdateIncomeCategoriesLevel2, religions, onUpdateReligions: handleUpdateReligions, festivals, onUpdateFestivals: handleUpdateFestivals, festivalDates, onUpdateFestivalDates: handleUpdateFestivalDates, amcs, onUpdateAmcs: handleUpdateAmcs, mutualFundSchemes, onUpdateMutualFundSchemes: handleUpdateMutualFundSchemes, mutualFundFields, onUpdateMutualFundFields: handleUpdateMutualFundFields, permissions: currentUserPermissions, genders, onUpdateGenders: handleUpdateGenders, maritalStatuses, onUpdateMaritalStatuses: handleUpdateMaritalStatuses, customerTypes, onUpdateCustomerTypes: handleUpdateCustomerTypes }} />} />
+                                {/* MODIFIED: Removed processFlow and onUpdateProcessFlow from ActionAutomationHub */}
+                                <Route path="/actionHub" element={<ActionAutomationHub {...{ notifications: hubNotifications, onRenewPolicy: handleRenewPolicy, activityLog: hubActivityLog, addToast, onNotificationSent: () => {}, appointments: hubAppointments, tasks: hubTasks, onToggleTask: handleToggleTask, onDismissItem: handleDismissItem, savedGreetingUrl: null, setSavedGreetingUrl: () => {}, upsellOpportunities, onDismissOpportunity: (id) => setUpsellOpportunities(prev => prev.filter(o => o.id !== id)), members: companyMembers, onScheduleMessage: (msg) => { setCustomMessages(prev => [...prev, {...msg, id: `cm-${Date.now()}`}]); addToast('Custom message scheduled!', 'success'); }, onClearAll: handleClearActionHubNotifications, onScheduleAppointment: (appt) => { const member = companyMembers.find(m => m.id === appt.memberId); if(member) { setAppointments(prev => [...prev, { ...appt, id: `appt-${Date.now()}`, memberName: member.name }]); addToast('Appointment scheduled!', 'success'); } }, rules: automationRules, onUpdateRule: (rule) => setAutomationRules(prev => prev.map(r => r.id === rule.id ? rule : r)), onAddRule: handleAddAutomationRule, docTemplates, onUpdateTemplates: setDocTemplates, currentUser, users: companyUsers, onViewMember: onViewMember, permissions: currentUserPermissions }} />} />
+                                {/* MODIFIED: Added processStageMasters and onUpdateProcessStageMasters to MasterData */}
+                                <Route path="/masterMember/" element={<MasterData {...{addToast, allMembers: companyMembers, users: companyUsers, customerFieldMasters, onUpdateCustomerFieldMasters: handleUpdateCustomerFieldMasters, businessVerticals, onUpdateBusinessVerticals: handleUpdateBusinessVerticals, leadSources, onUpdateLeadSources: handleUpdateLeadSources, schemes, onUpdateSchemes: handleUpdateSchemes, agencies, onUpdateAgencies: handleUpdateAgencies, operatingCompanies, onUpdateOperatingCompanies: handleUpdateOperatingCompany, finrootsBranches: allBranches, onUpdateFinrootsBranches: handleUpdateFinrootsBranches, finrootsCompanyInfo, onUpdateFinRootsCompanyInfo: setFinrootsCompanyInfo, geographies, onUpdateGeographies: handleUpdateGeographies, relationshipTypes, onUpdateRelationshipTypes: handleUpdateRelationshipTypes, documentMasters, onUpdateDocumentMasters: handleUpdateDocumentMasters, schemeDocumentMappings, onUpdateSchemeDocumentMappings: handleUpdateSchemeDocumentMappings, giftMasters, onUpdateGiftMasters: handleUpdateGiftMasters, customerTiers, onUpdateCustomerTiers: handleUpdateCustomerTiers, taskStatuses: taskStatusMasters, onUpdateTaskStatuses: handleUpdateTaskStatusMasters, customerCategories, onUpdateCustomerCategories: handleUpdateCustomerCategories, bankMasters, onUpdateBankMasters: handleUpdateBankMasters, customerSubCategories, onUpdateCustomerSubCategories: handleUpdateCustomerSubCategories, customerGroups, onUpdateCustomerGroups: handleUpdateCustomerGroups, taskMasters, onUpdateTaskMasters: handleUpdateTaskMasters, policyChecklistMasters, onUpdatePolicyChecklistMasters: handleUpdatePolicyChecklistMasters, insuranceTypes, onUpdateInsuranceTypes: handleUpdateInsuranceTypes, insuranceFields, onUpdateInsuranceFields: handleUpdateInsuranceFields, routes, onUpdateRoutes: handleUpdateRoutes, designations, onUpdateDesignations: handleUpdateDesignations, currentUser, customerTierCalculationMethod, onUpdateCustomerTierCalculationMethod: handleUpdateAllMemberTiers, expenseCategoriesLevel1, onUpdateExpenseCategoriesLevel1: handleUpdateExpenseCategoriesLevel1, expenseCategoriesLevel2, onUpdateExpenseCategoriesLevel2: handleUpdateExpenseCategoriesLevel2, expenseCategoriesLevel3, onUpdateExpenseCategoriesLevel3: handleUpdateExpenseCategoriesLevel3, incomeCategoriesLevel1, onUpdateIncomeCategoriesLevel1: handleUpdateIncomeCategoriesLevel1, incomeCategoriesLevel2, onUpdateIncomeCategoriesLevel2: handleUpdateIncomeCategoriesLevel2, religions, onUpdateReligions: handleUpdateReligions, festivals, onUpdateFestivals: handleUpdateFestivals, festivalDates, onUpdateFestivalDates: handleUpdateFestivalDates, amcs, onUpdateAmcs: handleUpdateAmcs, mutualFundSchemes, onUpdateMutualFundSchemes: handleUpdateMutualFundSchemes, mutualFundFields, onUpdateMutualFundFields: handleUpdateMutualFundFields, permissions: currentUserPermissions, genders, onUpdateGenders: handleUpdateGenders, maritalStatuses, onUpdateMaritalStatuses: handleUpdateMaritalStatuses, customerTypes, onUpdateCustomerTypes: handleUpdateCustomerTypes, processStageMasters, onUpdateProcessStageMasters: handleUpdateProcessStageMasters }} />} />
                                 <Route path="/reports-insights" element={<ReportsAndInsights members={companyMembers} users={companyUsers} tasks={allTasks} attendance={attendance} onUpdateAttendance={handleUpdateAttendanceByAdmin} addToast={addToast} allLeads={companyLeads} currentUser={currentUser} leadSources={leadSources} schemes={schemes} insuranceTypes={insuranceTypes} onOpenAttendanceReport={() => setIsAttendanceReportModalOpen(true)} designations={designations} />} />
                                 <Route path="/taskManagement" element={<TaskManagement allTasks={allTasks} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} onCreateTask={handleCreateTask} onCreateBulkTask={handleCreateBulkTask} onOpenTask={handleOpenTask} users={companyUsers} members={companyMembers} leads={companyLeads} taskStatusMasters={taskStatusMasters} taskMasters={taskMasters} addToast={addToast} currentUser={currentUser} finrootsBranches={companyBranches} onReassignTask={handleReassignTask} designations={designations} />} />
                                 <Route path="/profitAndLoss" element={<ProfitAndLoss allMembers={companyMembers} expenses={expenses} manualIncomes={manualIncomes} manualCommissions={manualCommissions} expenseCategoriesLevel1={expenseCategoriesLevel1} expenseCategoriesLevel2={expenseCategoriesLevel2} expenseCategoriesLevel3={expenseCategoriesLevel3} incomeCategoriesLevel1={incomeCategoriesLevel1} incomeCategoriesLevel2={incomeCategoriesLevel2} onAddExpense={handleAddExpense} onUpdateExpense={handleUpdateExpense} onDeleteExpense={handleDeleteExpense} onDeleteVoucher={handleDeleteVoucher} onAddManualIncome={handleAddManualIncome} onUpdateManualIncome={handleUpdateManualIncome} onDeleteManualIncome={handleDeleteManualIncome} onAddManualCommission={handleAddManualCommission} onUpdateManualCommission={handleUpdateManualCommission} onDeleteManualCommission={handleDeleteManualCommission} currentUser={currentUser} companyInfo={operatingCompanies.find(c => c.id === currentUser?.companyId)} branches={companyBranches} onSaveVoucher={handleSaveVoucherDetails} lastVoucherNumber={lastVoucherNumber} insuranceTypes={insuranceTypes} permissions={currentUserPermissions} />} />
@@ -3018,6 +3002,7 @@ const App: React.FC = () => {
                             member={editingMember}
                             initialTab={initialModalTab}
                             onSave={handleSaveMember}
+                            onCreateDependentMember={handleCreateDependentMember}
                             addToast={addToast}
                             onCreateTask={(task) =>
                                 handleCreateTask(task)
@@ -3027,7 +3012,7 @@ const App: React.FC = () => {
                             users={companyUsers}
                             routes={routes}
                             onUpdateRoutes={handleUpdateRoutes}
-                            processFlow={processFlow}
+                            processFlow={processStageMasters} // MODIFIED: Pass processStageMasters instead of processFlow
                             onGenerateProposal={(member, policy) => { setProposalContext({ member, policy }); setIsProposalModalOpen(true); }}
                             onFindUpsell={handleFindUpsell}
                             allMembers={allMembers}
@@ -3062,8 +3047,8 @@ const App: React.FC = () => {
                             mutualFundFields={mutualFundFields}
                             designations={designations}
                             permissions={currentUserPermissions}
-                            genders={genders} // MODIFIED: Pass new props
-                            maritalStatuses={maritalStatuses} // MODIFIED: Pass new props
+                            genders={genders} 
+                            maritalStatuses={maritalStatuses}
                         />
                     )}
                      {isEmployeeModalOpen && (
@@ -3085,7 +3070,7 @@ const App: React.FC = () => {
                             amcs={amcs}
                             designations={designations}
                             designationPermissions={designationPermissions}
-                            genders={genders} // MODIFIED: Pass new props
+                            genders={genders}
                         />
                     )}
                     {isLeadModalOpen && currentUser && (
@@ -3193,5 +3178,4 @@ const App: React.FC = () => {
         </>
     );
 };
-
 export default App;
