@@ -3079,6 +3079,7 @@ const App: React.FC = () => {
                             designations={designations}
                             designationPermissions={designationPermissions}
                             genders={genders}
+                            documentMasters={documentMasters}
                         />
                     )}
                     {isLeadModalOpen && currentUser && (

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { User, AdvisorDocument } from '../../types.ts';
+// --- MODIFICATION START ---
+import { User, AdvisorDocument, DocumentMaster } from '../../types.ts';
+// --- MODIFICATION END ---
 import Button from '../ui/Button.tsx';
 import Input from '../ui/Input.tsx';
 import { Plus, Trash2, FileText, Download, UploadCloud } from 'lucide-react';
@@ -8,9 +10,14 @@ interface EmployeeDocumentsTabProps { // RENAMED
     data: Partial<User>;
     onChange: (field: 'profile', value: any) => void;
     addToast: (message: string, type?: 'success' | 'error') => void;
+    // --- MODIFICATION START ---
+    documentMasters: DocumentMaster[];
+    // --- MODIFICATION END ---
 }
 
-export const EmployeeDocumentsTab: React.FC<EmployeeDocumentsTabProps> = ({ data, onChange, addToast }) => { // RENAMED
+// --- MODIFICATION START ---
+export const EmployeeDocumentsTab: React.FC<EmployeeDocumentsTabProps> = ({ data, onChange, addToast, documentMasters }) => { // RENAMED
+// --- MODIFICATION END ---
     const [newDocName, setNewDocName] = useState('');
     const [newDocFile, setNewDocFile] = useState<File | null>(null);
 
@@ -63,12 +70,22 @@ export const EmployeeDocumentsTab: React.FC<EmployeeDocumentsTabProps> = ({ data
             <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600/50">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Add New Document</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                    <Input
-                        label="Document Name"
-                        value={newDocName}
-                        onChange={(e) => setNewDocName(e.target.value)}
-                        placeholder="e.g., 12th Marksheet, PG Certificate"
-                    />
+                    {/* --- MODIFICATION START --- */}
+                    <div>
+                        <label htmlFor="doc-type-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Document Name</label>
+                        <select
+                            id="doc-type-select"
+                            value={newDocName}
+                            onChange={(e) => setNewDocName(e.target.value)}
+                            className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        >
+                            <option value="">Select a document type...</option>
+                            {documentMasters.filter(doc => doc.active).map(doc => (
+                                <option key={doc.id} value={doc.name}>{doc.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    {/* --- MODIFICATION END --- */}
                      <div>
                         <label htmlFor="new-doc-file" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">File</label>
                         <div className="relative">
