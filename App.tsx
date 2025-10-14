@@ -2627,6 +2627,12 @@ const App: React.FC = () => {
             
             const currentRenewalDate = new Date(policyToUpdate.renewalDate);
             
+            // MODIFICATION START: Increment installmentsPaid count for term policies
+            if (policyToUpdate.policyTerm && policyToUpdate.policyTerm > 0) {
+                policyToUpdate.installmentsPaid = (policyToUpdate.installmentsPaid || 0) + 1;
+            }
+            // MODIFICATION END
+
             switch (policyToUpdate.premiumFrequency) {
                 case 'Monthly':
                     currentRenewalDate.setMonth(currentRenewalDate.getMonth() + 1);

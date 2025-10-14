@@ -8,7 +8,7 @@ import { getPolicySuggestions, analyzePaymentProof } from '../../services/gemini
 import { calculatePremium } from '../../services/apiService.ts';
 import { X, Loader2, UploadCloud, CheckCircle, AlertTriangle, XCircle, Trash2, Eye, Check, PlusCircle, User as UserIcon, Users, FileSignature, Lightbulb, Percent, Plus, ArrowLeft, Save, Edit2, Info, ChevronDown } from 'lucide-react';
 import ToggleSwitch from '../ui/ToggleSwitch.tsx';
-import { bloodGroups } from '../../constants.ts';
+import { bloodGroups } from '../../constants.tsx';
 import Modal from '../ui/Modal.tsx'; 
 import SearchableSelect from '../ui/SearchableSelect.tsx'; 
 
@@ -298,6 +298,8 @@ const PolicyEditor: React.FC<{
     const canModify = permissions?.policies === 'modify';
     const isReadOnly = !canModify;
     const isAdmin = useMemo(() => designations.find(d => d.id === currentUser?.designationId)?.name === 'Admin', [currentUser, designations]);
+    const [isRenewalDateManual, setIsRenewalDateManual] = useState(false);
+
 
     const familyMemberOptions = useMemo(() => {
         if (!data.sno) return [];
@@ -305,6 +307,63 @@ const PolicyEditor: React.FC<{
             .filter(m => m.spocId === data.sno)
             .map(m => ({ value: m.id, label: `${m.name} (DOB: ${m.dob})` }));
     }, [data.sno, allMembers]);
+
+    useEffect(() => {
+        if (isRenewalDateManual) return;
+
+        const { startDate, premiumFrequency } = policy;
+        if (startDate && premiumFrequency) {
+            const start = new Date(startDate);
+            if (isNaN(start.getTime())) return; 
+
+            let renewalDate = new Date(start);
+
+            switch (premiumFrequency) {
+                case 'Monthly':
+                    renewalDate.setMonth(start.getMonth() + 1);
+                    break;
+                case 'Quarterly':
+                    renewalDate.setMonth(start.getMonth() + 3);
+                    break;
+                case 'Half-Yearly':
+                    renewalDate.setMonth(start.getMonth() + 6);
+                    break;
+                case 'Yearly':
+                default:
+                    renewalDate.setFullYear(start.getFullYear() + 1);
+                    break;
+            }
+
+            const newRenewalDateString = renewalDate.toISOString().split('T')[0];
+            if (newRenewalDateString !== policy.renewalDate) {
+                handlePolicyChange(policy.id, { renewalDate: newRenewalDateString });
+            }
+        }
+    }, [policy.startDate, policy.premiumFrequency, policy.id, policy.renewalDate, handlePolicyChange, isRenewalDateManual]);
+
+    // MODIFIED: Added effect for maturity date calculation
+    useEffect(() => {
+        const { startDate, policyTerm, policyTermUnit } = policy;
+        if (startDate && policyTerm && policyTermUnit) {
+            const start = new Date(startDate);
+            if (isNaN(start.getTime())) return;
+
+            let maturityDate = new Date(start);
+            if (policyTermUnit === 'Years') {
+                maturityDate.setFullYear(start.getFullYear() + policyTerm);
+            } else { // Months
+                maturityDate.setMonth(start.getMonth() + policyTerm);
+            }
+
+            const newMaturityDateString = maturityDate.toISOString().split('T')[0];
+            if (newMaturityDateString !== policy.maturityDate) {
+                handlePolicyChange(policy.id, { maturityDate: newMaturityDateString });
+            }
+        } else if (policy.maturityDate) {
+            handlePolicyChange(policy.id, { maturityDate: undefined });
+        }
+    }, [policy.startDate, policy.policyTerm, policy.policyTermUnit, policy.id, policy.maturityDate, handlePolicyChange]);
+
 
     const handleCoveredMembersChange = (selectedIds: string[]) => {
         const newCoveredMembers = selectedIds.map(memberId => {
@@ -498,6 +557,25 @@ const PolicyEditor: React.FC<{
         return getPremiumForFrequency(policy.premium, policy.premiumFrequency);
     }, [policy.premium, policy.premiumFrequency]);
 
+    // MODIFIED: Added totalInstallments calculation
+    const totalInstallments = useMemo(() => {
+        const { policyTerm, policyTermUnit, premiumFrequency } = policy;
+        if (!policyTerm || !policyTermUnit || !premiumFrequency) return null;
+
+        const termInMonths = policyTermUnit === 'Years' ? policyTerm * 12 : policyTerm;
+        let paymentsPerYear: number;
+        switch (premiumFrequency) {
+            case 'Monthly': paymentsPerYear = 12; break;
+            case 'Quarterly': paymentsPerYear = 4; break;
+            case 'Half-Yearly': paymentsPerYear = 2; break;
+            case 'Yearly': default: paymentsPerYear = 1; break;
+        }
+
+        const total = (termInMonths / 12) * paymentsPerYear;
+        return Math.round(total);
+    }, [policy.policyTerm, policy.policyTermUnit, policy.premiumFrequency]);
+
+
     return (
         <div className="p-6 bg-gray-50 dark:bg-gray-800/50 rounded-lg border-2 border-brand-primary animate-fade-in shadow-lg">
             <div className="flex justify-between items-center mb-6">
@@ -650,8 +728,9 @@ const PolicyEditor: React.FC<{
                     </FormSection>
                 )}
 
+                {/* MODIFIED: Re-structured layout and added new fields */}
                 <FormSection title="Coverage & Premium">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                         <Input 
                             label="Coverage (Sum Assured)" 
                             type="number" 
@@ -660,24 +739,33 @@ const PolicyEditor: React.FC<{
                             disabled={isReadOnly} 
                         />
                         <Input 
-                            label="Premium (Yearly)" 
-                            type="number" 
-                            value={policy.premium || ''} 
-                            onChange={(e) => handlePolicyChange(policy.id, { premium: parseFloat(e.target.value) || 0 })} 
-                            disabled={isReadOnly}
+                            label="Start Date" 
+                            type="date" 
+                            value={policy.startDate || ''} 
+                            onChange={(e) => {
+                                handlePolicyChange(policy.id, { startDate: e.target.value });
+                                setIsRenewalDateManual(false); 
+                            }} 
+                            disabled={isReadOnly} 
                         />
                         <Input 
                             label="Renewal Date" 
                             type="date" 
                             value={policy.renewalDate || ''} 
-                            onChange={(e) => handlePolicyChange(policy.id, { renewalDate: e.target.value })} 
+                            onChange={(e) => {
+                                handlePolicyChange(policy.id, { renewalDate: e.target.value });
+                                setIsRenewalDateManual(true); 
+                            }} 
                             disabled={isReadOnly} 
                         />
                         <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Premium Frequency</label>
                             <select
                                 value={policy.premiumFrequency || 'Yearly'}
-                                onChange={(e) => handlePolicyChange(policy.id, { premiumFrequency: e.target.value as any })}
+                                onChange={(e) => {
+                                    handlePolicyChange(policy.id, { premiumFrequency: e.target.value as any });
+                                    setIsRenewalDateManual(false); 
+                                }}
                                 className={selectClasses}
                                 disabled={isReadOnly}
                             >
@@ -687,15 +775,65 @@ const PolicyEditor: React.FC<{
                                 <option>Monthly</option>
                             </select>
                         </div>
-                        <div className="lg:col-span-2">
+                         <Input 
+                            label="Premium (Yearly)" 
+                            type="number" 
+                            value={policy.premium || ''} 
+                            onChange={(e) => handlePolicyChange(policy.id, { premium: parseFloat(e.target.value) || 0 })} 
+                            disabled={isReadOnly}
+                        />
+
+                        <Input 
+                            label={`Premium (${policy.premiumFrequency || 'Yearly'})`} 
+                            type="number" 
+                            value={policy.premiumAsPerFrequency ?? displayPremium.toFixed(0)} 
+                            onChange={(e) => handlePolicyChange(policy.id, { premiumAsPerFrequency: parseFloat(e.target.value) || 0 })}
+                            disabled={isReadOnly} 
+                        />
+                    </div>
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <div className="flex items-end gap-2">
                             <Input 
-                                label={`Premium (${policy.premiumFrequency || 'Yearly'})`} 
+                                label="Policy Term" 
                                 type="number" 
-                                value={policy.premiumAsPerFrequency ?? displayPremium.toFixed(0)} 
-                                onChange={(e) => handlePolicyChange(policy.id, { premiumAsPerFrequency: parseFloat(e.target.value) || 0 })}
-                                disabled={isReadOnly} 
+                                value={policy.policyTerm || ''}
+                                onChange={(e) => {
+                                    const termValue = parseInt(e.target.value);
+                                    const term = !isNaN(termValue) ? termValue : undefined;
+                                    
+                                    const updates: Partial<Policy> = { policyTerm: term };
+
+                                    if (term && !policy.policyTermUnit) {
+                                        updates.policyTermUnit = 'Years';
+                                    }
+                                    
+                                    handlePolicyChange(policy.id, updates);
+                                }}
+                                disabled={isReadOnly}
                             />
+                            <select
+                                value={policy.policyTermUnit || 'Years'}
+                                onChange={(e) => handlePolicyChange(policy.id, { policyTermUnit: e.target.value as any })}
+                                className={`${selectClasses} mb-px`}
+                                disabled={isReadOnly}
+                            >
+                                <option>Years</option>
+                                <option>Months</option>
+                            </select>
                         </div>
+                        <Input 
+                            label="Total Installments"
+                            value={totalInstallments ?? 'N/A'}
+                            readOnly
+                            disabled
+                        />
+                        <Input 
+                            label="Maturity Date"
+                            type="date"
+                            value={policy.maturityDate || ''}
+                            readOnly
+                            disabled
+                        />
                     </div>
                 </FormSection>
 
@@ -1110,8 +1248,9 @@ export const PoliciesTab: React.FC<PoliciesTabProps> = ({
 
     const isReadOnly = (policy: Policy) => policy.isLegacyFamilyPolicy === true || !canModify;
 
+    // MODIFIED: Added default startDate
     const handleAddNewPolicy = () => {
-        const newPolicy: Policy = { id: `pol-${Date.now()}`, policyType: '', coverage: 0, premium: 0, renewalDate: '', status: 'Active', documentReceived: false, policyHolderType: 'Individual', coveredMembers: [], insuranceTypeId: null, dynamicData: {} };
+        const newPolicy: Policy = { id: `pol-${Date.now()}`, policyType: '', coverage: 0, premium: 0, startDate: new Date().toISOString().split('T')[0], renewalDate: '', status: 'Active', documentReceived: false, policyHolderType: 'Individual', coveredMembers: [], insuranceTypeId: null, dynamicData: {} };
         onChange('policies', [...(data.policies || []), newPolicy]);
         setEditingPolicyId(newPolicy.id);
     };

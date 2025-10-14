@@ -332,6 +332,7 @@ export interface Policy {
   familyHeadMemberId?: string;
   coverage: number;
   premium: number;
+  startDate?: string; 
   renewalDate: string;
   status: 'Active' | 'Inactive';
   renewalLink?: string;
@@ -346,6 +347,11 @@ export interface Policy {
   companyId?: string;
   isLegacyFamilyPolicy?: boolean;
   insuranceTypeId?: string | null;
+
+  policyTerm?: number;
+  policyTermUnit?: 'Years' | 'Months';
+  maturityDate?: string;
+  installmentsPaid?: number; // MODIFIED: Added field to track paid installments
 
   /** @deprecated Use `dynamicData` to store all policy-specific information. */
   licData?: LICData;

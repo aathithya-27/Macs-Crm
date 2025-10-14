@@ -4,7 +4,7 @@ import { Search, Calendar, AlertTriangle, CheckCircle, Clock, FileText, X, Slide
 import { Member, Policy, ModalTab, User, FinRootsBranch, InsuranceTypeMaster, Designation, AppModule, PermissionLevel } from '../types.ts';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, eachWeekOfInterval, eachMonthOfInterval, parseISO, Interval, isValid } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, eachWeekOfInterval, eachMonthOfInterval, parseISO, Interval, isValid, differenceInMonths } from 'date-fns';
 
 // Correctly extends jsPDF to include autoTable functionality
 interface jsPDFWithAutoTable extends jsPDF {
@@ -14,7 +14,7 @@ interface jsPDFWithAutoTable extends jsPDF {
 // --- SELF-CONTAINED UI COMPONENTS ---
 
 const ViewIcon: React.FC<{className?: string}> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
         <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
         <circle cx="12" cy="12" r="3"/>
     </svg>
@@ -157,8 +157,7 @@ interface PolicyManagerProps {
   users: User[];
   finrootsBranches: FinRootsBranch[];
   insuranceTypes: InsuranceTypeMaster[];
-  designations: Designation[]; // NEW PROP
-  // NEW: Accept permissions prop
+  designations: Designation[];
   permissions: { [key in AppModule]?: PermissionLevel };
 }
 
@@ -273,7 +272,6 @@ const PolicyManager: React.FC<PolicyManagerProps> = ({ members, onRenewPolicy, o
   const [searchTerm, setSearchTerm] = useState('');
   const [renewalStatusFilter, setRenewalStatusFilter] = useState<RenewalStatusFilter>('All');
 
-  // NEW: Permission check for the policies module
   const canModify = permissions?.policies === 'modify';
 
   const userMap = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users]);
@@ -291,7 +289,7 @@ const PolicyManager: React.FC<PolicyManagerProps> = ({ members, onRenewPolicy, o
     return type.name;
   }, [insuranceTypeMap]);
 
-  const allPolicies = useMemo(() => {
+const allPolicies = useMemo(() => {
     let pk_counter = 1;
     return members.flatMap(member =>
       member.policies
@@ -313,6 +311,28 @@ const PolicyManager: React.FC<PolicyManagerProps> = ({ members, onRenewPolicy, o
 
         const primaryAdvisor = users.find(u => u.id === member.assignedTo?.[0]);
 
+        // MODIFICATION START: Replaced time-based logic with action-based logic
+        let balanceInstallments: number | null = null;
+        const { policyTerm, policyTermUnit, premiumFrequency, installmentsPaid } = policy;
+
+        if (policyTerm && policyTermUnit && premiumFrequency) {
+            const termInMonths = policyTermUnit === 'Years' ? policyTerm * 12 : policyTerm;
+            
+            let paymentsPerYear: number;
+            switch (premiumFrequency) {
+                case 'Monthly': paymentsPerYear = 12; break;
+                case 'Quarterly': paymentsPerYear = 4; break;
+                case 'Half-Yearly': paymentsPerYear = 2; break;
+                case 'Yearly': default: paymentsPerYear = 1; break;
+            }
+
+            const totalInstallments = Math.round((termInMonths / 12) * paymentsPerYear);
+            const paidCount = installmentsPaid || 0;
+            
+            balanceInstallments = totalInstallments - paidCount;
+        }
+        // MODIFICATION END
+
         return {
           ...policy,
           pk: pk_counter++,
@@ -324,6 +344,7 @@ const PolicyManager: React.FC<PolicyManagerProps> = ({ members, onRenewPolicy, o
           advisorId: primaryAdvisor?.id,
           branchId: primaryAdvisor?.profile?.employeeBranchId,
           policyTypeName: getPolicyTypeName(policy.insuranceTypeId),
+          balanceInstallments,
         };
       })
     );
@@ -427,11 +448,15 @@ const PolicyManager: React.FC<PolicyManagerProps> = ({ members, onRenewPolicy, o
             case 'memberName': aValue = a.memberName.toLowerCase(); bValue = b.memberName.toLowerCase(); break;
             case 'policyType': aValue = a.policyTypeName; bValue = b.policyTypeName; break;
             case 'premium': aValue = a.premium; bValue = b.premium; break;
+            case 'startDate': aValue = a.startDate ? new Date(a.startDate).getTime() : 0; bValue = b.startDate ? new Date(b.startDate).getTime() : 0; break;
             case 'renewalDate': aValue = new Date(a.renewalDate).getTime(); bValue = new Date(b.renewalDate).getTime(); break;
             case 'daysLeft': aValue = a.daysLeft; bValue = b.daysLeft; break;
             case 'renewalStatus': aValue = a.renewalStatus; bValue = b.renewalStatus; break;
             case 'advisor': aValue = userMap.get(a.advisorId || '') || 'Z'; bValue = userMap.get(b.advisorId || '') || 'Z'; break;
             case 'branch': aValue = branchMap.get(a.branchId || '') || 'Z'; bValue = branchMap.get(b.branchId || '') || 'Z'; break;
+            case 'term': aValue = a.policyTerm || 0; bValue = b.policyTerm || 0; break;
+            case 'maturityDate': aValue = a.maturityDate ? new Date(a.maturityDate).getTime() : 0; bValue = b.maturityDate ? new Date(b.maturityDate).getTime() : 0; break;
+            case 'balanceInstallments': aValue = a.balanceInstallments ?? -1; bValue = b.balanceInstallments ?? -1; break;
             default: return 0;
         }
         if (aValue < bValue) return -1 * dir;
@@ -465,8 +490,9 @@ const PolicyManager: React.FC<PolicyManagerProps> = ({ members, onRenewPolicy, o
 
   const handleRenew = (memberId: string, policyId: string) => onRenewPolicy(memberId, policyId);
 
-  const SortableHeader: React.FC<{ sortKey: string; label: string }> = ({ sortKey, label }) => (
-    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+  // MODIFIED: Added className prop to SortableHeader
+  const SortableHeader: React.FC<{ sortKey: string; label: string; className?: string }> = ({ sortKey, label, className }) => (
+    <th className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider ${className}`}>
         <button onClick={() => setSortConfig(prev => ({ key: sortKey, direction: prev.key === sortKey && prev.direction === 'asc' ? 'desc' : 'asc' }))} className="group inline-flex items-center">
             {label}
             <span className={`ml-2 flex-none rounded ${sortConfig.key === sortKey ? 'bg-gray-200 dark:bg-gray-600 text-gray-900 dark:text-gray-200' : 'text-gray-400 invisible group-hover:visible'}`}>
@@ -580,35 +606,42 @@ const PolicyManager: React.FC<PolicyManagerProps> = ({ members, onRenewPolicy, o
               {filteredAndSortedPolicies.length > 0 ? (
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-700/50">
+                    {/* MODIFIED: Reordered table headers and added min-width classes */}
                     <tr>
                       <SortableHeader sortKey="pk" label="ID" />
-                      <SortableHeader sortKey="memberName" label="Customer" />
-                      <SortableHeader sortKey="policyType" label="Policy Type" />
-                      <SortableHeader sortKey="advisor" label="Assigned To" />
-                      <SortableHeader sortKey="branch" label="Branch" />
-                      <SortableHeader sortKey="premium" label="Premium" />
-                      <SortableHeader sortKey="renewalDate" label="Renewal Date" />
-                      <SortableHeader sortKey="daysLeft" label="Days Left" />
-                      <SortableHeader sortKey="renewalStatus" label="Status" />
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Actions</th>
+                      <SortableHeader sortKey="memberName" label="Customer" className="min-w-[180px]" />
+                      <SortableHeader sortKey="policyType" label="Policy Type" className="min-w-[200px]" />
+                      <SortableHeader sortKey="advisor" label="Assigned To" className="min-w-[150px]" />
+                      <SortableHeader sortKey="branch" label="Branch" className="min-w-[150px]" />
+                      <SortableHeader sortKey="premium" label="Premium" className="min-w-[120px]" />
+                      <SortableHeader sortKey="term" label="Term" className="min-w-[90px]" />
+                      <SortableHeader sortKey="balanceInstallments" label="Balance Installments" className="min-w-[200px]" />
+                      <SortableHeader sortKey="startDate" label="Start Date" className="min-w-[135px]" />
+                      <SortableHeader sortKey="renewalDate" label="Renewal Date" className="min-w-[160px]" />
+                      <SortableHeader sortKey="daysLeft" label="Days Left" className="min-w-[150px]" />
+                      <SortableHeader sortKey="renewalStatus" label="Status" className="min-w-[120px]" />
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase min-w-[180px]">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {currentPolicies.map(policy => (
                       <tr key={policy.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        {/* MODIFIED: Reordered table cells */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700 dark:text-gray-200">{policy.pk}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">{policy.memberName}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{policy.policyTypeName}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{userMap.get(policy.advisorId || '') || 'N/A'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{branchMap.get(policy.branchId || '') || 'N/A'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(policy.premium)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{policy.policyTerm ? `${policy.policyTerm} ${policy.policyTermUnit}` : 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700 dark:text-gray-200">{policy.balanceInstallments ?? 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{policy.startDate ? new Date(policy.startDate).toLocaleDateString('en-GB') : 'N/A'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{new Date(policy.renewalDate).toLocaleDateString('en-GB')}</td>
                         <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${policy.daysLeft < 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>{policy.daysLeft >= 0 ? `${policy.daysLeft} days` : `${Math.abs(policy.daysLeft)} days overdue`}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm"><StatusBadge status={policy.renewalStatus} /></td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center gap-2">
                             <Button size="small" variant="light" onClick={() => onViewMember(policy.fullMember, ModalTab.Policies)}><ViewIcon className="w-4 h-4 mr-1" /> View</Button>
-                            {/* MODIFIED: Renew button is disabled based on permission */}
                             <Button 
                                 size="small" 
                                 variant="primary" 
