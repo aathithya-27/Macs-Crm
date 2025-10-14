@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 // MODIFIED: Added Gender
-import { User, EmployeeProfile, EmployeeModalTab, Member, FinRootsBranch, Geography, BankMaster, BusinessVertical, InsuranceTypeMaster, AMC, Designation, DesignationPermissions, Gender, DocumentMaster } from '../types.ts';
+import { User, EmployeeProfile, EmployeeModalTab, Member, FinRootsBranch, Geography, BankMaster, BusinessVertical, InsuranceTypeMaster, AMC, Designation, DesignationPermissions, Gender, DocumentMaster,AccountType  } from '../types.ts';
 import Modal from './ui/Modal.tsx';
 import Button from './ui/Button.tsx';
 import Input from './ui/Input.tsx';
@@ -34,6 +34,7 @@ interface EmployeeModalProps {
     genders: Gender[]; // MODIFIED: Added genders prop
     // --- MODIFICATION START ---
     documentMasters: DocumentMaster[];
+    accountTypes: AccountType[];
     // --- MODIFICATION END ---
 }
 
@@ -41,7 +42,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
     isOpen, onClose, employee, onSave, addToast, allMembers, users, 
     finrootsBranches, currentUser, geographies, onUpdateGeographies, 
     bankMasters, businessVerticals, insuranceTypes, amcs, designations,
-    designationPermissions, genders, documentMasters // MODIFIED
+    designationPermissions, genders, documentMasters,accountTypes // MODIFIED
 }) => {
     const [activeTab, setActiveTab] = useState<EmployeeModalTab>(EmployeeModalTab.GeneralInfo);
     const [formData, setFormData] = useState<Partial<User>>({});
@@ -272,7 +273,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                         </nav>
                     </div>
                     <div className="pt-6">
-                        {activeTab === EmployeeModalTab.GeneralInfo && <GeneralInfoTab data={formData} onChange={handleChange} onSave={onSave} finrootsBranches={finrootsBranches} addToast={addToast} bankMasters={bankMasters} businessVerticals={businessVerticals} insuranceTypes={insuranceTypes} amcs={amcs} designations={designations} permissions={{}} genders={genders} />}
+                        {activeTab === EmployeeModalTab.GeneralInfo && <GeneralInfoTab data={formData} onChange={handleChange} onSave={onSave} finrootsBranches={finrootsBranches} addToast={addToast} bankMasters={bankMasters} businessVerticals={businessVerticals} insuranceTypes={insuranceTypes} amcs={amcs} designations={designations} permissions={{}} genders={genders} accountTypes={accountTypes} />}
                         {activeTab === EmployeeModalTab.Address && <AddressTab data={formData} onChange={handleChange} geographies={geographies} onUpdateGeographies={onUpdateGeographies} addToast={addToast} />}
                         {activeTab === EmployeeModalTab.Education && <EducationTab data={formData} onChange={handleChange} />}
                         {/* --- MODIFICATION START --- */}

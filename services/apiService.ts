@@ -427,323 +427,331 @@ const formatDate = (date: Date) => date.toISOString().split('T')[0];
 // MODIFICATION START: Updated members to use new process stage structure
 let members: Member[] = [
   {
-    id: '1',
-    sno: 1, // New permanent ID
-    name: 'Priya Sharma',
-    memberId: 'PR1043312',
-    dob: formatDate(priyaDob), // Dynamic Birthday
-    gender: 'gen-2', // Female
-    bloodGroup: 'O+',
-    maritalStatus: 'mar-2', // Married
-    mobile: '+91 9876543312',
-    state: 'Maharashtra',
-    city: 'Mumbai City',
-    address: '101, Thirupathi Valley, Goregaon East',
-    memberType: 'Diamond', // Updated to Diamond based on new tiers
-    tierId: 'tier-3', // Updated to tier-3
-    active: true,
-    panCard: 'ABCDE1234F',
-    aadhaar: '1234 5678 9012',
-    anniversary: '2010-04-20',
-    policies: [{
-        id: 'POL001',
-        policyType: 'Life Insurance',
-        status: 'Active',
-        coverage: 2300000, // Updated coverage
-        premium: 25000,
-        renewalDate: '2024-08-13',
-        renewalLink: 'https://example.com/renew/life',
-        commission: { amount: 2500, status: 'Paid', paidDate: '2024-06-15' },
-        documentReceived: false,
-        licData: {
-            fatherName: 'Rajesh Sharma'
-        },
-        companyId: 'FIN01',
-        insuranceTypeId: 'it-term'
-    }],
-    voiceNotes: [],
-    documents: [],
-    checkIns: [],
-    digipin: '7JFJ3Q6H+2V', // Mumbai
-    lat: 19.1678, 
-    lng: 72.8647,
-    digipinDetails: {
-        summary: 'A bustling residential area in Goregaon East.',
-        landmarks: ['Oberoi Mall', 'Goregaon Station', 'Film City'],
-    },
-    automatedGreetingsEnabled: true,
-    inactiveSince: null,
-    assignedTo: ['user-2'], // Rohan Patel
-    leadSource: { sourceId: 'rt-3', detail: 'Arjun Mehta' },
-    processStage: 'Premium Collection', // DEPRECATED - kept for fallback
-    processStages: { 'it-life': 'Premium Collection' },
-    stageLastChanged: '2024-07-10T10:00:00.000Z', // DEPRECATED
-    stageLastChangedMap: { 'it-life': '2024-07-10T10:00:00.000Z' },
-    processHistory: [], // DEPRECATED
-    processHistories: { 'it-life': [] },
-    createdBy: 'user-1',
-    createdAt: '2024-01-10T10:00:00.000Z',
-    financialProfile: {
-        riskTolerance: 'Medium',
-        annualIncome: 2500000
-    },
-    bankDetails: {},
-    company: 'Finroots',
-    companyId: 'FIN01',
-    branchId: 'frb-2', // Coimbatore Hub
-    isSPOC: true,
-    familyName: 'The Sharmas',
-    religionId: 'rel-1' // Hinduism
+      id: '1',
+      sno: 1, // New permanent ID
+      name: 'Priya Sharma',
+      memberId: 'PR1043312',
+      dob: formatDate(priyaDob), // Dynamic Birthday
+      gender: 'gen-2', // Female
+      bloodGroup: 'O+',
+      maritalStatus: 'mar-2', // Married
+      mobile: '+91 9876543312',
+      state: 'Maharashtra',
+      city: 'Mumbai City',
+      address: '101, Thirupathi Valley, Goregaon East',
+      memberType: 'Diamond', // Updated to Diamond based on new tiers
+      tierId: 'tier-3', // Updated to tier-3
+      active: true,
+      panCard: 'ABCDE1234F',
+      aadhaar: '1234 5678 9012',
+      anniversary: '2010-04-20',
+      policies: [{
+          id: 'POL001',
+          policyType: 'Life Insurance',
+          status: 'Active',
+          coverage: 2300000, // Updated coverage
+          premium: 25000,
+          renewalDate: '2024-08-13',
+          renewalLink: 'https://example.com/renew/life',
+          commission: { amount: 2500, status: 'Paid', paidDate: '2024-06-15' },
+          documentReceived: false,
+          licData: {
+              fatherName: 'Rajesh Sharma'
+          },
+          companyId: 'FIN01',
+          insuranceTypeId: 'it-term'
+      }],
+      voiceNotes: [],
+      documents: [],
+      checkIns: [],
+      digipin: '7JFJ3Q6H+2V', // Mumbai
+      lat: 19.1678,
+      lng: 72.8647,
+      digipinDetails: {
+          summary: 'A bustling residential area in Goregaon East.',
+          landmarks: ['Oberoi Mall', 'Goregaon Station', 'Film City'],
+      },
+      automatedGreetingsEnabled: true,
+      inactiveSince: null,
+      assignedTo: ['user-2'], // Rohan Patel
+      leadSource: { sourceId: 'rt-3', detail: 'Arjun Mehta' },
+      processStage: 'Premium Collection', // DEPRECATED - kept for fallback
+      processStages: { 'it-life': 'Premium Collection' },
+      stageLastChanged: '2024-07-10T10:00:00.000Z', // DEPRECATED
+      stageLastChangedMap: { 'it-life': '2024-07-10T10:00:00.000Z' },
+      processHistory: [], // DEPRECATED
+      processHistories: { 'it-life': [] },
+      createdBy: 'user-1',
+      createdAt: '2024-01-10T10:00:00.000Z',
+      financialProfile: {
+          riskTolerance: 'Medium',
+          annualIncome: 2500000
+      },
+      bankDetails: {},
+      company: 'Finroots',
+      companyId: 'FIN01',
+      branchId: 'frb-2', // Coimbatore Hub
+      isSPOC: true,
+      familyName: 'The Sharmas',
+      religionId: 'rel-1' // Hinduism
+      ,
+      country: ''
   },
 
   {
-    id: '2',
-    sno: 2, // New permanent ID
-    name: 'Deepa Verma',
-    memberId: 'DEA286543',
-    dob: '1990-11-12',
-    gender: 'gen-2', // Female
-    bloodGroup: 'A+',
-    maritalStatus: 'mar-1', // Single
-    mobile: '+91 9043386543',
-    state: 'Delhi',
-    city: 'New Delhi',
-    address: 'A-23, Mullai Nagar, Connaught Place',
-    memberType: 'Silver', // Still Silver
-    tierId: 'tier-1',
-    active: true,
-    panCard: 'FGHIJ5678K',
-    aadhaar: '2345 6789 0123',
-    policies: [{ id: 'POL002', policyType: 'Health Insurance', status: 'Active', coverage: 500000, premium: 15000, renewalDate: formatDate(deepaRenewal), renewalLink: 'https://example.com/renew/health', commission: { amount: 1500, status: 'Paid', paidDate: '2024-05-25' }, documentReceived: false, companyId: 'FIN01', insuranceTypeId: 'it-individual-health' }],
-    voiceNotes: [],
-    documents: [],
-    checkIns: [],
-    lat: 28.6315, // Legacy data for backward compatibility
-    lng: 77.2167,
-    automatedGreetingsEnabled: false,
-    inactiveSince: null,
-    assignedTo: ['user-3'], // Priya Singh
-    leadSource: { sourceId: 'ls-3' },
-    processStage: 'Proposal Submission',
-    processStages: { 'it-health': 'Proposal Submission' },
-    stageLastChanged: '2024-07-15T10:00:00.000Z',
-    stageLastChangedMap: { 'it-health': '2024-07-15T10:00:00.000Z' },
-    processHistory: [],
-    processHistories: { 'it-health': [] },
-    createdBy: 'user-2',
-    createdAt: '2024-02-15T10:00:00.000Z',
-    financialProfile: {
-        riskTolerance: 'Low'
-    },
-    bankDetails: {},
-    company: 'Finroots',
-    companyId: 'FIN01',
-    branchId: 'frb-1', // Erode HQ
-    religionId: 'rel-2' // Christianity
+      id: '2',
+      sno: 2, // New permanent ID
+      name: 'Deepa Verma',
+      memberId: 'DEA286543',
+      dob: '1990-11-12',
+      gender: 'gen-2', // Female
+      bloodGroup: 'A+',
+      maritalStatus: 'mar-1', // Single
+      mobile: '+91 9043386543',
+      state: 'Delhi',
+      city: 'New Delhi',
+      address: 'A-23, Mullai Nagar, Connaught Place',
+      memberType: 'Silver', // Still Silver
+      tierId: 'tier-1',
+      active: true,
+      panCard: 'FGHIJ5678K',
+      aadhaar: '2345 6789 0123',
+      policies: [{ id: 'POL002', policyType: 'Health Insurance', status: 'Active', coverage: 500000, premium: 15000, renewalDate: formatDate(deepaRenewal), renewalLink: 'https://example.com/renew/health', commission: { amount: 1500, status: 'Paid', paidDate: '2024-05-25' }, documentReceived: false, companyId: 'FIN01', insuranceTypeId: 'it-individual-health' }],
+      voiceNotes: [],
+      documents: [],
+      checkIns: [],
+      lat: 28.6315, // Legacy data for backward compatibility
+      lng: 77.2167,
+      automatedGreetingsEnabled: false,
+      inactiveSince: null,
+      assignedTo: ['user-3'], // Priya Singh
+      leadSource: { sourceId: 'ls-3' },
+      processStage: 'Proposal Submission',
+      processStages: { 'it-health': 'Proposal Submission' },
+      stageLastChanged: '2024-07-15T10:00:00.000Z',
+      stageLastChangedMap: { 'it-health': '2024-07-15T10:00:00.000Z' },
+      processHistory: [],
+      processHistories: { 'it-health': [] },
+      createdBy: 'user-2',
+      createdAt: '2024-02-15T10:00:00.000Z',
+      financialProfile: {
+          riskTolerance: 'Low'
+      },
+      bankDetails: {},
+      company: 'Finroots',
+      companyId: 'FIN01',
+      branchId: 'frb-1', // Erode HQ
+      religionId: 'rel-2' // Christianity
+      ,
+      country: ''
   },
   {
-    id: '3',
-    sno: 3, // New permanent ID
-    name: 'Kavya Reddy',
-    memberId: 'KA5446573',
-    dob: '1982-03-30',
-    gender: 'gen-2', // Female
-    bloodGroup: 'B-',
-    maritalStatus: 'mar-2', // Married
-    mobile: '+91 9675346573',
-    state: 'Karnataka',
-    city: 'Bengaluru (Bangalore) Urban',
-    address: '54, TVS Road, HSR Layout',
-    memberType: 'Silver', // Updated to Silver based on new tiers
-    tierId: 'tier-1',
-    active: true,
-    panCard: 'KLMNO9012L',
-    aadhaar: '3456 7890 1234',
-    anniversary: formatDate(kavyaAnniversary), // Dynamic Anniversary
-    policies: [
-        { id: 'POL003', policyType: 'General Insurance', generalInsuranceType: 'Motor', status: 'Active', coverage: 350000, premium: 8000, renewalDate: '2024-04-10', commission: { amount: 400, status: 'Paid', paidDate: '2024-04-12' }, documentReceived: true, companyId: 'FIN01', insuranceTypeId: 'it-motor' },
-    ],
-    voiceNotes: [],
-    documents: [],
-    checkIns: [],
-    lat: 12.9121,
-    lng: 77.6389,
-    automatedGreetingsEnabled: true,
-    inactiveSince: null,
-    assignedTo: ['user-3'], // Priya Singh
-    leadSource: { sourceId: 'ls-8' },
-    processStage: 'Payment',
-    processStages: { 'it-general': 'Payment' },
-    stageLastChanged: '2024-06-20T10:00:00.000Z',
-    stageLastChangedMap: { 'it-general': '2024-06-20T10:00:00.000Z' },
-    processHistory: [],
-    processHistories: { 'it-general': [] },
-    createdBy: 'user-2',
-    createdAt: '2024-03-20T10:00:00.000Z',
-    financialProfile: {},
-    bankDetails: {},
-    company: 'Finroots',
-    companyId: 'FIN01',
-    branchId: 'frb-2', // Coimbatore Hub
+      id: '3',
+      sno: 3, // New permanent ID
+      name: 'Kavya Reddy',
+      memberId: 'KA5446573',
+      dob: '1982-03-30',
+      gender: 'gen-2', // Female
+      bloodGroup: 'B-',
+      maritalStatus: 'mar-2', // Married
+      mobile: '+91 9675346573',
+      state: 'Karnataka',
+      city: 'Bengaluru (Bangalore) Urban',
+      address: '54, TVS Road, HSR Layout',
+      memberType: 'Silver', // Updated to Silver based on new tiers
+      tierId: 'tier-1',
+      active: true,
+      panCard: 'KLMNO9012L',
+      aadhaar: '3456 7890 1234',
+      anniversary: formatDate(kavyaAnniversary), // Dynamic Anniversary
+      policies: [
+          { id: 'POL003', policyType: 'General Insurance', generalInsuranceType: 'Motor', status: 'Active', coverage: 350000, premium: 8000, renewalDate: '2024-04-10', commission: { amount: 400, status: 'Paid', paidDate: '2024-04-12' }, documentReceived: true, companyId: 'FIN01', insuranceTypeId: 'it-motor' },
+      ],
+      voiceNotes: [],
+      documents: [],
+      checkIns: [],
+      lat: 12.9121,
+      lng: 77.6389,
+      automatedGreetingsEnabled: true,
+      inactiveSince: null,
+      assignedTo: ['user-3'], // Priya Singh
+      leadSource: { sourceId: 'ls-8' },
+      processStage: 'Payment',
+      processStages: { 'it-general': 'Payment' },
+      stageLastChanged: '2024-06-20T10:00:00.000Z',
+      stageLastChangedMap: { 'it-general': '2024-06-20T10:00:00.000Z' },
+      processHistory: [],
+      processHistories: { 'it-general': [] },
+      createdBy: 'user-2',
+      createdAt: '2024-03-20T10:00:00.000Z',
+      financialProfile: {},
+      bankDetails: {},
+      company: 'Finroots',
+      companyId: 'FIN01',
+      branchId: 'frb-2',
+      country: ''
   },
   {
-    id: '4',
-    sno: 4, // New permanent ID
-    name: 'Ramya Iyer',
-    memberId: 'RA3483536',
-    dob: '1995-08-25',
-    gender: 'gen-2', // Female
-    bloodGroup: 'AB+',
-    maritalStatus: 'mar-1', // Single
-    mobile: '+91 8736283536',
-    state: 'Tamil Nadu',
-    city: 'Chennai',
-    address: '3/45, Ram Nagar, Nungambakkam',
-    memberType: 'Gold', // Updated to Gold based on new tiers
-    tierId: 'tier-2',
-    active: false,
-    inactiveSince: '2024-03-15T10:00:00.000Z',
-    panCard: 'PQRST3456M',
-    aadhaar: '4567 8901 2345',
-    anniversary: '2025-08-18',
-    policies: [{id: 'POL004', policyType: 'Life Insurance', status: 'Inactive', coverage: 1000000, premium: 12000, renewalDate: '2024-03-30', commission: { amount: 1000, status: 'Cancelled' }, documentReceived: false, companyId: 'FIN01', insuranceTypeId: 'it-life'}],
-    voiceNotes: [],
-    documents: [],
-    checkIns: [],
-    digipin: '7M52376V+5R', // Chennai
-    lat: 13.0604,
-    lng: 80.2495,
-    automatedGreetingsEnabled: false,
-    assignedTo: [],
-    leadSource: { sourceId: 'ls-4' },
-    processStage: 'Initial Contact',
-    processStages: { 'it-life': 'Initial Contact' },
-    stageLastChanged: '2024-02-01T10:00:00.000Z',
-    stageLastChangedMap: { 'it-life': '2024-02-01T10:00:00.000Z' },
-    processHistory: [],
-    processHistories: {},
-    createdBy: 'user-1',
-    createdAt: '2024-04-01T10:00:00.000Z',
-    financialProfile: {},
-    bankDetails: {},
-    company: 'Finroots',
-    companyId: 'FIN01',
-    branchId: 'frb-1', // Erode HQ
+      id: '4',
+      sno: 4, // New permanent ID
+      name: 'Ramya Iyer',
+      memberId: 'RA3483536',
+      dob: '1995-08-25',
+      gender: 'gen-2', // Female
+      bloodGroup: 'AB+',
+      maritalStatus: 'mar-1', // Single
+      mobile: '+91 8736283536',
+      state: 'Tamil Nadu',
+      city: 'Chennai',
+      address: '3/45, Ram Nagar, Nungambakkam',
+      memberType: 'Gold', // Updated to Gold based on new tiers
+      tierId: 'tier-2',
+      active: false,
+      inactiveSince: '2024-03-15T10:00:00.000Z',
+      panCard: 'PQRST3456M',
+      aadhaar: '4567 8901 2345',
+      anniversary: '2025-08-18',
+      policies: [{ id: 'POL004', policyType: 'Life Insurance', status: 'Inactive', coverage: 1000000, premium: 12000, renewalDate: '2024-03-30', commission: { amount: 1000, status: 'Cancelled' }, documentReceived: false, companyId: 'FIN01', insuranceTypeId: 'it-life' }],
+      voiceNotes: [],
+      documents: [],
+      checkIns: [],
+      digipin: '7M52376V+5R', // Chennai
+      lat: 13.0604,
+      lng: 80.2495,
+      automatedGreetingsEnabled: false,
+      assignedTo: [],
+      leadSource: { sourceId: 'ls-4' },
+      processStage: 'Initial Contact',
+      processStages: { 'it-life': 'Initial Contact' },
+      stageLastChanged: '2024-02-01T10:00:00.000Z',
+      stageLastChangedMap: { 'it-life': '2024-02-01T10:00:00.000Z' },
+      processHistory: [],
+      processHistories: {},
+      createdBy: 'user-1',
+      createdAt: '2024-04-01T10:00:00.000Z',
+      financialProfile: {},
+      bankDetails: {},
+      company: 'Finroots',
+      companyId: 'FIN01',
+      branchId: 'frb-1',
+      country: ''
   },
     {
-    id: '5',
-    sno: 5, // New permanent ID
-    name: 'Vikram Singh',
-    memberId: 'VI7B56789',
-    dob: '1978-01-15',
-    gender: 'gen-1', // Male
-    bloodGroup: 'O-',
-    maritalStatus: 'mar-2', // Married
-    mobile: '+91 9123456789',
-    state: 'Maharashtra',
-    city: 'Pune',
-    address: '7B, Clover Park, Viman Nagar',
-    memberType: 'Diamond', // Updated to Diamond based on new tiers
-    tierId: 'tier-3',
-    active: true,
-    panCard: 'UVXYZ9876A',
-    aadhaar: '9876 5432 1098',
-    policies: [{ id: 'POL005', policyType: 'Health Insurance', status: 'Active', coverage: 1650000, premium: 18000, renewalDate: formatDate(vikramRenewal), documentReceived: true, commission: { amount: 1800, status: 'Paid', paidDate: '2024-02-06' }, companyId: 'FIN01', insuranceTypeId: 'it-family-floater' }],
-    voiceNotes: [],
-    documents: [],
-    checkIns: [],
-    lat: 18.5679,
-    lng: 73.9143,
-    automatedGreetingsEnabled: true,
-    inactiveSince: null,
-    assignedTo: ['user-2'], // Rohan Patel
-    leadSource: { sourceId: 'ls-5' },
-    processStage: 'Policy Activation',
-    processStages: { 'it-health': 'Policy Activation' },
-    stageLastChanged: '2024-05-15T10:00:00.000Z',
-    stageLastChangedMap: { 'it-health': '2024-05-15T10:00:00.000Z' },
-    processHistory: [],
-    processHistories: {},
-    createdBy: 'user-2',
-    createdAt: '2024-05-15T10:00:00.000Z',
-    financialProfile: {
-        riskTolerance: 'High',
-        annualIncome: 4000000
+        id: '5',
+        sno: 5, // New permanent ID
+        name: 'Vikram Singh',
+        memberId: 'VI7B56789',
+        dob: '1978-01-15',
+        gender: 'gen-1', // Male
+        bloodGroup: 'O-',
+        maritalStatus: 'mar-2', // Married
+        mobile: '+91 9123456789',
+        state: 'Maharashtra',
+        city: 'Pune',
+        address: '7B, Clover Park, Viman Nagar',
+        memberType: 'Diamond', // Updated to Diamond based on new tiers
+        tierId: 'tier-3',
+        active: true,
+        panCard: 'UVXYZ9876A',
+        aadhaar: '9876 5432 1098',
+        policies: [{ id: 'POL005', policyType: 'Health Insurance', status: 'Active', coverage: 1650000, premium: 18000, renewalDate: formatDate(vikramRenewal), documentReceived: true, commission: { amount: 1800, status: 'Paid', paidDate: '2024-02-06' }, companyId: 'FIN01', insuranceTypeId: 'it-family-floater' }],
+        voiceNotes: [],
+        documents: [],
+        checkIns: [],
+        lat: 18.5679,
+        lng: 73.9143,
+        automatedGreetingsEnabled: true,
+        inactiveSince: null,
+        assignedTo: ['user-2'], // Rohan Patel
+        leadSource: { sourceId: 'ls-5' },
+        processStage: 'Policy Activation',
+        processStages: { 'it-health': 'Policy Activation' },
+        stageLastChanged: '2024-05-15T10:00:00.000Z',
+        stageLastChangedMap: { 'it-health': '2024-05-15T10:00:00.000Z' },
+        processHistory: [],
+        processHistories: {},
+        createdBy: 'user-2',
+        createdAt: '2024-05-15T10:00:00.000Z',
+        financialProfile: {
+            riskTolerance: 'High',
+            annualIncome: 4000000
+        },
+        bankDetails: {},
+        company: 'Finroots',
+        companyId: 'FIN01',
+        branchId: 'frb-1',
+        country: ''
     },
-    bankDetails: {},
-    company: 'Finroots',
-    companyId: 'FIN01',
-    branchId: 'frb-1', // Erode HQ
-  },
    {
-    id: '6',
-    sno: 6, // New permanent ID for Finroots
-    name: 'Arjun Mehta',
-    memberId: 'AR1176655',
-    dob: '1992-07-22',
-    gender: 'gen-1', // Male
-    bloodGroup: 'A-',
-    maritalStatus: 'mar-1', // Single
-    mobile: '+91 9988776655',
-    state: 'Karnataka',
-    city: 'Bengaluru (Bangalore) Urban',
-    address: '112, 4th Cross, Indiranagar',
-    memberType: 'Platinum',
-    tierId: 'tier-4',
-    active: true,
-    panCard: 'BCDEF2345G',
-    aadhaar: '8765 4321 0987',
-    policies: [
-        { id: 'POL006', policyType: 'Health Insurance', status: 'Active', coverage: 1000000, premium: 22000, renewalDate: '2025-01-20', commission: { amount: 2000, status: 'Paid', paidDate: '2024-01-22' }, documentReceived: true, companyId: 'FIN01', insuranceTypeId: 'it-health' },
-        { id: 'POL007', policyType: 'Life Insurance', status: 'Active', coverage: 2800000, premium: 30000, renewalDate: '2025-01-20', commission: { amount: 3000, status: 'Paid', paidDate: '2024-01-22' }, documentReceived: true, companyId: 'FIN01', insuranceTypeId: 'it-life' }
-    ],
-    mutualFundHoldings: [
-        {
-            id: 'mfh-1',
-            schemeId: 'mf-2', // HDFC Small Cap
-            folioNumber: '987654321/12',
-            investmentType: 'SIP',
-            totalInvestment: 35000,
-            units: 350,
-            currentValue: 38500,
-            sipAmount: 5000,
-            sipDate: 10,
-            status: 'Active',
-            transactions: [],
-            sipRejections: [
-                {
-                    date: new Date(new Date().setDate(today.getDate() - 12)).toISOString().split('T')[0],
-                    reason: 'Insufficient Funds'
-                }
-            ]
-        }
-    ],
-    voiceNotes: [],
-    documents: [],
-    checkIns: [],
-    lat: 12.9784,
-    lng: 77.6408,
-    automatedGreetingsEnabled: true,
-    inactiveSince: null,
-    assignedTo: ['user-2', 'user-3'], // Rohan & Priya
-    leadSource: { sourceId: 'ls-7' },
-    processStage: 'Initial Contact', // Fallback
-    processStages: { 'it-health': 'Consultation', 'it-life': 'Requirement Analysis', 'mutual-fund': 'KYC Verification' },
-    stageLastChanged: '2024-07-22T10:00:00.000Z', // Fallback
-    stageLastChangedMap: { 'it-health': '2024-07-22T10:00:00.000Z', 'it-life': '2024-07-22T10:00:00.000Z', 'mutual-fund': '2024-07-22T10:00:00.000Z' },
-    processHistory: [],
-    processHistories: {},
-    createdBy: 'user-2',
-    createdAt: '2024-07-22T10:00:00.000Z',
-    financialProfile: {
-        riskTolerance: 'Aggressive',
-        annualIncome: 5500000
-    },
-    bankDetails: {},
-    company: 'Finroots',
-    companyId: 'FIN01',
-    branchId: 'frb-2', // Coimbatore Hub
-  }
+       id: '6',
+       sno: 6, // New permanent ID for Finroots
+       name: 'Arjun Mehta',
+       memberId: 'AR1176655',
+       dob: '1992-07-22',
+       gender: 'gen-1', // Male
+       bloodGroup: 'A-',
+       maritalStatus: 'mar-1', // Single
+       mobile: '+91 9988776655',
+       state: 'Karnataka',
+       city: 'Bengaluru (Bangalore) Urban',
+       address: '112, 4th Cross, Indiranagar',
+       memberType: 'Platinum',
+       tierId: 'tier-4',
+       active: true,
+       panCard: 'BCDEF2345G',
+       aadhaar: '8765 4321 0987',
+       policies: [
+           { id: 'POL006', policyType: 'Health Insurance', status: 'Active', coverage: 1000000, premium: 22000, renewalDate: '2025-01-20', commission: { amount: 2000, status: 'Paid', paidDate: '2024-01-22' }, documentReceived: true, companyId: 'FIN01', insuranceTypeId: 'it-health' },
+           { id: 'POL007', policyType: 'Life Insurance', status: 'Active', coverage: 2800000, premium: 30000, renewalDate: '2025-01-20', commission: { amount: 3000, status: 'Paid', paidDate: '2024-01-22' }, documentReceived: true, companyId: 'FIN01', insuranceTypeId: 'it-life' }
+       ],
+       mutualFundHoldings: [
+           {
+               id: 'mfh-1',
+               schemeId: 'mf-2', // HDFC Small Cap
+               folioNumber: '987654321/12',
+               investmentType: 'SIP',
+               totalInvestment: 35000,
+               units: 350,
+               currentValue: 38500,
+               sipAmount: 5000,
+               sipDate: 10,
+               status: 'Active',
+               transactions: [],
+               sipRejections: [
+                   {
+                       date: new Date(new Date().setDate(today.getDate() - 12)).toISOString().split('T')[0],
+                       reason: 'Insufficient Funds'
+                   }
+               ]
+           }
+       ],
+       voiceNotes: [],
+       documents: [],
+       checkIns: [],
+       lat: 12.9784,
+       lng: 77.6408,
+       automatedGreetingsEnabled: true,
+       inactiveSince: null,
+       assignedTo: ['user-2', 'user-3'], // Rohan & Priya
+       leadSource: { sourceId: 'ls-7' },
+       processStage: 'Initial Contact', // Fallback
+       processStages: { 'it-health': 'Consultation', 'it-life': 'Requirement Analysis', 'mutual-fund': 'KYC Verification' },
+       stageLastChanged: '2024-07-22T10:00:00.000Z', // Fallback
+       stageLastChangedMap: { 'it-health': '2024-07-22T10:00:00.000Z', 'it-life': '2024-07-22T10:00:00.000Z', 'mutual-fund': '2024-07-22T10:00:00.000Z' },
+       processHistory: [],
+       processHistories: {},
+       createdBy: 'user-2',
+       createdAt: '2024-07-22T10:00:00.000Z',
+       financialProfile: {
+           riskTolerance: 'Aggressive',
+           annualIncome: 5500000
+       },
+       bankDetails: {},
+       company: 'Finroots',
+       companyId: 'FIN01',
+       branchId: 'frb-2',
+       country: ''
+   }
 ];
 // MODIFICATION END
 

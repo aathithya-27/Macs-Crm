@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Member, UploadedDocument, BankDetails, BankMaster, PolicyChecklistMaster, Policy, GeneralInsuranceType, DocumentMaster, InsuranceTypeMaster, AppModule, PermissionLevel } from '../../types.ts';
+import { Member, UploadedDocument, BankDetails, BankMaster, PolicyChecklistMaster, Policy, GeneralInsuranceType, DocumentMaster, InsuranceTypeMaster, AppModule, PermissionLevel,AccountType  } from '../../types.ts';
 import Input from '../ui/Input.tsx';
 import { extractDataFromImage } from '../../services/geminiService.ts';
 import { ImageIcon, Loader2, FileText, Download, FileText as FileTextIcon, Send, CheckCircle, Clock, Banknote, ClipboardList, Check, Plus, Trash2, Save, X } from 'lucide-react';
@@ -12,6 +12,7 @@ interface DocumentsTabProps {
   addToast: (message: string, type?: 'success' | 'error') => void;
   errors: Partial<Record<keyof Member | 'bankDetailsError', string>>;
   bankMasters: BankMaster[];
+  accountTypes: AccountType[];
   policyChecklistMasters: PolicyChecklistMaster[];
   onUpdatePolicyChecklistMasters: (data: PolicyChecklistMaster[]) => void;
   documentMasters: DocumentMaster[];
@@ -61,6 +62,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
     addToast, 
     errors, 
     bankMasters, 
+    accountTypes,
     policyChecklistMasters, 
     onUpdatePolicyChecklistMasters,
     documentMasters,
@@ -589,15 +591,15 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
               <Input label="IFSC Code" value={data.bankDetails?.ifscCode || ''} onChange={(e) => handleBankDetailsChange('ifscCode', e.target.value)} />
                <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Account Type</label>
-                  <select
+                   <select
                       value={data.bankDetails?.accountType || ''}
-                      onChange={e => handleBankDetailsChange('accountType', e.target.value as any)}
+                      onChange={e => handleBankDetailsChange('accountType', e.target.value)}
                       className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                   >
                       <option value="">Select Account Type...</option>
-                      <option>Current Account</option>
-                      <option>Overdraft Account</option>
-                      <option>Cash Credit Account</option>
+                      {accountTypes.filter(at => at.active).map(at => (
+                          <option key={at.id} value={at.name}>{at.name}</option>
+                      ))}
                   </select>
               </div>
           </div>

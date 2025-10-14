@@ -87,7 +87,9 @@ export interface BankDetails {
     accountNumber?: string;
     cifNumber?: string;
     ifscCode?: string;
-    accountType?: 'Current Account' | 'Overdraft Account' | 'Cash Credit Account' | '';
+    // --- MODIFICATION START ---
+    accountType?: string | '';
+    // --- MODIFICATION END ---
 }
 
 export interface AdvisorDocument {
@@ -974,7 +976,7 @@ export interface BankMaster {
     contactPerson?: string;
     emailId?: string;
     landmark?: string;
-    accountType: 'Current Account' | 'Overdraft Account' | 'Cash Credit Account' | '';
+    accountType: string | '';
     accountNumber: string;
     ifscCode?: string;
     creditLimit?: number;
@@ -1016,6 +1018,9 @@ export interface CustomerCategory { id: string; name: string; active?: boolean; 
 export interface CustomerSubCategory { id: string; name: string; parentId: string; active?: boolean; order?: number; }
 export interface CustomerGroup { id: string; name: string; active?: boolean; order?: number; }
 export interface TaskMaster { id: string; name: string; active?: boolean; order?: number; }
+// --- MODIFICATION START ---
+export interface AccountType { id: string; name: string; active?: boolean; order?: number; }
+// --- MODIFICATION END ---
 
 export interface PolicyChecklistMaster { 
     id: string; 

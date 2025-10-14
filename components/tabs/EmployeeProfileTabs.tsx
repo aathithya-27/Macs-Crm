@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 // MODIFIED: Added AppModule, PermissionLevel, and Gender
-import { User, EmployeeProfile, AdvisorEducation, AdvisorAddress, Member, FinRootsBranch, Geography, BankMaster, BusinessVertical, InsuranceTypeMaster, AMC, Designation, AppModule, PermissionLevel, DesignationPermissions, Gender } from '../../types.ts';
+import { User, EmployeeProfile, AdvisorEducation, AdvisorAddress, Member, FinRootsBranch, Geography, BankMaster, BusinessVertical, InsuranceTypeMaster, AMC, Designation, AppModule, PermissionLevel, DesignationPermissions, Gender,AccountType  } from '../../types.ts';
 import Input from '../ui/Input.tsx';
 import Button from '../ui/Button.tsx';
 import { Trash2, PlusCircle, X, Users, Copy, Banknote, KeyRound } from 'lucide-react';
@@ -245,7 +245,9 @@ export const GeneralInfoTab: React.FC<{
     designations: Designation[];
     permissions: { [key in AppModule]?: PermissionLevel };
     genders: Gender[]; // MODIFIED: Added genders prop
-}> = ({ data, onChange, onSave, finrootsBranches, addToast, bankMasters, businessVerticals, insuranceTypes, amcs, designations, permissions, genders }) => {
+    accountTypes: AccountType[]; 
+
+}> = ({ data, onChange, onSave, finrootsBranches, addToast, bankMasters, businessVerticals, insuranceTypes, amcs, designations, permissions, genders,accountTypes  }) => {
     const profile = data.profile || { status: 'Active' };
     const [isResettingPassword, setIsResettingPassword] = useState(false);
     const [newPassword, setNewPassword] = useState('');
@@ -515,13 +517,13 @@ export const GeneralInfoTab: React.FC<{
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Account Type *</label>
                         <select
                             value={profile.bankDetails?.accountType || ''}
-                            onChange={e => handleProfileChange('bankDetails', { ...profile.bankDetails, accountType: e.target.value as any })}
+                            onChange={e => handleProfileChange('bankDetails', { ...profile.bankDetails, accountType: e.target.value })}
                             className={selectClasses}
                         >
                             <option value="">Select Account Type...</option>
-                            <option>Current Account</option>
-                            <option>Overdraft Account</option>
-                            <option>Cash Credit Account</option>
+                            {accountTypes.filter(at => at.active).map(at => (
+                                <option key={at.id} value={at.name}>{at.name}</option>
+                            ))}
                         </select>
                     </div>
                 </div>

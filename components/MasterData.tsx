@@ -26,7 +26,7 @@ import {
     MutualFundSchemeCategory,
     MutualFundFieldMaster,
     Gender, MaritalStatus, CustomerType,
-    ProcessStageMaster // MODIFIED: Imported ProcessStageMaster
+    ProcessStageMaster,AccountType
 } from '../types.ts';
 import { Database, Briefcase, Users, GitBranch, MapPin, Link as LinkIcon, FileText as FileTextIcon, Gift, CheckSquare, Settings, Plus, Save, Edit2, Trash2, X, Building, Search, AlertTriangle, ChevronRight, ListTodo, SlidersHorizontal, ArrowUp, ArrowDown, CornerDownRight, GripVertical, ChevronDown, Lock, Award, IndianRupee, Calendar as CalendarIcon, Check, TrendingUp, UserCog } from 'lucide-react';
 
@@ -116,10 +116,10 @@ interface MasterDataProps {
     onUpdateMaritalStatuses: (data: MaritalStatus[]) => void;
     customerTypes: CustomerType[];
     onUpdateCustomerTypes: (data: CustomerType[]) => void;
-    // --- MODIFICATION START ---
     processStageMasters: ProcessStageMaster[];
     onUpdateProcessStageMasters: (data: ProcessStageMaster[]) => void;
-    // --- MODIFICATION END ---
+    accountTypes: AccountType[];
+    onUpdateAccountTypes: (data: AccountType[]) => void;
 }
 
 // --- MOVED SHARED CONSTANTS TO TOP LEVEL ---
@@ -4760,41 +4760,55 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                 </div>
             );
             case 'bankMasters': 
-                return <GenericMasterManager 
-                    key="bankMasters" 
-                    reorderable={true}
-                    title="Manage Bank Master" 
-                    items={props.bankMasters.map(b => ({ id: b.id, name: b.bankName, active: b.active, order: b.order }))} 
-                    onUpdate={(updatedItems) => {
-                        const originalBanksMap = new Map(props.bankMasters.map(b => [b.id, b]));
-                        const newBankMasters = updatedItems.map(item => {
-                            const originalBank = originalBanksMap.get(item.id);
-                            if (originalBank) {
-                                return { ...originalBank, bankName: item.name, active: item.active !== false, order: item.order };
-                            } else {
-                                return {
-                                    id: item.id,
-                                    bankCode: `NEW-${item.id}`,
-                                    bankName: item.name,
-                                    branchName: 'Default Branch',
-                                    active: item.active !== false,
-                                    accountType: '',
-                                    accountNumber: '',
-                                    order: item.order,
-                                } as BankMaster;
-                            }
-                        });
-                        props.onUpdateBankMasters(newBankMasters);
-                    }} 
-                    addToast={props.addToast} 
-                    noun="Bank" 
-                    dependencyCheck={(id) => { 
-                        const item = props.bankMasters.find(b => b.id === id); 
-                        if (!item) return []; 
-                        return props.allMembers.filter(m => m.bankDetails?.bankName === item.bankName).map(m => ({ name: m.name, type: 'member' })); 
-                    }} 
-                    codeColumnDisplay="hidden"
-                />;
+                return (
+                    <div className="space-y-8">
+                        <GenericMasterManager
+                            key="bankMasters"
+                            reorderable={true}
+                            title="Manage Bank Master"
+                            items={props.bankMasters.map(b => ({ id: b.id, name: b.bankName, active: b.active, order: b.order }))}
+                            onUpdate={(updatedItems) => {
+                                const originalBanksMap = new Map(props.bankMasters.map(b => [b.id, b]));
+                                const newBankMasters = updatedItems.map(item => {
+                                    const originalBank = originalBanksMap.get(item.id);
+                                    if (originalBank) {
+                                        return { ...originalBank, bankName: item.name, active: item.active !== false, order: item.order };
+                                    } else {
+                                        return {
+                                            id: item.id,
+                                            bankCode: `NEW-${item.id}`,
+                                            bankName: item.name,
+                                            branchName: 'Default Branch',
+                                            active: item.active !== false,
+                                            accountType: '',
+                                            accountNumber: '',
+                                            order: item.order,
+                                        } as BankMaster;
+                                    }
+                                });
+                                props.onUpdateBankMasters(newBankMasters);
+                            }}
+                            addToast={props.addToast}
+                            noun="Bank"
+                            dependencyCheck={(id) => {
+                                const item = props.bankMasters.find(b => b.id === id);
+                                if (!item) return [];
+                                return props.allMembers.filter(m => m.bankDetails?.bankName === item.bankName).map(m => ({ name: m.name, type: 'member' }));
+                            }}
+                            codeColumnDisplay="hidden"
+                        />
+                        <GenericMasterManager
+                            key="accountTypes"
+                            title="Manage Account Types"
+                            items={props.accountTypes}
+                            onUpdate={props.onUpdateAccountTypes}
+                            addToast={props.addToast}
+                            noun="Account Type"
+                            reorderable={true}
+                            codeColumnDisplay="hidden"
+                        />
+                    </div>
+                );
             default: return <div className="text-center p-8 text-gray-500">Select an item from the sidebar to manage it.</div>;
         }
     };

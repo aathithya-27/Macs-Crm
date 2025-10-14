@@ -8,7 +8,7 @@ import {
     BusinessVertical, CoveredMember, FinRootsBranch, Religion, CustomerFieldMaster, AMC, 
     MutualFundScheme, MutualFundHolding, MutualFundTransaction, MutualFundFieldMaster, Designation,
     AppModule, PermissionLevel,
-    Gender, MaritalStatus, ProcessStageMaster // MODIFIED: Imported new type
+    Gender, MaritalStatus, ProcessStageMaster,AccountType
 } from '../types.ts';
 import Modal from './ui/Modal.tsx';
 import Button from './ui/Button.tsx';
@@ -594,6 +594,7 @@ interface MemberModalProps {
   permissions: { [key in AppModule]?: PermissionLevel };
   genders: Gender[];
   maritalStatuses: MaritalStatus[];
+  accountTypes: AccountType[];
 }
 
 export const MemberModal: React.FC<MemberModalProps> = ({
@@ -606,7 +607,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     onUpdateInsuranceFields, customerFieldMasters, onUpdateCustomerFieldMasters, 
     onCreateReferrer, finrootsBranches, religions, onAddDocumentMaster, amcs, 
     mutualFundSchemes, mutualFundFields, designations, permissions,
-    genders, maritalStatuses
+    genders, maritalStatuses,accountTypes
 }) => {
   const [activeTab, setActiveTab] = useState<ModalTab | string>(ModalTab.BasicInfo);
   const [formData, setFormData] = useState<Partial<Member>>({});
@@ -1020,6 +1021,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                         addToast={addToast} 
                         errors={errors} 
                         bankMasters={bankMasters} 
+                        accountTypes={accountTypes}
                         policyChecklistMasters={policyChecklistMasters} 
                         onUpdatePolicyChecklistMasters={onUpdatePolicyChecklistMasters} 
                         documentMasters={documentMasters} 
