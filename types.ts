@@ -71,6 +71,7 @@ export interface AdvisorAddress {
   line1?: string;
   line2?: string;
   line3?: string;
+  country?: string; // MODIFICATION: Added country field
   state?: string;
   district?: string;
   city?: string;
@@ -426,6 +427,7 @@ export interface Member {
   mobile: string;
   mobile2?: string;
   email?: string;
+  country: string;
   state: string;
   district?: string;
   city: string;
@@ -872,6 +874,7 @@ export interface Company {
         district?: string;
         area?: string;
         pinCode?: string;
+        country?: string; // MODIFICATION: Added country field
     };
     contact?: {
         phoneNo?: string;
@@ -921,6 +924,7 @@ export interface FinRootsBranch {
         pinCode?: string;
         phone?: string;
         fax?: string;
+        country?: string; // MODIFICATION: Added country field
     };
     altAddress?: {
         line1?: string;
@@ -933,6 +937,7 @@ export interface FinRootsBranch {
         pinCode?: string;
         phone?: string;
         fax?: string;
+        country?: string; // MODIFICATION: Added country field
     };
     features?: {
         expService?: boolean;

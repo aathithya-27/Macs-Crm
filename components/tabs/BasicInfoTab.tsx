@@ -562,24 +562,29 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     onChange('active', newStatus);
   };
 
+    const countries = useMemo(() => geographies.filter(g => g.type === 'Country' && g.active !== false), [geographies]);
+    const selectedCountryObject = useMemo(() => geographies.find(g => g.name === data.country && g.type === 'Country' && g.active !== false), [data.country, geographies]);
+
     const states = useMemo(() => {
-        const country = geographies.find(g => g.type === 'Country' && g.name === 'India');
+        const country = selectedCountryObject;
         if (!country) return [];
         return geographies.filter(g => g.parentId === country.id && g.type === 'State' && g.active !== false);
-    }, [geographies]);
-    const selectedStateObject = useMemo(() => geographies.find(g => g.name === data.state && g.type === 'State' && g.active !== false), [data.state, geographies]);
+    }, [selectedCountryObject, geographies]);
+    const selectedStateObject = useMemo(() => geographies.find(g => g.name === data.state && g.parentId === selectedCountryObject?.id && g.type === 'State' && g.active !== false), [data.state, selectedCountryObject, geographies]);
     const districts = useMemo(() => { if (!selectedStateObject) return []; return geographies.filter(g => g.parentId === selectedStateObject.id && g.type === 'District' && g.active !== false); }, [selectedStateObject, geographies]);
     const selectedDistrictObject = useMemo(() => geographies.find(g => g.name === data.district && g.parentId === selectedStateObject?.id && g.type === 'District' && g.active !== false), [data.district, selectedStateObject, geographies]);
     const cities = useMemo(() => { if (!selectedDistrictObject) return []; return geographies.filter(g => g.parentId === selectedDistrictObject.id && g.type === 'City' && g.active !== false); }, [selectedDistrictObject, geographies]);
     const selectedCityObject = useMemo(() => geographies.find(g => g.name === data.city && g.parentId === selectedDistrictObject?.id && g.type === 'City' && g.active !== false), [data.city, selectedDistrictObject, geographies]);
     const areas = useMemo(() => { if (!selectedCityObject) return []; return geographies.filter(g => g.parentId === selectedCityObject.id && g.type === 'Area' && g.active !== false); }, [selectedCityObject, geographies]);
 
+    const handleCountryChange = (newCountryName: string) => { onChange('country', newCountryName); onChange('state', ''); onChange('district', ''); onChange('city', ''); onChange('area', ''); onChange('pincode', ''); };
     const handleStateChange = (newStateName: string) => { onChange('state', newStateName); onChange('district', ''); onChange('city', ''); onChange('area', ''); onChange('pincode', ''); };
     const handleDistrictChange = (newDistrictName: string) => { onChange('district', newDistrictName); onChange('city', ''); onChange('area', ''); onChange('pincode', ''); };
     const handleCityChange = (newCityName: string) => { onChange('city', newCityName); onChange('area', ''); };
     const handleAreaChange = (newAreaName: string) => onChange('area', newAreaName);
 
-    const handleCreateState = (newStateName: string) => { const country = geographies.find(g => g.type === 'Country' && g.name === 'India'); if (!country) return addToast("Cannot create state: Country 'India' not found.", "error"); const newState: Geography = { id: `geo-${Date.now()}`, name: newStateName, type: 'State', parentId: country.id, active: true }; onUpdateGeographies([...geographies, newState]); handleStateChange(newStateName); addToast(`State "${newStateName}" created.`, 'success'); };
+    const handleCreateCountry = (newCountryName: string) => { const newCountry: Geography = { id: `geo-${Date.now()}`, name: newCountryName, type: 'Country', parentId: null, active: true }; onUpdateGeographies([...geographies, newCountry]); handleCountryChange(newCountryName); addToast(`Country "${newCountryName}" created.`, 'success'); };
+    const handleCreateState = (newStateName: string) => { if (!selectedCountryObject) return addToast("Please select a country first.", "error"); const newState: Geography = { id: `geo-${Date.now()}`, name: newStateName, type: 'State', parentId: selectedCountryObject.id, active: true }; onUpdateGeographies([...geographies, newState]); handleStateChange(newStateName); addToast(`State "${newStateName}" created.`, 'success'); };
     const handleCreateDistrict = (newDistrictName: string) => { if (!selectedStateObject) return addToast("Please select a state first.", "error"); const newDistrict: Geography = { id: `geo-${Date.now()}`, name: newDistrictName, type: 'District', parentId: selectedStateObject.id, active: true }; onUpdateGeographies([...geographies, newDistrict]); handleDistrictChange(newDistrictName); addToast(`District "${newDistrictName}" created.`, 'success'); };
     const handleCreateCity = (newCityName: string) => { if (!selectedDistrictObject) return addToast("Please select a district first.", "error"); const newCity: Geography = { id: `geo-${Date.now()}`, name: newCityName, type: 'City', parentId: selectedDistrictObject.id, active: true }; onUpdateGeographies([...geographies, newCity]); onChange('city', newCityName); addToast(`City "${newCityName}" created.`, 'success'); };
     const handleCreateArea = (newAreaName: string) => { if (!selectedCityObject) return addToast("Please select a city first.", "error"); const newArea: Geography = { id: `geo-${Date.now()}`, name: newAreaName, type: 'Area', parentId: selectedCityObject.id, active: true }; onUpdateGeographies([...geographies, newArea]); handleAreaChange(newAreaName); addToast(`Area "${newAreaName}" created.`, 'success'); };
@@ -1081,11 +1086,12 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                     <SearchableSelect 
-                        label="Country" 
-                        options={[{ value: 'India', label: 'India' }]} 
-                        value={'India'} 
-                        onChange={() => {}} 
-                        disabled={true} 
+                        label="Country"
+                        options={countries.map(c => ({ value: c.name, label: c.name }))}
+                        value={data.country || ''}
+                        onChange={handleCountryChange}
+                        onCreate={handleCreateCountry}
+                        placeholder="Select or type to create..."
                     />
                 </div>
                 <div>
@@ -1095,7 +1101,8 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                         value={data.state || ''} 
                         onChange={handleStateChange} 
                         onCreate={handleCreateState} 
-                        placeholder="Select or type to create..." 
+                        placeholder="Select or type to create..."
+                        disabled={!data.country} 
                     />
                 </div>
                 <div>

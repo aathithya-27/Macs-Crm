@@ -3670,6 +3670,7 @@ const CompanyMasterManager: React.FC<MasterDataProps> = ({ operatingCompanies, o
     const [companyData, setCompanyData] = useState<Company | null>(null);
 
     // State for cascading dropdowns
+    const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
     const [selectedState, setSelectedState] = useState<string | null>(null);
     const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
     const [selectedCity, setSelectedCity] = useState<string | null>(null);
@@ -3678,21 +3679,29 @@ const CompanyMasterManager: React.FC<MasterDataProps> = ({ operatingCompanies, o
         const company = operatingCompanies.find(c => c.id === currentUser?.companyId) || null;
         setCompanyData(company);
         if (company?.address) {
-            const state = geographies.find(g => g.name === company.address?.state && g.type === 'State');
-            setSelectedState(state?.id || null);
-            if(state) {
-                const district = geographies.find(g => g.name === company.address?.district && g.type === 'District' && g.parentId === state.id);
-                setSelectedDistrict(district?.id || null);
-                if(district) {
-                    const city = geographies.find(g => g.name === company.address?.city && g.type === 'City' && g.parentId === district.id);
-                    setSelectedCity(city?.id || null);
+            const country = geographies.find(g => g.name === (company.address?.country || 'India') && g.type === 'Country');
+            setSelectedCountry(country?.id || null);
+            if (country) {
+                const state = geographies.find(g => g.name === company.address?.state && g.type === 'State' && g.parentId === country.id);
+                setSelectedState(state?.id || null);
+                if(state) {
+                    const district = geographies.find(g => g.name === company.address?.district && g.type === 'District' && g.parentId === state.id);
+                    setSelectedDistrict(district?.id || null);
+                    if(district) {
+                        const city = geographies.find(g => g.name === company.address?.city && g.type === 'City' && g.parentId === district.id);
+                        setSelectedCity(city?.id || null);
+                    } else {
+                        setSelectedCity(null);
+                    }
                 } else {
+                    setSelectedDistrict(null);
                     setSelectedCity(null);
                 }
-            } else {
+            } else { 
+                setSelectedState(null);
                 setSelectedDistrict(null);
                 setSelectedCity(null);
-            }
+            } 
         }
     }, [operatingCompanies, currentUser, geographies]);
 
@@ -3705,7 +3714,23 @@ const CompanyMasterManager: React.FC<MasterDataProps> = ({ operatingCompanies, o
     };
     
     const handleAddressChange = (name: string, value: string | null) => {
-        setCompanyData(prev => prev ? { ...prev, address: { ...prev.address, [name]: value } } : null);
+        setCompanyData(prev => {
+            if (!prev) return null;
+            const newAddress = { ...prev.address, [name]: value };
+            // Reset downstream fields if a parent changes
+            if (name === 'country') {
+                newAddress.state = '';
+                newAddress.district = '';
+                newAddress.city = '';
+                newAddress.area = '';
+            }
+            if (name === 'state') {
+                newAddress.district = '';
+                newAddress.city = '';
+                newAddress.area = '';
+            }
+            return { ...prev, address: newAddress };
+        });
     };
     
     const handleContactChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -3720,7 +3745,8 @@ const CompanyMasterManager: React.FC<MasterDataProps> = ({ operatingCompanies, o
     };
     
     // Options for dropdowns
-    const stateOptions = useMemo(() => geographies.filter(g => g.type === 'State' && g.active).map(g => ({ value: g.id, label: g.name })), [geographies]);
+    const countryOptions = useMemo(() => geographies.filter(g => g.type === 'Country' && g.active).map(g => ({ value: g.id, label: g.name })), [geographies]);
+    const stateOptions = useMemo(() => !selectedCountry ? [] : geographies.filter(g => g.type === 'State' && g.parentId === selectedCountry && g.active).map(g => ({ value: g.id, label: g.name })), [geographies, selectedCountry]);
     const districtOptions = useMemo(() => !selectedState ? [] : geographies.filter(g => g.type === 'District' && g.parentId === selectedState && g.active).map(g => ({ value: g.id, label: g.name })), [geographies, selectedState]);
     const cityOptions = useMemo(() => !selectedDistrict ? [] : geographies.filter(g => g.type === 'City' && g.parentId === selectedDistrict && g.active).map(g => ({ value: g.id, label: g.name })), [geographies, selectedDistrict]);
 
@@ -3747,9 +3773,7 @@ const CompanyMasterManager: React.FC<MasterDataProps> = ({ operatingCompanies, o
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Input label="Company Code" name="companyCode" value={companyData.companyCode || ''} onChange={handleInputChange} disabled/>
                         <Input label="Company Name" name="name" value={companyData.name} onChange={handleInputChange} />
-                        {/* --- MODIFICATION START: Changed label for "Mailing Name" --- */}
                         <Input label="Registered Name" name="mailingName" value={companyData.mailingName || ''} onChange={handleInputChange} />
-                        {/* --- MODIFICATION END --- */}
                         <Input label="Date of Creation" name="dateOfCreation" type="date" value={companyData.dateOfCreation || ''} onChange={handleInputChange} />
                         <div className="flex items-center gap-2">
                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
@@ -3760,15 +3784,14 @@ const CompanyMasterManager: React.FC<MasterDataProps> = ({ operatingCompanies, o
                 </div>
                 <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
                     <h4 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Address & Contact</h4>
-                    {/* --- MODIFICATION START: New Address & Contact form layout --- */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Input label="Line 1" value={companyData.address?.line1 || ''} onChange={e => handleAddressChange('line1', e.target.value)} />
                         <Input label="Line 2" value={companyData.address?.line2 || ''} onChange={e => handleAddressChange('line2', e.target.value)} />
-                        
                         <Input label="Line 3" value={companyData.address?.line3 || ''} onChange={e => handleAddressChange('line3', e.target.value)} />
-                        <SearchableSelect label="State" options={stateOptions} value={selectedState} onChange={val => { setSelectedState(val); setSelectedDistrict(null); setSelectedCity(null); handleAddressChange('state', val ? geographies.find(g => g.id === val)?.name || null : null); handleAddressChange('district', null); handleAddressChange('city', null); }} />
-
-                        <SearchableSelect label="District" options={districtOptions} value={selectedDistrict} onChange={val => { setSelectedDistrict(val); setSelectedCity(null); handleAddressChange('district', val ? geographies.find(g => g.id === val)?.name || null : null); handleAddressChange('city', null); }} disabled={!selectedState} />
+                        
+                        <SearchableSelect label="Country" options={countryOptions} value={selectedCountry} onChange={val => { setSelectedCountry(val); setSelectedState(null); setSelectedDistrict(null); setSelectedCity(null); handleAddressChange('country', val ? geographies.find(g => g.id === val)?.name || 'India' : 'India'); }} />
+                        <SearchableSelect label="State" options={stateOptions} value={selectedState} onChange={val => { setSelectedState(val); setSelectedDistrict(null); setSelectedCity(null); handleAddressChange('state', val ? geographies.find(g => g.id === val)?.name || null : null); }} disabled={!selectedCountry} />
+                        <SearchableSelect label="District" options={districtOptions} value={selectedDistrict} onChange={val => { setSelectedDistrict(val); setSelectedCity(null); handleAddressChange('district', val ? geographies.find(g => g.id === val)?.name || null : null); }} disabled={!selectedState} />
                         <SearchableSelect label="City" options={cityOptions} value={selectedCity} onChange={val => { setSelectedCity(val); handleAddressChange('city', val ? geographies.find(g => g.id === val)?.name || null : null); }} disabled={!selectedDistrict} />
 
                         <Input label="Area" value={companyData.address?.area || ''} onChange={e => handleAddressChange('area', e.target.value)} />
@@ -3779,7 +3802,6 @@ const CompanyMasterManager: React.FC<MasterDataProps> = ({ operatingCompanies, o
                         
                         <Input label="FAX No." name="faxNo" value={companyData.contact?.faxNo || ''} onChange={handleContactChange} />
                     </div>
-                    {/* --- MODIFICATION END --- */}
                 </div>
                 <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
                     <h4 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Tax Info</h4>
@@ -3807,6 +3829,7 @@ const BranchesManager: React.FC<MasterDataProps> = ({ finrootsBranches, onUpdate
     const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'branchName', direction: 'asc' });
 
     // State for modal dropdowns
+    const [modalSelectedCountry, setModalSelectedCountry] = useState<string | null>(null);
     const [modalSelectedState, setModalSelectedState] = useState<string | null>(null);
     const [modalSelectedDistrict, setModalSelectedDistrict] = useState<string | null>(null);
     const [modalSelectedCity, setModalSelectedCity] = useState<string | null>(null);
@@ -3858,22 +3881,31 @@ const BranchesManager: React.FC<MasterDataProps> = ({ finrootsBranches, onUpdate
         setBranchIdSuffix(branch ? branch.branchId.replace(`${companyCode}-`, '') : '');
         
         if (branch?.address) {
-            const state = geographies.find(g => g.name === branch.address?.state && g.type === 'State');
-            setModalSelectedState(state?.id || null);
-            if(state) {
-                const district = geographies.find(g => g.name === branch.address?.district && g.type === 'District' && g.parentId === state.id);
-                setModalSelectedDistrict(district?.id || null);
-                 if(district) {
-                    const city = geographies.find(g => g.name === branch.address?.city && g.type === 'City' && g.parentId === district.id);
-                    setModalSelectedCity(city?.id || null);
-                 } else {
-                     setModalSelectedCity(null);
-                 }
+            const country = geographies.find(g => g.name === (branch.address?.country || 'India') && g.type === 'Country');
+            setModalSelectedCountry(country?.id || null);
+            if (country) {
+                const state = geographies.find(g => g.name === branch.address?.state && g.type === 'State' && g.parentId === country.id);
+                setModalSelectedState(state?.id || null);
+                if(state) {
+                    const district = geographies.find(g => g.name === branch.address?.district && g.type === 'District' && g.parentId === state.id);
+                    setModalSelectedDistrict(district?.id || null);
+                     if(district) {
+                        const city = geographies.find(g => g.name === branch.address?.city && g.type === 'City' && g.parentId === district.id);
+                        setModalSelectedCity(city?.id || null);
+                     } else {
+                         setModalSelectedCity(null);
+                     }
+                } else {
+                    setModalSelectedDistrict(null);
+                    setModalSelectedCity(null);
+                }
             } else {
+                setModalSelectedState(null);
                 setModalSelectedDistrict(null);
                 setModalSelectedCity(null);
             }
         } else {
+            setModalSelectedCountry(geographies.find(g => g.name === 'India')?.id || null); // Default to India on new
             setModalSelectedState(null);
             setModalSelectedDistrict(null);
             setModalSelectedCity(null);
@@ -3925,11 +3957,24 @@ const BranchesManager: React.FC<MasterDataProps> = ({ finrootsBranches, onUpdate
     const handleAddressChange = (name: string, value: string | null) => {
         setEditingBranch(prev => {
             if (!prev) return null;
-            return { ...prev, address: { ...prev.address, [name]: value } };
+            const newAddress = { ...prev.address, [name]: value };
+            if (name === 'country') {
+                newAddress.state = '';
+                newAddress.district = '';
+                newAddress.city = '';
+                newAddress.area = '';
+            }
+            if (name === 'state') {
+                newAddress.district = '';
+                newAddress.city = '';
+                newAddress.area = '';
+            }
+            return { ...prev, address: newAddress };
         });
     };
 
-    const modalStateOptions = useMemo(() => geographies.filter(g => g.type === 'State' && g.active).map(g => ({ value: g.id, label: g.name })), [geographies]);
+    const modalCountryOptions = useMemo(() => geographies.filter(g => g.type === 'Country' && g.active).map(g => ({ value: g.id, label: g.name })), [geographies]);
+    const modalStateOptions = useMemo(() => !modalSelectedCountry ? [] : geographies.filter(g => g.type === 'State' && g.parentId === modalSelectedCountry && g.active).map(g => ({ value: g.id, label: g.name })), [geographies, modalSelectedCountry]);
     const modalDistrictOptions = useMemo(() => !modalSelectedState ? [] : geographies.filter(g => g.type === 'District' && g.parentId === modalSelectedState && g.active).map(g => ({ value: g.id, label: g.name })), [geographies, modalSelectedState]);
     const modalCityOptions = useMemo(() => !modalSelectedDistrict ? [] : geographies.filter(g => g.type === 'City' && g.parentId === modalSelectedDistrict && g.active).map(g => ({ value: g.id, label: g.name })), [geographies, modalSelectedDistrict]);
 
@@ -4018,8 +4063,9 @@ const BranchesManager: React.FC<MasterDataProps> = ({ finrootsBranches, onUpdate
                                 <Input label="Line 1" value={editingBranch.address?.line1 || ''} onChange={e => handleAddressChange('line1', e.target.value)} />
                                 <Input label="Line 2" value={editingBranch.address?.line2 || ''} onChange={e => handleAddressChange('line2', e.target.value)} />
                                 <Input label="Line 3" value={editingBranch.address?.line3 || ''} onChange={e => handleAddressChange('line3', e.target.value)} />
-                                <SearchableSelect label="State" options={modalStateOptions} value={modalSelectedState} onChange={val => { setModalSelectedState(val); setModalSelectedDistrict(null); setModalSelectedCity(null); handleAddressChange('state', val ? geographies.find(g => g.id === val)?.name || null : null); handleAddressChange('district', null); handleAddressChange('city', null);}} />
-                                <SearchableSelect label="District" options={modalDistrictOptions} value={modalSelectedDistrict} onChange={val => { setModalSelectedDistrict(val); setModalSelectedCity(null); handleAddressChange('district', val ? geographies.find(g => g.id === val)?.name || null : null); handleAddressChange('city', null);}} disabled={!modalSelectedState} />
+                                <SearchableSelect label="Country" options={modalCountryOptions} value={modalSelectedCountry} onChange={val => { setModalSelectedCountry(val); setModalSelectedState(null); setModalSelectedDistrict(null); setModalSelectedCity(null); handleAddressChange('country', val ? geographies.find(g => g.id === val)?.name || 'India' : 'India'); }} />
+                                <SearchableSelect label="State" options={modalStateOptions} value={modalSelectedState} onChange={val => { setModalSelectedState(val); setModalSelectedDistrict(null); setModalSelectedCity(null); handleAddressChange('state', val ? geographies.find(g => g.id === val)?.name || null : null); }} disabled={!modalSelectedCountry} />
+                                <SearchableSelect label="District" options={modalDistrictOptions} value={modalSelectedDistrict} onChange={val => { setModalSelectedDistrict(val); setModalSelectedCity(null); handleAddressChange('district', val ? geographies.find(g => g.id === val)?.name || null : null);}} disabled={!modalSelectedState} />
                                 <SearchableSelect label="City" options={modalCityOptions} value={modalSelectedCity} onChange={val => { setModalSelectedCity(val); handleAddressChange('city', val ? geographies.find(g => g.id === val)?.name || null : null); }} disabled={!modalSelectedDistrict} />
                                 <Input label="Area" value={editingBranch.address?.area || ''} onChange={e => handleAddressChange('area', e.target.value)} />
                                 <Input label="Pin Code" value={editingBranch.address?.pinCode || ''} onChange={e => handleAddressChange('pinCode', e.target.value)} />

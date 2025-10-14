@@ -545,12 +545,24 @@ const AddressForm: React.FC<{
     onFormChange(addressType, { ...formData, [field]: value } as AdvisorAddress);
   };
   
-  const states = useMemo(() => {
-    const country = geographies.find(g => g.type === 'Country' && g.name === 'India');
-    if (!country) return [];
-    return geographies.filter(g => g.parentId === country.id && g.type === 'State' && g.active !== false)
-      .map(s => ({ value: s.name, label: s.name }));
+  // --- MODIFICATION START ---
+  const countries = useMemo(() => {
+    return geographies.filter(g => g.type === 'Country' && g.active !== false)
+      .map(c => ({ value: c.name, label: c.name }));
   }, [geographies]);
+
+  const selectedCountryObject = useMemo(() => {
+    // Default to India if no country is selected
+    const countryName = formData.country || 'India';
+    return geographies.find(g => g.name === countryName && g.type === 'Country');
+  }, [formData.country, geographies]);
+
+  const states = useMemo(() => {
+    if (!selectedCountryObject) return [];
+    return geographies.filter(g => g.parentId === selectedCountryObject.id && g.type === 'State' && g.active !== false)
+      .map(s => ({ value: s.name, label: s.name }));
+  }, [selectedCountryObject, geographies]);
+  // --- MODIFICATION END ---
 
   const selectedStateObject = useMemo(() => {
     return geographies.find(g => g.name === formData.state && g.type === 'State');
@@ -584,6 +596,12 @@ const AddressForm: React.FC<{
         .map(a => ({value: a.name, label: a.name}));
   }, [selectedCityObject, geographies]);
 
+  // --- MODIFICATION START ---
+  const handleCountryChange = (newCountryName: string) => {
+    onFormChange(addressType, { ...formData, country: newCountryName, state: '', district: '', city: '', area: '' } as AdvisorAddress);
+  };
+  // --- MODIFICATION END ---
+
   const handleStateChange = (newStateName: string) => {
     onFormChange(addressType, { ...formData, state: newStateName, district: '', city: '', area: '' } as AdvisorAddress);
   };
@@ -600,11 +618,15 @@ const AddressForm: React.FC<{
     onFormChange(addressType, { ...formData, area: newAreaName } as AdvisorAddress);
   };
 
-  const handleCreateGeography = (name: string, type: 'State' | 'District' | 'City' | 'Area') => {
-    if (type === 'State') {
-        const country = geographies.find(g => g.type === 'Country' && g.name === 'India');
-        if (!country) return addToast("Country 'India' not found.", "error");
-        const newState: Geography = { id: `geo-${Date.now()}`, name, type: 'State', parentId: country.id, active: true };
+  const handleCreateGeography = (name: string, type: 'Country' | 'State' | 'District' | 'City' | 'Area') => {
+    if (type === 'Country') {
+        const newCountry: Geography = { id: `geo-${Date.now()}`, name, type: 'Country', parentId: null, active: true };
+        onUpdateGeographies([...geographies, newCountry]);
+        handleCountryChange(name);
+        addToast(`Country "${name}" created.`, 'success');
+    } else if (type === 'State') {
+        if (!selectedCountryObject) return addToast("Please select a country first.", "error");
+        const newState: Geography = { id: `geo-${Date.now()}`, name, type: 'State', parentId: selectedCountryObject.id, active: true };
         onUpdateGeographies([...geographies, newState]);
         handleStateChange(name);
         addToast(`State "${name}" created.`, 'success');
@@ -629,6 +651,7 @@ const AddressForm: React.FC<{
     }
   };
 
+
   return (
     <div className="space-y-4 p-4 border rounded-lg dark:border-gray-600">
         <div className="flex justify-between items-center">
@@ -642,6 +665,15 @@ const AddressForm: React.FC<{
         <Input label={`Line 1 ${isPermanent ? '*' : ''}`} value={formData.line1 || ''} onChange={(e) => handleChange('line1', e.target.value)} />
         <Input label="Line 2" value={formData.line2 || ''} onChange={(e) => handleChange('line2', e.target.value)} />
         <Input label="Line 3" value={formData.line3 || ''} onChange={(e) => handleChange('line3', e.target.value)} />
+        {/* --- MODIFICATION START --- */}
+        <SearchableSelect
+            label={`Country ${isPermanent ? '*' : ''}`}
+            options={countries}
+            value={formData.country || 'India'}
+            onChange={handleCountryChange}
+            onCreate={(name) => handleCreateGeography(name, 'Country')}
+            placeholder="Select or type to create..."
+        />
         <SearchableSelect
             label={`State ${isPermanent ? '*' : ''}`}
             options={states}
@@ -649,7 +681,9 @@ const AddressForm: React.FC<{
             onChange={handleStateChange}
             onCreate={(name) => handleCreateGeography(name, 'State')}
             placeholder="Select or type to create..."
+            disabled={!formData.country && !selectedCountryObject}
         />
+        {/* --- MODIFICATION END --- */}
         <SearchableSelect
             label={`District ${isPermanent ? '*' : ''}`}
             options={districts}

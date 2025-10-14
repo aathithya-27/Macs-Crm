@@ -2106,6 +2106,7 @@ const App: React.FC = () => {
                 mobile: dependentData.mobile || spoc.mobile,
                 email: dependentData.email || spoc.email,
                 maritalStatus: dependentData.maritalStatus || null,
+                country: spoc.country,
                 state: dependentData.state || spoc.state,
                 city: dependentData.city || spoc.city,
                 address: dependentData.address || spoc.address,
@@ -2830,6 +2831,7 @@ const App: React.FC = () => {
                 memberId: `${(referrerData.name || '').replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase().padEnd(2, '_')}${(referrerData.mobile || '').replace(/[^0-9]/g, '').slice(-7).padEnd(7, '_')}`,
                 dob: '1900-01-01', // Placeholder DOB
                 maritalStatus: 'Single',
+                country: '',
                 state: '', // Placeholder
                 city: '', // Placeholder
                 address: '',
