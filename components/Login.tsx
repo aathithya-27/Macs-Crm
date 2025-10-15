@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Shield, Lock, Sun, Moon, Building, User as UserIcon, GitBranch } from 'lucide-react';
+import { Shield, Lock, Sun, Moon, Building, User as UserIcon, GitBranch, Calendar } from 'lucide-react';
 import Button from './ui/Button.tsx';
-import { User as UserType, FinRootsBranch, Company, Designation } from '../types.ts';
+import { User as UserType, FinRootsBranch, Company, Designation, FinancialYear } from '../types.ts';
 import Input from './ui/Input.tsx';
-import { login } from '../services/apiService.ts';
+import { login, getFinancialYears } from '../services/apiService.ts';
 
 interface LoginProps {
-    onLogin: (user: UserType) => void;
+    onLogin: (user: UserType, finYearId: string) => void; // MODIFIED: Pass finYearId on successful login
     onForgotPassword: () => void;
     theme: 'light' | 'dark';
     toggleTheme: () => void;
@@ -24,6 +24,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
     const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
     
+    // --- NEW: State for Financial Years ---
+    const [financialYears, setFinancialYears] = useState<FinancialYear[]>([]);
+    const [financialYearId, setFinancialYearId] = useState('');
+
     const companyOptions = useMemo(() => operatingCompanies.filter(c => c.active), [operatingCompanies]);
     const designationOptions = useMemo(() => designations.filter(d => d.active), [designations]);
 
@@ -43,6 +47,17 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
     }, [company, designationId]);
     
     useEffect(() => {
+        // Fetch financial years on component mount
+        const fetchFYs = async () => {
+            const fys = await getFinancialYears();
+            const activeFYs = fys.filter(fy => fy.status === 'Active');
+            setFinancialYears(activeFYs);
+            if (activeFYs.length > 0) {
+                setFinancialYearId(activeFYs[0].id); // Default to the first active FY
+            }
+        };
+        fetchFYs();
+
         if (companyOptions.length > 0 && !company) {
             setCompany(companyOptions[0].name);
         }
@@ -67,22 +82,19 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
         e.preventDefault();
         setError('');
 
-        if (!company || !designationId || !employeeId || !password) {
-            setError('Please fill in all fields.');
+        if (!company || !designationId || !employeeId || !password || !financialYearId) {
+            setError('Please fill in all fields, including Financial Year.');
             return;
         }
 
-        // This validation correctly checks if a branch is needed ONLY for advisor roles.
-        // It will allow an Admin to proceed without selecting a branch.
         if (isAdvisorRoleSelected && companyBranches.length > 0 && !branchId) {
             setError('Please select a branch for this designation.');
             return;
         }
 
         try {
-            // --- THIS IS THE FIX ---
-            // Pass the selected `designationId` to the login function for validation.
-            const user = await login(company, employeeId, password, designationId, branchId);
+            // MODIFIED: Pass the selected financialYearId to the login function
+            const user = await login(company, employeeId, password, designationId, branchId, financialYearId);
 
             if (user) {
                 if (rememberMe) {
@@ -90,9 +102,10 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                 } else {
                     localStorage.removeItem('rememberedUser');
                 }
-                onLogin(user);
+                // MODIFIED: Pass finYearId back to App.tsx
+                onLogin(user, financialYearId);
             } else {
-                setError('Invalid credentials, or branch/designation mismatch for your user.');
+                setError('Invalid credentials, or branch/designation/FY mismatch for your user.');
             }
         } catch (err) {
             setError('An error occurred during login. Please try again.');
@@ -130,6 +143,24 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                 )}
 
                 <form onSubmit={handleLogin} className="space-y-4">
+                    {/* --- NEW: Financial Year Dropdown --- */}
+                    <div className="relative">
+                        <label htmlFor="financialYear" className="text-sm font-medium text-gray-700 dark:text-gray-300">Financial Year</label>
+                        <Calendar className="absolute left-3 top-10 h-5 w-5 text-gray-400" />
+                        <select
+                            id="financialYear"
+                            value={financialYearId}
+                            onChange={(e) => setFinancialYearId(e.target.value)}
+                            required
+                            className="w-full pl-10 pr-4 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        >
+                            <option value="" disabled>Select Financial Year...</option>
+                            {financialYears.map(fy => (
+                                <option key={fy.id} value={fy.id}>{fy.finYear}</option>
+                            ))}
+                        </select>
+                    </div>
+
                     <div className="relative">
                         <label htmlFor="company" className="text-sm font-medium text-gray-700 dark:text-gray-300">Company</label>
                         <Building className="absolute left-3 top-10 h-5 w-5 text-gray-400" />
@@ -160,10 +191,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                             ))}
                         </select>
                     </div>
-
-                    {/* --- THIS BLOCK HAS BEEN CORRECTED --- */}
-                    {/* The `isAdvisorRoleSelected` condition was removed to make the dropdown always visible */}
-                    {/* as long as there are branches for the selected company. */}
+                    
                     {companyBranches.length > 0 && (
                         <div className="relative animate-fade-in">
                             <label htmlFor="branch" className="text-sm font-medium text-gray-700 dark:text-gray-300">Branch</label>
@@ -173,7 +201,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                                 value={branchId}
                                 onChange={(e) => setBranchId(e.target.value)}
                                 className="w-full pl-10 pr-4 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                // The 'required' attribute correctly makes selection mandatory only for advisors.
                                 required={isAdvisorRoleSelected}
                             >
                                 <option value="">Select Branch...</option>

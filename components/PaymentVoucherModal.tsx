@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { Company, Expense, ExpenseCategoryLevel1, ExpenseCategoryLevel2, ExpenseCategoryLevel3, FinRootsBranch } from '../types.ts';
+import { Company, Expense, ExpenseCategoryLevel1, ExpenseCategoryLevel2, ExpenseCategoryLevel3, FinRootsBranch, DocumentNumbering } from '../types.ts';
 import { Download, X, Plus, Trash2, Save, ChevronDown } from 'lucide-react';
 // @ts-ignore
 import * as htmlToImage from 'https://cdn.skypack.dev/html-to-image';
@@ -21,6 +21,7 @@ export interface VoucherSaveData {
     date: string;
     payeeName: string;
     branchId: string;
+    finYearId: string; // NEW: Link to financial year
     lineItems: VoucherLineItem[];
 }
 
@@ -32,12 +33,15 @@ interface PaymentVoucherModalProps {
     expenseCategoriesLevel1: ExpenseCategoryLevel1[];
     expenseCategoriesLevel2: ExpenseCategoryLevel2[];
     expenseCategoriesLevel3: ExpenseCategoryLevel3[];
-    lastVoucherNumber: number;
     onSave: (data: VoucherSaveData) => void;
     voucherToEdit: Expense[] | null;
     triggerExport: boolean;
     canCreate: boolean;
     canModify: boolean;
+    // --- NEW: Props for FY-based numbering ---
+    activeFinancialYearId: string | null;
+    docNumberingConfig: DocumentNumbering | null;
+    lastVoucherNumber: number;
 }
 
 
@@ -73,26 +77,50 @@ const Button: React.FC<{
     );
 };
 
-
 const numberToWords = (num: number): string => {
     const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
     const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-    if (isNaN(num) || num === 0) return 'Zero';
+    
+    if (isNaN(num) || num === null) return 'Invalid Number';
+    if (num === 0) return 'Zero Only';
+    if (num > 999999999) return 'Number too large';
+
     const inWords = (n: number): string => {
         let str = '';
-        if (n > 99) { str += a[Math.floor(n / 100)] + 'Hundred '; n %= 100; }
-        if (n > 19) { str += b[Math.floor(n / 10)] + ' ' + a[n % 10]; } else { str += a[n]; }
+        if (n > 99) {
+            str += a[Math.floor(n / 100)] + 'Hundred ';
+            n %= 100;
+        }
+        if (n > 19) {
+            str += b[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' : '') + a[n % 10];
+        } else {
+            str += a[n];
+        }
         return str;
     };
+
     let result = '';
-    const crore = Math.floor(num / 10000000); num %= 10000000;
-    const lakh = Math.floor(num / 100000); num %= 100000;
-    const thousand = Math.floor(num / 1000); num %= 1000;
-    if (crore > 0) result += inWords(crore) + 'Crore ';
-    if (lakh > 0) result += inWords(lakh) + 'Lakh ';
-    if (thousand > 0) result += inWords(thousand) + 'Thousand ';
-    if (num > 0) result += inWords(num);
-    return result.trim() + ' Only';
+    const crore = Math.floor(num / 10000000);
+    num %= 10000000;
+    const lakh = Math.floor(num / 100000);
+    num %= 100000;
+    const thousand = Math.floor(num / 1000);
+    num %= 1000;
+
+    if (crore > 0) {
+        result += inWords(crore) + 'Crore ';
+    }
+    if (lakh > 0) {
+        result += inWords(lakh) + 'Lakh ';
+    }
+    if (thousand > 0) {
+        result += inWords(thousand) + 'Thousand ';
+    }
+    if (num > 0) {
+        result += inWords(num);
+    }
+
+    return result.trim().replace(/\s\s+/g, ' ') + ' Only';
 };
 
 // --- Main Component ---
@@ -105,12 +133,14 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
     expenseCategoriesLevel1,
     expenseCategoriesLevel2,
     expenseCategoriesLevel3,
-    lastVoucherNumber,
     onSave,
     voucherToEdit,
     triggerExport,
     canCreate,
     canModify,
+    activeFinancialYearId,
+    docNumberingConfig,
+    lastVoucherNumber,
 }) => {
     // Voucher-level state
     const [voucherNo, setVoucherNo] = useState('');
@@ -131,7 +161,6 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
 
     const voucherRef = useRef<HTMLDivElement>(null);
 
-    // NEW: Determine if the form is editable based on permissions
     const isEditable = useMemo(() => {
         return voucherToEdit ? canModify : canCreate;
     }, [voucherToEdit, canCreate, canModify]);
@@ -162,7 +191,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
         if (isOpen) {
             if (voucherToEdit) { // Editing existing voucher
                 const firstExpense = voucherToEdit[0];
-                setVoucherNo(firstExpense.voucherNo || `VCH-${(lastVoucherNumber + 1).toString().padStart(4, '0')}`);
+                setVoucherNo(firstExpense.voucherNo || `VCH-TEMP-${Date.now()}`); // Use existing number
                 setDate(firstExpense.date);
                 setPayeeName(firstExpense.paidTo || '');
                 setBranchId(firstExpense.branchId || (branches.length > 0 ? branches[0].id : ''));
@@ -190,7 +219,14 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                 }
 
             } else { // Creating new voucher
-                setVoucherNo(`VCH-${(lastVoucherNumber + 1).toString().padStart(4, '0')}`);
+                if (docNumberingConfig) {
+                    const nextNumber = docNumberingConfig.startingNumber + lastVoucherNumber;
+                    const suffix = docNumberingConfig.suffix || '';
+                    setVoucherNo(`${docNumberingConfig.prefix}${nextNumber}${suffix}`);
+                } else {
+                    setVoucherNo(`TEMP-${lastVoucherNumber + 1}`); // Fallback
+                }
+                
                 setDate(new Date().toISOString().split('T')[0]);
                 setPayeeName('');
                 setBranchId(branches.length > 0 ? branches[0].id : '');
@@ -198,7 +234,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                 setLogExpenseForm({ categoryLevel1Id: '', categoryLevel2Id: '', categoryLevel3Id: '' });
             }
         }
-    }, [isOpen, voucherToEdit, lastVoucherNumber, triggerExport, branches, l1Map, l2Map, l3Map]);
+    }, [isOpen, voucherToEdit, lastVoucherNumber, docNumberingConfig, triggerExport, branches, l1Map, l2Map, l3Map]);
 
 
     const handleCategoryChange = (level: 'categoryLevel1Id' | 'categoryLevel2Id' | 'categoryLevel3Id', value: string) => {
@@ -261,13 +297,13 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
         setLineItems(prev => prev.filter(item => item.id !== id));
     };
 
-    const updateLineItem = (id: string, field: keyof VoucherLineItem, value: any) => {
+    const updateLineItem = (id: string, field: keyof Omit<VoucherLineItem, 'id'>, value: any) => {
         setLineItems(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
     };
     
     // Calculations for display
     const totalAmount = useMemo(() => lineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0), [lineItems]);
-    const amountInWords = numberToWords(totalAmount);
+    const amountInWords = useMemo(() => numberToWords(totalAmount), [totalAmount]);
 
     const handleSave = (shouldExport: boolean) => {
         if (!payeeName.trim()) {
@@ -278,12 +314,17 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
             alert('Voucher must have at least one line item.');
             return;
         }
+        if (!activeFinancialYearId) {
+            alert('Cannot save: Active Financial Year not found.');
+            return;
+        }
 
         const saveData: VoucherSaveData = {
             voucherNo,
             date,
             payeeName,
             branchId,
+            finYearId: activeFinancialYearId, // Add active FY ID
             lineItems
         };
         onSave(saveData);
@@ -300,7 +341,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
             htmlToImage.toPng(voucherRef.current, { quality: 1, pixelRatio: 2, backgroundColor: '#ffffff' })
                 .then((dataUrl: string) => {
                     const link = document.createElement('a');
-                    link.download = `PaymentVoucher-${voucherNo}.png`;
+                    link.download = `PaymentVoucher-${voucherNo.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
                     link.href = dataUrl;
                     link.click();
                     onClose();
@@ -329,7 +370,6 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
 
                 {/* Main Content Area */}
                 <div className="flex-1 p-6 overflow-y-auto">
-                    {/* Integrated Expense Form */}
                     {isEditable && (
                         <div className="mb-4 p-4 border rounded-lg bg-gray-50 dark:bg-gray-700/50 dark:border-gray-600">
                             <h4 className="font-semibold mb-3 text-gray-700 dark:text-gray-300">Voucher Setup & Auto-Generation</h4>
@@ -353,7 +393,6 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                         </div>
                     )}
                     
-                    {/* The actual voucher for export */}
                     <div ref={voucherRef} id="payment-voucher" className="bg-white p-8 border-2 border-gray-500 font-serif text-black">
                         {/* Voucher Header */}
                         <div className="text-center mb-4">
@@ -380,16 +419,23 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                             </div>
                         </div>
 
-                        <div className="flex justify-between items-center mb-4">
-                            <div className="w-1/4"></div> {/* Spacer for alignment */}
-                            <div className="bg-gray-800 text-white px-4 py-1 text-lg font-bold">PAYMENT VOUCHER</div>
-                            <div className="text-right text-sm w-1/4">
-                                <p className="font-semibold">Voucher No.: <span className="font-normal border-b border-dotted border-gray-500 px-2 min-w-[100px] inline-block">{voucherNo}</span></p>
-                                <div className="font-semibold mt-1 flex items-center justify-end">Date: 
-                                    <input type="date" value={date} onChange={e => setDate(e.target.value)} className="font-normal border-b border-dotted border-gray-500 px-2 focus:outline-none bg-transparent" disabled={!isEditable} />
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="w-1/3"></div> {/* Left Spacer */}
+                            <div className="w-1/3 text-center">
+                                <div className="bg-gray-800 text-white px-4 py-1 text-lg font-bold inline-block">PAYMENT VOUCHER</div>
+                            </div>
+                            <div className="w-1/3 text-right text-sm space-y-1">
+                                <div className="flex items-center justify-end">
+                                    <p className="font-semibold shrink-0">Voucher No.:</p>
+                                    <span className="font-normal border-b border-dotted border-gray-500 px-2 ml-2 min-w-[120px] text-left">{voucherNo}</span>
+                                </div>
+                                <div className="flex items-center justify-end">
+                                    <p className="font-semibold shrink-0">Date:</p>
+                                    <input type="date" value={date} onChange={e => setDate(e.target.value)} className="font-normal border-b border-dotted border-gray-500 px-2 ml-2 focus:outline-none bg-transparent" disabled={!isEditable} />
                                 </div>
                             </div>
                         </div>
+
                         <div className="mb-4">
                             <p className="font-semibold">Name: <input type="text" value={payeeName} onChange={e => setPayeeName(e.target.value)} placeholder="Enter payee name..." className="font-normal w-3/4 border-b border-dotted border-gray-500 px-2 focus:outline-none bg-transparent" disabled={!isEditable} /></p>
                         </div>
@@ -402,7 +448,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                                     <th className="border border-black p-1 text-center font-bold">Expenses Head</th>
                                     <th className="border border-black p-1 text-center font-bold w-2/5">Description</th>
                                     <th className="border border-black p-1 text-center font-bold">Mode of Payment</th>
-                                    <th className="border border-black p-1 text-center font-bold">Amount</th>
+                                    <th className="border border-black p-1 text-center font-bold w-40">Amount</th>
                                     {isEditable && <th className="border border-black p-1 text-center font-bold w-12"></th>}
                                 </tr>
                             </thead>
@@ -418,29 +464,31 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                                             <p className="text-xs text-gray-500 px-1">{item.fullCategoryPath}</p>
                                         </td>
                                         <td className="border border-black p-1">
-                                            <select value={item.modeOfPayment} onChange={e => updateLineItem(item.id, 'modeOfPayment', e.target.value)} className="w-full h-full border-none focus:outline-none bg-transparent p-1" disabled={!isEditable}>
+                                            <select value={item.modeOfPayment} onChange={e => updateLineItem(item.id, 'modeOfPayment', e.target.value as any)} className="w-full h-full border-none focus:outline-none bg-transparent p-1" disabled={!isEditable}>
                                                 <option>Cash</option>
                                                 <option>UPI</option>
                                                 <option>Net Banking</option>
                                                 <option>Cheque</option>
                                             </select>
                                         </td>
-                                        <td className="border border-black p-1 text-right">
+                                        <td className="border border-black p-1 text-right w-40">
                                             <input type="number" value={item.amount || ''} onChange={e => updateLineItem(item.id, 'amount', parseFloat(e.target.value) || 0)} className="w-full h-full border-none focus:outline-none bg-transparent text-right p-1" disabled={!isEditable} />
                                         </td>
                                         {isEditable && (
                                             <td className="border border-black p-1 text-center">
-                                                <button onClick={() => removeLine(item.id)} className="p-1 text-red-500 hover:text-red-700"><Trash2 size={14} /></button>
+                                                <button type="button" onClick={() => removeLine(item.id)} className="p-1 text-red-500 hover:text-red-700"><Trash2 size={14} /></button>
                                             </td>
                                         )}
                                     </tr>
                                 ))}
-                                {/* Total Row */}
+                                {/* --- START OF FIX: Corrected Total Row Layout --- */}
                                 <tr className="bg-gray-200 font-bold">
-                                    <td colSpan={isEditable ? 5 : 4} className="border border-black p-2 text-right">Total Rs.</td>
+                                    <td colSpan={3} className="border border-black p-2"></td>
+                                    <td className="border border-black p-2 text-right">Total Rs.</td>
                                     <td className="border border-black p-2 text-right">{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                     {isEditable && <td className="border border-black p-2"></td>}
                                 </tr>
+                                {/* --- END OF FIX --- */}
                             </tbody>
                         </table>
                         <div className="mt-2 p-2 border-2 border-black"><p className="font-semibold">Amount in Words: <span className="font-normal">{amountInWords}</span></p></div>

@@ -4,8 +4,27 @@ import {
     Member, Policy, PolicyType, Lead, User, Route, ProcessStage, EmployeeProfile, Company, 
     FinRootsBranch, Religion, Festival, FestivalDate, AdvisorLocation, CheckIn, 
     CheckInOutcome, UpsellCategory, Designation, DesignationPermissions, AppModule, PermissionLevel, 
-    Gender, MaritalStatus, CustomerType, CustomerTier, ProcessStageMaster, RelationshipType // MODIFIED: Imported RelationshipType
+    Gender, MaritalStatus, CustomerType, CustomerTier, ProcessStageMaster, RelationshipType,
+    // --- NEW: Import new types ---
+    FinancialYear, DocumentNumbering
 } from '../types.ts';
+
+// --- NEW: Mock Data for Financial Years ---
+let financialYearsData: FinancialYear[] = [
+    { id: 'fy-1', finYear: '2024-2025', fromDate: '2024-04-01', toDate: '2025-03-31', status: 'Active' },
+    { id: 'fy-2', finYear: '2025-2026', fromDate: '2025-04-01', toDate: '2026-03-31', status: 'Active' },
+];
+
+// --- NEW: Mock Data for Document Numbering ---
+let documentNumberingData: DocumentNumbering[] = [
+    // Vouchers
+    { id: 'dn-1', type: 'Voucher', prefix: 'VCH/24-25/', suffix: null, startingNumber: 1, finYearId: 'fy-1', status: 'Active' },
+    { id: 'dn-2', type: 'Voucher', prefix: 'VOUCHER/', suffix: '/25-26', startingNumber: 1001, finYearId: 'fy-2', status: 'Active' },
+    // Receipts
+    { id: 'dn-3', type: 'Receipt', prefix: 'RECPT/24-25/', suffix: null, startingNumber: 1, finYearId: 'fy-1', status: 'Active' },
+    { id: 'dn-4', type: 'Receipt', prefix: 'R/', suffix: '/A', startingNumber: 500, finYearId: 'fy-2', status: 'Active' },
+];
+
 
 // --- NEW: LOCAL STORAGE PERSISTENCE LOGIC ---
 const LS_OPERATING_COMPANIES_KEY = 'finroots-operatingCompanies';
@@ -841,10 +860,11 @@ const cityCoordinates: Record<string, { lat: number; lng: number }> = {
 
 const simulateDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// --- MODIFIED: Login function updated for designation system ---
-export const login = async (company: string, employeeId: string, password_param: string, designationId: string, branchId?: string): Promise<User | null> => {
+// --- MODIFIED: Login function now accepts financialYearId ---
+export const login = async (company: string, employeeId: string, password_param: string, designationId: string, branchId?: string, financialYearId?: string): Promise<User | null> => {
     await simulateDelay(200);
 
+    // Basic user authentication
     const user = users.find(u =>
         u.company === company &&
         u.employeeId.toLowerCase() === employeeId.toLowerCase() &&
@@ -855,15 +875,14 @@ export const login = async (company: string, employeeId: string, password_param:
         return null;
     }
 
-    // --- THIS IS THE FIX ---
-    // Validate that the user's actual designation matches the one selected on the login form.
+    // Designation validation
     if (user.designationId !== designationId) {
-        return null; // Designation mismatch, reject login.
+        return null; // Designation mismatch
     }
 
     const designation = designationsData.find(d => d.id === user.designationId);
 
-    // Branch check is now only for designations marked as 'isAdvisor'
+    // Branch check for advisor roles
     if (designation?.isAdvisor) {
         const companyBranches = finrootsBranchesData.filter(b => b.companyId === user.companyId);
         if (companyBranches.length > 0 && user.profile?.employeeBranchId !== branchId) {
@@ -871,8 +890,37 @@ export const login = async (company: string, employeeId: string, password_param:
         }
     }
 
+    // Financial year validation (if provided)
+    if (financialYearId && !financialYearsData.find(fy => fy.id === financialYearId)) {
+        return null; // Invalid financial year
+    }
+
     return user ? JSON.parse(JSON.stringify(user)) : null;
 };
+
+// --- NEW: API functions for Financial Year and Document Numbering ---
+export const getFinancialYears = async (): Promise<FinancialYear[]> => {
+    await simulateDelay(100);
+    return JSON.parse(JSON.stringify(financialYearsData));
+};
+
+export const updateFinancialYears = async (updatedData: FinancialYear[]): Promise<FinancialYear[]> => {
+    await simulateDelay(200);
+    financialYearsData = JSON.parse(JSON.stringify(updatedData));
+    return financialYearsData;
+};
+
+export const getDocumentNumbering = async (): Promise<DocumentNumbering[]> => {
+    await simulateDelay(100);
+    return JSON.parse(JSON.stringify(documentNumberingData));
+};
+
+export const updateDocumentNumbering = async (updatedData: DocumentNumbering[]): Promise<DocumentNumbering[]> => {
+    await simulateDelay(200);
+    documentNumberingData = JSON.parse(JSON.stringify(updatedData));
+    return documentNumberingData;
+};
+
 
 export const getUsers = async (companyId?: string): Promise<User[]> => {
   await simulateDelay(100);

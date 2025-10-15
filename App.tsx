@@ -30,10 +30,11 @@ import Button from './components/ui/Button.tsx';
 import ProfitAndLoss from './components/ProfitAndLoss.tsx';
 import FestivalCalendar from './components/FestivalCalendar.tsx';
 import { VoucherSaveData } from './components/PaymentVoucherModal.tsx';
+import { ReceiptSaveData } from './components/ManualReceiptModal.tsx';
 import AdvancedReports from './components/AdvancedReports.tsx';
 import UpsellingDashboard from './components/UpsellingDashboard.tsx';
 
-// MODIFIED: Removed ProcessStage, added ProcessStageMaster
+// MODIFIED: Added FinancialYear, DocumentNumbering, ManualReceipt
 import {
     Member, ToastData, ActivityLog, Appointment, Task, UpsellOpportunity, AutomationRule, CustomScheduledMessage, ModalTab,
     Lead, User, Policy, Route as RouteType, DocTemplate, EmployeeProfile, Tab, GiftMapping, BusinessVertical,
@@ -60,9 +61,10 @@ import {
     PermissionLevel,
     Gender, MaritalStatus, CustomerType,
     ProcessStageMaster,
-    AccountType 
+    AccountType,
+    FinancialYear, DocumentNumbering, ManualReceipt 
 } from './types.ts';
-// MODIFIED: Added getProcessStageMasters and updateProcessStageMasters
+// MODIFIED: Added FY-related service imports
 import { 
     getMembers, createMember, updateMember, deleteMember, getLeads, createLead, updateLead, deleteLead, 
     getUsers, getRoutes, updateRoute, createEmployee, updateEmployee, getOperatingCompanies, 
@@ -71,7 +73,8 @@ import {
     getCheckIns, updateAdvisorLocation, createCheckIn, getAdvisorLocationHistory, checkOut, 
     getActiveCheckIn, getUpsellCategories,
     getGenders, getMaritalStatuses, getCustomerTypes, getCustomerTiers,
-    getProcessStageMasters, updateProcessStageMasters
+    getProcessStageMasters, updateProcessStageMasters,
+    getFinancialYears, updateFinancialYears, getDocumentNumbering, updateDocumentNumbering 
 } from './services/apiService.ts';
 import { getPolicySuggestions, generateAnnualReview, generateUpsellOpportunityForMember, generateTodaysFocus } from './services/geminiService.ts';
 import { indianStates } from './constants.tsx';
@@ -1242,6 +1245,7 @@ const App: React.FC = () => {
 
     // --- Authentication and Page Routing State ---
     const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [activeFinancialYearId, setActiveFinancialYearId] = useState<string | null>(null); // NEW
 
     // --- Data Loading and State Management ---
     const [isLoading, setIsLoading] = useState(true);
@@ -1383,6 +1387,12 @@ const App: React.FC = () => {
     const [processStageMasters, setProcessStageMasters] = useState<ProcessStageMaster[]>([]);
     // MODIFICATION END
 
+    // --- NEW: Financial Year State ---
+    const [financialYears, setFinancialYears] = useState<FinancialYear[]>([]);
+    const [documentNumbering, setDocumentNumbering] = useState<DocumentNumbering[]>([]);
+    const [manualReceipts, setManualReceipts] = useState<ManualReceipt[]>([]);
+
+
     // --- Multi-tenancy Filtered Data ---
     const companyMembers = useMemo(() => allMembers.filter(m => m.companyId === currentUser?.companyId), [allMembers, currentUser]);
     const companyLeads = useMemo(() => allLeads.filter(l => l.companyId === currentUser?.companyId), [allLeads, currentUser]);
@@ -1428,14 +1438,18 @@ const App: React.FC = () => {
         return companyLeads.filter(lead => lead.assignedTo === currentUser?.id || lead.createdBy === currentUser?.id);
     }, [companyLeads, currentUser]);
     
+    // MODIFIED: This logic now calculates based on the active financial year
     const lastVoucherNumber = useMemo(() => {
-        const numbers = expenses
-            .map(e => e.voucherNo)
-            .filter((v): v is string => !!v)
-            .map(v => parseInt(v.replace('VCH-', ''), 10))
-            .filter(n => !isNaN(n));
-        return numbers.length > 0 ? Math.max(...numbers) : 0;
-    }, [expenses]);
+        if (!activeFinancialYearId) return 0;
+        const expensesInYear = expenses.filter(e => e.finYearId === activeFinancialYearId && e.voucherNo);
+        return expensesInYear.length;
+    }, [expenses, activeFinancialYearId]);
+
+    // NEW: Calculate last receipt number for the active financial year
+    const lastReceiptNumber = useMemo(() => {
+        if (!activeFinancialYearId) return 0;
+        return manualReceipts.filter(r => r.finYearId === activeFinancialYearId).length;
+    }, [manualReceipts, activeFinancialYearId]);
 
     const handleDismissFocusItem = useCallback((itemId: string) => {
         setDismissedFocusItems(prev => [...prev, itemId]);
@@ -1523,6 +1537,24 @@ const App: React.FC = () => {
         }
     }, [addToast]);
     // MODIFICATION END
+
+    // --- NEW: Handlers for Financial Year System ---
+    const handleUpdateFinancialYears = useCallback(async (newData: FinancialYear[]) => {
+        try {
+            const updated = await updateFinancialYears(newData);
+            setFinancialYears(updated);
+            addToast('Financial Years updated successfully!', 'success');
+        } catch(e) { addToast('Failed to update Financial Years.', 'error'); }
+    }, [addToast]);
+
+    const handleUpdateDocumentNumbering = useCallback(async (newData: DocumentNumbering[]) => {
+        try {
+            const updated = await updateDocumentNumbering(newData);
+            setDocumentNumbering(updated);
+            addToast('Document Numbering rules updated successfully!', 'success');
+        } catch(e) { addToast('Failed to update Document Numbering rules.', 'error'); }
+    }, [addToast]);
+
     const handleUpdateDesignationPermissions = useCallback(async (permissions: DesignationPermissions) => {
         try {
             const updated = await updateDesignationPermissions(permissions);
@@ -1579,7 +1611,7 @@ const App: React.FC = () => {
     }, [addToast]);
 
     const handleSaveVoucherDetails = useCallback((data: VoucherSaveData) => {
-        const { voucherNo, date, payeeName, branchId, lineItems } = data;
+        const { voucherNo, date, payeeName, branchId, lineItems, finYearId } = data;
 
         const existingExpensesMap = new Map(expenses.map(e => [e.id, e]));
         const processedExistingIds = new Set<string>();
@@ -1623,6 +1655,7 @@ const App: React.FC = () => {
                     categoryLevel1Id,
                     categoryLevel2Id,
                     categoryLevel3Id,
+                    finYearId,
                 };
                 newAndUpdatedExpenses.push(newExpense);
             } else {
@@ -1641,6 +1674,7 @@ const App: React.FC = () => {
                         categoryLevel1Id: categoryLevel1Id || existingExpense.categoryLevel1Id,
                         categoryLevel2Id: categoryLevel2Id || existingExpense.categoryLevel2Id,
                         categoryLevel3Id: categoryLevel3Id || existingExpense.categoryLevel3Id,
+                        finYearId,
                     };
                     newAndUpdatedExpenses.push(updatedExpense);
                     processedExistingIds.add(item.id);
@@ -1655,6 +1689,23 @@ const App: React.FC = () => {
 
         addToast(`Voucher ${voucherNo} has been saved successfully.`, 'success');
     }, [expenses, currentUser, expenseCategoriesLevel1, expenseCategoriesLevel2, expenseCategoriesLevel3, addToast]);
+
+    // --- CORRECTION: handleSaveReceipt now correctly maps line items with IDs ---
+    const handleSaveReceipt = useCallback((data: Omit<ReceiptSaveData, 'createdBy'>) => {
+        if (!currentUser) return;
+        const newReceipt: ManualReceipt = {
+            ...data,
+            id: `rec-${Date.now()}`,
+            createdBy: currentUser.id,
+            // FIX: Add a unique ID to each line item before saving to state
+            lineItems: data.lineItems.map((item, index) => ({
+                ...item,
+                id: `li-${Date.now()}-${index}`
+            }))
+        };
+        setManualReceipts(prev => [...prev, newReceipt]);
+        addToast(`Receipt ${data.receiptNo} created successfully!`, 'success');
+    }, [currentUser, addToast]);
 
     const handleDeleteVoucher = useCallback((voucherNo: string) => {
         setExpenses(prev => prev.filter(exp => exp.voucherNo !== voucherNo));
@@ -1716,14 +1767,15 @@ const App: React.FC = () => {
         const loadData = async () => {
             setIsLoading(true);
             try {
-                // MODIFICATION: Added getProcessStageMasters to the promise array
+                // MODIFICATION: Added FY-related fetches
                 const [
                     membersData, leadsData, usersData, routesData, opCompaniesData, branchesData, 
                     religionsData, festivalsData, relationshipTypesData, festivalDatesData, upsellCategoriesData,
                     designationsData, designationPermissionsData,
                     gendersData, maritalStatusesData, customerTypesData,
                     customerTiersData,
-                    processStagesData
+                    processStagesData,
+                    financialYearsData, documentNumberingData // NEW
                 ] = await Promise.all([
                     getMembers(),
                     getLeads(),
@@ -1742,7 +1794,9 @@ const App: React.FC = () => {
                     getMaritalStatuses(), 
                     getCustomerTypes(), 
                     getCustomerTiers(),
-                    getProcessStageMasters()
+                    getProcessStageMasters(),
+                    getFinancialYears(), // NEW
+                    getDocumentNumbering() // NEW
                 ]);
                 setAllMembers(membersData);
                 setAllLeads(leadsData);
@@ -1764,8 +1818,10 @@ const App: React.FC = () => {
                 const typeMap = new Map(customerTypesData.map(t => [t.id, t.name]));
                 const hydratedTiers = customerTiersData.map(tier => ({...tier, name: typeMap.get(tier.customerTypeId) || 'Unknown'}));
                 setCustomerTiers(hydratedTiers);
-                // MODIFICATION: Set the new state for process stage masters
+                
                 setProcessStageMasters(processStagesData);
+                setFinancialYears(financialYearsData); // NEW
+                setDocumentNumbering(documentNumberingData); // NEW
 
             } catch (error) {
                 console.error("Failed to load initial data:", error);
@@ -1934,8 +1990,10 @@ const App: React.FC = () => {
         addToast("All notifications cleared from Action Hub.", "success");
     }, [addToast]);
 
-     const handleLogin = (user: User) => {
+     // MODIFIED: handleLogin now accepts finYearId
+     const handleLogin = (user: User, finYearId: string) => {
         setCurrentUser(user);
+        setActiveFinancialYearId(finYearId); // NEW: Set the active FY
         navigate('/dashboard');
         const userDesignation = designations.find(d => d.id === user.designationId);
         if (userDesignation?.isAdvisor) {
@@ -1955,6 +2013,7 @@ const App: React.FC = () => {
 
     const handleLogout = () => {
         setCurrentUser(null);
+        setActiveFinancialYearId(null); // NEW: Clear the active FY
         navigate('/login');
     };
 
@@ -2971,11 +3030,29 @@ const App: React.FC = () => {
                                 <Route path="/servicesHub" element={<ServicesHub addToast={addToast} allMembers={companyMembers} onViewMember={handleOpenMemberModal} onUpdateCommissionStatus={handleUpdateCommissionStatus} currentUser={currentUser} designations={designations} />} />
                                 {/* MODIFIED: Removed processFlow and onUpdateProcessFlow from ActionAutomationHub */}
                                 <Route path="/actionHub" element={<ActionAutomationHub {...{ notifications: hubNotifications, onRenewPolicy: handleRenewPolicy, activityLog: hubActivityLog, addToast, onNotificationSent: () => {}, appointments: hubAppointments, tasks: hubTasks, onToggleTask: handleToggleTask, onDismissItem: handleDismissItem, savedGreetingUrl: null, setSavedGreetingUrl: () => {}, upsellOpportunities, onDismissOpportunity: (id) => setUpsellOpportunities(prev => prev.filter(o => o.id !== id)), members: companyMembers, onScheduleMessage: (msg) => { setCustomMessages(prev => [...prev, {...msg, id: `cm-${Date.now()}`}]); addToast('Custom message scheduled!', 'success'); }, onClearAll: handleClearActionHubNotifications, onScheduleAppointment: (appt) => { const member = companyMembers.find(m => m.id === appt.memberId); if(member) { setAppointments(prev => [...prev, { ...appt, id: `appt-${Date.now()}`, memberName: member.name }]); addToast('Appointment scheduled!', 'success'); } }, rules: automationRules, onUpdateRule: (rule) => setAutomationRules(prev => prev.map(r => r.id === rule.id ? rule : r)), onAddRule: handleAddAutomationRule, docTemplates, onUpdateTemplates: setDocTemplates, currentUser, users: companyUsers, onViewMember: onViewMember, permissions: currentUserPermissions }} />} />
-                                {/* MODIFIED: Added processStageMasters and onUpdateProcessStageMasters to MasterData */}
-                                <Route path="/masterMember/" element={<MasterData {...{addToast, allMembers: companyMembers, users: companyUsers, customerFieldMasters, onUpdateCustomerFieldMasters: handleUpdateCustomerFieldMasters, businessVerticals, onUpdateBusinessVerticals: handleUpdateBusinessVerticals, leadSources, onUpdateLeadSources: handleUpdateLeadSources, schemes, onUpdateSchemes: handleUpdateSchemes, agencies, onUpdateAgencies: handleUpdateAgencies, operatingCompanies, onUpdateOperatingCompanies: handleUpdateOperatingCompany, finrootsBranches: allBranches, onUpdateFinrootsBranches: handleUpdateFinrootsBranches, finrootsCompanyInfo, onUpdateFinRootsCompanyInfo: setFinrootsCompanyInfo, geographies, onUpdateGeographies: handleUpdateGeographies, relationshipTypes, onUpdateRelationshipTypes: handleUpdateRelationshipTypes, documentMasters, onUpdateDocumentMasters: handleUpdateDocumentMasters, schemeDocumentMappings, onUpdateSchemeDocumentMappings: handleUpdateSchemeDocumentMappings, giftMasters, onUpdateGiftMasters: handleUpdateGiftMasters, customerTiers, onUpdateCustomerTiers: handleUpdateCustomerTiers, taskStatuses: taskStatusMasters, onUpdateTaskStatuses: handleUpdateTaskStatusMasters, customerCategories, onUpdateCustomerCategories: handleUpdateCustomerCategories, bankMasters, onUpdateBankMasters: handleUpdateBankMasters, customerSubCategories, onUpdateCustomerSubCategories: handleUpdateCustomerSubCategories, customerGroups, onUpdateCustomerGroups: handleUpdateCustomerGroups, taskMasters, onUpdateTaskMasters: handleUpdateTaskMasters, policyChecklistMasters, onUpdatePolicyChecklistMasters: handleUpdatePolicyChecklistMasters, insuranceTypes, onUpdateInsuranceTypes: handleUpdateInsuranceTypes, insuranceFields, onUpdateInsuranceFields: handleUpdateInsuranceFields, routes, onUpdateRoutes: handleUpdateRoutes, designations, onUpdateDesignations: handleUpdateDesignations, currentUser, customerTierCalculationMethod, onUpdateCustomerTierCalculationMethod: handleUpdateAllMemberTiers, expenseCategoriesLevel1, onUpdateExpenseCategoriesLevel1: handleUpdateExpenseCategoriesLevel1, expenseCategoriesLevel2, onUpdateExpenseCategoriesLevel2: handleUpdateExpenseCategoriesLevel2, expenseCategoriesLevel3, onUpdateExpenseCategoriesLevel3: handleUpdateExpenseCategoriesLevel3, incomeCategoriesLevel1, onUpdateIncomeCategoriesLevel1: handleUpdateIncomeCategoriesLevel1, incomeCategoriesLevel2, onUpdateIncomeCategoriesLevel2: handleUpdateIncomeCategoriesLevel2, religions, onUpdateReligions: handleUpdateReligions, festivals, onUpdateFestivals: handleUpdateFestivals, festivalDates, onUpdateFestivalDates: handleUpdateFestivalDates, amcs, onUpdateAmcs: handleUpdateAmcs, mutualFundSchemes, onUpdateMutualFundSchemes: handleUpdateMutualFundSchemes, mutualFundFields, onUpdateMutualFundFields: handleUpdateMutualFundFields, permissions: currentUserPermissions, genders, onUpdateGenders: handleUpdateGenders, maritalStatuses, onUpdateMaritalStatuses: handleUpdateMaritalStatuses, customerTypes, onUpdateCustomerTypes: handleUpdateCustomerTypes, processStageMasters, onUpdateProcessStageMasters: handleUpdateProcessStageMasters,accountTypes:accountTypes,onUpdateAccountTypes:handleUpdateAccountTypes }} />} />
+                                {/* MODIFIED: Added FY props to MasterData */}
+                                <Route path="/masterMember/" element={<MasterData {...{addToast, allMembers: companyMembers, users: companyUsers, customerFieldMasters, onUpdateCustomerFieldMasters: handleUpdateCustomerFieldMasters, businessVerticals, onUpdateBusinessVerticals: handleUpdateBusinessVerticals, leadSources, onUpdateLeadSources: handleUpdateLeadSources, schemes, onUpdateSchemes: handleUpdateSchemes, agencies, onUpdateAgencies: handleUpdateAgencies, operatingCompanies, onUpdateOperatingCompanies: handleUpdateOperatingCompany, finrootsBranches: allBranches, onUpdateFinrootsBranches: handleUpdateFinrootsBranches, finrootsCompanyInfo, onUpdateFinRootsCompanyInfo: setFinrootsCompanyInfo, geographies, onUpdateGeographies: handleUpdateGeographies, relationshipTypes, onUpdateRelationshipTypes: handleUpdateRelationshipTypes, documentMasters, onUpdateDocumentMasters: handleUpdateDocumentMasters, schemeDocumentMappings, onUpdateSchemeDocumentMappings: handleUpdateSchemeDocumentMappings, giftMasters, onUpdateGiftMasters: handleUpdateGiftMasters, customerTiers, onUpdateCustomerTiers: handleUpdateCustomerTiers, taskStatuses: taskStatusMasters, onUpdateTaskStatuses: handleUpdateTaskStatusMasters, customerCategories, onUpdateCustomerCategories: handleUpdateCustomerCategories, bankMasters, onUpdateBankMasters: handleUpdateBankMasters, customerSubCategories, onUpdateCustomerSubCategories: handleUpdateCustomerSubCategories, customerGroups, onUpdateCustomerGroups: handleUpdateCustomerGroups, taskMasters, onUpdateTaskMasters: handleUpdateTaskMasters, policyChecklistMasters, onUpdatePolicyChecklistMasters: handleUpdatePolicyChecklistMasters, insuranceTypes, onUpdateInsuranceTypes: handleUpdateInsuranceTypes, insuranceFields, onUpdateInsuranceFields: handleUpdateInsuranceFields, routes, onUpdateRoutes: handleUpdateRoutes, designations, onUpdateDesignations: handleUpdateDesignations, currentUser, customerTierCalculationMethod, onUpdateCustomerTierCalculationMethod: handleUpdateAllMemberTiers, expenseCategoriesLevel1, onUpdateExpenseCategoriesLevel1: handleUpdateExpenseCategoriesLevel1, expenseCategoriesLevel2, onUpdateExpenseCategoriesLevel2: handleUpdateExpenseCategoriesLevel2, expenseCategoriesLevel3, onUpdateExpenseCategoriesLevel3: handleUpdateExpenseCategoriesLevel3, incomeCategoriesLevel1, onUpdateIncomeCategoriesLevel1: handleUpdateIncomeCategoriesLevel1, incomeCategoriesLevel2, onUpdateIncomeCategoriesLevel2: handleUpdateIncomeCategoriesLevel2, religions, onUpdateReligions: handleUpdateReligions, festivals, onUpdateFestivals: handleUpdateFestivals, festivalDates, onUpdateFestivalDates: handleUpdateFestivalDates, amcs, onUpdateAmcs: handleUpdateAmcs, mutualFundSchemes, onUpdateMutualFundSchemes: handleUpdateMutualFundSchemes, mutualFundFields, onUpdateMutualFundFields: handleUpdateMutualFundFields, permissions: currentUserPermissions, genders, onUpdateGenders: handleUpdateGenders, maritalStatuses, onUpdateMaritalStatuses: handleUpdateMaritalStatuses, customerTypes, onUpdateCustomerTypes: handleUpdateCustomerTypes, processStageMasters, onUpdateProcessStageMasters: handleUpdateProcessStageMasters,accountTypes:accountTypes,onUpdateAccountTypes:handleUpdateAccountTypes, financialYears, onUpdateFinancialYears: handleUpdateFinancialYears, documentNumbering, onUpdateDocumentNumbering: handleUpdateDocumentNumbering, activeFinancialYearId }} />} />
                                 <Route path="/reports-insights" element={<ReportsAndInsights members={companyMembers} users={companyUsers} tasks={allTasks} attendance={attendance} onUpdateAttendance={handleUpdateAttendanceByAdmin} addToast={addToast} allLeads={companyLeads} currentUser={currentUser} leadSources={leadSources} schemes={schemes} insuranceTypes={insuranceTypes} onOpenAttendanceReport={() => setIsAttendanceReportModalOpen(true)} designations={designations} />} />
                                 <Route path="/taskManagement" element={<TaskManagement allTasks={allTasks} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} onCreateTask={handleCreateTask} onCreateBulkTask={handleCreateBulkTask} onOpenTask={handleOpenTask} users={companyUsers} members={companyMembers} leads={companyLeads} taskStatusMasters={taskStatusMasters} taskMasters={taskMasters} addToast={addToast} currentUser={currentUser} finrootsBranches={companyBranches} onReassignTask={handleReassignTask} designations={designations} />} />
-                                <Route path="/profitAndLoss" element={<ProfitAndLoss allMembers={companyMembers} expenses={expenses} manualIncomes={manualIncomes} manualCommissions={manualCommissions} expenseCategoriesLevel1={expenseCategoriesLevel1} expenseCategoriesLevel2={expenseCategoriesLevel2} expenseCategoriesLevel3={expenseCategoriesLevel3} incomeCategoriesLevel1={incomeCategoriesLevel1} incomeCategoriesLevel2={incomeCategoriesLevel2} onAddExpense={handleAddExpense} onUpdateExpense={handleUpdateExpense} onDeleteExpense={handleDeleteExpense} onDeleteVoucher={handleDeleteVoucher} onAddManualIncome={handleAddManualIncome} onUpdateManualIncome={handleUpdateManualIncome} onDeleteManualIncome={handleDeleteManualIncome} onAddManualCommission={handleAddManualCommission} onUpdateManualCommission={handleUpdateManualCommission} onDeleteManualCommission={handleDeleteManualCommission} currentUser={currentUser} companyInfo={operatingCompanies.find(c => c.id === currentUser?.companyId)} branches={companyBranches} onSaveVoucher={handleSaveVoucherDetails} lastVoucherNumber={lastVoucherNumber} insuranceTypes={insuranceTypes} permissions={currentUserPermissions} />} />
+                                {/* MODIFIED: Added FY and receipt props to ProfitAndLoss */}
+                                <Route path="/profitAndLoss" element={<ProfitAndLoss 
+                                    allMembers={companyMembers} expenses={expenses} manualIncomes={manualIncomes} manualCommissions={manualCommissions} 
+                                    manualReceipts={manualReceipts} onSaveReceipt={handleSaveReceipt}
+                                    expenseCategoriesLevel1={expenseCategoriesLevel1} expenseCategoriesLevel2={expenseCategoriesLevel2} expenseCategoriesLevel3={expenseCategoriesLevel3} 
+                                    incomeCategoriesLevel1={incomeCategoriesLevel1} incomeCategoriesLevel2={incomeCategoriesLevel2} 
+                                    onAddExpense={handleAddExpense} onUpdateExpense={handleUpdateExpense} onDeleteExpense={handleDeleteExpense} onDeleteVoucher={handleDeleteVoucher} 
+                                    onAddManualIncome={handleAddManualIncome} onUpdateManualIncome={handleUpdateManualIncome} onDeleteManualIncome={handleDeleteManualIncome} 
+                                    onAddManualCommission={handleAddManualCommission} onUpdateManualCommission={handleUpdateManualCommission} onDeleteManualCommission={handleDeleteManualCommission} 
+                                    currentUser={currentUser} companyInfo={operatingCompanies.find(c => c.id === currentUser?.companyId)} branches={companyBranches} 
+                                    onSaveVoucher={handleSaveVoucherDetails} 
+                                    insuranceTypes={insuranceTypes} permissions={currentUserPermissions}
+                                    activeFinancialYearId={activeFinancialYearId}
+                                    voucherDocNumbering={documentNumbering.find(dn => dn.finYearId === activeFinancialYearId && dn.type === 'Voucher') || null}
+                                    receiptDocNumbering={documentNumbering.find(dn => dn.finYearId === activeFinancialYearId && dn.type === 'Receipt') || null}
+                                    lastVoucherNumber={lastVoucherNumber}
+                                    lastReceiptNumber={lastReceiptNumber}
+                                    financialYears={financialYears}
+                                />} />
                                 <Route path="/calendar" element={<FestivalCalendar allMembers={companyMembers} festivals={festivals} festivalDates={festivalDates} religions={religions} onViewMember={onViewMember} />} />
                                 <Route path="/advancedReports" element={<AdvancedReports members={companyMembers} users={companyUsers} tasks={allTasks} leads={companyLeads} branches={companyBranches} schemes={schemes} companies={agencies} expenses={expenses} manualIncomes={manualIncomes} manualCommissions={manualCommissions} currentUser={currentUser} customerTiers={customerTiers} attendance={attendance} expenseCategoriesLevel1={expenseCategoriesLevel1} expenseCategoriesLevel2={expenseCategoriesLevel2} expenseCategoriesLevel3={expenseCategoriesLevel3} incomeCategoriesLevel1={incomeCategoriesLevel1} incomeCategoriesLevel2={incomeCategoriesLevel2} businessVerticals={businessVerticals} taskStatusMasters={taskStatusMasters} customerFieldMasters={customerFieldMasters} insuranceFields={insuranceFields} insuranceTypes={insuranceTypes} designations={designations} />} />
                                 <Route path="/upselling" element={<UpsellingDashboard members={companyMembers} upsellCategories={upsellCategories} insuranceTypes={insuranceTypes} addToast={addToast} users={companyUsers} branches={companyBranches} />} />

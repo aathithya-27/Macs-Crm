@@ -1,6 +1,44 @@
-// --- types.ts ---
-
 import React from 'react';
+
+// --- NEW: Financial Year & Document Numbering Types ---
+export interface FinancialYear {
+  id: string;
+  finYear: string; // e.g., "2025-2026"
+  fromDate: string;
+  toDate: string;
+  status: 'Active' | 'Inactive';
+}
+
+export interface DocumentNumbering {
+  id: string;
+  type: 'Voucher' | 'Receipt';
+  prefix: string; // The manual "Kword", e.g., "VOUCH/25-26/"
+  // --- MODIFICATION: Added suffix ---
+  suffix?: string | null; // e.g., "/FIN"
+  startingNumber: number;
+  finYearId: string;
+  status: 'Active' | 'Inactive';
+}
+
+// --- NEW: Manual Receipt Types (CORRECTED) ---
+export interface ReceiptLineItem {
+    id: string;
+    description: string;
+    paymentMode: 'Cash' | 'UPI' | 'Cheque' | 'NetBanking'; // MOVED HERE
+    amount: number;
+}
+
+export interface ManualReceipt {
+    id: string;
+    receiptNo: string;
+    date: string;
+    receivedFrom: string;
+    address?: string;
+    finYearId: string; // Link to the financial year
+    lineItems: ReceiptLineItem[];
+    createdBy: string;
+}
+
 
 // --- NEW: Granular Permission Level Definition ---
 export type PermissionLevel = 'view' | 'create' | 'modify' | 'none';
@@ -1145,6 +1183,7 @@ export interface Expense {
   modeOfPayment?: 'Cash' | 'UPI' | 'Net Banking' | 'Cheque';
   expenseHead?: string;
   branchId?: string;
+  finYearId?: string; // NEW: Link to financial year
 }
 
 export interface ManualIncome {

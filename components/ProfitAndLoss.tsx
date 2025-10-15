@@ -1,10 +1,9 @@
-// --- START OF FILE ProfitAndLoss.tsx ---
-
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Member, Expense, ManualIncome, User, Policy, IncomeCategoryLevel1, IncomeCategoryLevel2, ExpenseCategoryLevel1, ExpenseCategoryLevel2, ExpenseCategoryLevel3, Company, ManualCommission, FinRootsBranch, InsuranceTypeMaster, AppModule, PermissionLevel } from '../types.ts';
+import { Member, Expense, ManualIncome, User, Policy, IncomeCategoryLevel1, IncomeCategoryLevel2, ExpenseCategoryLevel1, ExpenseCategoryLevel2, ExpenseCategoryLevel3, Company, ManualCommission, FinRootsBranch, InsuranceTypeMaster, AppModule, PermissionLevel, DocumentNumbering, ManualReceipt, FinancialYear } from '../types.ts'; // NEW: Imported FinancialYear
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { IndianRupee, Plus, TrendingUp, TrendingDown, FileText, Download, BarChart2, PieChart as PieChartIcon, Table2, Search, ArrowUpDown, FilePlus2, ChevronDown, X as XIcon, Edit2, Trash2, Lock } from 'lucide-react';
 import PaymentVoucherModal, { VoucherSaveData } from './PaymentVoucherModal.tsx';
+import ManualReceiptModal, { ReceiptSaveData } from './ManualReceiptModal.tsx';
 
 // --- NEW: Global Type Definition for the file ---
 type PnLTab = 'analysis' | 'incomes' | 'expenses';
@@ -192,6 +191,8 @@ interface ProfitAndLossProps {
     expenses: Expense[];
     manualIncomes: ManualIncome[];
     manualCommissions: ManualCommission[];
+    manualReceipts: ManualReceipt[];
+    onSaveReceipt: (receipt: Omit<ReceiptSaveData, 'createdBy'>) => void;
     expenseCategoriesLevel1: ExpenseCategoryLevel1[];
     expenseCategoriesLevel2: ExpenseCategoryLevel2[];
     expenseCategoriesLevel3: ExpenseCategoryLevel3[];
@@ -210,30 +211,38 @@ interface ProfitAndLossProps {
     currentUser: User | null;
     companyInfo: Company | null;
     branches: FinRootsBranch[];
-    lastVoucherNumber: number;
     onSaveVoucher: (data: VoucherSaveData) => void;
     insuranceTypes: InsuranceTypeMaster[];
-    // NEW: Permissions prop
     permissions: { [key in AppModule]?: PermissionLevel };
+    
+    // MODIFIED: Props for FY numbering and filtering
+    activeFinancialYearId: string | null;
+    financialYears: FinancialYear[];
+    voucherDocNumbering: DocumentNumbering | null;
+    receiptDocNumbering: DocumentNumbering | null;
+    lastVoucherNumber: number;
+    lastReceiptNumber: number;
 }
 
-interface AnalysisTabProps extends Pick<ProfitAndLossProps, 'allMembers' | 'manualCommissions' | 'manualIncomes' | 'expenses' | 'expenseCategoriesLevel1' | 'expenseCategoriesLevel2' | 'expenseCategoriesLevel3' | 'insuranceTypes'> {}
-interface IncomesTabProps extends Pick<ProfitAndLossProps, 'allMembers' | 'manualIncomes' | 'manualCommissions' | 'incomeCategoriesLevel1' | 'incomeCategoriesLevel2' | 'currentUser' | 'onAddManualIncome' | 'onUpdateManualIncome' | 'onDeleteManualIncome' | 'onAddManualCommission' | 'onUpdateManualCommission' | 'onDeleteManualCommission' | 'insuranceTypes'> {
-    // NEW: Permissions
-    canCreate: boolean;
-    canModify: boolean;
+interface AnalysisTabProps extends Pick<ProfitAndLossProps, 'allMembers' | 'manualCommissions' | 'manualIncomes' | 'expenses' | 'expenseCategoriesLevel1' | 'expenseCategoriesLevel2' | 'expenseCategoriesLevel3' | 'insuranceTypes' | 'manualReceipts'> {
+    activeFY: FinancialYear | null;
 }
-interface ExpensesTabProps extends Pick<ProfitAndLossProps, 'expenses' | 'expenseCategoriesLevel1' | 'expenseCategoriesLevel2' | 'expenseCategoriesLevel3' | 'onDeleteExpense' | 'onDeleteVoucher'> {
-    handleOpenVoucherModal: (expensesToEdit: Expense[] | null, shouldExport?: boolean) => void;
-    // NEW: Permissions
+interface IncomesTabProps extends Pick<ProfitAndLossProps, 'allMembers' | 'manualIncomes' | 'manualCommissions' | 'incomeCategoriesLevel1' | 'incomeCategoriesLevel2' | 'currentUser' | 'onAddManualIncome' | 'onUpdateManualIncome' | 'onDeleteManualIncome' | 'onAddManualCommission' | 'onUpdateManualCommission' | 'onDeleteManualCommission' | 'insuranceTypes' | 'manualReceipts' | 'onSaveReceipt' | 'companyInfo' | 'activeFinancialYearId' | 'receiptDocNumbering' | 'lastReceiptNumber'> {
     canCreate: boolean;
     canModify: boolean;
+    activeFY: FinancialYear | null;
+}
+interface ExpensesTabProps extends Pick<ProfitAndLossProps, 'expenses' | 'expenseCategoriesLevel1' | 'expenseCategoriesLevel2' | 'expenseCategoriesLevel3' | 'onDeleteExpense' | 'onDeleteVoucher' | 'branches'> {
+    handleOpenVoucherModal: (expensesToEdit: Expense[] | null, shouldExport?: boolean) => void;
+    canCreate: boolean;
+    canModify: boolean;
+    activeFY: FinancialYear | null;
 }
 
 
 // --- STANDALONE TAB COMPONENTS ---
 
-const AnalysisTab: React.FC<AnalysisTabProps> = ({ allMembers, manualCommissions, manualIncomes, expenses, expenseCategoriesLevel1, expenseCategoriesLevel2, expenseCategoriesLevel3, insuranceTypes }) => {
+const AnalysisTab: React.FC<AnalysisTabProps> = ({ allMembers, manualCommissions, manualIncomes, expenses, expenseCategoriesLevel1, expenseCategoriesLevel2, expenseCategoriesLevel3, insuranceTypes, manualReceipts, activeFY }) => {
     const [filters, setFilters] = useState({ startDate: '', endDate: '', searchTerm: '' });
     const [incomeViewMode, setIncomeViewMode] = useState<'pie' | 'bar'>('pie');
     const [expenseViewMode, setExpenseViewMode] = useState<'pie' | 'bar'>('pie');
@@ -260,21 +269,31 @@ const AnalysisTab: React.FC<AnalysisTabProps> = ({ allMembers, manualCommissions
         filteredExpenses,
         expenseByCategory,
     } = useMemo(() => {
-        const { startDate, endDate } = filters;
+        // MODIFIED: Corrected inRange logic to respect activeFY
         const inRange = (dateStr: string) => {
             if (!dateStr) return false;
-            if (!startDate && !endDate) return true;
             const d = new Date(dateStr);
-            const start = startDate ? new Date(startDate) : null;
-            const end = endDate ? new Date(endDate) : null;
+
+            // 1. Enforce Financial Year boundary
+            if (activeFY) {
+                if (d < new Date(activeFY.fromDate) || d > new Date(activeFY.toDate)) {
+                    return false;
+                }
+            }
+            
+            // 2. Apply user's date filter (if any)
+            const start = filters.startDate ? new Date(filters.startDate) : null;
+            const end = filters.endDate ? new Date(filters.endDate) : null;
             if (start && d < start) return false;
             if (end && d > end) return false;
+
             return true;
         };
 
         const autoCommissions = allMembers.flatMap(m => m.policies.map(p => ({ ...p, memberName: m.name, policyTypeName: getPolicyTypeName(p.insuranceTypeId) }))).filter(p => p.commission?.status === 'Paid' && inRange(p.commission.paidDate || ''));
         const filteredManualCommissions = manualCommissions.filter(mc => inRange(mc.date));
         const filteredManualIncomes = manualIncomes.filter(mi => inRange(mi.date));
+        const filteredManualReceipts = manualReceipts.filter(mr => inRange(mr.date));
 
         const allIncomes = [
             ...autoCommissions.map(p => ({ id: p.id, date: p.commission!.paidDate!, source: 'Auto Commission', details: `${p.memberName} - ${p.policyTypeName} - ${p.schemeName}`, amount: p.commission!.amount })),
@@ -284,7 +303,8 @@ const AnalysisTab: React.FC<AnalysisTabProps> = ({ allMembers, manualCommissions
                 const policyTypeName = policy ? getPolicyTypeName(policy.insuranceTypeId) : 'N/A';
                 return { id: mc.id, date: mc.date, source: 'Manual Commission', details: `${member?.name} - ${policyTypeName} - ${policy?.schemeName}`, amount: mc.amount };
             }),
-            ...filteredManualIncomes.map(mi => ({ id: mi.id, date: mi.date, source: 'Other Income', details: mi.description, amount: mi.amount }))
+            ...filteredManualIncomes.map(mi => ({ id: mi.id, date: mi.date, source: 'Other Income', details: mi.description, amount: mi.amount })),
+            ...filteredManualReceipts.map(mr => ({ id: mr.id, date: mr.date, source: 'Manual Receipt', details: `Receipt from ${mr.receivedFrom}`, amount: mr.lineItems.reduce((sum, li) => sum + li.amount, 0) })),
         ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
         const totalIncome = allIncomes.reduce((sum, i) => sum + i.amount, 0);
@@ -310,7 +330,7 @@ const AnalysisTab: React.FC<AnalysisTabProps> = ({ allMembers, manualCommissions
         const netProfit = totalIncome - totalExpenses;
 
         return { totalIncome, totalExpenses, netProfit, allIncomes, incomeBySource: incomeSourceChartData, filteredExpenses, expenseByCategory: expenseByCategoryChartData };
-    }, [filters.startDate, filters.endDate, allMembers, manualCommissions, manualIncomes, expenses, expenseCategoriesLevel1, getPolicyTypeName]);
+    }, [filters.startDate, filters.endDate, activeFY, allMembers, manualCommissions, manualIncomes, manualReceipts, expenses, expenseCategoriesLevel1, getPolicyTypeName]);
     
     const l1MapExp = useMemo(() => new Map(expenseCategoriesLevel1.map(c => [c.id, c.name])), [expenseCategoriesLevel1]);
     const l2MapExp = useMemo(() => new Map(expenseCategoriesLevel2.map(c => [c.id, c.name])), [expenseCategoriesLevel2]);
@@ -408,7 +428,9 @@ const AnalysisTab: React.FC<AnalysisTabProps> = ({ allMembers, manualCommissions
     );
 };
 
-const IncomesTab: React.FC<IncomesTabProps> = ({ allMembers, manualIncomes, manualCommissions, incomeCategoriesLevel1, incomeCategoriesLevel2, currentUser, onAddManualIncome, onUpdateManualIncome, onDeleteManualIncome, onAddManualCommission, onUpdateManualCommission, onDeleteManualCommission, insuranceTypes, canCreate, canModify }) => {
+const IncomesTab: React.FC<IncomesTabProps> = (props) => {
+    const { allMembers, manualIncomes, manualCommissions, incomeCategoriesLevel1, incomeCategoriesLevel2, currentUser, onAddManualIncome, onUpdateManualIncome, onDeleteManualIncome, onAddManualCommission, onUpdateManualCommission, onDeleteManualCommission, insuranceTypes, manualReceipts, onSaveReceipt, companyInfo, activeFinancialYearId, receiptDocNumbering, lastReceiptNumber, canCreate, canModify, activeFY } = props;
+
     const today = new Date().toISOString().split('T')[0];
     const [incomeForm, setIncomeForm] = useState({ date: today, categoryLevel1Id: '', categoryLevel2Id: '', amount: '', description: '', receivedFrom: '' });
     const [editingIncome, setEditingIncome] = useState<ManualIncome | null>(null);
@@ -416,6 +438,7 @@ const IncomesTab: React.FC<IncomesTabProps> = ({ allMembers, manualIncomes, manu
     const [selectedMemberId, setSelectedMemberId] = useState('');
     const [editingCommission, setEditingCommission] = useState<ManualCommission | null>(null);
     const [filters, setFilters] = useState({ startDate: '', endDate: '', searchTerm: '', insuranceTypeId: '', schemeName: '' });
+    const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
     const insuranceTypeMap = useMemo(() => new Map(insuranceTypes.map(it => [it.id, it])), [insuranceTypes]);
     const getPolicyTypeName = useCallback((insuranceTypeId?: string | null) => {
@@ -564,13 +587,27 @@ const IncomesTab: React.FC<IncomesTabProps> = ({ allMembers, manualIncomes, manu
         return path.filter(Boolean).join(' > ');
     };
 
+    const inRange = useCallback((dateStr: string) => {
+        if (!dateStr) return false;
+        const d = new Date(dateStr);
+
+        if (activeFY) {
+            if (d < new Date(activeFY.fromDate) || d > new Date(activeFY.toDate)) {
+                return false;
+            }
+        }
+        
+        const start = filters.startDate ? new Date(filters.startDate) : null;
+        const end = filters.endDate ? new Date(filters.endDate) : null;
+        if (start && d < start) return false;
+        if (end && d > end) return false;
+
+        return true;
+    }, [activeFY, filters.startDate, filters.endDate]);
+
     const filteredManualIncomes = useMemo(() => {
         return manualIncomes.filter(inc => {
-            const incDate = new Date(inc.date);
-            const startDate = filters.startDate ? new Date(filters.startDate) : null;
-            const endDate = filters.endDate ? new Date(filters.endDate) : null;
-            if (startDate && incDate < startDate) return false;
-            if (endDate && incDate > endDate) return false;
+            if (!inRange(inc.date)) return false;
 
             if (filters.searchTerm) {
                 const searchTerm = filters.searchTerm.toLowerCase();
@@ -580,15 +617,11 @@ const IncomesTab: React.FC<IncomesTabProps> = ({ allMembers, manualIncomes, manu
             }
             return true;
         });
-    }, [manualIncomes, filters, getFullCategoryPath]);
+    }, [manualIncomes, filters.searchTerm, inRange, getFullCategoryPath]);
 
     const filteredManualCommissions = useMemo(() => {
         return manualCommissions.filter(comm => {
-            const commDate = new Date(comm.date);
-            const startDate = filters.startDate ? new Date(filters.startDate) : null;
-            const endDate = filters.endDate ? new Date(filters.endDate) : null;
-            if (startDate && commDate < startDate) return false;
-            if (endDate && commDate > endDate) return false;
+            if (!inRange(comm.date)) return false;
 
             const policy = allMembers.find(m => m.id === comm.memberId)?.policies.find(p => p.id === comm.policyId);
             const type = policy?.insuranceTypeId ? insuranceTypeMap.get(policy.insuranceTypeId) : null;
@@ -609,15 +642,11 @@ const IncomesTab: React.FC<IncomesTabProps> = ({ allMembers, manualIncomes, manu
             }
             return true;
         });
-    }, [manualCommissions, filters, allMembers, insuranceTypeMap, getPolicyTypeName]);
+    }, [manualCommissions, filters, allMembers, insuranceTypeMap, inRange, getPolicyTypeName]);
     
     const filteredCommissionIncome = useMemo(() => {
         return commissionIncome.filter(p => { 
-            const commDate = p.commission?.paidDate ? new Date(p.commission.paidDate) : new Date(0);
-            const startDate = filters.startDate ? new Date(filters.startDate) : null;
-            const endDate = filters.endDate ? new Date(filters.endDate) : null;
-            if (startDate && commDate < startDate) return false;
-            if (endDate && commDate > endDate) return false;
+            if (!inRange(p.commission?.paidDate || '')) return false;
 
             const type = p.insuranceTypeId ? insuranceTypeMap.get(p.insuranceTypeId) : null;
             if (filters.insuranceTypeId) {
@@ -633,22 +662,47 @@ const IncomesTab: React.FC<IncomesTabProps> = ({ allMembers, manualIncomes, manu
             }
             return true;
         });
-    }, [commissionIncome, filters, insuranceTypeMap]);
+    }, [commissionIncome, filters, insuranceTypeMap, inRange]);
+    
+    const filteredManualReceipts = useMemo(() => {
+        return manualReceipts.filter(rec => {
+            if (!inRange(rec.date)) return false;
+
+            if (filters.searchTerm) {
+                const searchTerm = filters.searchTerm.toLowerCase();
+                const totalAmount = rec.lineItems.reduce((sum, li) => sum + li.amount, 0).toString();
+                const descriptions = rec.lineItems.map(li => li.description).join(' ');
+                const paymentModes = rec.lineItems.map(li => li.paymentMode).join(' ');
+
+                const valuesToSearch = [rec.receiptNo, rec.date, rec.receivedFrom, rec.address || '', totalAmount, descriptions, paymentModes];
+                return valuesToSearch.some(val => val.toLowerCase().includes(searchTerm));
+            }
+            return true;
+        });
+    }, [manualReceipts, filters, inRange]);
 
     const totalAutoCommission = useMemo(() => filteredCommissionIncome.reduce((sum, p) => sum + (p.commission?.amount || 0), 0), [filteredCommissionIncome]);
     const totalManualCommission = useMemo(() => filteredManualCommissions.reduce((sum, c) => sum + c.amount, 0), [filteredManualCommissions]);
     const totalOtherIncome = useMemo(() => filteredManualIncomes.reduce((sum, i) => sum + i.amount, 0), [filteredManualIncomes]);
-    const grandTotalIncome = totalAutoCommission + totalManualCommission + totalOtherIncome;
+    const totalManualReceipts = useMemo(() => filteredManualReceipts.reduce((sum, r) => sum + r.lineItems.reduce((liSum, li) => liSum + li.amount, 0), 0), [filteredManualReceipts]);
+    const grandTotalIncome = totalAutoCommission + totalManualCommission + totalOtherIncome + totalManualReceipts;
     
     const selectClasses = "block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
 
     return (
         <div className="space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                <StatCard title="Total Automated Commission" value={totalAutoCommission} icon={<TrendingUp />} />
-                <StatCard title="Total Manual Commission" value={totalManualCommission} icon={<TrendingUp />} />
-                <StatCard title="Total Other Income" value={totalOtherIncome} icon={<TrendingUp />} />
-                <StatCard title="Grand Total Income" value={grandTotalIncome} icon={<IndianRupee />} isProfit={true} />
+            <div className="flex justify-between items-center">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 flex-grow">
+                    <StatCard title="Total Automated Commission" value={totalAutoCommission} icon={<TrendingUp />} />
+                    <StatCard title="Total Manual Commission" value={totalManualCommission} icon={<TrendingUp />} />
+                    <StatCard title="Total Other Income" value={totalOtherIncome} icon={<TrendingUp />} />
+                    <StatCard title="Grand Total Income" value={grandTotalIncome} icon={<IndianRupee />} isProfit={true} />
+                </div>
+                {canCreate && (
+                    <Button onClick={() => setIsReceiptModalOpen(true)} className="ml-6 flex-shrink-0">
+                        <FilePlus2 size={16} /> Create Receipt
+                    </Button>
+                )}
             </div>
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
                 <FilterControls
@@ -873,7 +927,7 @@ const IncomesTab: React.FC<IncomesTabProps> = ({ allMembers, manualIncomes, manu
                     </div>
                 </div>
             </div>
-             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
                 <h3 className="text-lg font-semibold mb-4">Automated Commission Income (Read-Only)</h3>
                 <div className="h-96">
                     <DataTable data={filteredCommissionIncome} columns={[
@@ -884,12 +938,39 @@ const IncomesTab: React.FC<IncomesTabProps> = ({ allMembers, manualIncomes, manu
                         ]} />
                 </div>
             </div>
+             {/* --- NEW: Manual Receipts Table --- */}
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
+                <h3 className="text-lg font-semibold mb-4">Manual Receipt Log</h3>
+                <div className="h-96">
+                    <DataTable data={filteredManualReceipts} columns={[
+                        { header: 'Receipt #', accessor: 'receiptNo' },
+                        { header: 'Date', accessor: 'date' },
+                        { header: 'Received From', accessor: 'receivedFrom' },
+                        { header: 'Amount', accessor: 'lineItems', render: (items) => `₹${items.reduce((sum: number, i: any) => sum + i.amount, 0).toLocaleString('en-IN')}` },
+                        // Actions for delete/download can be added here if needed
+                    ]} />
+                </div>
+            </div>
+            
+            {isReceiptModalOpen && (
+                <ManualReceiptModal
+                    isOpen={isReceiptModalOpen}
+                    onClose={() => setIsReceiptModalOpen(false)}
+                    companyInfo={companyInfo}
+                    currentUser={currentUser}
+                    activeFinancialYearId={activeFinancialYearId}
+                    docNumberingConfig={receiptDocNumbering}
+                    lastReceiptNumber={lastReceiptNumber}
+                    onSave={onSaveReceipt}
+                />
+            )}
         </div>
     );
 };
 
-const ExpensesTab: React.FC<ExpensesTabProps> = ({ expenses, expenseCategoriesLevel1, expenseCategoriesLevel2, expenseCategoriesLevel3, onDeleteExpense, onDeleteVoucher, handleOpenVoucherModal, canCreate, canModify }) => {
-    const [filters, setFilters] = useState({ startDate: '', endDate: '', searchTerm: '' });
+const ExpensesTab: React.FC<ExpensesTabProps> = ({ expenses, expenseCategoriesLevel1, expenseCategoriesLevel2, expenseCategoriesLevel3, onDeleteExpense, onDeleteVoucher, handleOpenVoucherModal, canCreate, canModify, branches, activeFY }) => {
+    // MODIFIED: Added branch to filters
+    const [filters, setFilters] = useState({ startDate: '', endDate: '', searchTerm: '', branchId: 'all' });
     const { items: sortedItems, requestSort, sortConfig } = useSortableData(expenses);
 
     const handleDelete = (item: Expense) => {
@@ -916,13 +997,24 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ expenses, expenseCategoriesLe
         return path.filter(Boolean).join(' > ') || 'Uncategorized';
     };
     
+    // MODIFIED: This logic now correctly filters by the active financial year first
     const filteredExpenses = useMemo(() => {
         return sortedItems.filter(exp => {
-            const expDate = new Date(exp.date);
+            // 1. Primary FY Filter
+            if (activeFY) {
+                const expDate = new Date(exp.date);
+                if (expDate < new Date(activeFY.fromDate) || expDate > new Date(activeFY.toDate)) {
+                    return false;
+                }
+            }
+
+            // 2. Secondary User Filters
             const startDate = filters.startDate ? new Date(filters.startDate) : null;
             const endDate = filters.endDate ? new Date(filters.endDate) : null;
-            if (startDate && expDate < startDate) return false;
-            if (endDate && expDate > endDate) return false;
+            if (startDate && new Date(exp.date) < startDate) return false;
+            if (endDate && new Date(exp.date) > endDate) return false;
+
+            if (filters.branchId !== 'all' && exp.branchId !== filters.branchId) return false;
 
             if (filters.searchTerm) {
                 const searchTerm = filters.searchTerm.toLowerCase();
@@ -937,11 +1029,11 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ expenses, expenseCategoriesLe
                     exp.expenseHead || '',
                     exp.modeOfPayment || ''
                 ];
-                return valuesToSearch.some(val => val.toLowerCase().includes(searchTerm));
+                return valuesToSearch.some(val => String(val).toLowerCase().includes(searchTerm));
             }
             return true;
         });
-    }, [sortedItems, filters, getFullExpenseCategoryPath]);
+    }, [sortedItems, filters, activeFY, getFullExpenseCategoryPath]);
     
     const totalExpenses = useMemo(() => filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0), [filteredExpenses]);
 
@@ -966,7 +1058,8 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ expenses, expenseCategoriesLe
                 <div className="my-4">
                     <StatCard title="Total Filtered Expenses" value={totalExpenses} icon={<TrendingDown />} />
                 </div>
-                <FilterControls filters={filters} onFilterChange={setFilters}/>
+                {/* MODIFIED: Pass branches to FilterControls */}
+                <FilterControls filters={filters} onFilterChange={setFilters} branches={branches} />
                 <div className="flex-grow overflow-y-auto mt-4">
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                         <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0">
@@ -1124,11 +1217,14 @@ const FilterControls: React.FC<{
     onFilterChange: (filters: any) => void,
     insuranceTypeOptions?: { value: string; label: string }[],
     schemeNameOptions?: string[],
-}> = ({ filters, onFilterChange, insuranceTypeOptions, schemeNameOptions }) => {
+    branches?: FinRootsBranch[], // NEW: Optional branches prop
+}> = ({ filters, onFilterChange, insuranceTypeOptions, schemeNameOptions, branches }) => {
     const hasPolicyFilters = insuranceTypeOptions || schemeNameOptions;
+    const gridCols = `lg:grid-cols-${3 + (hasPolicyFilters ? 2 : 0) + (branches ? 1 : 0)}`;
+
 
     return (
-        <div className={`grid grid-cols-1 md:grid-cols-2 ${hasPolicyFilters ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4 mb-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg`}>
+        <div className={`grid grid-cols-1 md:grid-cols-2 ${gridCols} gap-4 mb-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg`}>
             <Input 
                 label="Start Date" 
                 type="date" 
@@ -1141,6 +1237,21 @@ const FilterControls: React.FC<{
                 value={filters.endDate} 
                 onChange={e => onFilterChange({...filters, endDate: e.target.value})}
             />
+            {branches && (
+                 <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Branch</label>
+                    <select
+                        value={filters.branchId}
+                        onChange={e => onFilterChange({ ...filters, branchId: e.target.value })}
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    >
+                        <option value="all">All Branches</option>
+                        {branches.map(opt => (
+                            <option key={opt.id} value={opt.id}>{opt.branchName}</option>
+                        ))}
+                    </select>
+                </div>
+            )}
             <div className="relative md:col-span-1">
                 <Input 
                     label="Search" 
@@ -1188,11 +1299,14 @@ const FilterControls: React.FC<{
 
 // --- MAIN COMPONENT ---
 const ProfitAndLoss: React.FC<ProfitAndLossProps> = (props) => {
-    const { permissions } = props;
+    const { permissions, activeFinancialYearId, financialYears } = props;
     const [activeTab, setActiveTab] = useState<PnLTab>('analysis');
     const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false);
     const [editingVoucherExpenses, setEditingVoucherExpenses] = useState<Expense[] | null>(null);
     const [triggerExport, setTriggerExport] = useState(false);
+
+    // NEW: Find the active FY object
+    const activeFY = useMemo(() => financialYears.find(fy => fy.id === activeFinancialYearId) || null, [financialYears, activeFinancialYearId]);
 
     // NEW: Permission level checks
     const canView = permissions.profitAndLoss !== 'none';
@@ -1234,9 +1348,9 @@ const ProfitAndLoss: React.FC<ProfitAndLossProps> = (props) => {
                 <TabButton label="Expense Details" tabName="expenses" />
             </div>
             <div className="mt-4">
-                {activeTab === 'analysis' && <AnalysisTab {...props} />}
-                {activeTab === 'incomes' && <IncomesTab {...props} canCreate={canCreate} canModify={canModify} />}
-                {activeTab === 'expenses' && <ExpensesTab {...props} handleOpenVoucherModal={handleOpenVoucherModal} canCreate={canCreate} canModify={canModify} />}
+                {activeTab === 'analysis' && <AnalysisTab {...props} activeFY={activeFY} />}
+                {activeTab === 'incomes' && <IncomesTab {...props} canCreate={canCreate} canModify={canModify} activeFY={activeFY} />}
+                {activeTab === 'expenses' && <ExpensesTab {...props} handleOpenVoucherModal={handleOpenVoucherModal} canCreate={canCreate} canModify={canModify} activeFY={activeFY} />}
             </div>
 
             {isVoucherModalOpen && (
@@ -1254,6 +1368,8 @@ const ProfitAndLoss: React.FC<ProfitAndLossProps> = (props) => {
                     triggerExport={triggerExport}
                     canCreate={canCreate}
                     canModify={canModify}
+                    activeFinancialYearId={props.activeFinancialYearId}
+                    docNumberingConfig={props.voucherDocNumbering}
                 />
             )}
         </div>

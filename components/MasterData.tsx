@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-// MODIFIED: Added ProcessStageMaster to imports
+// MODIFIED: Added FinancialYear, DocumentNumbering to imports
 import { 
     BusinessVertical, LeadSourceMaster, SchemeMaster, Company, FinRootsBranch, Geography, RelationshipType, 
     DocumentMaster, SchemeDocumentMapping, GiftMaster, TaskStatusMaster, CustomerCategory, PolicyType, GeneralInsuranceType,
@@ -26,7 +26,8 @@ import {
     MutualFundSchemeCategory,
     MutualFundFieldMaster,
     Gender, MaritalStatus, CustomerType,
-    ProcessStageMaster,AccountType
+    ProcessStageMaster,AccountType,
+    FinancialYear, DocumentNumbering
 } from '../types.ts';
 import { Database, Briefcase, Users, GitBranch, MapPin, Link as LinkIcon, FileText as FileTextIcon, Gift, CheckSquare, Settings, Plus, Save, Edit2, Trash2, X, Building, Search, AlertTriangle, ChevronRight, ListTodo, SlidersHorizontal, ArrowUp, ArrowDown, CornerDownRight, GripVertical, ChevronDown, Lock, Award, IndianRupee, Calendar as CalendarIcon, Check, TrendingUp, UserCog } from 'lucide-react';
 
@@ -120,6 +121,12 @@ interface MasterDataProps {
     onUpdateProcessStageMasters: (data: ProcessStageMaster[]) => void;
     accountTypes: AccountType[];
     onUpdateAccountTypes: (data: AccountType[]) => void;
+    // --- NEW: Props for Financial Year system ---
+    financialYears: FinancialYear[];
+    onUpdateFinancialYears: (data: FinancialYear[]) => void;
+    documentNumbering: DocumentNumbering[];
+    onUpdateDocumentNumbering: (data: DocumentNumbering[]) => void;
+    activeFinancialYearId: string | null;
 }
 
 // --- MOVED SHARED CONSTANTS TO TOP LEVEL ---
@@ -394,6 +401,279 @@ const SearchableSelect: React.FC<{
         </div>
     );
 };
+
+// --- NEW: Financial Year Management Component (FINAL CORRECTED VERSION) ---
+// --- START OF FINAL FIX: NEW DEDICATED MODAL COMPONENT ---
+// --- START OF FINAL FIX: NEW DEDICATED MODAL COMPONENT ---
+const DocNumRuleModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (data: Partial<DocumentNumbering>) => void;
+    initialData: Partial<DocumentNumbering> | null;
+    financialYears: FinancialYear[];
+}> = ({ isOpen, onClose, onSave, initialData, financialYears }) => {
+
+    const [prefix, setPrefix] = useState('');
+    const [startingNumber, setStartingNumber] = useState('');
+    const [finYearId, setFinYearId] = useState<string | null>(null);
+    const [suffix, setSuffix] = useState(''); // MODIFICATION: Added state for suffix
+
+    useEffect(() => {
+        if (isOpen && initialData) {
+            setPrefix(initialData.prefix || '');
+            setStartingNumber(String(initialData.startingNumber || '1'));
+            setFinYearId(initialData.finYearId || null);
+            setSuffix(initialData.suffix || ''); // MODIFICATION: Initialize suffix state
+        }
+    }, [isOpen, initialData]);
+
+    const handleStartingNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        if (/^[0-9]*$/.test(val)) {
+            setStartingNumber(val);
+        }
+    };
+
+    const handleSaveClick = () => {
+        const finalStartingNumber = parseInt(startingNumber, 10);
+        if (!prefix.trim() || !finYearId) {
+            alert('Prefix and Financial Year are required.'); // Replace with addToast in real app
+            return;
+        }
+        if (isNaN(finalStartingNumber) || finalStartingNumber < 1) {
+            alert('Starting Number must be a valid number of 1 or greater.'); // Replace with addToast
+            return;
+        }
+
+        onSave({
+            ...initialData,
+            prefix,
+            startingNumber: finalStartingNumber,
+            finYearId,
+            suffix, // MODIFICATION: Include suffix in save data
+        });
+    };
+    
+    if (!isOpen) return null;
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose}>
+            <form onSubmit={e => { e.preventDefault(); handleSaveClick(); }}>
+                <div className="p-6 border-b"><h2 className="text-xl font-bold">{initialData?.id ? 'Edit' : 'Add'} {initialData?.type} Rule</h2></div>
+                <div className="p-6 space-y-4">
+                    <Input label="Prefix (Kword)" value={prefix} onChange={e => setPrefix(e.target.value)} placeholder="e.g., VCH/25-26/" required />
+                    {/* --- MODIFICATION: Added Suffix Input --- */}
+                    <Input label="Suffix (Optional)" value={suffix} onChange={e => setSuffix(e.target.value)} placeholder="e.g., /FIN" />
+                    <Input 
+                        label="Starting Number" 
+                        type="text"
+                        pattern="[0-9]*"
+                        inputMode="numeric"
+                        value={startingNumber} 
+                        onChange={handleStartingNumberChange} 
+                        required 
+                    />
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Financial Year</label>
+                        <select value={finYearId || ''} onChange={e => setFinYearId(e.target.value)} className={selectClasses} required>
+                            <option value="" disabled>Select FY</option>
+                            {financialYears.map(fy => <option key={fy.id} value={fy.id}>{fy.finYear}</option>)}
+                        </select>
+                    </div>
+                </div>
+                <div className="flex justify-end p-6 gap-3 border-t"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit">Save Rule</Button></div>
+            </form>
+        </Modal>
+    );
+};
+// --- END OF NEW DEDICATED MODAL COMPONENT ---
+
+
+// --- Financial Year Management Component ---
+const FinancialYearManager: React.FC<MasterDataProps> = (props) => {
+    const { 
+        financialYears, onUpdateFinancialYears, 
+        documentNumbering, onUpdateDocumentNumbering,
+        addToast, activeFinancialYearId
+    } = props;
+    
+    const [selectedFinYearId, setSelectedFinYearId] = useState<string | null>(activeFinancialYearId);
+    const [isFYModalOpen, setIsFYModalOpen] = useState(false);
+    const [editingFY, setEditingFY] = useState<Partial<FinancialYear> | null>(null);
+    const [isDocNumModalOpen, setIsDocNumModalOpen] = useState(false);
+    const [editingDocNum, setEditingDocNum] = useState<Partial<DocumentNumbering> | null>(null);
+    const triggerButtonRef = useRef<HTMLButtonElement | null>(null);
+    
+    const openFYModal = (item: FinancialYear | null, event?: React.MouseEvent<HTMLElement>) => {
+        if (event) triggerButtonRef.current = event.currentTarget as HTMLButtonElement;
+        setEditingFY(item ? { ...item } : { finYear: '', fromDate: '', toDate: '', status: 'Active' });
+        setIsFYModalOpen(true);
+    };
+
+    const closeFYModal = () => {
+        setIsFYModalOpen(false);
+        setEditingFY(null);
+        triggerButtonRef.current?.focus();
+    };
+
+    const handleSaveFY = () => {
+        if (!editingFY || !editingFY.finYear?.trim() || !editingFY.fromDate || !editingFY.toDate) {
+            addToast('All fields are required.', 'error');
+            return;
+        }
+        if (new Date(editingFY.fromDate) >= new Date(editingFY.toDate)) {
+            addToast('"From Date" must be earlier than "To Date".', 'error');
+            return;
+        }
+
+        if (editingFY.id) {
+            onUpdateFinancialYears(financialYears.map(fy => fy.id === editingFY.id ? editingFY as FinancialYear : fy));
+        } else {
+            const newFY: FinancialYear = { id: `fy-${Date.now()}`, ...editingFY } as FinancialYear;
+            onUpdateFinancialYears([...financialYears, newFY]);
+        }
+        closeFYModal();
+    };
+
+    const openDocNumModal = (type: 'Voucher' | 'Receipt', item: DocumentNumbering | null, event?: React.MouseEvent<HTMLElement>) => {
+        if (event) triggerButtonRef.current = event.currentTarget as HTMLButtonElement;
+        const initialData = item ? { ...item } : { type, prefix: '', startingNumber: 1, finYearId: selectedFinYearId, status: 'Active' as const, suffix: '' };
+        setEditingDocNum(initialData);
+        setIsDocNumModalOpen(true);
+    };
+    
+    const closeDocNumModal = () => {
+        setIsDocNumModalOpen(false);
+        setEditingDocNum(null);
+        triggerButtonRef.current?.focus();
+    };
+
+    const handleSaveDocNum = (dataToSave: Partial<DocumentNumbering>) => {
+        const isDuplicate = documentNumbering.some(dn => 
+            dn.id !== dataToSave.id &&
+            dn.type === dataToSave.type &&
+            dn.finYearId === dataToSave.finYearId
+        );
+        
+        if (isDuplicate) {
+            addToast(`A numbering rule for ${dataToSave.type}s already exists for this Financial Year.`, 'error');
+            return;
+        }
+
+        if (dataToSave.id) {
+            onUpdateDocumentNumbering(documentNumbering.map(dn => dn.id === dataToSave.id ? dataToSave as DocumentNumbering : dn));
+        } else {
+            const newDocNum: DocumentNumbering = {
+                id: `dn-${Date.now()}`,
+                ...dataToSave,
+                status: 'Active'
+            } as DocumentNumbering;
+            onUpdateDocumentNumbering([...documentNumbering, newDocNum]);
+        }
+        closeDocNumModal();
+    };
+    
+    const voucherNumbering = useMemo(() => documentNumbering.filter(dn => dn.finYearId === selectedFinYearId && dn.type === 'Voucher'), [documentNumbering, selectedFinYearId]);
+    const receiptNumbering = useMemo(() => documentNumbering.filter(dn => dn.finYearId === selectedFinYearId && dn.type === 'Receipt'), [documentNumbering, selectedFinYearId]);
+    
+    const DocNumTable: React.FC<{title: string, type: 'Voucher' | 'Receipt', items: DocumentNumbering[]}> = ({title, type, items}) => (
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{title}</h3>
+                <Button onClick={(e) => openDocNumModal(type, null, e)} disabled={!selectedFinYearId}><Plus size={16}/> Add Rule</Button>
+            </div>
+            <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700/50"><tr>
+                        <th className="px-4 py-2 text-left text-xs font-bold uppercase">Prefix (Kword)</th>
+                        {/* --- MODIFICATION: Added Suffix Header --- */}
+                        <th className="px-4 py-2 text-left text-xs font-bold uppercase">Suffix</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold uppercase">Start No.</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold uppercase">Status</th>
+                        <th className="px-4 py-2 text-left text-xs font-bold uppercase">Actions</th>
+                    </tr></thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                        {items.map(item => (
+                            <tr key={item.id}>
+                                <td className="px-4 py-2 font-mono">{item.prefix}</td>
+                                {/* --- MODIFICATION: Added Suffix Cell --- */}
+                                <td className="px-4 py-2 font-mono">{item.suffix || 'N/A'}</td>
+                                <td className="px-4 py-2">{item.startingNumber}</td>
+                                <td className="px-4 py-2"><ToggleSwitch enabled={item.status === 'Active'} onChange={val => onUpdateDocumentNumbering(documentNumbering.map(dn => dn.id === item.id ? {...dn, status: val ? 'Active' : 'Inactive'} : dn))} /></td>
+                                <td className="px-4 py-2"><Button size="small" variant="light" onClick={(e) => openDocNumModal(type, item, e)}><Edit2 size={14}/></Button></td>
+                            </tr>
+                        ))}
+                         {items.length === 0 && (
+                            // --- MODIFICATION: Adjusted colspan for new column ---
+                            <tr><td colSpan={5} className="text-center py-4 text-gray-500">No rules for this FY.</td></tr>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+    
+    return (
+        <div className="space-y-8">
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Financial Years</h3>
+                    <Button onClick={(e) => openFYModal(null, e)}><Plus size={16}/> Add Financial Year</Button>
+                </div>
+                <div className="overflow-x-auto max-h-60">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0"><tr>
+                            <th className="px-4 py-2 text-left text-xs font-bold uppercase">Financial Year</th>
+                            <th className="px-4 py-2 text-left text-xs font-bold uppercase">From Date</th>
+                            <th className="px-4 py-2 text-left text-xs font-bold uppercase">To Date</th>
+                            <th className="px-4 py-2 text-left text-xs font-bold uppercase">Status</th>
+                            <th className="px-4 py-2 text-left text-xs font-bold uppercase">Actions</th>
+                        </tr></thead>
+                        <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                            {financialYears.map(fy => (
+                                <tr key={fy.id} onClick={() => setSelectedFinYearId(fy.id)} className={`cursor-pointer ${selectedFinYearId === fy.id ? 'bg-blue-100 dark:bg-blue-900/50' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'}`}>
+                                    <td className="px-4 py-2 font-medium">{fy.finYear}</td>
+                                    <td className="px-4 py-2">{fy.fromDate}</td>
+                                    <td className="px-4 py-2">{fy.toDate}</td>
+                                    <td className="px-4 py-2"><ToggleSwitch enabled={fy.status === 'Active'} onChange={val => onUpdateFinancialYears(financialYears.map(f => f.id === fy.id ? {...f, status: val ? 'Active' : 'Inactive'} : f))} /></td>
+                                    <td className="px-4 py-2"><Button size="small" variant="light" onClick={(e) => { e.stopPropagation(); openFYModal(fy, e);}}><Edit2 size={14}/></Button></td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <DocNumTable title="Voucher Numbering" type="Voucher" items={voucherNumbering} />
+                <DocNumTable title="Receipt Numbering" type="Receipt" items={receiptNumbering} />
+            </div>
+
+            {isFYModalOpen && editingFY && (
+                <Modal isOpen={isFYModalOpen} onClose={closeFYModal}>
+                    <form onSubmit={e => {e.preventDefault(); handleSaveFY();}}>
+                        <div className="p-6 border-b"><h2 className="text-xl font-bold">{editingFY.id ? 'Edit' : 'Add'} Financial Year</h2></div>
+                        <div className="p-6 space-y-4">
+                            <Input label="Financial Year Label" value={editingFY.finYear || ''} onChange={e => setEditingFY(p => p ? {...p, finYear: e.target.value} : null)} placeholder="e.g., 2025-2026" required />
+                            <Input label="From Date" type="date" value={editingFY.fromDate || ''} onChange={e => setEditingFY(p => p ? {...p, fromDate: e.target.value} : null)} required />
+                            <Input label="To Date" type="date" value={editingFY.toDate || ''} onChange={e => setEditingFY(p => p ? {...p, toDate: e.target.value} : null)} required />
+                        </div>
+                        <div className="flex justify-end p-6 gap-3 border-t"><Button type="button" variant="secondary" onClick={closeFYModal}>Cancel</Button><Button type="submit">Save</Button></div>
+                    </form>
+                </Modal>
+            )}
+
+            <DocNumRuleModal
+                isOpen={isDocNumModalOpen}
+                onClose={closeDocNumModal}
+                onSave={handleSaveDocNum}
+                initialData={editingDocNum}
+                financialYears={financialYears}
+            />
+        </div>
+    );
+};
+
 
 // --- START: NEW Designation Management Component ---
 const DesignationManager: React.FC<{
@@ -1402,6 +1682,111 @@ const ReligionsAndFestivalsManager: React.FC<MasterDataProps> = (props) => {
 // --- END: MODIFICATION ---
 
 
+const TierRuleModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (tierData: CustomerTier) => void;
+    initialData: Partial<CustomerTier> | null;
+    tiers: CustomerTier[];
+    customerTypes: CustomerType[];
+    gifts: GiftMaster[];
+    mode: 'sumAssured' | 'premium' | 'edit';
+}> = ({ isOpen, onClose, onSave, initialData, tiers, customerTypes, gifts, mode }) => {
+    const [formData, setFormData] = useState<Partial<CustomerTier>>({});
+
+    useEffect(() => {
+        // When the modal opens, initialize its internal state from the props.
+        if (isOpen) {
+            setFormData(initialData || { name: '', customerTypeId: '', minimumSumAssured: 0, minimumPremium: 0, giftId: null, active: true });
+        }
+    }, [isOpen, initialData]);
+
+    const handleChange = (field: keyof CustomerTier, value: any) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+    };
+    
+    const handleNumericChange = (field: 'minimumSumAssured' | 'minimumPremium', value: string) => {
+        const numericValue = value.replace(/[^0-9]/g, '');
+        handleChange(field, numericValue === '' ? 0 : Number(numericValue));
+    };
+
+    const handleSaveClick = () => {
+        if (!formData.customerTypeId) {
+            // This is a placeholder for your addToast function.
+            // You would pass addToast as a prop in a real app to show a message.
+            alert('A Customer Type must be selected.');
+            return;
+        }
+        onSave(formData as CustomerTier);
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose}>
+            <div className="p-6">
+                <h2 className="text-xl font-bold text-brand-dark dark:text-white">{initialData?.id ? 'Edit' : 'Add'} Tier Rule</h2>
+            </div>
+            <div className="p-6 space-y-4">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Customer Type</label>
+                    <select
+                        value={formData.customerTypeId || ''}
+                        onChange={e => handleChange('customerTypeId', e.target.value)}
+                        className={selectClasses}
+                    >
+                        <option value="">-- Select a Type --</option>
+                        {customerTypes.map(type => {
+                            const isUsed = tiers.some(t => t.customerTypeId === type.id && t.id !== initialData?.id);
+                            return (
+                                <option key={type.id} value={type.id} disabled={isUsed} className={isUsed ? 'text-gray-400' : ''}>
+                                    {type.name} {isUsed ? '(In Use)' : ''}
+                                </option>
+                            );
+                        })}
+                    </select>
+                </div>
+
+                {(mode === 'sumAssured' || mode === 'edit') && (
+                    <Input
+                        label="Minimum Sum Assured (₹)"
+                        type="text"
+                        inputMode="numeric"
+                        value={formData.minimumSumAssured === 0 ? '' : String(formData.minimumSumAssured || '')}
+                        onChange={e => handleNumericChange('minimumSumAssured', e.target.value)}
+                        placeholder="e.g., 50000"
+                    />
+                )}
+
+                {(mode === 'premium' || mode === 'edit') && (
+                    <Input
+                        label="Minimum Premium (₹)"
+                        type="text"
+                        inputMode="numeric"
+                        value={formData.minimumPremium === 0 ? '' : String(formData.minimumPremium || '')}
+                        onChange={e => handleNumericChange('minimumPremium', e.target.value)}
+                        placeholder="e.g., 5000"
+                    />
+                )}
+
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assign Gift</label>
+                    <select value={formData.giftId || ''} onChange={e => handleChange('giftId', e.target.value || null)} className={selectClasses}>
+                        <option value="">-- No Gift --</option>
+                        {gifts.filter(g => g.active).map(gift => <option key={gift.id} value={gift.id}>{gift.name}</option>)}
+                    </select>
+                </div>
+            </div>
+            <div className="flex justify-end p-6 gap-3 border-t border-gray-200 dark:border-gray-700">
+                <Button variant="secondary" onClick={onClose}>Cancel</Button>
+                <Button variant="primary" onClick={handleSaveClick}>Save Tier</Button>
+            </div>
+        </Modal>
+    );
+};
+// --- END: NEW DEDICATED MODAL COMPONENT ---
+
+
 // --- REFACTORED: Tier & Gift Management Component ---
 const TierManager: React.FC<{
     tiers: CustomerTier[];
@@ -1411,7 +1796,7 @@ const TierManager: React.FC<{
     addToast: MasterDataProps['addToast'];
     calculationMethod: 'sumAssured' | 'premium';
     onUpdateCalculationMethod: (method: 'sumAssured' | 'premium') => void;
-    customerTypes: CustomerType[]; // MODIFIED: Added customerTypes prop
+    customerTypes: CustomerType[];
 }> = ({ tiers, onUpdateTiers, gifts, onUpdateGifts, addToast, calculationMethod, onUpdateCalculationMethod, customerTypes }) => {
     const [isTierModalOpen, setIsTierModalOpen] = useState(false);
     const [editingTier, setEditingTier] = useState<Partial<CustomerTier> | null>(null);
@@ -1435,26 +1820,19 @@ const TierManager: React.FC<{
     
     const closeTierModal = () => {
         setIsTierModalOpen(false);
+        setEditingTier(null);
         triggerButtonRef.current?.focus();
     }
 
-    const handleSaveTier = () => {
-        if (!editingTier || !editingTier.customerTypeId) {
-            addToast('A Customer Type must be selected.', 'error');
-            return;
-        }
-
+    const handleSaveTier = (tierData: CustomerTier) => {
         let updatedTiers;
-        if (editingTier.id) { // Update
-            updatedTiers = tiers.map(t => t.id === editingTier.id ? editingTier as CustomerTier : t);
+        if (tierData.id) { // Update
+            updatedTiers = tiers.map(t => t.id === tierData.id ? tierData : t);
         } else { // Create
             const newTier: CustomerTier = {
+                ...tierData,
                 id: `tier-${Date.now()}`,
-                name: customerTypeMap.get(editingTier.customerTypeId),
-                customerTypeId: editingTier.customerTypeId,
-                minimumSumAssured: Number(editingTier.minimumSumAssured) || 0,
-                minimumPremium: Number(editingTier.minimumPremium) || 0,
-                giftId: editingTier.giftId || null,
+                name: customerTypeMap.get(tierData.customerTypeId) || 'Unnamed Tier',
                 active: true,
                 order: tiers.length,
             };
@@ -1667,55 +2045,16 @@ const TierManager: React.FC<{
                 </div>
             </div>
 
-            {isTierModalOpen && (
-                <Modal isOpen={isTierModalOpen} onClose={closeTierModal}>
-                    <div className="p-6">
-                        <h2 className="text-xl font-bold text-brand-dark dark:text-white">{editingTier?.id ? 'Edit' : 'Add'} Tier Rule</h2>
-                    </div>
-                    <div className="p-6 space-y-4">
-                        {/* --- MODIFICATION START: Replaced Input with Select for Customer Type --- */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Customer Type</label>
-                            <select 
-                                value={editingTier?.customerTypeId || ''}
-                                onChange={e => setEditingTier(p => p ? {...p, customerTypeId: e.target.value} : null)}
-                                className={selectClasses}
-                            >
-                                <option value="">-- Select a Type --</option>
-                                {customerTypes.map(type => {
-                                    const isUsed = tiers.some(t => t.customerTypeId === type.id && t.id !== editingTier?.id);
-                                    return (
-                                        <option key={type.id} value={type.id} disabled={isUsed} className={isUsed ? 'text-gray-400' : ''}>
-                                            {type.name} {isUsed ? '(In Use)' : ''}
-                                        </option>
-                                    );
-                                })}
-                            </select>
-                        </div>
-                        {/* --- MODIFICATION END --- */}
-                        
-                        {(tierModalMode === 'sumAssured' || tierModalMode === 'edit') && (
-                             <Input label="Minimum Sum Assured (₹)" type="number" value={String(editingTier?.minimumSumAssured || 0)} onChange={e => setEditingTier(p => p ? {...p, minimumSumAssured: Number(e.target.value)} : null)} />
-                        )}
-
-                        {(tierModalMode === 'premium' || tierModalMode === 'edit') && (
-                            <Input label="Minimum Premium (₹)" type="number" value={String(editingTier?.minimumPremium || 0)} onChange={e => setEditingTier(p => p ? {...p, minimumPremium: Number(e.target.value)} : null)} />
-                        )}
-                       
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assign Gift</label>
-                            <select value={editingTier?.giftId || ''} onChange={e => setEditingTier(p => p ? {...p, giftId: e.target.value || null} : null)} className={selectClasses}>
-                                <option value="">-- No Gift --</option>
-                                {gifts.filter(g => g.active).map(gift => <option key={gift.id} value={gift.id}>{gift.name}</option>)}
-                            </select>
-                        </div>
-                    </div>
-                    <div className="flex justify-end p-6 gap-3 border-t border-gray-200 dark:border-gray-700">
-                        <Button variant="secondary" onClick={closeTierModal}>Cancel</Button>
-                        <Button variant="primary" onClick={handleSaveTier}>Save Tier</Button>
-                    </div>
-                </Modal>
-            )}
+            <TierRuleModal
+                isOpen={isTierModalOpen}
+                onClose={closeTierModal}
+                onSave={handleSaveTier}
+                initialData={editingTier}
+                tiers={tiers}
+                customerTypes={customerTypes}
+                gifts={gifts}
+                mode={tierModalMode}
+            />
 
             {isGiftModalOpen && (
                 <Modal isOpen={isGiftModalOpen} onClose={closeGiftModal}>
@@ -1734,6 +2073,7 @@ const TierManager: React.FC<{
         </div>
     );
 };
+
 
 // --- Lead Source Management Component (with Search) ---
 const LeadSourceManager: React.FC<{
@@ -4404,11 +4744,10 @@ const GeographyManager: React.FC<{geographies: Geography[];onUpdateGeographies: 
     );
 };
 
-
 // --- MasterData.tsx -> Main MasterData Component ---
 
 export const MasterData: React.FC<MasterDataProps> = (props) => {
-    const [activeTab, setActiveTab] = useState<string>('companyMaster');
+    const [activeTab, setActiveTab] = useState<string>('financialYear'); // MODIFIED: Default to new tab
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
     const mobileNavRef = useRef<HTMLDivElement>(null);
     const [focusArea, setFocusArea] = useState<'nav' | 'content'>('nav');
@@ -4478,6 +4817,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
     const navItems = [
         { id: 'companyMaster', label: 'Company Master', icon: <Building size={18}/> },
         { id: 'branches', label: 'Branch', icon: <GitBranch size={18}/> },
+        { id: 'financialYear', label: 'Financial Year', icon: <CalendarIcon size={18}/> }, // NEW
         { id: 'businessVerticals', label: 'Business Vertical', icon: <Briefcase size={18}/> },
         { id: 'policyConfiguration', label: 'Policy Configuration', icon: <SlidersHorizontal size={18}/>},
         { id: 'schemesAndMappings', label: 'Agency and Scheme', icon: <FileTextIcon size={18}/> },
@@ -4508,6 +4848,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
     const renderContent = () => {
         switch(activeTab) {
             case 'companyMaster': return <CompanyMasterManager {...props} />;
+            case 'financialYear': return <FinancialYearManager {...props} />; // NEW
             case 'branches': return <BranchesManager {...props} />;
             case 'designation': return <DesignationManager items={props.designations} onUpdate={props.onUpdateDesignations} addToast={props.addToast} users={props.users} />;
             case 'policyConfiguration': return <PolicyConfigurationManager {...props} />;
