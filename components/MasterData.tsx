@@ -4747,7 +4747,7 @@ const GeographyManager: React.FC<{geographies: Geography[];onUpdateGeographies: 
 // --- MasterData.tsx -> Main MasterData Component ---
 
 export const MasterData: React.FC<MasterDataProps> = (props) => {
-    const [activeTab, setActiveTab] = useState<string>('financialYear'); // MODIFIED: Default to new tab
+    const [activeTab, setActiveTab] = useState<string>('companyMaster'); // MODIFIED: Default to new tab
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
     const mobileNavRef = useRef<HTMLDivElement>(null);
     const [focusArea, setFocusArea] = useState<'nav' | 'content'>('nav');
