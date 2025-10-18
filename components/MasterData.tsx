@@ -29,7 +29,7 @@ import {
     ProcessStageMaster,AccountType,
     FinancialYear, DocumentNumbering
 } from '../types.ts';
-import { Database, Briefcase, Users, GitBranch, MapPin, Link as LinkIcon, FileText as FileTextIcon, Gift, CheckSquare, Settings, Plus, Save, Edit2, Trash2, X, Building, Search, AlertTriangle, ChevronRight, ListTodo, SlidersHorizontal, ArrowUp, ArrowDown, CornerDownRight, GripVertical, ChevronDown, Lock, Award, IndianRupee, Calendar as CalendarIcon, Check, TrendingUp, UserCog } from 'lucide-react';
+import { Database, Briefcase,Layers,Handshake ,HandCoins,UserPlus ,Sparkles ,HeartHandshake ,Globe2,Landmark ,Venus ,Heart , Users, GitBranch, MapPin, Link as LinkIcon, FileText as FileTextIcon, Gift, CheckSquare, Settings, Plus, Save, Edit2, Trash2, X, Building, Search, AlertTriangle, ChevronRight, ListTodo, SlidersHorizontal, ArrowUp, ArrowDown, CornerDownRight, GripVertical, ChevronDown, Lock, Award, IndianRupee, Calendar as CalendarIcon, Check, TrendingUp, UserCog, Route as RouteIcon } from 'lucide-react';
 
 // --- MOVED PROPS INTERFACE TO TOP LEVEL ---
 interface MasterDataProps {
@@ -4817,28 +4817,28 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
     const navItems = [
         { id: 'companyMaster', label: 'Company Master', icon: <Building size={18}/> },
         { id: 'branches', label: 'Branch', icon: <GitBranch size={18}/> },
-        { id: 'financialYear', label: 'Financial Year', icon: <CalendarIcon size={18}/> }, // NEW
-        { id: 'businessVerticals', label: 'Business Vertical', icon: <Briefcase size={18}/> },
+        { id: 'businessVerticals', label: 'Business Vertical', icon: <Layers size={18}/> },
         { id: 'policyConfiguration', label: 'Policy Configuration', icon: <SlidersHorizontal size={18}/>},
-        { id: 'schemesAndMappings', label: 'Agency and Scheme', icon: <FileTextIcon size={18}/> },
-        { id: 'mutualFunds', label: 'Mutual Funds', icon: <TrendingUp size={18}/> },
-        { id: 'customerMaster', label: 'Add Customer Field', icon: <Settings size={18} /> },
+        { id: 'schemesAndMappings', label: 'Agency and Scheme', icon: <Handshake  size={18}/> },
+        { id: 'mutualFunds', label: 'Mutual Funds', icon: <HandCoins size={18}/> },
+        { id: 'customerMaster', label: 'Add Customer Field', icon: <UserPlus  size={18} /> },
         { id: 'designation', label: 'Designation', icon: <UserCog size={18}/> }, 
-        { id: 'religionsAndFestivals', label: 'Religions & Festivals', icon: <CalendarIcon size={18}/> },
+        { id: 'financialYear', label: 'Financial Year', icon: <CalendarIcon size={18}/> }, // NEW
+        { id: 'religionsAndFestivals', label: 'Religions & Festivals', icon: <Sparkles  size={18}/> },
         { id: 'leadSources', label: 'Lead/Referral', icon: <Users size={18}/> },
-        { id: 'relationshipTypes', label: 'Relationship', icon: <LinkIcon size={18}/> },
-        { id: 'geography', label: 'Geography', icon: <MapPin size={18}/> },
+        { id: 'relationshipTypes', label: 'Relationship', icon: <HeartHandshake  size={18}/> },
+        { id: 'geography', label: 'Geography', icon: <Globe2  size={18}/> },
         { id: 'documentMasters', label: 'Document Master', icon: <FileTextIcon size={18}/> },
-        { id: 'bankMasters', label: 'Bank Master', icon: <Building size={18} /> },
+        { id: 'bankMasters', label: 'Bank Master', icon: <Landmark  size={18} /> },
         { id: 'taskStatuses', label: 'Task Status', icon: <CheckSquare size={18}/> },
         { id: 'customerSegments', label: 'Customer Segment', icon: <Users size={18}/> },
-        { id: 'genders', label: 'Gender', icon: <Users size={18}/> }, // NEW
-        { id: 'maritalStatuses', label: 'Marital Status', icon: <Users size={18}/> }, // NEW
+        { id: 'genders', label: 'Gender', icon: <Venus  size={18}/> }, // NEW
+        { id: 'maritalStatuses', label: 'Marital Status', icon: <Heart size={18}/> }, // NEW
         { id: 'taskMasters', label: 'Task Type', icon: <CheckSquare size={18}/> },
         { id: 'tierManagement', label: 'Type & Gift Management', icon: <Award size={18}/> },
-        { id: 'expenseCategories', label: 'Expense Categories', icon: <IndianRupee size={18}/> },
-        { id: 'incomeCategories', label: 'Income Categories', icon: <IndianRupee size={18}/> },
-        { id: 'routes', label: 'Routes', icon: <LinkIcon size={18}/> },
+        { id: 'expenseCategories', label: 'Expense Categories', icon: <ArrowUp  size={18}/> },
+        { id: 'incomeCategories', label: 'Income Categories', icon: <ArrowDown size={18}/> },
+        { id: 'routes', label: 'Routes', icon: <RouteIcon size={18}/> },
     ];
     
     const activeLabel = useMemo(() => 

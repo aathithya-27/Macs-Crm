@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
     Shield, User, Users, MapPin, LayoutDashboard, FileText, LogOut, BarChart2, NotebookText,
     X, MessageSquare, Briefcase, Zap, UserPlus, TrendingUp, Database, Wrench, ListTodo, 
-    IndianRupee, Calendar as CalendarIcon, BarChart3, UserCog
+    IndianRupee, Calendar as CalendarIcon, BarChart3, UserCog,HandCoins
 } from 'lucide-react';
 // MODIFIED: Imported AppModule and PermissionLevel
 import { Tab, AppModule, PermissionLevel } from '../types.ts';
@@ -35,7 +35,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
     { tab: 'customers', path: '/customers', label: 'Customers', icon: <Users size={20}/> },
     { tab: 'taskManagement', path: '/taskManagement', label: 'Task Management', icon: <ListTodo size={20}/> },
     { tab: 'policies', path: '/policies', label: 'Policies', icon: <FileText size={20}/> },
-    { tab: 'mutualFunds', path: '/mutualFunds', label: 'Mutual Funds', icon: <TrendingUp size={20}/> },
+    { tab: 'mutualFunds', path: '/mutualFunds', label: 'Mutual Funds', icon: <HandCoins size={20}/> },
     { tab: 'upselling', path: '/upselling', label: 'Upselling', icon: <TrendingUp size={20} /> },
     { tab: 'calendar', path: '/calendar', label: 'Calendar', icon: <CalendarIcon size={20}/> },
     { tab: 'notes', path: '/notes', label: 'Notes', icon: <NotebookText size={20}/> },
