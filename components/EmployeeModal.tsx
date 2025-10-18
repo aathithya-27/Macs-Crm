@@ -132,8 +132,16 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
             return false;
         }
         
+        // --- MODIFICATION START ---
+        // This entire validation block has been removed to make branch assignment optional for all roles.
+        // const selectedDesignation = designations.find(d => d.id === formData.designationId);
+        // if (selectedDesignation?.isAdvisor && !profile.employeeBranchId) { 
+        //     addToast('Employee Branch is required for Advisor roles.', 'error'); 
+        //     return false; 
+        // }
+        // --- MODIFICATION END ---
+        
         if (!profile.dateOfBirth) { addToast('Date of Birth is required.', 'error'); return false; }
-        if (!profile.employeeBranchId) { addToast('Employee Branch is required.', 'error'); return false; }
         if (!profile.businessVerticalIds || profile.businessVerticalIds.length === 0) { addToast('Business Vertical is required.', 'error'); return false; }
         if (!profile.dateOfJoining) { addToast('Date of Joining is required.', 'error'); return false; }
         if (!profile.fatherMotherName?.trim()) { addToast("Father/Mother's Name is required.", 'error'); return false; }
@@ -276,10 +284,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                         {activeTab === EmployeeModalTab.GeneralInfo && <GeneralInfoTab data={formData} onChange={handleChange} onSave={onSave} finrootsBranches={finrootsBranches} addToast={addToast} bankMasters={bankMasters} businessVerticals={businessVerticals} insuranceTypes={insuranceTypes} amcs={amcs} designations={designations} permissions={{}} genders={genders} accountTypes={accountTypes} />}
                         {activeTab === EmployeeModalTab.Address && <AddressTab data={formData} onChange={handleChange} geographies={geographies} onUpdateGeographies={onUpdateGeographies} addToast={addToast} />}
                         {activeTab === EmployeeModalTab.Education && <EducationTab data={formData} onChange={handleChange} />}
-                        {/* --- MODIFICATION START --- */}
                         {activeTab === EmployeeModalTab.Documents && <EmployeeDocumentsTab data={formData} onChange={handleChange} addToast={addToast} documentMasters={documentMasters} />}
-                        {/* --- MODIFICATION END --- */}
-                        {/* NEW: Render the PermissionsTab */}
                         {activeTab === EmployeeModalTab.Permissions && isAdmin && formData.profile && (
                             <PermissionsTab
                                 profile={formData.profile}

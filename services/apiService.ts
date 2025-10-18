@@ -882,13 +882,17 @@ export const login = async (company: string, employeeId: string, password_param:
 
     const designation = designationsData.find(d => d.id === user.designationId);
 
-    // Branch check for advisor roles
+    // --- MODIFICATION START ---
+    // The branch check is now conditional on the user having an assigned branch in their profile.
     if (designation?.isAdvisor) {
-        const companyBranches = finrootsBranchesData.filter(b => b.companyId === user.companyId);
-        if (companyBranches.length > 0 && user.profile?.employeeBranchId !== branchId) {
-            return null; // Branch mismatch for an advisor role
+        // If a branch IS assigned to the user's profile, then it MUST match the selected branch.
+        if (user.profile?.employeeBranchId && user.profile.employeeBranchId !== branchId) {
+            return null; // Branch mismatch for an advisor who has a specific branch assigned.
         }
+        // If no branch is assigned to the user's profile (user.profile?.employeeBranchId is null or empty),
+        // this check is skipped, and the login can proceed regardless of what branchId was passed (if any).
     }
+    // --- MODIFICATION END ---
 
     // Financial year validation (if provided)
     if (financialYearId && !financialYearsData.find(fy => fy.id === financialYearId)) {

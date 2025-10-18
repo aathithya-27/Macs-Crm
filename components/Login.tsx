@@ -6,7 +6,7 @@ import Input from './ui/Input.tsx';
 import { login, getFinancialYears } from '../services/apiService.ts';
 
 interface LoginProps {
-    onLogin: (user: UserType, finYearId: string) => void; // MODIFIED: Pass finYearId on successful login
+    onLogin: (user: UserType, finYearId: string) => void; 
     onForgotPassword: () => void;
     theme: 'light' | 'dark';
     toggleTheme: () => void;
@@ -24,7 +24,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
     const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
     
-    // --- NEW: State for Financial Years ---
     const [financialYears, setFinancialYears] = useState<FinancialYear[]>([]);
     const [financialYearId, setFinancialYearId] = useState('');
 
@@ -47,13 +46,12 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
     }, [company, designationId]);
     
     useEffect(() => {
-        // Fetch financial years on component mount
         const fetchFYs = async () => {
             const fys = await getFinancialYears();
             const activeFYs = fys.filter(fy => fy.status === 'Active');
             setFinancialYears(activeFYs);
             if (activeFYs.length > 0) {
-                setFinancialYearId(activeFYs[0].id); // Default to the first active FY
+                setFinancialYearId(activeFYs[0].id); 
             }
         };
         fetchFYs();
@@ -87,13 +85,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
             return;
         }
 
-        if (isAdvisorRoleSelected && companyBranches.length > 0 && !branchId) {
-            setError('Please select a branch for this designation.');
-            return;
-        }
-
         try {
-            // MODIFIED: Pass the selected financialYearId to the login function
             const user = await login(company, employeeId, password, designationId, branchId, financialYearId);
 
             if (user) {
@@ -102,7 +94,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                 } else {
                     localStorage.removeItem('rememberedUser');
                 }
-                // MODIFIED: Pass finYearId back to App.tsx
                 onLogin(user, financialYearId);
             } else {
                 setError('Invalid credentials, or branch/designation/FY mismatch for your user.');
@@ -143,7 +134,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                 )}
 
                 <form onSubmit={handleLogin} className="space-y-4">
-                    {/* --- NEW: Financial Year Dropdown --- */}
                     <div className="relative">
                         <label htmlFor="financialYear" className="text-sm font-medium text-gray-700 dark:text-gray-300">Financial Year</label>
                         <Calendar className="absolute left-3 top-10 h-5 w-5 text-gray-400" />
@@ -192,6 +182,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                         </select>
                     </div>
                     
+                    {/* --- MODIFICATION START --- */}
+                    {/* The `isAdvisorRoleSelected` check has been removed. */}
                     {companyBranches.length > 0 && (
                         <div className="relative animate-fade-in">
                             <label htmlFor="branch" className="text-sm font-medium text-gray-700 dark:text-gray-300">Branch</label>
@@ -201,7 +193,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                                 value={branchId}
                                 onChange={(e) => setBranchId(e.target.value)}
                                 className="w-full pl-10 pr-4 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                required={isAdvisorRoleSelected}
                             >
                                 <option value="">Select Branch...</option>
                                 {companyBranches.map(branch => (
@@ -210,6 +201,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                             </select>
                         </div>
                     )}
+                    {/* --- MODIFICATION END --- */}
 
                     <Input
                         id="employeeId"
