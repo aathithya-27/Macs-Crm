@@ -142,6 +142,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         // --- MODIFICATION END ---
         
         if (!profile.dateOfBirth) { addToast('Date of Birth is required.', 'error'); return false; }
+        // if (!profile.employeeBranchId) { addToast('Employee Branch is required.', 'error'); return false; }
         if (!profile.businessVerticalIds || profile.businessVerticalIds.length === 0) { addToast('Business Vertical is required.', 'error'); return false; }
         if (!profile.dateOfJoining) { addToast('Date of Joining is required.', 'error'); return false; }
         if (!profile.fatherMotherName?.trim()) { addToast("Father/Mother's Name is required.", 'error'); return false; }
