@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { Member, User, AdvisorLocation, CheckIn, CheckInOutcome, Designation } from '../types.ts'; // MODIFIED
+import { Member, User, AdvisorLocation, CheckIn, CheckInOutcome, Designation, Role } from '../types.ts'; // MODIFIED: Added Role
 import { getOptimalRoute, findClientsOnRoute, suggestSmartTrip } from '../services/geminiService.ts';
 import { indianStates } from '../constants.tsx';
 import { GoogleMap, useJsApiLoader, DirectionsService, DirectionsRenderer, Polyline } from '@react-google-maps/api';
@@ -74,6 +74,7 @@ const mapStyles = [
 
 const mapLibraries: ('marker' | 'places' | 'routes')[] = ['marker', 'places', 'routes'];
 
+// --- MODIFIED: Added roles to props interface ---
 interface LocationServicesProps {
   members: Member[];
   addToast: (message: string, type?: 'success' | 'error') => void;
@@ -87,7 +88,8 @@ interface LocationServicesProps {
   activeCheckIn: CheckIn | null;
   onCheckOut: (checkInId: string, notes: string, outcome: CheckInOutcome, nextActionDate?: string) => Promise<void>;
   onGetActiveCheckIn: (advisorId: string) => Promise<CheckIn | null>;
-  designations: Designation[]; // NEW PROP
+  designations: Designation[];
+  roles: Role[]; // --- NEW ---
 }
 
 const MapErrorDisplay = ({ error }: { error: Error }) => (
@@ -118,7 +120,7 @@ const formatDuration = (seconds: number) => {
 const LocationServices: React.FC<LocationServicesProps> = ({ 
     members, addToast, currentUser, allUsers, onUpdateAdvisorLocation, 
     onCreateCheckIn, advisorLocations, checkIns, onFetchAdvisorTrail, 
-    activeCheckIn, onCheckOut, onGetActiveCheckIn, designations 
+    activeCheckIn, onCheckOut, onGetActiveCheckIn, designations, roles // --- MODIFIED ---
 }) => {
   const [map, setMap] = useState<any | null>(null);
   const markersRef = useRef<Record<string, any>>({});
@@ -126,11 +128,15 @@ const LocationServices: React.FC<LocationServicesProps> = ({
   const watchIdRef = useRef<number | null>(null);
   const animationFrameRef = useRef<Record<string, number>>({});
 
-  const currentUserDesignation = useMemo(() => designations.find(d => d.id === currentUser?.designationId), [currentUser, designations]);
-  const isAdmin = currentUserDesignation?.name === 'Admin';
-  const isAdvisor = currentUserDesignation?.isAdvisor === true;
+  // Role-based permissions
+  const currentUserRole = useMemo(() => roles.find(r => r.id === currentUser?.roleId), [currentUser, roles]);
+  const canViewTracker = useMemo(() => {
+    return currentUserRole?.canViewLocationTracker === true || 
+           (currentUserRole && !currentUserRole.isAdvisor); // Non-advisors can view tracker
+  }, [currentUserRole]);
+  const isAdvisor = currentUserRole?.isAdvisor === true;
 
-  const [activeTab, setActiveTab] = useState<LocationTab>(isAdmin ? 'tracker' : 'planner');
+  const [activeTab, setActiveTab] = useState<LocationTab>(canViewTracker ? 'tracker' : 'planner');
 
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -240,7 +246,7 @@ const LocationServices: React.FC<LocationServicesProps> = ({
   }, [fetchUserLocation]);
   
   useEffect(() => {
-      if (isAdvisor && isLoaded) {
+      if (currentUser && isLoaded) {
           if (!navigator.geolocation) {
               addToast("Geolocation is not supported by your browser.", "error");
               return;
@@ -249,7 +255,7 @@ const LocationServices: React.FC<LocationServicesProps> = ({
               (position) => {
                   const { latitude, longitude } = position.coords;
                   onUpdateAdvisorLocation({
-                      advisorId: currentUser!.id,
+                      advisorId: currentUser.id,
                       lat: latitude,
                       lng: longitude,
                       timestamp: new Date().toISOString()
@@ -272,7 +278,7 @@ const LocationServices: React.FC<LocationServicesProps> = ({
               }
           };
       }
-  }, [currentUser, isLoaded, onUpdateAdvisorLocation, addToast, isAdvisor]);
+  }, [currentUser, isLoaded, onUpdateAdvisorLocation, addToast]);
   
   useEffect(() => {
       if (userLocation) {
@@ -740,10 +746,13 @@ const LocationServices: React.FC<LocationServicesProps> = ({
       return () => clearInterval(timer);
   }, [activeCheckIn]);
 
+  // Only show advisors in the tracker
   const employeesForTracker = useMemo(() => {
-    const advisorDesignationIds = new Set(designations.filter(d => d.isAdvisor).map(d => d.id));
-    return allUsers.filter(u => advisorDesignationIds.has(u.designationId));
-  }, [allUsers, designations]);
+    return allUsers.filter(u => {
+      const userRole = roles.find(r => r.id === u.roleId);
+      return userRole?.isAdvisor === true;
+    });
+  }, [allUsers, roles]);
 
 
   const PlannerCustomerCard = ({ customer }: { customer: CustomerWithDistance }) => {
@@ -834,7 +843,7 @@ const LocationServices: React.FC<LocationServicesProps> = ({
   const directionsServiceOptions = useMemo(() => {
     if (!userLocation || optimizedRoute.length < 1) return null;
 
-    const routeCustomers = optimizedRoute.map(id => resolvedMembers.find(m => m.id === id)).filter(Boolean);
+    const routeCustomers = resolvedMembers.filter(m => optimizedRoute.includes(m.id)).filter(Boolean);
     if (routeCustomers.length < 1) return null;
 
     const origin = { lat: userLocation.lat, lng: userLocation.lng };
@@ -887,7 +896,7 @@ const LocationServices: React.FC<LocationServicesProps> = ({
               <div className="flex gap-2 bg-gray-100 dark:bg-gray-900 p-1 rounded-lg">
                   <TabButton label="Route Planner" icon={<Users size={16}/>} isActive={activeTab === 'planner'} onClick={() => handleTabChange('planner')} />
                   <TabButton label="Path Finder" icon={<Compass size={16} />} isActive={activeTab === 'path'} onClick={() => handleTabChange('path')} />
-                  {isAdmin && <TabButton label="Tracker" icon={<Milestone size={16} />} isActive={activeTab === 'tracker'} onClick={() => handleTabChange('tracker')} />}
+                  {canViewTracker && <TabButton label="Tracker" icon={<Milestone size={16} />} isActive={activeTab === 'tracker'} onClick={() => handleTabChange('tracker')} />}
               </div>
             </div>
             
@@ -1226,16 +1235,25 @@ const LocationServices: React.FC<LocationServicesProps> = ({
                      <div className="overflow-y-auto p-4 space-y-2 flex-1">
                          {isFetchingTrail && <div className="text-center p-4"><Loader2 className="w-6 h-6 animate-spin mx-auto"/></div>}
                          {employeesForTracker.map(employee => {
+                            const employeeRole = roles.find(r => r.id === employee.roleId);
                             const location = advisorLocations.find(l => l.advisorId === employee.id);
                             const isSelected = selectedAdvisorForTrail?.id === employee.id;
                             const isActiveMeeting = checkIns.some(c => c.advisorId === employee.id && !c.checkOutTimestamp);
+                            const isEmployeeAdvisor = employeeRole?.isAdvisor === true;
                             return (
                                 <button key={employee.id} onClick={() => handleSelectAdvisorForTrail(employee)} className={`w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors ${isSelected ? 'bg-blue-100 dark:bg-blue-900/50' : 'hover:bg-gray-100 dark:hover:bg-gray-700/50'}`}>
                                     <div className={`w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-offset-2 dark:ring-offset-gray-800 ${isActiveMeeting ? 'bg-yellow-400 ring-yellow-300' : location ? 'bg-green-500 ring-green-400' : 'bg-gray-400 ring-gray-300'}`}></div>
                                     <div className="flex-1">
                                         <p className="font-semibold text-gray-800 dark:text-white">{employee.name}</p>
                                         <p className="text-xs text-gray-500 dark:text-gray-400">
-                                            {isActiveMeeting ? `In a meeting` : location ? `Last seen at ${new Date(location.timestamp).toLocaleTimeString()}` : 'Offline'}
+                                            {isEmployeeAdvisor ? (
+                                                isActiveMeeting ? `In a meeting` : location ? `Last seen at ${new Date(location.timestamp).toLocaleTimeString()}` : 'Offline'
+                                            ) : (
+                                                location ? `Live tracking - ${new Date(location.timestamp).toLocaleTimeString()}` : 'Offline'
+                                            )}
+                                        </p>
+                                        <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                                            {isEmployeeAdvisor ? 'Advisor (Check-in enabled)' : 'Employee (Live tracking)'}
                                         </p>
                                     </div>
                                 </button>

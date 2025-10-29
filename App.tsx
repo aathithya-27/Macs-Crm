@@ -33,15 +33,16 @@ import { VoucherSaveData } from './components/PaymentVoucherModal.tsx';
 import { ReceiptSaveData } from './components/ManualReceiptModal.tsx';
 import AdvancedReports from './components/AdvancedReports.tsx';
 import UpsellingDashboard from './components/UpsellingDashboard.tsx';
+import ServicesHub from './components/ServicesHub.tsx';
 
-// MODIFIED: Added FinancialYear, DocumentNumbering, ManualReceipt
+// --- MODIFIED: Added Role, RolePermissions and updated imports ---
 import {
     Member, ToastData, ActivityLog, Appointment, Task, UpsellOpportunity, AutomationRule, CustomScheduledMessage, ModalTab,
     Lead, User, Policy, Route as RouteType, DocTemplate, EmployeeProfile, Tab, GiftMapping, BusinessVertical,
-    SchemeMaster, Company, FinRootsBranch, Geography, RelationshipType, DocumentMaster, SchemeDocumentMapping, GiftMaster, TaskStatusMaster, CustomerCategory,
-    Notification, BankMaster, FinRootsCompanyInfo, CustomerSubCategory, CustomerGroup, TaskMaster, TodaysFocusItem, PolicyChecklistMaster,
+    SchemeMaster, Company, FinRootsBranch, Geography, RelationshipType, DocumentMaster, /* SchemeDocumentMapping, */ GiftMaster, TaskStatusMaster, CustomerCategory,
+    Notification, BankMaster, FinRootsCompanyInfo, CustomerSubCategory, CustomerGroup, TaskMaster, TodaysFocusItem, /* PolicyChecklistMaster, */
     InsuranceTypeMaster, InsuranceFieldMaster, LeadActivityLog, VoiceNote, TaskActivityLog,
-    LeadSource, LeadSourceMaster, CoveredMember, Designation, DesignationPermissions,
+    LeadSource, LeadSourceMaster, CoveredMember, Designation,
     CustomerTier,
     Expense, ManualIncome, ManualCommission,
     Religion, Festival, FestivalDate,
@@ -62,19 +63,23 @@ import {
     Gender, MaritalStatus, CustomerType,
     ProcessStageMaster,
     AccountType,
-    FinancialYear, DocumentNumbering, ManualReceipt 
+    FinancialYear, DocumentNumbering, ManualReceipt,
+    Role, RolePermissions, // NEW IMPORTS
+    InsuranceTypeDocumentRule // --- ADDED ---
 } from './types.ts';
-// MODIFIED: Added FY-related service imports
+// --- MODIFIED: Added Role-related service imports ---
 import { 
     getMembers, createMember, updateMember, deleteMember, getLeads, createLead, updateLead, deleteLead, 
     getUsers, getRoutes, updateRoute, createEmployee, updateEmployee, getOperatingCompanies, 
-    updateOperatingCompany, getFinrootsBranches, getDesignations, getDesignationPermissions, 
-    updateDesignationPermissions, getReligions, getFestivals, getFestivalDates, getRelationshipTypes, updateRelationshipTypes, getAdvisorLocations, 
+    updateOperatingCompany, getFinrootsBranches, getDesignations, getRolePermissions, // RENAMED
+    updateRolePermissions, getReligions, getFestivals, getFestivalDates, getRelationshipTypes, updateRelationshipTypes, getAdvisorLocations, 
     getCheckIns, updateAdvisorLocation, createCheckIn, getAdvisorLocationHistory, checkOut, 
     getActiveCheckIn, getUpsellCategories,
     getGenders, getMaritalStatuses, getCustomerTypes, getCustomerTiers,
     getProcessStageMasters, updateProcessStageMasters,
-    getFinancialYears, updateFinancialYears, getDocumentNumbering, updateDocumentNumbering 
+    getFinancialYears, updateFinancialYears, getDocumentNumbering, updateDocumentNumbering,
+    getRoles, updateRoles, // NEW IMPORTS
+    getInsuranceTypeDocumentRules, updateInsuranceTypeDocumentRules // --- ADDED ---
 } from './services/apiService.ts';
 import { getPolicySuggestions, generateAnnualReview, generateUpsellOpportunityForMember, generateTodaysFocus } from './services/geminiService.ts';
 import { indianStates } from './constants.tsx';
@@ -100,7 +105,8 @@ const AttendanceReportModal: React.FC<{
     attendance: AttendanceState;
     users: User[];
     designations: Designation[];
-}> = ({ isOpen, onClose, attendance, users, designations }) => {
+    roles: Role[]; // NEW PROP
+}> = ({ isOpen, onClose, attendance, users, designations, roles }) => {
     const today = new Date();
     const last7Days = new Date(today);
     last7Days.setDate(today.getDate() - 7);
@@ -110,10 +116,11 @@ const AttendanceReportModal: React.FC<{
     const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
     const [selectedAdvisor, setSelectedAdvisor] = useState('all');
 
+    // MODIFIED: Logic now based on Role
     const advisors = useMemo(() => {
-        const advisorDesignationIds = new Set(designations.filter(d => d.isAdvisor).map(d => d.id));
-        return users.filter(u => advisorDesignationIds.has(u.designationId));
-    }, [users, designations]);
+        const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
+        return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
+    }, [users, roles]);
     
     useEffect(() => {
         if (!isOpen) return;
@@ -317,59 +324,6 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         );
     }
     return null;
-};
-
-
-const ServicesHub: React.FC<{
-    addToast: (message: string, type?: 'success' | 'error') => void;
-    allMembers: Member[];
-    onViewMember: (member: Member, initialTab?: ModalTab) => void;
-    onUpdateCommissionStatus: (memberId: string, policyId: string, status: 'Pending' | 'Paid' | 'Cancelled') => void;
-    currentUser: User | null;
-    designations: Designation[];
-}> = (props) => {
-    type Service = 'commissions' | 'agentAppointments';
-    const [activeService, setActiveService] = useState<Service>('commissions');
-    
-    const currentUserDesignation = useMemo(() => props.designations.find(d => d.id === props.currentUser?.designationId), [props.currentUser, props.designations]);
-    const canViewCommissions = currentUserDesignation?.name === 'Admin';
-
-    const serviceComponents: Record<Service, React.ReactNode> = {
-        commissions: <CommissionDashboard members={props.allMembers} onViewMember={props.onViewMember} onUpdateCommissionStatus={props.onUpdateCommissionStatus} />,
-        agentAppointments: <AgentAppointments />,
-    };
-
-    const navItems = [
-        ...(canViewCommissions ? [{ id: 'commissions', label: 'Commissions', icon: <Percent size={20} /> }] : []),
-        { id: 'agentAppointments', label: 'Agent Appointments', icon: <Calendar size={20} /> },
-    ];
-
-    return (
-        <div className="flex flex-col md:flex-row gap-6 h-full">
-            <div className="w-full md:w-64 flex-shrink-0 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700">
-                <h2 className="text-lg font-bold text-gray-800 dark:text-white mb-4">Services Hub</h2>
-                <nav className="space-y-2">
-                    {navItems.map(item => (
-                        <button
-                            key={item.id}
-                            onClick={() => setActiveService(item.id as Service)}
-                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-md transition-colors duration-200 text-sm font-medium ${
-                                activeService === item.id
-                                    ? 'bg-blue-600 text-white shadow-sm'
-                                    : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
-                            }`}
-                        >
-                            {item.icon}
-                            {item.label}
-                        </button>
-                    ))}
-                </nav>
-            </div>
-            <div className="flex-1">
-                {serviceComponents[activeService]}
-            </div>
-        </div>
-    );
 };
 
 
@@ -703,21 +657,29 @@ const StaffPerformance: React.FC<{
     users: User[];
     tasks: Task[];
     attendance: AttendanceState;
-    onUpdateAttendance: (userId: string, status: 'Present' | 'Absent', reason?: string) => void;
+    onUpdateAttendance: (userId: string, status: AttendanceRecord['status'], reason?: string) => void;
     allLeads: Lead[];
     currentUser: User | null;
     onOpenAttendanceReport: () => void;
     designations: Designation[];
-}> = ({ members, users, tasks, attendance, onUpdateAttendance, allLeads, currentUser, onOpenAttendanceReport, designations }) => {
-    const advisors = useMemo(() => {
-        const advisorDesignationIds = new Set(designations.filter(d => d.isAdvisor).map(d => d.id));
-        return users.filter(u => advisorDesignationIds.has(u.designationId));
-    }, [users, designations]);
-
-    const [editingAttendanceId, setEditingAttendanceId] = useState<string | null>(null);
+    roles: Role[];
+    permissions: { [key in AppModule]?: PermissionLevel };
+}> = ({ members, users, tasks, attendance, onUpdateAttendance, allLeads, currentUser, onOpenAttendanceReport, designations, roles, permissions }) => {
+    const [attendanceMenuFor, setAttendanceMenuFor] = useState<string | null>(null);
+    const [editingEmployeeForReason, setEditingEmployeeForReason] = useState<User | null>(null);
+    const [isReasonModalOpen, setIsReasonModalOpen] = useState(false);
+    
     const designationMap = useMemo(() => new Map(designations.map(d => [d.id, d.name])), [designations]);
-    const isAdmin = useMemo(() => designations.find(d => d.id === currentUser?.designationId)?.name === 'Admin', [currentUser, designations]);
-    const isCurrentUserAdvisor = useMemo(() => designations.find(d => d.id === currentUser?.designationId)?.isAdvisor, [currentUser, designations]);
+    const roleMap = useMemo(() => new Map(roles.map(r => [r.id, r])), [roles]);
+    
+    const canViewStaffPerformance = useMemo(() => {
+        const employeesPermission = permissions?.employees;
+        return employeesPermission === 'view' || employeesPermission === 'create' || employeesPermission === 'modify';
+    }, [permissions]);
+    const isCurrentUserAdvisor = useMemo(() => {
+        const userRole = currentUser?.roleId ? roleMap.get(currentUser.roleId) : null;
+        return userRole?.isAdvisor === true;
+    }, [currentUser, roleMap]);
 
     const employeeStats = useMemo(() => {
         const employeeData = users.map(user => {
@@ -734,17 +696,37 @@ const StaffPerformance: React.FC<{
             }
         });
 
-        if (!isAdmin && isCurrentUserAdvisor) {
+        if (!canViewStaffPerformance && isCurrentUserAdvisor) {
              return employeeData.filter(emp => emp.id === currentUser?.id);
         }
         return employeeData;
-    }, [users, members, tasks, allLeads, currentUser, designations, isAdmin, isCurrentUserAdvisor]);
+    }, [users, members, tasks, allLeads, currentUser, canViewStaffPerformance, isCurrentUserAdvisor]);
+    
+    const handleAdminMarkAttendance = (employee: User, status: AttendanceRecord['status']) => {
+        if (status === 'Present' || status === 'Work From Home') {
+            onUpdateAttendance(employee.id, status, 'Admin Override');
+            setAttendanceMenuFor(null);
+        } else { // Absent
+            setEditingEmployeeForReason(employee);
+            setIsReasonModalOpen(true);
+            setAttendanceMenuFor(null);
+        }
+    };
+    
+    const handleSaveReason = (newReason: string) => {
+        if (editingEmployeeForReason) {
+            onUpdateAttendance(editingEmployeeForReason.id, 'Absent', newReason);
+        }
+    };
+
+    const today = new Date().toISOString().split('T')[0];
+    const todaysRecordForModal = editingEmployeeForReason ? attendance[editingEmployeeForReason.id]?.slice().reverse().find(rec => rec.timestamp.startsWith(today)) : null;
 
     return (
          <div className="space-y-6 animate-fade-in">
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Staff Performance & Attendance</h3>
-                 {isAdmin && (
+                 {canViewStaffPerformance && (
                       <Button onClick={onOpenAttendanceReport} variant="secondary" size="small">
                           <BarChart3 size={14} /> View Attendance Report
                       </Button>
@@ -761,41 +743,46 @@ const StaffPerformance: React.FC<{
                     </tr></thead>
                     <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                         {employeeStats.map(emp => {
-                            const today = new Date().toISOString().split('T')[0];
                             const todaysRecord = attendance[emp.id]?.slice().reverse().find(rec => rec.timestamp.startsWith(today));
-                            const isDesignationAdvisor = designations.find(d => d.id === emp.designationId)?.isAdvisor;
+                            const userRole = emp.roleId ? roleMap.get(emp.roleId) : null;
+                            const isEmpAdvisor = userRole?.isAdvisor === true;
 
                             return (
                             <tr key={emp.id}>
                                 <td className="px-4 py-2 font-medium text-gray-900 dark:text-white">
                                     {emp.name}
-                                    <p className="text-xs text-gray-500">{designationMap.get(emp.designationId) || emp.role}</p>
+                                    <p className="text-xs text-gray-500">{designationMap.get(emp.designationId) || 'N/A'}</p>
                                 </td>
-                                <td className="px-4 py-2">
-                                    {editingAttendanceId === emp.id ? (
-                                         <div className="flex gap-2">
-                                             <Button size="small" variant="success" onClick={() => { onUpdateAttendance(emp.id, 'Present'); setEditingAttendanceId(null); }}>P</Button>
-                                             <Button size="small" variant="danger" onClick={() => { onUpdateAttendance(emp.id, 'Absent', 'Admin Override'); setEditingAttendanceId(null); }}>A</Button>
-                                             <Button size="small" variant="light" onClick={() => setEditingAttendanceId(null)}><X size={12} /></Button>
-                                         </div>
+                                <td className="px-4 py-2 relative">
+                                     {attendanceMenuFor === emp.id ? (
+                                        <div className="absolute z-10 top-0 left-0 bg-white dark:bg-gray-900 shadow-lg rounded-lg p-2 flex items-center gap-2 border dark:border-gray-600">
+                                            <Button size="small" variant="light" className="!p-2" onClick={() => handleAdminMarkAttendance(emp, 'Present')} title="Present"><UsersIcon size={18}/></Button>
+                                            <Button size="small" variant="light" className="!p-2" onClick={() => handleAdminMarkAttendance(emp, 'Work From Home')} title="Work From Home"><Briefcase size={18}/></Button>
+                                            <Button size="small" variant="light" className="!p-2" onClick={() => handleAdminMarkAttendance(emp, 'Absent')} title="Absent"><X size={18}/></Button>
+                                            <div className="border-l h-6 mx-1 dark:border-gray-600"></div>
+                                            <Button size="small" variant="light" className="!p-2" onClick={() => setAttendanceMenuFor(null)} title="Cancel"><X size={18} className="text-red-500"/></Button>
+                                        </div>
                                     ) : todaysRecord ? (
-                                        <div className="flex items-center gap-2">
-                                            {todaysRecord.status === 'Present' ? (
-                                                <span className="text-green-600 font-semibold">Present</span>
-                                            ) : (
-                                                <span className="text-red-600 font-semibold">
-                                                    Absent
-                                                    {todaysRecord.reason && ` - ${todaysRecord.reason}`}
-                                                </span>
+                                        <div className="flex flex-col items-start">
+                                            <div className="flex items-center gap-2">
+                                                {todaysRecord.status === 'Present' && <span className="font-semibold text-green-600 dark:text-green-400 flex items-center gap-2"><UsersIcon size={14}/> Present</span>}
+                                                {todaysRecord.status === 'Work From Home' && <span className="font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-2"><Briefcase size={14}/> WFH</span>}
+                                                {todaysRecord.status === 'Absent' && <span className="font-semibold text-red-600 dark:text-red-400 flex items-center gap-2"><X size={14}/> Absent</span>}
+                                                
+                                                {canViewStaffPerformance && <Button size="small" variant="light" className="!p-1" onClick={() => setAttendanceMenuFor(emp.id)}><Edit2 size={12}/></Button>}
+                                            </div>
+                                            {todaysRecord.reason && todaysRecord.status === 'Absent' && (
+                                                <p className="text-xs text-gray-400 truncate max-w-[150px]" title={todaysRecord.reason}>{todaysRecord.reason}</p>
                                             )}
-                                            {isAdmin && <Button size="small" variant="light" className="!p-1" onClick={() => setEditingAttendanceId(emp.id)}><Edit2 size={12}/></Button>}
                                         </div>
                                     ) : (
-                                        <span className="text-gray-500 italic">Not Marked</span>
+                                        <button onClick={() => canViewStaffPerformance && setAttendanceMenuFor(emp.id)} className="text-gray-500 italic hover:text-gray-700 dark:hover:text-gray-300 disabled:cursor-not-allowed" disabled={!canViewStaffPerformance}>
+                                            Not Marked
+                                        </button>
                                     )}
                                 </td>
-                                <td className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">{isDesignationAdvisor ? `₹${emp.totalPremium.toLocaleString('en-IN')}` : 'N/A'}</td>
-                                <td className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">{isDesignationAdvisor ? `${emp.conversionRate}%` : 'N/A'}</td>
+                                <td className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">{isEmpAdvisor ? `₹${emp.totalPremium.toLocaleString('en-IN')}` : 'N/A'}</td>
+                                <td className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">{isEmpAdvisor ? `${emp.conversionRate}%` : 'N/A'}</td>
                                 <td className="px-4 py-2 text-right font-semibold text-gray-700 dark:text-gray-300">{emp.pendingTasks}</td>
                             </tr>
                             )
@@ -803,6 +790,29 @@ const StaffPerformance: React.FC<{
                     </tbody>
                 </table>
               </div>
+              
+              <Modal isOpen={isReasonModalOpen} onClose={() => setIsReasonModalOpen(false)}>
+                <div className="p-6">
+                    <h2 className="text-xl font-bold text-gray-800 dark:text-white">Reason for Absence</h2>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">For {editingEmployeeForReason?.name}</p>
+                </div>
+                <div className="p-6">
+                    <Input
+                        label="Reason"
+                        defaultValue={todaysRecordForModal?.reason || ''}
+                        onChange={(e) => {
+                            if (editingEmployeeForReason) {
+                                handleSaveReason(e.target.value);
+                            }
+                        }}
+                        placeholder="Enter reason..."
+                        autoFocus
+                    />
+                </div>
+                <div className="flex justify-end p-6 gap-3 border-t border-gray-200 dark:border-gray-700">
+                    <Button variant="primary" onClick={() => setIsReasonModalOpen(false)}>Close</Button>
+                </div>
+              </Modal>
         </div>
     );
 };
@@ -818,13 +828,24 @@ const ReportsAndInsights: React.FC<{
     currentUser: User | null;
     leadSources: LeadSourceMaster[];
     schemes: SchemeMaster[];
-    insuranceTypes: InsuranceTypeMaster[]; // NEW PROP
+    insuranceTypes: InsuranceTypeMaster[];
     onOpenAttendanceReport: () => void;
-    designations: Designation[]; // ADDED
-}> = ({ members, users, tasks, attendance, onUpdateAttendance, addToast, allLeads, currentUser, leadSources, schemes, insuranceTypes, onOpenAttendanceReport, designations }) => {
+    designations: Designation[];
+    roles: Role[];
+    permissions: { [key in AppModule]?: PermissionLevel };
+}> = ({ members, users, tasks, attendance, onUpdateAttendance, addToast, allLeads, currentUser, leadSources, schemes, insuranceTypes, onOpenAttendanceReport, designations, roles, permissions }) => {
     type ReportTab = 'staff' | 'schemes' | 'trends' | 'leadAnalytics';
     const [activeReportTab, setActiveReportTab] = useState<ReportTab>('schemes');
-    const isAdmin = useMemo(() => designations.find(d => d.id === currentUser?.designationId)?.name === 'Admin', [currentUser, designations]);
+    const canViewStaffPerformance = useMemo(() => {
+        const employeesPermission = permissions?.employees;
+        const reportsPermission = permissions['reports & insights'];
+        return (employeesPermission === 'view' || employeesPermission === 'create' || employeesPermission === 'modify') ||
+               (reportsPermission === 'view' || reportsPermission === 'create' || reportsPermission === 'modify');
+    }, [permissions]);
+    const canViewBusinessTrends = useMemo(() => {
+        const reportsPermission = permissions['reports & insights'];
+        return reportsPermission === 'view' || reportsPermission === 'create' || reportsPermission === 'modify';
+    }, [permissions]);
 
     const ReportTabButton = ({ label, isActive, onClick }: {label: string, isActive: boolean, onClick: () => void}) => (
         <button onClick={onClick} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${isActive ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'}`}>{label}</button>
@@ -834,16 +855,16 @@ const ReportsAndInsights: React.FC<{
         <div className="space-y-6">
             <div className="bg-white dark:bg-gray-800 p-2 rounded-lg shadow-sm border dark:border-gray-700">
                 <div className="flex items-center gap-2">
-                    <ReportTabButton label="Staff Performance" isActive={activeReportTab === 'staff'} onClick={() => setActiveReportTab('staff')} />
+                    {canViewStaffPerformance && <ReportTabButton label="Staff Performance" isActive={activeReportTab === 'staff'} onClick={() => setActiveReportTab('staff')} />}
                     <ReportTabButton label="Scheme Conversion" isActive={activeReportTab === 'schemes'} onClick={() => setActiveReportTab('schemes')} />
                     <ReportTabButton label="Lead Analytics" isActive={activeReportTab === 'leadAnalytics'} onClick={() => setActiveReportTab('leadAnalytics')} />
-                    {isAdmin && <ReportTabButton label="Business Trends" isActive={activeReportTab === 'trends'} onClick={() => setActiveReportTab('trends')} />}
+                    {canViewBusinessTrends && <ReportTabButton label="Business Trends" isActive={activeReportTab === 'trends'} onClick={() => setActiveReportTab('trends')} />}
                 </div>
             </div>
-            {activeReportTab === 'staff' && <StaffPerformance {...{ members, users, tasks, attendance, onUpdateAttendance, allLeads, currentUser, onOpenAttendanceReport, designations }} />}
+            {activeReportTab === 'staff' && canViewStaffPerformance && <StaffPerformance {...{ members, users, tasks, attendance, onUpdateAttendance, allLeads, currentUser, onOpenAttendanceReport, designations, roles, permissions }} />}
             {activeReportTab === 'schemes' && <SchemeConversionReports members={members} leads={allLeads} schemes={schemes} insuranceTypes={insuranceTypes} />}
             {activeReportTab === 'leadAnalytics' && <LeadAnalyticsReports members={members} leadSources={leadSources} />}
-            {activeReportTab === 'trends' && isAdmin && <BusinessTrendsReports members={members} />}
+            {activeReportTab === 'trends' && canViewBusinessTrends && <BusinessTrendsReports members={members} />}
         </div>
     );
 };
@@ -985,19 +1006,19 @@ const initialBankMasters: BankMaster[] = [
 
 const initialBusinessVerticals: BusinessVertical[] = [ { id: 'bv-1', name: 'Insurance', active: true, order: 0 }, { id: 'bv-2', name: 'Mutual Funds', active: true, order: 1 }, { id: 'bv-3', name: 'Agent Appointments (SA)', active: true, order: 2 }, ];
 const initialLeadSources: LeadSourceMaster[] = [
-    { id: 'ls-adv', name: 'Advertisement', parentId: null, active: true, order: 0 },
+    { id: 'ls-adv', name: 'Advertisement', parentId: null, active: true, order: 0, allowReferrerSelection: true  },
     { id: 'ls-dm', name: 'Digital Media', parentId: 'ls-adv', active: true, order: 0 },
     { id: 'ls-fb', name: 'Facebook', parentId: 'ls-dm', active: true, order: 0 },
     { id: 'ls-ig', name: 'Instagram', parentId: 'ls-dm', active: true, order: 1 },
     { id: 'ls-pm', name: 'Print Media', parentId: 'ls-adv', active: true, order: 1 },
     { id: 'ls-cc', name: 'Cold Call', parentId: null, active: true, order: 1 },
-    { id: 'ls-ec', name: 'Existing Client', parentId: null, active: true, order: 2 },
+    { id: 'ls-ec', name: 'Existing Client', parentId: null, active: true, order: 2, allowReferrerSelection: true }, 
     { id: 'ls-inst', name: 'Institution', parentId: null, active: true, order: 3 },
     { id: 'ls-bni', name: 'BNI', parentId: 'ls-inst', active: true, order: 0 },
     { id: 'ls-lions', name: 'Lions', parentId: 'ls-inst', active: true, order: 1 },
     { id: 'ls-rotary', name: 'Rotary', parentId: 'ls-inst', active: true, order: 2 },
     { id: 'ls-of', name: 'Other Forum', parentId: null, active: true, order: 4 },
-    { id: 'ls-ref', name: 'Referral', parentId: null, active: true, order: 5 },
+    { id: 'ls-ref', name: 'Referral', parentId: null, active: true, order: 5, allowReferrerSelection: true },
     { id: 'ls-friend', name: 'Friend', parentId: 'ls-ref', active: true, order: 0 },
     { id: 'ls-other', name: 'Other', parentId: 'ls-ref', active: true, order: 1 },
     { id: 'ls-relative', name: 'Relative', parentId: 'ls-ref', active: true, order: 2 },
@@ -1060,12 +1081,11 @@ const initialSchemes: SchemeMaster[] = [
 const initialDocumentMasters: DocumentMaster[] = [ {id:'doc-1', name: 'PAN Card', active: true, order: 0}, {id:'doc-2', name: 'Aadhaar Card', active: true, order: 1}, {id:'doc-3', name: 'Passport', active: true, order: 2}, {id:'doc-4', name: 'Driving License', active: true, order: 3}, {id:'doc-5', name: 'Bank Statement', active: true, order: 4}, ];
 const initialGiftMasters: GiftMaster[] = [ {id:'gift-1', name: 'Premium Pen Set', active: true, order: 0}, {id:'gift-2', name: 'Leather Wallet', active: true, order: 1}, {id:'gift-3', name: 'Amazon Gift Card ₹500', active: true, order: 2}, {id:'gift-4', name: 'Custom Diary 2024', active: true, order: 3}, ];
 const initialTaskStatusMasters: TaskStatusMaster[] = [
-    {id:'ts-6', name: 'Assigned', active: true, order: 0},
-    {id:'ts-1', name: 'Pending', active: true, order: 1},
-    {id:'ts-5', name: 'Viewed', active: true, order: 2},
-    {id:'ts-2', name: 'In Progress', active: true, order: 3},
-    {id:'ts-3', name: 'Completed', active: true, order: 4},
-    {id:'ts-4', name: 'Cancelled', active: true, order: 5},
+    {id:'ts-1', name: 'Pending', active: true, order: 0},
+    {id:'ts-5', name: 'Viewed', active: true, order: 1, isInitialState: true},
+    {id:'ts-2', name: 'In Progress', active: true, order: 2},
+    {id:'ts-3', name: 'Completed', active: true, order: 3, isEndState: true},
+    {id:'ts-4', name: 'Cancelled', active: true, order: 4, isEndState: true},
 ];
 const initialCustomerCategories: CustomerCategory[] = [ {id:'cc-1', name: 'Salaried', active: true, order: 0}, {id:'cc-2', name: 'Business', active: true, order: 1}, {id:'cc-3', name: 'Professional', active: true, order: 2}, ];
 const initialCustomerSubCategories: CustomerSubCategory[] = [
@@ -1098,19 +1118,7 @@ const initialAccountTypes: AccountType[] = [
     { id: 'at-3', name: 'Cash Credit Account', active: true, order: 2 },
 ];
 
-const initialPolicyChecklistMasters: PolicyChecklistMaster[] = [
-    // --- ROOT NODES ---
-    { id: 'pcl-root-it-life', name: 'Life Insurance', parentId: null, policyType: 'Life Insurance', active: true, order: 0 },
-    { id: 'pcl-root-it-health', name: 'Health Insurance', parentId: null, policyType: 'Health Insurance', active: true, order: 1 },
-    { id: 'pcl-root-it-general', name: 'General Insurance', parentId: null, policyType: 'General Insurance', active: true, order: 2 },
-    
-    // --- CHILDREN (EXAMPLES) ---
-    { id: 'pcl-life-1', name: 'ID Proof (Aadhaar, PAN, Passport, Voter ID, etc.)', parentId: 'pcl-root-it-life', policyType: 'Life Insurance', active: true, order: 0 },
-    { id: 'pcl-life-2', name: 'Address Proof (Utility bill, Aadhaar, Rental Agreement)', parentId: 'pcl-root-it-life', policyType: 'Life Insurance', active: true, order: 1 },
-    { id: 'pcl-health-1', name: 'Previous Insurance Details', parentId: 'pcl-root-it-health', policyType: 'Health Insurance', active: true, order: 0 },
-    { id: 'pcl-motor-1', name: 'Vehicle Registration Certificate (RC)', parentId: 'pcl-root-it-general', policyType: 'General Insurance', active: true, order: 0 },
-
-];
+/* --- REMOVED: `initialPolicyChecklistMasters` is no longer needed --- */
 
 const initialInsuranceTypes: InsuranceTypeMaster[] = [
     // Parent Types
@@ -1165,9 +1173,9 @@ const initialInsuranceFields: InsuranceFieldMaster[] = [
 ];
 
 const initialTasks: Task[] = [
-    { id: 'task-1', triggeringPoint: 'New Policy', taskDescription: 'Follow up for LIC documents', expectedCompletionDateTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), isCompleted: false, isShared: true, memberId: '1', primaryContactPerson: 'user-2', statusId: 'ts-1', taskType: 'Auto', active: true },
-    { id: 'task-2', triggeringPoint: 'Manual', taskDescription: 'Schedule meeting with Kavya Reddy', expectedCompletionDateTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), isCompleted: false, isShared: false, memberId: '3', primaryContactPerson: 'user-3', statusId: 'ts-2', taskType: 'Manual', active: true },
-    { id: 'task-3', triggeringPoint: 'Manual', taskDescription: 'Prepare weekly report for management', expectedCompletionDateTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), isCompleted: false, isShared: false, primaryContactPerson: 'user-2', statusId: 'ts-1', taskType: 'Manual', active: true },
+    { id: 'task-1', triggeringPoint: 'New Policy', taskDescription: 'Follow up for LIC documents', expectedCompletionDateTime: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), isCompleted: false, memberId: '1', primaryContactPerson: 'user-2', statusId: 'ts-1', taskType: 'Auto', active: true },
+    { id: 'task-2', triggeringPoint: 'Manual', taskDescription: 'Schedule meeting with Kavya Reddy', expectedCompletionDateTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), isCompleted: false, memberId: '3', primaryContactPerson: 'user-3', statusId: 'ts-2', taskType: 'Manual', active: true },
+    { id: 'task-3', triggeringPoint: 'Manual', taskDescription: 'Prepare weekly report for management', expectedCompletionDateTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), isCompleted: false, primaryContactPerson: 'user-2', statusId: 'ts-1', taskType: 'Manual', active: true },
 ];
 
 // --- NEW MOCK DATA for P&L ---
@@ -1204,8 +1212,8 @@ const initialIncomeCategoriesLevel2: IncomeCategoryLevel2[] = [
 
 
 const initialExpenses: Expense[] = [
-    { id: 'exp-1', date: '2025-08-26', categoryLevel1Id: 'exp1-1', categoryLevel2Id: 'exp2-3', categoryLevel3Id: 'exp3-1', amount: 500, description: 'Cab fare for client visit', paidTo: 'Ola Cabs', createdBy: 'user-1' },
-    { id: 'exp-2', date: '2025-08-25', categoryLevel1Id: 'exp1-2', categoryLevel2Id: 'exp2-5', categoryLevel3Id: 'exp3-2', amount: 1200, description: 'Google Ads Campaign', paidTo: 'Google', createdBy: 'user-2' },
+    { id: 'exp-1', date: '2025-08-26', categoryLevel1Id: 'exp1-1', categoryLevel2Id: 'exp2-3', categoryLevel3Id: 'exp3-1', amount: 500, description: 'Cab fare for client visit', paidTo: 'Ola Cabs', createdBy: 'user-1', finYearId: 'fy-2' },
+    { id: 'exp-2', date: '2025-08-25', categoryLevel1Id: 'exp1-2', categoryLevel2Id: 'exp2-5', categoryLevel3Id: 'exp3-2', amount: 1200, description: 'Google Ads Campaign', paidTo: 'Google', createdBy: 'user-2', finYearId: 'fy-2' },
 ];
 
 const initialManualIncomes: ManualIncome[] = [
@@ -1245,7 +1253,7 @@ const App: React.FC = () => {
 
     // --- Authentication and Page Routing State ---
     const [currentUser, setCurrentUser] = useState<User | null>(null);
-    const [activeFinancialYearId, setActiveFinancialYearId] = useState<string | null>(null); // NEW
+    const [activeFinancialYearId, setActiveFinancialYearId] = useState<string | null>(null);
 
     // --- Data Loading and State Management ---
     const [isLoading, setIsLoading] = useState(true);
@@ -1253,12 +1261,13 @@ const App: React.FC = () => {
 
     // --- Core Data State ---
     const [allMembers, setAllMembers] = useState<Member[]>([]);
-    const [allLeads, setAllLeads] = useState<Lead[]>([]);
+       const [allLeads, setAllLeads] = useState<Lead[]>([]);
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [routes, setRoutes] = useState<RouteType[]>([]);
     const [allTasks, setAllTasks] = useState<Task[]>(initialTasks);
     const [designations, setDesignations] = useState<Designation[]>([]);
-    const [designationPermissions, setDesignationPermissions] = useState<DesignationPermissions[]>([]);
+    const [roles, setRoles] = useState<Role[]>([]); // --- NEW: State for Roles ---
+    const [rolePermissions, setRolePermissions] = useState<RolePermissions[]>([]); // --- RENAMED and type updated ---
 
 
     // --- Modal States ---
@@ -1294,7 +1303,6 @@ const App: React.FC = () => {
     const [upsellOpportunities, setUpsellOpportunities] = useState<UpsellOpportunity[]>([]);
     const [automationRules, setAutomationRules] = useState<AutomationRule[]>(initialAutomationRules);
     const [customMessages, setCustomMessages] = useState<CustomScheduledMessage[]>([]);
-    // MODIFICATION: Removed processFlow state
     const [docTemplates, setDocTemplates] = useState<DocTemplate[]>(initialDocTemplates);
     const [attendance, setAttendance] = useState<AttendanceState>({});
     
@@ -1340,13 +1348,13 @@ const App: React.FC = () => {
     const [businessVerticals, setBusinessVerticals] = useState<BusinessVertical[]>(initialBusinessVerticals);
     const [leadSources, setLeadSources] = useState<LeadSourceMaster[]>(initialLeadSources);
     const [schemes, setSchemes] = useState<SchemeMaster[]>(initialSchemes);
-    // --- FIX: Renamed state for clarity ---
     const [agencies, setAgencies] = useState<Company[]>(initialAgencies);
     const [operatingCompanies, setOperatingCompanies] = useState<Company[]>([]);
     const [geographies, setGeographies] = useState<Geography[]>(generateInitialGeographies());
     const [relationshipTypes, setRelationshipTypes] = useState<RelationshipType[]>([]);
     const [documentMasters, setDocumentMasters] = useState<DocumentMaster[]>(initialDocumentMasters);
-    const [schemeDocumentMappings, setSchemeDocumentMappings] = useState<SchemeDocumentMapping[]>([]);
+    // const [schemeDocumentMappings, setSchemeDocumentMappings] = useState<SchemeDocumentMapping[]>([]); // --- REMOVED ---
+    const [insuranceTypeDocumentRules, setInsuranceTypeDocumentRules] = useState<InsuranceTypeDocumentRule[]>([]); // --- ADDED ---
     const [giftMasters, setGiftMasters] = useState<GiftMaster[]>(initialGiftMasters);
     const [taskStatusMasters, setTaskStatusMasters] = useState<TaskStatusMaster[]>(initialTaskStatusMasters);
     const [customerCategories, setCustomerCategories] = useState<CustomerCategory[]>(initialCustomerCategories);
@@ -1354,15 +1362,14 @@ const App: React.FC = () => {
     const [accountTypes, setAccountTypes] = useState<AccountType[]>(initialAccountTypes);
     const [allBranches, setAllBranches] = useState<FinRootsBranch[]>([]);
     const [finrootsCompanyInfo, setFinrootsCompanyInfo] = useState<FinRootsCompanyInfo>(initialFinrootsCompanyInfo);
-    // NEW MASTER DATA STATE
     const [customerSubCategories, setCustomerSubCategories] = useState<CustomerSubCategory[]>(initialCustomerSubCategories);
     const [customerGroups, setCustomerGroups] = useState<CustomerGroup[]>(initialCustomerGroups);
     const [taskMasters, setTaskMasters] = useState<TaskMaster[]>(initialTaskMasters);
     const [customerFieldMasters, setCustomerFieldMasters] = useState<CustomerFieldMaster[]>(initialCustomerFields);
-    const [policyChecklistMasters, setPolicyChecklistMasters] = useState<PolicyChecklistMaster[]>(initialPolicyChecklistMasters);
+    // const [policyChecklistMasters, setPolicyChecklistMasters] = useState<PolicyChecklistMaster[]>(initialPolicyChecklistMasters); // --- REMOVED ---
     const [insuranceTypes, setInsuranceTypes] = useState<InsuranceTypeMaster[]>(initialInsuranceTypes);
     const [insuranceFields, setInsuranceFields] = useState<InsuranceFieldMaster[]>(initialInsuranceFields);
-    const [customerTiers, setCustomerTiers] = useState<CustomerTier[]>([]); // MODIFIED: Start empty, will be hydrated
+    const [customerTiers, setCustomerTiers] = useState<CustomerTier[]>([]);
     const [customerTierCalculationMethod, setCustomerTierCalculationMethod] = useState<TierCalculationMethod>('sumAssured');
     const [expenseCategoriesLevel1, setExpenseCategoriesLevel1] = useState<ExpenseCategoryLevel1[]>(initialExpenseCategoriesLevel1);
     const [expenseCategoriesLevel2, setExpenseCategoriesLevel2] = useState<ExpenseCategoryLevel2[]>(initialExpenseCategoriesLevel2);
@@ -1378,16 +1385,11 @@ const App: React.FC = () => {
     const [upsellCategories, setUpsellCategories] = useState<UpsellCategory[]>([]); 
     const [amcs, setAmcs] = useState<AMC[]>(initialAmcs);
     const [mutualFundSchemes, setMutualFundSchemes] = useState<MutualFundScheme[]>(initialMutualFundSchemes);
-    const [mutualFundFields, setMutualFundFields] = useState<MutualFundFieldMaster[]>(initialMutualFundFields); // NEW STATE
-    // --- NEW STATES FOR NEW MASTER DATA ---
+    const [mutualFundFields, setMutualFundFields] = useState<MutualFundFieldMaster[]>(initialMutualFundFields);
     const [genders, setGenders] = useState<Gender[]>([]);
     const [maritalStatuses, setMaritalStatuses] = useState<MaritalStatus[]>([]);
     const [customerTypes, setCustomerTypes] = useState<CustomerType[]>([]);
-    // MODIFICATION START: New state for process stage masters
     const [processStageMasters, setProcessStageMasters] = useState<ProcessStageMaster[]>([]);
-    // MODIFICATION END
-
-    // --- NEW: Financial Year State ---
     const [financialYears, setFinancialYears] = useState<FinancialYear[]>([]);
     const [documentNumbering, setDocumentNumbering] = useState<DocumentNumbering[]>([]);
     const [manualReceipts, setManualReceipts] = useState<ManualReceipt[]>([]);
@@ -1399,57 +1401,77 @@ const App: React.FC = () => {
     const companyUsers = useMemo(() => allUsers.filter(u => u.companyId === currentUser?.companyId), [allUsers, currentUser]);
     const companyBranches = useMemo(() => allBranches.filter(b => b.companyId === currentUser?.companyId && b.active), [allBranches, currentUser]);
 
-    // NEW: Centralized permissions logic
+    // --- MODIFIED: CENTRALIZED PERMISSION LOGIC (NOW BASED ON ROLE) ---
     const currentUserPermissions = useMemo(() => {
-        if (!currentUser || !designationPermissions) return {};
-
-        // 1. Get the base permissions from the user's designation
-        const designationPerms = designationPermissions.find(p => p.designationId === currentUser.designationId);
-        const basePermissions = designationPerms?.permissions || {};
-
-        // 2. Get the user-specific overrides from their profile
-        const userOverrides = currentUser.profile?.permissions || {};
-
-        // 3. Merge them, with user overrides taking precedence
-        const finalPermissions = { ...basePermissions, ...userOverrides };
-        
-        // Ensure all modules have a default 'none' permission if not specified
+        const finalPermissions: { [key in AppModule]?: PermissionLevel } = {};
         const allModules: AppModule[] = [
             'dashboard', 'reports & insights', 'profitAndLoss', 'calendar', 'employees', 'pipeline', 'customers', 
             'taskManagement', 'policies', 'notes', 'actionHub', 'servicesHub', 'location', 'chatbot', 'masterMember', 
             'advancedReports', 'upselling', 'mutualFunds'
         ];
-        
+
+        // Default all permissions to 'none'
         for (const module of allModules) {
-            if (!finalPermissions[module]) {
-                finalPermissions[module] = 'none';
-            }
+            finalPermissions[module] = 'none';
         }
 
+        if (!currentUser || !currentUser.roleId || !rolePermissions) {
+            return finalPermissions as { [key in AppModule]: PermissionLevel };
+        }
+
+        // 1. Get the base permissions from the user's role
+        const rolePerms = rolePermissions.find(p => p.roleId === currentUser.roleId);
+        const basePermissions = rolePerms?.permissions || {};
+
+        // 2. Get the user-specific overrides from their profile
+        const userOverrides = currentUser.profile?.permissions || {};
+        
+        // 3. Merge them, with role permissions first, then user overrides
+        Object.assign(finalPermissions, basePermissions, userOverrides);
+        
+        // Advisor-specific override for Task Management
+        const userRole = roles.find(r => r.id === currentUser.roleId);
+        if (userRole?.isAdvisor) {
+            finalPermissions.taskManagement = 'modify'; // Allow status changes and reassign
+        }
+        
         return finalPermissions as { [key in AppModule]: PermissionLevel };
 
-    }, [currentUser, designationPermissions]);
+    }, [currentUser, rolePermissions, roles]);
 
-        // --- NEW: Filtered leads for the pipeline view ---
+    // MODIFIED: This logic now uses role to determine if a user is an advisor
     const leadsForPipeline = useMemo(() => {
-        if (currentUser?.designationId === 'des-admin') {
+        const userRole = roles.find(r => r.id === currentUser?.roleId);
+        if (!userRole || !userRole.isAdvisor) { // Admin and other non-advisors see all
             return companyLeads;
         }
+        // Advisors see only leads assigned to them or created by them
         return companyLeads.filter(lead => lead.assignedTo === currentUser?.id || lead.createdBy === currentUser?.id);
-    }, [companyLeads, currentUser]);
+    }, [companyLeads, currentUser, roles]);
     
-    // MODIFIED: This logic now calculates based on the active financial year
-    const lastVoucherNumber = useMemo(() => {
-        if (!activeFinancialYearId) return 0;
-        const expensesInYear = expenses.filter(e => e.finYearId === activeFinancialYearId && e.voucherNo);
-        return expensesInYear.length;
-    }, [expenses, activeFinancialYearId]);
+    // --- START OF FIX: Determine true current FY and fix numbering calculations ---
+    const trueCurrentFinancialYear = useMemo(() => {
+        const now = new Date();
+        return financialYears.find(fy => {
+            const from = new Date(fy.fromDate);
+            const to = new Date(fy.toDate);
+            to.setHours(23, 59, 59, 999); // Ensure 'to' date is inclusive
+            return now >= from && now <= to && fy.status === 'Active';
+        }) || null;
+    }, [financialYears]);
 
-    // NEW: Calculate last receipt number for the active financial year
+    const lastVoucherNumber = useMemo(() => {
+        if (!trueCurrentFinancialYear) return 0;
+        const expensesInYear = expenses.filter(e => e.finYearId === trueCurrentFinancialYear.id && e.voucherNo);
+        return expensesInYear.length;
+    }, [expenses, trueCurrentFinancialYear]);
+
     const lastReceiptNumber = useMemo(() => {
-        if (!activeFinancialYearId) return 0;
-        return manualReceipts.filter(r => r.finYearId === activeFinancialYearId).length;
-    }, [manualReceipts, activeFinancialYearId]);
+        if (!trueCurrentFinancialYear) return 0;
+        return manualReceipts.filter(r => r.finYearId === trueCurrentFinancialYear.id).length;
+    }, [manualReceipts, trueCurrentFinancialYear]);
+    // --- END OF FIX ---
+
 
     const handleDismissFocusItem = useCallback((itemId: string) => {
         setDismissedFocusItems(prev => [...prev, itemId]);
@@ -1487,6 +1509,7 @@ const App: React.FC = () => {
         
     }, [allMembers, customerTiers, calculateMemberTier, addToast]);
 
+    // --- MASTER DATA HANDLERS ---
     const handleUpdateBusinessVerticals = useCallback((newData: BusinessVertical[]) => setBusinessVerticals([...newData]), []);
     const handleUpdateLeadSources = useCallback((newData: LeadSourceMaster[]) => setLeadSources([...newData]), []);
     const handleUpdateSchemes = useCallback((newData: SchemeMaster[]) => setSchemes([...newData]), []);
@@ -1494,7 +1517,8 @@ const App: React.FC = () => {
     const handleUpdateGeographies = useCallback((newData: Geography[]) => setGeographies([...newData]), []);
     const handleUpdateRelationshipTypes = useCallback((newData: RelationshipType[]) => setRelationshipTypes([...newData]), []);
     const handleUpdateDocumentMasters = useCallback((newData: DocumentMaster[]) => setDocumentMasters([...newData]), []);
-    const handleUpdateSchemeDocumentMappings = useCallback((newData: SchemeDocumentMapping[]) => setSchemeDocumentMappings([...newData]), []);
+    // const handleUpdateSchemeDocumentMappings = useCallback((newData: SchemeDocumentMapping[]) => setSchemeDocumentMappings([...newData]), []); // --- REMOVED ---
+    const handleUpdateInsuranceTypeDocumentRules = useCallback((newData: InsuranceTypeDocumentRule[]) => setInsuranceTypeDocumentRules([...newData]), []); // --- ADDED ---
     const handleUpdateGiftMasters = useCallback((newData: GiftMaster[]) => setGiftMasters([...newData]), []);
     const handleUpdateTaskStatusMasters = useCallback((newData: TaskStatusMaster[]) => setTaskStatusMasters([...newData]), []);
     const handleUpdateCustomerCategories = useCallback((newData: CustomerCategory[]) => setCustomerCategories([...newData]), []);
@@ -1503,7 +1527,7 @@ const App: React.FC = () => {
     const handleUpdateCustomerSubCategories = useCallback((newData: CustomerSubCategory[]) => setCustomerSubCategories([...newData]), []);
     const handleUpdateCustomerGroups = useCallback((newData: CustomerGroup[]) => setCustomerGroups([...newData]), []);
     const handleUpdateTaskMasters = useCallback((newData: TaskMaster[]) => setTaskMasters([...newData]), []);
-    const handleUpdatePolicyChecklistMasters = useCallback((newData: PolicyChecklistMaster[]) => setPolicyChecklistMasters([...newData]), []);
+    // const handleUpdatePolicyChecklistMasters = useCallback((newData: PolicyChecklistMaster[]) => setPolicyChecklistMasters([...newData]), []); // --- REMOVED ---
     const handleUpdateInsuranceTypes = useCallback((newData: InsuranceTypeMaster[]) => setInsuranceTypes([...newData]), []);
     const handleUpdateInsuranceFields = useCallback((newData: InsuranceFieldMaster[]) => setInsuranceFields([...newData]), []);
     const handleUpdateRoutes = useCallback((newData: RouteType[]) => setRoutes([...newData]), []);
@@ -1519,14 +1543,14 @@ const App: React.FC = () => {
     const handleUpdateFestivalDates = useCallback((newData: FestivalDate[]) => setFestivalDates([...newData]), []);
     const handleUpdateAmcs = useCallback((newData: AMC[]) => setAmcs([...newData]), []);
     const handleUpdateMutualFundSchemes = useCallback((newData: MutualFundScheme[]) => setMutualFundSchemes([...newData]), []);
-    const handleUpdateMutualFundFields = useCallback((newData: MutualFundFieldMaster[]) => setMutualFundFields([...newData]), []); // NEW
+    const handleUpdateMutualFundFields = useCallback((newData: MutualFundFieldMaster[]) => setMutualFundFields([...newData]), []);
     const handleUpdateAgencies = useCallback((newData: Company[]) => setAgencies(newData), []);
     const handleUpdateDesignations = useCallback((newData: Designation[]) => setDesignations(newData), []);
-    // --- NEW HANDLERS ---
+    const handleUpdateRoles = useCallback((newData: Role[]) => setRoles(newData), []); // --- NEW ---
     const handleUpdateGenders = useCallback((newData: Gender[]) => setGenders([...newData]), []);
     const handleUpdateMaritalStatuses = useCallback((newData: MaritalStatus[]) => setMaritalStatuses([...newData]), []);
     const handleUpdateCustomerTypes = useCallback((newData: CustomerType[]) => setCustomerTypes([...newData]), []);
-    // MODIFICATION START: New handler for process stage masters
+    
     const handleUpdateProcessStageMasters = useCallback(async (newData: ProcessStageMaster[]) => {
         try {
             const updated = await updateProcessStageMasters(newData);
@@ -1536,9 +1560,18 @@ const App: React.FC = () => {
             addToast(`Failed to update process flow: ${(error as Error).message}`, 'error');
         }
     }, [addToast]);
-    // MODIFICATION END
+    
+    // --- MODIFIED: Permissions handler ---
+    const handleUpdateRolePermissions = useCallback(async (permissions: RolePermissions) => {
+        try {
+            const updated = await updateRolePermissions(permissions);
+            setRolePermissions(prev => prev.map(p => p.roleId === updated.roleId ? updated : p));
+            addToast('Role permissions updated successfully!', 'success');
+        } catch (error) {
+            addToast(`Failed to update permissions: ${(error as Error).message}`, 'error');
+        }
+    }, [addToast]);
 
-    // --- NEW: Handlers for Financial Year System ---
     const handleUpdateFinancialYears = useCallback(async (newData: FinancialYear[]) => {
         try {
             const updated = await updateFinancialYears(newData);
@@ -1553,16 +1586,6 @@ const App: React.FC = () => {
             setDocumentNumbering(updated);
             addToast('Document Numbering rules updated successfully!', 'success');
         } catch(e) { addToast('Failed to update Document Numbering rules.', 'error'); }
-    }, [addToast]);
-
-    const handleUpdateDesignationPermissions = useCallback(async (permissions: DesignationPermissions) => {
-        try {
-            const updated = await updateDesignationPermissions(permissions);
-            setDesignationPermissions(prev => prev.map(p => p.designationId === updated.designationId ? updated : p));
-            addToast('Designation permissions updated successfully!', 'success');
-        } catch (error) {
-            addToast(`Failed to update permissions: ${(error as Error).message}`, 'error');
-        }
     }, [addToast]);
     
 
@@ -1690,22 +1713,42 @@ const App: React.FC = () => {
         addToast(`Voucher ${voucherNo} has been saved successfully.`, 'success');
     }, [expenses, currentUser, expenseCategoriesLevel1, expenseCategoriesLevel2, expenseCategoriesLevel3, addToast]);
 
-    // --- CORRECTION: handleSaveReceipt now correctly maps line items with IDs ---
-    const handleSaveReceipt = useCallback((data: Omit<ReceiptSaveData, 'createdBy'>) => {
+    const handleSaveReceipt = useCallback((data: Omit<ReceiptSaveData, 'createdBy' | 'id'> & { id?: string }) => {
         if (!currentUser) return;
-        const newReceipt: ManualReceipt = {
-            ...data,
-            id: `rec-${Date.now()}`,
-            createdBy: currentUser.id,
-            // FIX: Add a unique ID to each line item before saving to state
-            lineItems: data.lineItems.map((item, index) => ({
-                ...item,
-                id: `li-${Date.now()}-${index}`
-            }))
-        };
-        setManualReceipts(prev => [...prev, newReceipt]);
-        addToast(`Receipt ${data.receiptNo} created successfully!`, 'success');
-    }, [currentUser, addToast]);
+
+        if (data.id) {
+            const updatedReceipt: ManualReceipt = {
+                ...data,
+                id: data.id,
+                createdBy: manualReceipts.find(r => r.id === data.id)?.createdBy || currentUser.id,
+                lineItems: data.lineItems.map((item, index) => ({
+                    ...item,
+                    id: `li-${data.id}-${index}`
+                }))
+            };
+            setManualReceipts(prev => prev.map(r => r.id === data.id ? updatedReceipt : r));
+            addToast(`Receipt ${data.receiptNo} updated successfully!`, 'success');
+        } 
+        else {
+            const newReceipt: ManualReceipt = {
+                ...data,
+                id: `rec-${Date.now()}`,
+                createdBy: currentUser.id,
+                lineItems: data.lineItems.map((item, index) => ({
+                    ...item,
+                    id: `li-${Date.now()}-${index}`
+                }))
+            };
+            setManualReceipts(prev => [...prev, newReceipt]);
+            addToast(`Receipt ${data.receiptNo} created successfully!`, 'success');
+        }
+    }, [currentUser, addToast, manualReceipts]);
+    
+    const handleDeleteManualReceipt = useCallback((receiptId: string) => {
+        setManualReceipts(prev => prev.filter(r => r.id !== receiptId));
+        addToast("Receipt deleted successfully.", "success");
+    }, [addToast]);
+
 
     const handleDeleteVoucher = useCallback((voucherNo: string) => {
         setExpenses(prev => prev.filter(exp => exp.voucherNo !== voucherNo));
@@ -1762,20 +1805,20 @@ const App: React.FC = () => {
     }, [currentUser, isLoading, fetchTodaysFocus]);
 
 
-     // --- DATA FETCHING (MODIFIED) ---
+     // --- MODIFIED: DATA FETCHING (Now includes Roles and new document rules) ---
     useEffect(() => {
         const loadData = async () => {
             setIsLoading(true);
             try {
-                // MODIFICATION: Added FY-related fetches
                 const [
                     membersData, leadsData, usersData, routesData, opCompaniesData, branchesData, 
                     religionsData, festivalsData, relationshipTypesData, festivalDatesData, upsellCategoriesData,
-                    designationsData, designationPermissionsData,
+                    designationsData, rolesData, rolePermissionsData,
                     gendersData, maritalStatusesData, customerTypesData,
                     customerTiersData,
                     processStagesData,
-                    financialYearsData, documentNumberingData // NEW
+                    financialYearsData, documentNumberingData,
+                    insuranceTypeDocumentRulesData // --- ADDED ---
                 ] = await Promise.all([
                     getMembers(),
                     getLeads(),
@@ -1789,14 +1832,16 @@ const App: React.FC = () => {
                     getFestivalDates(),
                     getUpsellCategories(),
                     getDesignations(),
-                    getDesignationPermissions(),
+                    getRoles(),
+                    getRolePermissions(),
                     getGenders(), 
                     getMaritalStatuses(), 
                     getCustomerTypes(), 
                     getCustomerTiers(),
                     getProcessStageMasters(),
-                    getFinancialYears(), // NEW
-                    getDocumentNumbering() // NEW
+                    getFinancialYears(),
+                    getDocumentNumbering(),
+                    getInsuranceTypeDocumentRules() // --- ADDED ---
                 ]);
                 setAllMembers(membersData);
                 setAllLeads(leadsData);
@@ -1810,18 +1855,20 @@ const App: React.FC = () => {
                 setFestivalDates(festivalDatesData);
                 setUpsellCategories(upsellCategoriesData);
                 setDesignations(designationsData);
-                setDesignationPermissions(designationPermissionsData);
+                setRoles(rolesData);
+                setRolePermissions(rolePermissionsData);
                 setGenders(gendersData);
                 setMaritalStatuses(maritalStatusesData);
                 setCustomerTypes(customerTypesData);
-                // Hydrate the names in customerTiers
+                
                 const typeMap = new Map(customerTypesData.map(t => [t.id, t.name]));
                 const hydratedTiers = customerTiersData.map(tier => ({...tier, name: typeMap.get(tier.customerTypeId) || 'Unknown'}));
                 setCustomerTiers(hydratedTiers);
                 
                 setProcessStageMasters(processStagesData);
-                setFinancialYears(financialYearsData); // NEW
-                setDocumentNumbering(documentNumberingData); // NEW
+                setFinancialYears(financialYearsData);
+                setDocumentNumbering(documentNumberingData);
+                setInsuranceTypeDocumentRules(insuranceTypeDocumentRulesData); // --- ADDED ---
 
             } catch (error) {
                 console.error("Failed to load initial data:", error);
@@ -1834,9 +1881,10 @@ const App: React.FC = () => {
     }, [addToast]);
 
     
+    // MODIFIED: Logic now based on role
     useEffect(() => {
-        const isAdmin = designations.find(d => d.id === currentUser?.designationId)?.name === 'Admin';
-        if (isAdmin) {
+        const userRole = roles.find(r => r.id === currentUser?.roleId);
+        if (userRole?.isAdvisor) {
             const interval = setInterval(async () => {
                 const [locations, checks] = await Promise.all([getAdvisorLocations(), getCheckIns()]);
                 setAdvisorLocations(locations);
@@ -1851,7 +1899,7 @@ const App: React.FC = () => {
 
             return () => clearInterval(interval);
         }
-    }, [currentUser, designations]);
+    }, [currentUser, roles]);
 
     useEffect(() => {
         const generateNotifications = () => {
@@ -1990,13 +2038,14 @@ const App: React.FC = () => {
         addToast("All notifications cleared from Action Hub.", "success");
     }, [addToast]);
 
-     // MODIFIED: handleLogin now accepts finYearId
+     // MODIFIED: Login now checks role for advisor status
      const handleLogin = (user: User, finYearId: string) => {
         setCurrentUser(user);
-        setActiveFinancialYearId(finYearId); // NEW: Set the active FY
+        setActiveFinancialYearId(finYearId);
         navigate('/dashboard');
-        const userDesignation = designations.find(d => d.id === user.designationId);
-        if (userDesignation?.isAdvisor) {
+        
+        const userRole = roles.find(r => r.id === user.roleId);
+        if (userRole?.isAdvisor) {
             const today = new Date().toISOString().split('T')[0];
             const hasMarkedToday = attendance[user.id]?.some(record => record.timestamp.startsWith(today));
             if (!hasMarkedToday) {
@@ -2013,10 +2062,11 @@ const App: React.FC = () => {
 
     const handleLogout = () => {
         setCurrentUser(null);
-        setActiveFinancialYearId(null); // NEW: Clear the active FY
+        setActiveFinancialYearId(null);
         navigate('/login');
     };
 
+    // MODIFIED: Logic now based on role
     const handleAutomaticTaskReassignment = useCallback(async (absentEmployeeId: string) => {
         const absentEmployee = allUsers.find(u => u.id === absentEmployeeId);
         if (!absentEmployee) return;
@@ -2025,9 +2075,9 @@ const App: React.FC = () => {
 
         if (pendingTasks.length === 0) return;
 
-        const advisorDesignationIds = new Set(designations.filter(d => d.isAdvisor).map(d => d.id));
+        const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
         const availableAdvisors = allUsers.filter(u => {
-            if (!advisorDesignationIds.has(u.designationId) || u.id === absentEmployeeId) return false;
+            if (!u.roleId || !advisorRoleIds.has(u.roleId) || u.id === absentEmployeeId) return false;
             const today = new Date().toISOString().split('T')[0];
             const records = attendance[u.id];
             if (!records) return false;
@@ -2077,7 +2127,7 @@ const App: React.FC = () => {
                         ...oldTask,
                         primaryContactPerson: replacement.id,
                         originalAssigneeId: oldTask.originalAssigneeId || oldTask.primaryContactPerson,
-                        statusId: 'ts-6', // Reset status to Assigned
+                        statusId: 'ts-created', // --- MODIFICATION: Reset status to 'Task Created'
                         activityLog: [...(oldTask.activityLog || []), newLog],
                     };
                     tasksToUpdate[taskIndex] = updatedTask;
@@ -2091,9 +2141,9 @@ const App: React.FC = () => {
             addToast(`${reassignedCount} task(s) have been automatically reassigned from ${absentEmployee.name}.`, 'success');
         }
 
-    }, [allTasks, allUsers, attendance, addToast, designations]);
+    }, [allTasks, allUsers, attendance, addToast, roles]);
 
-    const handleMarkAttendance = useCallback((status: 'Present' | 'Absent', reason?: string) => {
+const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], reason?: string) => {
         if (!currentUser) return;
         const timestamp = new Date().toISOString();
         const newRecord: AttendanceRecord = { status, reason, timestamp };
@@ -2111,13 +2161,21 @@ const App: React.FC = () => {
         }
     }, [currentUser, addToast, handleAutomaticTaskReassignment]);
 
-    const handleUpdateAttendanceByAdmin = useCallback((userId: string, status: 'Present' | 'Absent', reason?: string) => {
+    const handleUpdateAttendanceByAdmin = useCallback((userId: string, status: AttendanceRecord['status'], reason?: string) => {
         const timestamp = new Date().toISOString();
         const newRecord: AttendanceRecord = { status, reason: reason || 'Admin Override', timestamp };
 
         setAttendance(prev => {
             const userRecords = prev[userId] || [];
-            return { ...prev, [userId]: [...userRecords, newRecord] };
+            const today = new Date().toISOString().split('T')[0];
+            const todaysRecordIndex = userRecords.findIndex(rec => rec.timestamp.startsWith(today));
+            
+            if (todaysRecordIndex > -1) {
+                userRecords[todaysRecordIndex] = newRecord;
+                return { ...prev, [userId]: [...userRecords] };
+            } else {
+                return { ...prev, [userId]: [...userRecords, newRecord] };
+            }
         });
         addToast("Attendance updated by Admin.", "success");
         
@@ -2125,7 +2183,7 @@ const App: React.FC = () => {
             handleAutomaticTaskReassignment(userId);
         }
     }, [addToast, handleAutomaticTaskReassignment]);
-
+    
     const handleOpenMemberModal = useCallback((member: Member | null, initialTab: ModalTab | null = ModalTab.BasicInfo, originatingLeadId: string | null = null) => {
         setEditingMember(member);
         setInitialModalTab(initialTab);
@@ -2152,7 +2210,6 @@ const App: React.FC = () => {
         setIsViewByTierModalOpen(true);
     }, []);
  
-    // --- MODIFICATION START: New handler for creating dependent members ---
     const handleCreateDependentMember = useCallback(async (spoc: Member, dependentData: Partial<Member>): Promise<Member | null> => {
         if (!currentUser || !spoc || !spoc.sno) {
             addToast('Cannot create dependent: primary contact is not saved.', 'error');
@@ -2160,7 +2217,6 @@ const App: React.FC = () => {
         }
         
         try {
-            // Generate a unique memberId
             const namePart = (dependentData.name || '').replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase().padEnd(2, '_');
             const mobilePart = (dependentData.mobile || spoc.mobile || '').replace(/[^0-9]/g, '').slice(-5).padEnd(5, '_');
             const dobPart = (dependentData.dob || '0101').replace(/-/g, '').slice(-4);
@@ -2207,12 +2263,11 @@ const App: React.FC = () => {
             return null;
         }
     }, [currentUser, addToast]);
-    // --- MODIFICATION END ---
 
 
     const handleSaveMember = useCallback(async (memberData: Member, closeModal: boolean = true) => {
         const isNew = !memberData.id;
-        let updatedMemberData = { ...memberData };
+         let updatedMemberData = { ...memberData };
 
         updatedMemberData = calculateMemberTier(updatedMemberData, customerTiers, customerTierCalculationMethod);
 
@@ -2273,11 +2328,6 @@ const App: React.FC = () => {
                         membersToUpdate.push({ ...dep, familyName: updatedMemberData.familyName });
                     });
                 }
-
-                // --- MODIFICATION START: Removed automatic dependent creation logic ---
-                // The logic that looped through `coveredMembers` to find new members and create them has been removed.
-                // The assumption is now that members are created in the Family Tab first.
-                // --- MODIFICATION END ---
                 
                 if (oldMember.spocId) {
                     const spoc = allMembers.find(m => m.sno === oldMember.spocId && m.isSPOC);
@@ -2445,6 +2495,7 @@ const App: React.FC = () => {
         }
     }, [addToast]);
 
+    // --- MODIFICATION START: Updated Task Handlers ---
     const handleCreateTask = useCallback((task: Omit<Task, 'id'>) => {
         const creationLog: TaskActivityLog = {
             timestamp: new Date().toISOString(),
@@ -2456,13 +2507,12 @@ const App: React.FC = () => {
             id: `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             ...task,
             creationDateTime: new Date().toISOString(),
-            isCompleted: task.isCompleted || false,
-            isShared: task.isShared ?? (task.taskType === 'Auto'),
+            isCompleted: false,
             primaryContactPerson: task.primaryContactPerson || currentUser?.id,
-            statusId: task.statusId || 'ts-6',
+            statusId: 'ts-created', // Hardcoded internal status
             active: true,
             activityLog: [creationLog],
-        };
+         };
         setAllTasks(prev => [...prev, newTask]);
     }, [currentUser]);
 
@@ -2484,9 +2534,8 @@ const App: React.FC = () => {
             ...baseTask,
             primaryContactPerson: advisorId,
             creationDateTime: new Date().toISOString(),
-            isCompleted: baseTask.isCompleted || false,
-            isShared: baseTask.isShared ?? (baseTask.taskType === 'Auto'),
-            statusId: baseTask.statusId || 'ts-6',
+            isCompleted: false,
+            statusId: 'ts-created', // Hardcoded internal status
             active: true,
             activityLog: [creationLog],
         }));
@@ -2502,10 +2551,12 @@ const App: React.FC = () => {
 
             let newLog: TaskActivityLog | null = null;
             if (oldTask.statusId !== updatedTask.statusId) {
+                const oldStatusName = oldTask.statusId === 'ts-created' ? 'Task Created' : taskStatusMasters.find(s => s.id === oldTask.statusId)?.name || 'Unknown';
+                const newStatusName = taskStatusMasters.find(s => s.id === updatedTask.statusId)?.name || 'Unknown';
                 newLog = {
                     timestamp: new Date().toISOString(),
                     action: 'Status Change',
-                    details: 'Status was updated in modal.',
+                    details: `Status changed from ${oldStatusName} to ${newStatusName}.`,
                     by: currentUser?.id || 'system',
                 };
             } else if (JSON.stringify(oldTask) !== JSON.stringify(updatedTask)) {
@@ -2525,7 +2576,7 @@ const App: React.FC = () => {
                 task.id === updatedTask.id ? taskWithLog : task
             );
         });
-    }, [currentUser]);
+    }, [currentUser, taskStatusMasters]);
 
     const handleDeleteTask = useCallback((taskId: string) => {
         if (window.confirm('Are you sure you want to delete this task?')) {
@@ -2535,36 +2586,25 @@ const App: React.FC = () => {
     }, [addToast]);
 
     const handleOpenTask = useCallback((taskId: string) => {
-        setAllTasks(prevTasks => prevTasks.map(task => {
-            if (task.id === taskId && task.statusId === 'ts-6') {
-                const newLog: TaskActivityLog = {
-                    timestamp: new Date().toISOString(),
-                    action: 'Status Change',
-                    details: 'Status changed from Assigned to Viewed.',
-                    by: currentUser?.id || 'system',
-                };
-                return { ...task, statusId: 'ts-5', activityLog: [...(task.activityLog || []), newLog] };
-            }
-            return task;
-        }));
-    }, [currentUser]);
+        const initialState = taskStatusMasters.find(status => status.isInitialState);
+        if (!initialState) {
+            addToast("Configuration Error: No initial task state has been set in Master Data.", "error");
+            return;
+        }
 
-    const handleToggleTask = useCallback((taskId: string) => {
         setAllTasks(prevTasks => prevTasks.map(task => {
-            if (task.id === taskId) {
-                const isCompleted = task.isCompleted;
-                const newStatusId = isCompleted ? 'ts-2' : 'ts-3';
+            if (task.id === taskId && task.statusId === 'ts-created') { // Only transition from 'ts-created'
                 const newLog: TaskActivityLog = {
                     timestamp: new Date().toISOString(),
                     action: 'Status Change',
-                    details: `Status changed to ${isCompleted ? 'In Progress' : 'Completed'}.`,
+                    details: `Status changed from Task Created to ${initialState.name}.`,
                     by: currentUser?.id || 'system',
                 };
-                return { ...task, isCompleted: !isCompleted, statusId: newStatusId, activityLog: [...(task.activityLog || []), newLog] };
+                return { ...task, statusId: initialState.id, activityLog: [...(task.activityLog || []), newLog] };
             }
             return task;
         }));
-    }, [currentUser]);
+    }, [currentUser, taskStatusMasters, addToast]);
 
     const handleReassignTask = useCallback(async (taskId: string, newAdvisorId: string, reassignerId: string) => {
         const taskIndex = allTasks.findIndex(t => t.id === taskId);
@@ -2593,7 +2633,7 @@ const App: React.FC = () => {
             ...oldTask,
             primaryContactPerson: newAdvisorId,
             originalAssigneeId: oldTask.originalAssigneeId || oldTask.primaryContactPerson,
-            statusId: 'ts-6',
+            statusId: 'ts-created', // Reset to the hardcoded created status
             activityLog: [...(oldTask.activityLog || []), newLog],
         };
 
@@ -2614,6 +2654,7 @@ const App: React.FC = () => {
 
         addToast(`Task successfully reassigned to ${newAdvisorName}.`, 'success');
     }, [allTasks, allUsers, companyMembers, companyLeads, addToast]);
+    // --- MODIFICATION END ---
 
     const handleDeleteLead = useCallback(async (leadId: string) => {
         try {
@@ -2696,11 +2737,9 @@ const App: React.FC = () => {
             
             const currentRenewalDate = new Date(policyToUpdate.renewalDate);
             
-            // MODIFICATION START: Increment installmentsPaid count for term policies
             if (policyToUpdate.policyTerm && policyToUpdate.policyTerm > 0) {
                 policyToUpdate.installmentsPaid = (policyToUpdate.installmentsPaid || 0) + 1;
             }
-            // MODIFICATION END
 
             switch (policyToUpdate.premiumFrequency) {
                 case 'Monthly':
@@ -2897,11 +2936,11 @@ const App: React.FC = () => {
                 mobile: referrerData.mobile,
                 email: referrerData.email,
                 memberId: `${(referrerData.name || '').replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase().padEnd(2, '_')}${(referrerData.mobile || '').replace(/[^0-9]/g, '').slice(-7).padEnd(7, '_')}`,
-                dob: '1900-01-01', // Placeholder DOB
+                dob: '1900-01-01',
                 maritalStatus: 'Single',
                 country: '',
-                state: '', // Placeholder
-                city: '', // Placeholder
+                state: '',
+                city: '',
                 address: '',
                 memberType: 'No Tier',
                 tierId: null,
@@ -2918,7 +2957,7 @@ const App: React.FC = () => {
                 companyId: currentUser?.companyId || '',
                 createdBy: currentUser?.id,
                 createdAt: new Date().toISOString(),
-                isReferrerOnly: true, // Key flag
+                isReferrerOnly: true,
             };
             const created = await createMember(newReferrerPayload);
             setAllMembers(prev => [...prev, created]);
@@ -2965,10 +3004,9 @@ const App: React.FC = () => {
                 />
             )}
             
-            {/* --- CHANGE: Main routing logic --- */}
             {!currentUser ? (
                 <Routes>
-                    <Route path="/login" element={<Login onLogin={handleLogin} onForgotPassword={() => setIsForgotPasswordModalOpen(true)} theme={theme} toggleTheme={toggleTheme} allBranches={allBranches} operatingCompanies={operatingCompanies} designations={designations} />} />
+                    <Route path="/login" element={<Login onLogin={handleLogin} onForgotPassword={() => setIsForgotPasswordModalOpen(true)} theme={theme} toggleTheme={toggleTheme} allBranches={allBranches} operatingCompanies={operatingCompanies} roles={roles} />} />
                     <Route path="*" element={<Navigate to="/login" />} />
                 </Routes>
             ) : (
@@ -3014,27 +3052,28 @@ const App: React.FC = () => {
                         </div>
                         <div className="flex-1 p-6 overflow-y-auto">
                             <Routes>
-                                {/* CORRECTED: Pass permissions to all components */}
                                 <Route path="/" element={<Navigate to="/dashboard" />} />
-                                <Route path="/dashboard" element={<Dashboard {...{ members: companyMembers, leads: companyLeads, notifications, upsellOpportunities, onOpenModal: handleOpenMemberModal, onOpenLeadModal: handleOpenLeadModal, currentUser, users: companyUsers, dismissedFocusItems, onDismissFocusItem: handleDismissItem, allTasks, onToggleTask: handleToggleTask, onUpdateTask: handleUpdateTask, onDeleteTask: handleDeleteTask, todaysFocusItems, isFocusLoading, focusError, onRefreshFocus: fetchTodaysFocus, customerTiers, onViewTier: handleViewTier, taskStatusMasters, addToast, designations, permissions: currentUserPermissions }} />} />
-                                <Route path="/customers" element={<MemberDashboard {...{ members: companyMembers, allMembers, currentUser, users: companyUsers, onEditMember: handleOpenMemberModal, onCreateMember: () => handleOpenMemberModal(null), onConversationalCreate: () => setIsConversationalCreatorOpen(true), onDeleteMember: handleDeleteMember, onToggleStatus: handleToggleMemberStatus, onGenerateReview: handleGenerateReview, addToast, finrootsBranches: companyBranches, designations, permissions: currentUserPermissions }} />} />
-                                <Route path="/policies" element={<PolicyManager {...{ members: companyMembers, onRenewPolicy: handleRenewPolicy, onViewMember: handleOpenMemberModal, addToast, users: companyUsers, finrootsBranches: companyBranches, insuranceTypes, designations, permissions: currentUserPermissions }} />} />
+                                <Route path="/dashboard" element={<Dashboard {...{ members: companyMembers, leads: companyLeads, notifications, upsellOpportunities, onOpenModal: handleOpenMemberModal, onOpenLeadModal: handleOpenLeadModal, currentUser, users: companyUsers, dismissedFocusItems, onDismissFocusItem: handleDismissItem, allTasks, onUpdateTask: handleUpdateTask, onDeleteTask: handleDeleteTask, todaysFocusItems, isFocusLoading, focusError, onRefreshFocus: fetchTodaysFocus, customerTiers, onViewTier: handleViewTier, taskStatusMasters, addToast, designations, permissions: currentUserPermissions, roles }} />} />
+                                <Route path="/customers" element={<MemberDashboard {...{ members: companyMembers, allMembers, currentUser, users: companyUsers, onEditMember: handleOpenMemberModal, onCreateMember: () => handleOpenMemberModal(null), onConversationalCreate: () => setIsConversationalCreatorOpen(true), onDeleteMember: handleDeleteMember, onToggleStatus: handleToggleMemberStatus, onGenerateReview: handleGenerateReview, addToast, finrootsBranches: companyBranches, designations, permissions: currentUserPermissions, roles }} />} />
+                                <Route path="/policies" element={<PolicyManager {...{ members: companyMembers, onRenewPolicy: handleRenewPolicy, onViewMember: handleOpenMemberModal, addToast, users: companyUsers, finrootsBranches: companyBranches, insuranceTypes, designations, permissions: currentUserPermissions, roles }} />} />
                                 <Route path="/mutualFunds" element={<MutualFunds {...{ allMembers: companyMembers, onUpdateMember: (member) => handleSaveMember(member, false), amcs, schemes: mutualFundSchemes, addToast, onViewMember: onViewMember, permissions: currentUserPermissions }} />} />
-                                <Route path="/pipeline" element={<SalesPipeline {...{ leads: leadsForPipeline, users: companyUsers, onOpenLeadModal: handleOpenLeadModal, onUpdateLead: async (lead) => { if (!currentUser) return; const oldLead = allLeads.find(l => l.id === lead.id); if (!oldLead) return; const newLogs = generateLeadActivityLog(oldLead, lead, currentUser.id); const updatedLeadData = { ...lead, lastUpdatedAt: new Date().toISOString(), activityLog: [...(oldLead.activityLog || []), ...newLogs]}; const updated = await updateLead(updatedLeadData); setAllLeads(prev => prev.map(l => l.id === updated.id ? updated : l)); addToast("Lead updated.", "success"); }, onConvertLead: (lead) => { const newMemberFromLead: Partial<Member> = { name: lead.name, mobile: lead.phone, email: lead.email, leadSource: lead.leadSource, assignedTo: lead.assignedTo ? [lead.assignedTo] : [], branchId: lead.branchId, company: lead.company, companyId: lead.companyId, active: true, policies: [], voiceNotes: [], documents: [], checkIns: [], processStage: 'Initial Contact', }; handleOpenMemberModal(newMemberFromLead as Member, ModalTab.BasicInfo, lead.id); addToast(`Converting ${lead.name} to customer. Please review and save.`, "success"); }, leadSources, onDeleteLead: handleDeleteLead, finrootsBranches: companyBranches, insuranceTypes, addToast, permissions: currentUserPermissions }} />} />
-                                <Route path="/notes" element={<NotesPage {...{ members: companyMembers, leads: companyLeads, onSaveMember: handleSaveMember, onSaveLeadNote: handleSaveLeadNote, onCreateTask: (desc, due, memberName, memberId) => handleCreateTask({triggeringPoint: 'Manual', taskDescription: desc, expectedCompletionDateTime: due || new Date().toISOString(), memberId, taskType: 'Manual', isCompleted: false}), addToast, currentUser, users: companyUsers, finrootsBranches: companyBranches, designations, permissions: currentUserPermissions }} />} />
-                                <Route path="/location" element={<LocationServices members={companyMembers} addToast={addToast} currentUser={currentUser} allUsers={companyUsers} onUpdateAdvisorLocation={handleUpdateAdvisorLocation} onCreateCheckIn={handleCreateCheckIn} advisorLocations={advisorLocations} checkIns={checkIns} onFetchAdvisorTrail={handleFetchAdvisorTrail} activeCheckIn={activeCheckIn} onCheckOut={handleCheckOut} onGetActiveCheckIn={getActiveCheckIn} designations={designations} />} />
+                                <Route path="/pipeline" element={<SalesPipeline {...{ leads: leadsForPipeline, users: companyUsers, onOpenLeadModal: handleOpenLeadModal, onUpdateLead: async (lead) => { if (!currentUser) return; const oldLead = allLeads.find(l => l.id === lead.id); if (!oldLead) return; const newLogs = generateLeadActivityLog(oldLead, lead, currentUser.id); const updatedLeadData = { ...lead, lastUpdatedAt: new Date().toISOString(), activityLog: [...(oldLead.activityLog || []), ...newLogs]}; const updated = await updateLead(updatedLeadData); setAllLeads(prev => prev.map(l => l.id === updated.id ? updated : l)); addToast("Lead updated.", "success"); }, onConvertLead: (lead) => { const newMemberFromLead: Partial<Member> = { name: lead.name, mobile: lead.phone, email: lead.email, leadSource: lead.leadSource, assignedTo: lead.assignedTo ? [lead.assignedTo] : [], branchId: lead.branchId, company: lead.company, companyId: lead.companyId, active: true, policies: [], voiceNotes: [], documents: [], checkIns: [], processStage: 'Initial Contact', }; handleOpenMemberModal(newMemberFromLead as Member, ModalTab.BasicInfo, lead.id); addToast(`Converting ${lead.name} to customer. Please review and save.`, "success"); }, leadSources, onDeleteLead: handleDeleteLead, finrootsBranches: companyBranches, insuranceTypes, addToast, permissions: currentUserPermissions, designations, roles }} />} />
+                                <Route path="/notes" element={<NotesPage {...{ members: companyMembers, leads: companyLeads, onSaveMember: handleSaveMember, onSaveLeadNote: handleSaveLeadNote, onCreateTask: (task) => handleCreateTask(task), addToast, currentUser, users: companyUsers, finrootsBranches: companyBranches, designations, permissions: currentUserPermissions, roles }} />} />
+                                <Route path="/location" element={<LocationServices members={companyMembers} addToast={addToast} currentUser={currentUser} allUsers={companyUsers} onUpdateAdvisorLocation={handleUpdateAdvisorLocation} onCreateCheckIn={handleCreateCheckIn} advisorLocations={advisorLocations} checkIns={checkIns} onFetchAdvisorTrail={handleFetchAdvisorTrail} activeCheckIn={activeCheckIn} onCheckOut={handleCheckOut} onGetActiveCheckIn={getActiveCheckIn} designations={designations} roles={roles} />} />
                                 <Route path="/chatbot" element={<Chatbot members={companyMembers} leads={companyLeads} tasks={allTasks} expenses={expenses} manualIncomes={manualIncomes} manualCommissions={manualCommissions} addToast={addToast} />} />
-                                <Route path="/profile" element={currentUser.designationId === 'des-admin' ? <AdminProfile {...{ user: currentUser, users: companyUsers, allMembers: companyMembers, onOpenEmployeeModal: () => handleOpenEmployeeModal(null), onUpdateProfile: handleSaveEmployee, addToast, designations, permissions: currentUserPermissions }} /> : <ProfilePage {...{ user: currentUser, onUpdateProfile: handleSaveEmployee, onUpdatePassword: handleUpdatePassword, addToast, allMembers: companyMembers, users: companyUsers, geographies, onUpdateGeographies: handleUpdateGeographies, bankMasters, designations, permissions: currentUserPermissions, genders }} />} />
-                                <Route path="/employees" element={<EmployeeManagement {...{ users: companyUsers, allMembers: companyMembers, onOpenEmployeeModal: handleOpenEmployeeModal, onToggleStatus: async (userId) => { const user = allUsers.find(u => u.id === userId); if(user) { const newStatus = user.profile?.status === 'Active' ? 'Inactive' : 'Active'; await handleSaveEmployee({...user, profile: {...user.profile, status: newStatus} as EmployeeProfile}); addToast("Employee status updated.", "success"); }}, attendance, onUpdateAttendance: handleUpdateAttendanceByAdmin, finrootsBranches: companyBranches, addToast, designations, permissions: currentUserPermissions }} />} />
+                                <Route path="/profile" element={currentUser?.roleId && roles.find(r => r.id === currentUser.roleId)?.name.toLowerCase().includes('admin') ? <AdminProfile {...{ user: currentUser, users: companyUsers, allMembers: companyMembers, onOpenEmployeeModal: () => handleOpenEmployeeModal(null), onUpdateProfile: handleSaveEmployee, addToast, designations, permissions: currentUserPermissions, roles }} /> : <ProfilePage {...{ user: currentUser, onUpdateProfile: handleSaveEmployee, onUpdatePassword: handleUpdatePassword, addToast, allMembers: companyMembers, users: companyUsers, geographies, onUpdateGeographies: handleUpdateGeographies, bankMasters, designations, permissions: currentUserPermissions, genders, accountTypes, roles }} />} />
+                                <Route path="/employees" element={<EmployeeManagement {...{ users: companyUsers, allMembers: companyMembers, onOpenEmployeeModal: handleOpenEmployeeModal, onToggleStatus: async (userId) => { const user = allUsers.find(u => u.id === userId); if(user) { const newStatus = user.profile?.status === 'Active' ? 'Inactive' : 'Active'; await handleSaveEmployee({...user, profile: {...user.profile, status: newStatus} as EmployeeProfile}); addToast("Employee status updated.", "success"); }}, attendance, onUpdateAttendance: handleUpdateAttendanceByAdmin, finrootsBranches: companyBranches, addToast, designations, permissions: currentUserPermissions, roles }} />} />
                                 <Route path="/servicesHub" element={<ServicesHub addToast={addToast} allMembers={companyMembers} onViewMember={handleOpenMemberModal} onUpdateCommissionStatus={handleUpdateCommissionStatus} currentUser={currentUser} designations={designations} />} />
-                                <Route path="/actionHub" element={<ActionAutomationHub {...{ notifications: hubNotifications, onRenewPolicy: handleRenewPolicy, activityLog: hubActivityLog, addToast, onNotificationSent: () => {}, appointments: hubAppointments, tasks: hubTasks, onToggleTask: handleToggleTask, onDismissItem: handleDismissItem, savedGreetingUrl: null, setSavedGreetingUrl: () => {}, upsellOpportunities, onDismissOpportunity: (id) => setUpsellOpportunities(prev => prev.filter(o => o.id !== id)), members: companyMembers, onScheduleMessage: (msg) => { setCustomMessages(prev => [...prev, {...msg, id: `cm-${Date.now()}`}]); addToast('Custom message scheduled!', 'success'); }, onClearAll: handleClearActionHubNotifications, onScheduleAppointment: (appt) => { const member = companyMembers.find(m => m.id === appt.memberId); if(member) { setAppointments(prev => [...prev, { ...appt, id: `appt-${Date.now()}`, memberName: member.name }]); addToast('Appointment scheduled!', 'success'); } }, rules: automationRules, onUpdateRule: (rule) => setAutomationRules(prev => prev.map(r => r.id === rule.id ? rule : r)), onAddRule: handleAddAutomationRule, docTemplates, onUpdateTemplates: setDocTemplates, currentUser, users: companyUsers, onViewMember: onViewMember, permissions: currentUserPermissions }} />} />
-                                <Route path="/masterMember/" element={<MasterData {...{addToast, allMembers: companyMembers, users: companyUsers, customerFieldMasters, onUpdateCustomerFieldMasters: handleUpdateCustomerFieldMasters, businessVerticals, onUpdateBusinessVerticals: handleUpdateBusinessVerticals, leadSources, onUpdateLeadSources: handleUpdateLeadSources, schemes, onUpdateSchemes: handleUpdateSchemes, agencies, onUpdateAgencies: handleUpdateAgencies, operatingCompanies, onUpdateOperatingCompanies: handleUpdateOperatingCompany, finrootsBranches: allBranches, onUpdateFinrootsBranches: handleUpdateFinrootsBranches, finrootsCompanyInfo, onUpdateFinRootsCompanyInfo: setFinrootsCompanyInfo, geographies, onUpdateGeographies: handleUpdateGeographies, relationshipTypes, onUpdateRelationshipTypes: handleUpdateRelationshipTypes, documentMasters, onUpdateDocumentMasters: handleUpdateDocumentMasters, schemeDocumentMappings, onUpdateSchemeDocumentMappings: handleUpdateSchemeDocumentMappings, giftMasters, onUpdateGiftMasters: handleUpdateGiftMasters, customerTiers, onUpdateCustomerTiers: handleUpdateCustomerTiers, taskStatuses: taskStatusMasters, onUpdateTaskStatuses: handleUpdateTaskStatusMasters, customerCategories, onUpdateCustomerCategories: handleUpdateCustomerCategories, bankMasters, onUpdateBankMasters: handleUpdateBankMasters, customerSubCategories, onUpdateCustomerSubCategories: handleUpdateCustomerSubCategories, customerGroups, onUpdateCustomerGroups: handleUpdateCustomerGroups, taskMasters, onUpdateTaskMasters: handleUpdateTaskMasters, policyChecklistMasters, onUpdatePolicyChecklistMasters: handleUpdatePolicyChecklistMasters, insuranceTypes, onUpdateInsuranceTypes: handleUpdateInsuranceTypes, insuranceFields, onUpdateInsuranceFields: handleUpdateInsuranceFields, routes, onUpdateRoutes: handleUpdateRoutes, designations, onUpdateDesignations: handleUpdateDesignations, currentUser, customerTierCalculationMethod, onUpdateCustomerTierCalculationMethod: handleUpdateAllMemberTiers, expenseCategoriesLevel1, onUpdateExpenseCategoriesLevel1: handleUpdateExpenseCategoriesLevel1, expenseCategoriesLevel2, onUpdateExpenseCategoriesLevel2: handleUpdateExpenseCategoriesLevel2, expenseCategoriesLevel3, onUpdateExpenseCategoriesLevel3: handleUpdateExpenseCategoriesLevel3, incomeCategoriesLevel1, onUpdateIncomeCategoriesLevel1: handleUpdateIncomeCategoriesLevel1, incomeCategoriesLevel2, onUpdateIncomeCategoriesLevel2: handleUpdateIncomeCategoriesLevel2, religions, onUpdateReligions: handleUpdateReligions, festivals, onUpdateFestivals: handleUpdateFestivals, festivalDates, onUpdateFestivalDates: handleUpdateFestivalDates, amcs, onUpdateAmcs: handleUpdateAmcs, mutualFundSchemes, onUpdateMutualFundSchemes: handleUpdateMutualFundSchemes, mutualFundFields, onUpdateMutualFundFields: handleUpdateMutualFundFields, permissions: currentUserPermissions, genders, onUpdateGenders: handleUpdateGenders, maritalStatuses, onUpdateMaritalStatuses: handleUpdateMaritalStatuses, customerTypes, onUpdateCustomerTypes: handleUpdateCustomerTypes, processStageMasters, onUpdateProcessStageMasters: handleUpdateProcessStageMasters,accountTypes:accountTypes,onUpdateAccountTypes:handleUpdateAccountTypes, financialYears, onUpdateFinancialYears: handleUpdateFinancialYears, documentNumbering, onUpdateDocumentNumbering: handleUpdateDocumentNumbering, activeFinancialYearId }} />} />
-                                <Route path="/reports-insights" element={<ReportsAndInsights members={companyMembers} users={companyUsers} tasks={allTasks} attendance={attendance} onUpdateAttendance={handleUpdateAttendanceByAdmin} addToast={addToast} allLeads={companyLeads} currentUser={currentUser} leadSources={leadSources} schemes={schemes} insuranceTypes={insuranceTypes} onOpenAttendanceReport={() => setIsAttendanceReportModalOpen(true)} designations={designations} />} />
-                                <Route path="/taskManagement" element={<TaskManagement allTasks={allTasks} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} onCreateTask={handleCreateTask} onCreateBulkTask={handleCreateBulkTask} onOpenTask={handleOpenTask} users={companyUsers} members={companyMembers} leads={companyLeads} taskStatusMasters={taskStatusMasters} taskMasters={taskMasters} addToast={addToast} currentUser={currentUser} finrootsBranches={companyBranches} onReassignTask={handleReassignTask} designations={designations} />} />
-                                {/* MODIFIED: Added FY and receipt props to ProfitAndLoss */}
+                                <Route path="/actionHub" element={<ActionAutomationHub {...{ notifications: hubNotifications, onRenewPolicy: handleRenewPolicy, activityLog: hubActivityLog, addToast, onNotificationSent: () => {}, appointments: hubAppointments, tasks: hubTasks, onDismissItem: handleDismissItem, savedGreetingUrl: null, setSavedGreetingUrl: () => {}, upsellOpportunities, onDismissOpportunity: (id) => setUpsellOpportunities(prev => prev.filter(o => o.id !== id)), members: companyMembers, onScheduleMessage: (msg) => { setCustomMessages(prev => [...prev, {...msg, id: `cm-${Date.now()}`}]); addToast('Custom message scheduled!', 'success'); }, onClearAll: handleClearActionHubNotifications, onScheduleAppointment: (appt) => { const member = companyMembers.find(m => m.id === appt.memberId); if(member) { setAppointments(prev => [...prev, { ...appt, id: `appt-${Date.now()}`, memberName: member.name }]); addToast('Appointment scheduled!', 'success'); } }, rules: automationRules, onUpdateRule: (rule) => setAutomationRules(prev => prev.map(r => r.id === rule.id ? rule : r)), onAddRule: handleAddAutomationRule, docTemplates, onUpdateTemplates: setDocTemplates, currentUser, users: companyUsers, onViewMember: onViewMember, permissions: currentUserPermissions }} />} />
+                                <Route path="/masterMember/" element={<MasterData {...{addToast, allMembers: companyMembers, users: companyUsers, customerFieldMasters, onUpdateCustomerFieldMasters: handleUpdateCustomerFieldMasters, businessVerticals, onUpdateBusinessVerticals: handleUpdateBusinessVerticals, leadSources, onUpdateLeadSources: handleUpdateLeadSources, schemes, onUpdateSchemes: handleUpdateSchemes, agencies, onUpdateAgencies: handleUpdateAgencies, operatingCompanies, onUpdateOperatingCompanies: handleUpdateOperatingCompany, finrootsBranches: allBranches, onUpdateFinrootsBranches: handleUpdateFinrootsBranches, finrootsCompanyInfo, onUpdateFinRootsCompanyInfo: setFinrootsCompanyInfo, geographies, onUpdateGeographies: handleUpdateGeographies, relationshipTypes, onUpdateRelationshipTypes: handleUpdateRelationshipTypes, documentMasters, onUpdateDocumentMasters: handleUpdateDocumentMasters, insuranceTypeDocumentRules, onUpdateInsuranceTypeDocumentRules: handleUpdateInsuranceTypeDocumentRules, giftMasters, onUpdateGiftMasters: handleUpdateGiftMasters, customerTiers, onUpdateCustomerTiers: handleUpdateCustomerTiers, taskStatuses: taskStatusMasters, onUpdateTaskStatuses: handleUpdateTaskStatusMasters, customerCategories, onUpdateCustomerCategories: handleUpdateCustomerCategories, bankMasters, onUpdateBankMasters: handleUpdateBankMasters, customerSubCategories, onUpdateCustomerSubCategories: handleUpdateCustomerSubCategories, customerGroups, onUpdateCustomerGroups: handleUpdateCustomerGroups, taskMasters, onUpdateTaskMasters: handleUpdateTaskMasters, insuranceTypes, onUpdateInsuranceTypes: handleUpdateInsuranceTypes, insuranceFields, onUpdateInsuranceFields: handleUpdateInsuranceFields, routes, onUpdateRoutes: handleUpdateRoutes, designations, onUpdateDesignations: handleUpdateDesignations, currentUser, customerTierCalculationMethod, onUpdateCustomerTierCalculationMethod: handleUpdateAllMemberTiers, expenseCategoriesLevel1, onUpdateExpenseCategoriesLevel1: handleUpdateExpenseCategoriesLevel1, expenseCategoriesLevel2, onUpdateExpenseCategoriesLevel2: handleUpdateExpenseCategoriesLevel2, expenseCategoriesLevel3, onUpdateExpenseCategoriesLevel3: handleUpdateExpenseCategoriesLevel3, incomeCategoriesLevel1, onUpdateIncomeCategoriesLevel1: handleUpdateIncomeCategoriesLevel1, incomeCategoriesLevel2, onUpdateIncomeCategoriesLevel2: handleUpdateIncomeCategoriesLevel2, religions, onUpdateReligions: handleUpdateReligions, festivals, onUpdateFestivals: handleUpdateFestivals, festivalDates, onUpdateFestivalDates: handleUpdateFestivalDates, amcs, onUpdateAmcs: handleUpdateAmcs, mutualFundSchemes, onUpdateMutualFundSchemes: handleUpdateMutualFundSchemes, mutualFundFields, onUpdateMutualFundFields: handleUpdateMutualFundFields, rolePermissions, onUpdateRolePermissions: handleUpdateRolePermissions, genders, onUpdateGenders: handleUpdateGenders, maritalStatuses, onUpdateMaritalStatuses: handleUpdateMaritalStatuses, customerTypes, onUpdateCustomerTypes: handleUpdateCustomerTypes, processStageMasters, onUpdateProcessStageMasters: handleUpdateProcessStageMasters,accountTypes:accountTypes,onUpdateAccountTypes:handleUpdateAccountTypes, financialYears, onUpdateFinancialYears: handleUpdateFinancialYears, documentNumbering, onUpdateDocumentNumbering: handleUpdateDocumentNumbering, activeFinancialYearId, roles, onUpdateRoles: handleUpdateRoles }} />} />
+                                <Route path="/reports-insights" element={<ReportsAndInsights members={companyMembers} users={companyUsers} tasks={allTasks} attendance={attendance} onUpdateAttendance={handleUpdateAttendanceByAdmin} addToast={addToast} allLeads={companyLeads} currentUser={currentUser} leadSources={leadSources} schemes={schemes} insuranceTypes={insuranceTypes} onOpenAttendanceReport={() => setIsAttendanceReportModalOpen(true)} designations={designations} roles={roles} permissions={currentUserPermissions} />} />
+                                <Route path="/taskManagement" element={<TaskManagement allTasks={allTasks} permissions={currentUserPermissions} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} onCreateTask={handleCreateTask} onCreateBulkTask={handleCreateBulkTask} onOpenTask={handleOpenTask} users={companyUsers} members={companyMembers} leads={companyLeads} taskStatusMasters={taskStatusMasters} taskMasters={taskMasters} addToast={addToast} currentUser={currentUser} finrootsBranches={companyBranches} onReassignTask={handleReassignTask} onUpdateTaskWithRemark={handleUpdateTask} designations={designations} roles={roles} />} />
+                                
                                 <Route path="/profitAndLoss" element={<ProfitAndLoss 
                                     allMembers={companyMembers} expenses={expenses} manualIncomes={manualIncomes} manualCommissions={manualCommissions} 
-                                    manualReceipts={manualReceipts} onSaveReceipt={handleSaveReceipt}
+                                    manualReceipts={manualReceipts} 
+                                    onSaveReceipt={handleSaveReceipt}
+                                    onDeleteManualReceipt={handleDeleteManualReceipt}
                                     expenseCategoriesLevel1={expenseCategoriesLevel1} expenseCategoriesLevel2={expenseCategoriesLevel2} expenseCategoriesLevel3={expenseCategoriesLevel3} 
                                     incomeCategoriesLevel1={incomeCategoriesLevel1} incomeCategoriesLevel2={incomeCategoriesLevel2} 
                                     onAddExpense={handleAddExpense} onUpdateExpense={handleUpdateExpense} onDeleteExpense={handleDeleteExpense} onDeleteVoucher={handleDeleteVoucher} 
@@ -3044,15 +3083,19 @@ const App: React.FC = () => {
                                     onSaveVoucher={handleSaveVoucherDetails} 
                                     insuranceTypes={insuranceTypes} permissions={currentUserPermissions}
                                     activeFinancialYearId={activeFinancialYearId}
-                                    voucherDocNumbering={documentNumbering.find(dn => dn.finYearId === activeFinancialYearId && dn.type === 'Voucher') || null}
-                                    receiptDocNumbering={documentNumbering.find(dn => dn.finYearId === activeFinancialYearId && dn.type === 'Receipt') || null}
+                                    financialYears={financialYears}
+                                    // --- START OF FIX: Pass correct, date-based props for NEW documents ---
+                                    trueCurrentFinancialYear={trueCurrentFinancialYear}
+                                    currentVoucherDocNumbering={documentNumbering.find(dn => dn.finYearId === trueCurrentFinancialYear?.id && dn.type === 'Voucher') || null}
+                                    currentReceiptDocNumbering={documentNumbering.find(dn => dn.finYearId === trueCurrentFinancialYear?.id && dn.type === 'Receipt') || null}
                                     lastVoucherNumber={lastVoucherNumber}
                                     lastReceiptNumber={lastReceiptNumber}
-                                    financialYears={financialYears}
+                                    // --- END OF FIX ---
                                 />} />
+
                                 <Route path="/calendar" element={<FestivalCalendar allMembers={companyMembers} festivals={festivals} festivalDates={festivalDates} religions={religions} onViewMember={onViewMember} />} />
-                                <Route path="/advancedReports" element={<AdvancedReports members={companyMembers} users={companyUsers} tasks={allTasks} leads={companyLeads} branches={companyBranches} schemes={schemes} companies={agencies} expenses={expenses} manualIncomes={manualIncomes} manualCommissions={manualCommissions} currentUser={currentUser} customerTiers={customerTiers} attendance={attendance} expenseCategoriesLevel1={expenseCategoriesLevel1} expenseCategoriesLevel2={expenseCategoriesLevel2} expenseCategoriesLevel3={expenseCategoriesLevel3} incomeCategoriesLevel1={incomeCategoriesLevel1} incomeCategoriesLevel2={incomeCategoriesLevel2} businessVerticals={businessVerticals} taskStatusMasters={taskStatusMasters} customerFieldMasters={customerFieldMasters} insuranceFields={insuranceFields} insuranceTypes={insuranceTypes} designations={designations} />} />
-                                <Route path="/upselling" element={<UpsellingDashboard members={companyMembers} upsellCategories={upsellCategories} insuranceTypes={insuranceTypes} addToast={addToast} users={companyUsers} branches={companyBranches} />} />
+                                <Route path="/advancedReports" element={<AdvancedReports members={companyMembers} users={companyUsers} tasks={allTasks} leads={companyLeads} branches={companyBranches} schemes={schemes} companies={agencies} expenses={expenses} manualIncomes={manualIncomes} manualCommissions={manualCommissions} currentUser={currentUser} customerTiers={customerTiers} attendance={attendance} expenseCategoriesLevel1={expenseCategoriesLevel1} expenseCategoriesLevel2={expenseCategoriesLevel2} expenseCategoriesLevel3={expenseCategoriesLevel3} incomeCategoriesLevel1={incomeCategoriesLevel1} incomeCategoriesLevel2={incomeCategoriesLevel2} businessVerticals={businessVerticals} taskStatusMasters={taskStatusMasters} customerFieldMasters={customerFieldMasters} insuranceFields={insuranceFields} insuranceTypes={insuranceTypes} designations={designations} roles={roles} />} />
+                                <Route path="/upselling" element={<UpsellingDashboard members={companyMembers} upsellCategories={upsellCategories} insuranceTypes={insuranceTypes} addToast={addToast} users={companyUsers} branches={companyBranches} roles={roles}  />} />
                                 <Route path="*" element={<div>Not Implemented</div>} />
                             </Routes>
                         </div>
@@ -3084,6 +3127,7 @@ const App: React.FC = () => {
                             attendance={attendance}
                             users={companyUsers}
                             designations={designations}
+                            roles={roles}
                         />
                     )}
                     {isMemberModalOpen && (
@@ -3095,22 +3139,20 @@ const App: React.FC = () => {
                             onSave={handleSaveMember}
                             onCreateDependentMember={handleCreateDependentMember}
                             addToast={addToast}
-                            onCreateTask={(task) =>
-                                handleCreateTask(task)
-                            }
+                            onCreateTask={(task) => handleCreateTask(task)}
                             onRelieveMember={handleRelieveMember}
                             currentUser={currentUser}
                             users={companyUsers}
                             routes={routes}
                             onUpdateRoutes={handleUpdateRoutes}
-                            processFlow={processStageMasters} // MODIFIED: Pass processStageMasters instead of processFlow
+                            processFlow={processStageMasters}
                             onGenerateProposal={(member, policy) => { setProposalContext({ member, policy }); setIsProposalModalOpen(true); }}
                             onFindUpsell={handleFindUpsell}
                             allMembers={allMembers}
                             schemes={schemes}
                             companies={agencies}
                             documentMasters={documentMasters}
-                            schemeDocumentMappings={schemeDocumentMappings}
+                            insuranceTypeDocumentRules={insuranceTypeDocumentRules}
                             relationshipTypes={relationshipTypes}
                             leadSources={leadSources}
                             geographies={geographies}
@@ -3122,8 +3164,6 @@ const App: React.FC = () => {
                             allTasks={allTasks}
                             taskStatusMasters={taskStatusMasters}
                             taskMasters={taskMasters}
-                            policyChecklistMasters={policyChecklistMasters}
-                            onUpdatePolicyChecklistMasters={handleUpdatePolicyChecklistMasters}
                             insuranceTypes={insuranceTypes}
                             insuranceFields={insuranceFields}
                             onUpdateInsuranceFields={handleUpdateInsuranceFields}
@@ -3141,6 +3181,7 @@ const App: React.FC = () => {
                             genders={genders} 
                             maritalStatuses={maritalStatuses}
                             accountTypes={accountTypes}
+                            roles={roles}
                         />
                     )}
                      {isEmployeeModalOpen && (
@@ -3161,10 +3202,10 @@ const App: React.FC = () => {
                             insuranceTypes={insuranceTypes}
                             amcs={amcs}
                             designations={designations}
-                            designationPermissions={designationPermissions}
                             genders={genders}
                             documentMasters={documentMasters}
                             accountTypes={accountTypes}
+                            roles={roles}
                         />
                     )}
                     {isLeadModalOpen && currentUser && (
@@ -3219,8 +3260,8 @@ const App: React.FC = () => {
                             insuranceTypes={insuranceTypes}
                             allMembers={companyMembers}
                             onCreateReferrer={handleCreateReferrer}
-                            designations={designations}
-                            permissions={currentUserPermissions} // CORRECTED
+                            permissions={currentUserPermissions}
+                            roles={roles}
                         />
                     )}
                     {isAnnualReviewModalOpen && (
@@ -3232,7 +3273,7 @@ const App: React.FC = () => {
                             reviewContent={reviewContent}
                             setReviewContent={setReviewContent}
                             addToast={addToast}
-                            permissions={currentUserPermissions} // CORRECTED
+                            permissions={currentUserPermissions}
                         />
                     )}
                     {isProposalModalOpen && proposalContext && currentUser && (
@@ -3245,7 +3286,7 @@ const App: React.FC = () => {
                             templates={docTemplates}
                             onSave={handleSaveMember}
                             addToast={addToast}
-                            permissions={currentUserPermissions} // CORRECTED
+                            permissions={currentUserPermissions}
                         />
                     )}
                     {isConversationalCreatorOpen && (

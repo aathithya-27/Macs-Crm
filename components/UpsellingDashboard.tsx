@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Member, UpsellCategory, InsuranceTypeMaster, User, FinRootsBranch } from '../types';
+// --- MODIFICATION: Added Role to import ---
+import { Member, UpsellCategory, InsuranceTypeMaster, User, FinRootsBranch, Role } from '../types';
 import { generateUpsellSuggestion } from '../services/geminiService';
 import { CheckCircle, XCircle, Sparkles, Loader2, Search } from 'lucide-react';
 import Modal from './ui/Modal';
@@ -14,6 +15,8 @@ interface UpsellingDashboardProps {
     addToast: (message: string, type?: 'success' | 'error') => void;
     users: User[];
     branches: FinRootsBranch[];
+    // --- MODIFICATION: Added roles prop ---
+    roles: Role[];
 }
 
 const SuggestionModal: React.FC<{
@@ -61,7 +64,7 @@ const SuggestionModal: React.FC<{
     );
 };
 
-const UpsellingDashboard: React.FC<UpsellingDashboardProps> = ({ members, upsellCategories, insuranceTypes, addToast, users, branches }) => {
+const UpsellingDashboard: React.FC<UpsellingDashboardProps> = ({ members, upsellCategories, insuranceTypes, addToast, users, branches, roles }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedMember, setSelectedMember] = useState<Member | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -72,70 +75,69 @@ const UpsellingDashboard: React.FC<UpsellingDashboardProps> = ({ members, upsell
     const [selectedBranch, setSelectedBranch] = useState<string>('all');
     const [selectedProductFilter, setSelectedProductFilter] = useState<string>('all');
 
-    const advisors = useMemo(() => users.filter(u => u.role === 'Advisor'), [users]);
-    const sortedCategories = useMemo(() => [...upsellCategories].sort((a, b) => a.order - b.order), [upsellCategories]);
+    // --- MODIFICATION: Correctly identify advisors based on their role's `isAdvisor` flag ---
+    const advisors = useMemo(() => {
+        const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
+        return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
+    }, [users, roles]);
 
-    // --- START OF CORRECTION: Filter for members with at least one policy ---
+    const parentInsuranceTypes = useMemo(() => 
+        [...insuranceTypes]
+            .filter(it => !it.parentId && it.active)
+            .sort((a, b) => (a.order || 0) - (b.order || 0)), 
+    [insuranceTypes]);
+
     const membersWithPolicies = useMemo(() => {
         return members.filter(member => member.policies && member.policies.length > 0);
     }, [members]);
-    // --- END OF CORRECTION ---
-
-    const categoryToInsuranceTypeMap = useMemo(() => {
+    
+    const parentToChildrenMap = useMemo(() => {
         const map = new Map<string, Set<string>>();
-        if (!insuranceTypes || insuranceTypes.length === 0) return map;
-
         const insuranceTypeMap = new Map(insuranceTypes.map(it => [it.id, it]));
 
-        const getAllDescendantIds = (parentId: string, allTypes: Map<string, InsuranceTypeMaster>): string[] => {
-            const children = Array.from(allTypes.values()).filter(it => it.parentId === parentId).map(it => it.id);
+        const getAllDescendantIds = (parentId: string): string[] => {
+            const children = Array.from(insuranceTypeMap.values()).filter(it => it.parentId === parentId).map(it => it.id);
             let descendantIds: string[] = [...children];
             for (const childId of children) {
-                descendantIds = [...descendantIds, ...getAllDescendantIds(childId, allTypes)];
+                descendantIds = [...descendantIds, ...getAllDescendantIds(childId)];
             }
             return descendantIds;
         };
 
-        sortedCategories.forEach(category => {
-            const allLinkedIds = new Set<string>();
-            category.linkedInsuranceTypeIds.forEach(parentTypeId => {
-                allLinkedIds.add(parentTypeId);
-                const descendants = getAllDescendantIds(parentTypeId, insuranceTypeMap);
-                descendants.forEach(id => allLinkedIds.add(id));
-            });
-            map.set(category.id, allLinkedIds);
+        parentInsuranceTypes.forEach(parent => {
+            const allLinkedIds = new Set<string>([parent.id, ...getAllDescendantIds(parent.id)]);
+            map.set(parent.id, allLinkedIds);
         });
 
         return map;
-    }, [sortedCategories, insuranceTypes]);
+    }, [parentInsuranceTypes, insuranceTypes]);
 
 
-    const memberUpsellStatus = useMemo(() => {
+    const memberProductStatus = useMemo(() => {
         const statusMap = new Map<string, Set<string>>();
         if (!membersWithPolicies) return statusMap;
 
-        // Use the filtered list here
         membersWithPolicies.forEach(member => {
-            const ownedCategoryIds = new Set<string>();
+            const ownedParentTypeIds = new Set<string>();
             member.policies.forEach(policy => {
                 if (policy.insuranceTypeId) {
-                    for (const category of sortedCategories) {
-                        const allLinkedIds = categoryToInsuranceTypeMap.get(category.id);
+                    for (const parentType of parentInsuranceTypes) {
+                        const allLinkedIds = parentToChildrenMap.get(parentType.id);
                         if (allLinkedIds && allLinkedIds.has(policy.insuranceTypeId)) {
-                            ownedCategoryIds.add(category.id);
+                            ownedParentTypeIds.add(parentType.id);
                             break; 
                         }
                     }
                 }
             });
-            statusMap.set(member.id, ownedCategoryIds);
+            statusMap.set(member.id, ownedParentTypeIds);
         });
 
         return statusMap;
-    }, [membersWithPolicies, sortedCategories, categoryToInsuranceTypeMap]);
+    }, [membersWithPolicies, parentInsuranceTypes, parentToChildrenMap]);
+
 
     const filteredMembers = useMemo(() => {
-        // Start with the pre-filtered list of members who have policies
         return membersWithPolicies.filter(member => {
             const searchMatch = searchQuery === '' ||
                 member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -143,25 +145,25 @@ const UpsellingDashboard: React.FC<UpsellingDashboardProps> = ({ members, upsell
 
             const advisorMatch = selectedAdvisor === 'all' || member.assignedTo.includes(selectedAdvisor);
             const branchMatch = selectedBranch === 'all' || member.branchId === selectedBranch;
-            const productMatch = selectedProductFilter === 'all' || !memberUpsellStatus.get(member.id)?.has(selectedProductFilter);
+            const productMatch = selectedProductFilter === 'all' || !memberProductStatus.get(member.id)?.has(selectedProductFilter);
 
             return searchMatch && advisorMatch && branchMatch && productMatch;
         });
-    }, [membersWithPolicies, searchQuery, selectedAdvisor, selectedBranch, selectedProductFilter, memberUpsellStatus]);
+    }, [membersWithPolicies, searchQuery, selectedAdvisor, selectedBranch, selectedProductFilter, memberProductStatus]);
 
     const categoryCounts = useMemo(() => {
         const counts = new Map<string, number>();
-        sortedCategories.forEach(cat => {
+        parentInsuranceTypes.forEach(cat => {
             let count = 0;
             filteredMembers.forEach(member => {
-                if (memberUpsellStatus.get(member.id)?.has(cat.id)) {
+                if (memberProductStatus.get(member.id)?.has(cat.id)) {
                     count++;
                 }
             });
             counts.set(cat.id, count);
         });
         return counts;
-    }, [filteredMembers, sortedCategories, memberUpsellStatus]);
+    }, [filteredMembers, parentInsuranceTypes, memberProductStatus]);
 
 
     const handleGetSuggestion = async (member: Member) => {
@@ -237,7 +239,7 @@ const UpsellingDashboard: React.FC<UpsellingDashboardProps> = ({ members, upsell
                     />
                      <SearchableSelect
                         label="Find Opportunity In"
-                        options={[{ value: 'all', label: 'All Products' }, ...sortedCategories.map(c => ({ value: c.id, label: c.name }))]}
+                        options={[{ value: 'all', label: 'All Products' }, ...parentInsuranceTypes.map(c => ({ value: c.id, label: c.name }))]}
                         value={selectedProductFilter}
                         onChange={setSelectedProductFilter}
                     />
@@ -249,7 +251,7 @@ const UpsellingDashboard: React.FC<UpsellingDashboardProps> = ({ members, upsell
                                 <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300 w-1/4">
                                     Customer ({filteredMembers.length})
                                 </th>
-                                {sortedCategories.map(cat => (
+                                {parentInsuranceTypes.map(cat => (
                                     <th key={cat.id} className="px-4 py-3 text-center font-semibold text-gray-600 dark:text-gray-300">
                                         <div className="flex items-center justify-center gap-2">
                                             <span>{cat.name}</span>
@@ -269,8 +271,8 @@ const UpsellingDashboard: React.FC<UpsellingDashboardProps> = ({ members, upsell
                                         <div className="font-bold">{member.name}</div>
                                         <div className="text-xs text-gray-500">{member.memberId}</div>
                                     </td>
-                                    {sortedCategories.map(cat => {
-                                        const hasCategory = memberUpsellStatus.get(member.id)?.has(cat.id);
+                                    {parentInsuranceTypes.map(cat => {
+                                        const hasCategory = memberProductStatus.get(member.id)?.has(cat.id);
                                         return (
                                             <td key={cat.id} className="px-4 py-3 text-center">
                                                 {hasCategory ? (

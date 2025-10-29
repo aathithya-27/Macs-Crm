@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef, forwardRef } from 'react';
 import { Search, Calendar, AlertTriangle, CheckCircle, Clock, FileText, X, SlidersHorizontal, ArrowUp, ArrowDown } from 'lucide-react';
-// MODIFIED: Import permission types
-import { Member, Policy, ModalTab, User, FinRootsBranch, InsuranceTypeMaster, Designation, AppModule, PermissionLevel } from '../types.ts';
+import { Member, Policy, ModalTab, User, FinRootsBranch, InsuranceTypeMaster, Designation, AppModule, PermissionLevel, Role } from '../types.ts'; // MODIFIED: Added Role
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, eachWeekOfInterval, eachMonthOfInterval, parseISO, Interval, isValid, differenceInMonths } from 'date-fns';
@@ -14,7 +13,7 @@ interface jsPDFWithAutoTable extends jsPDF {
 // --- SELF-CONTAINED UI COMPONENTS ---
 
 const ViewIcon: React.FC<{className?: string}> = ({ className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
         <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
         <circle cx="12" cy="12" r="3"/>
     </svg>
@@ -149,6 +148,7 @@ const Pagination: React.FC<{
 };
 
 
+// --- MODIFIED: Added roles to props interface ---
 interface PolicyManagerProps {
   members: Member[];
   onRenewPolicy: (memberId: string, policyId: string) => Promise<boolean>;
@@ -159,6 +159,7 @@ interface PolicyManagerProps {
   insuranceTypes: InsuranceTypeMaster[];
   designations: Designation[];
   permissions: { [key in AppModule]?: PermissionLevel };
+  roles: Role[]; // --- NEW ---
 }
 
 interface Filters {
@@ -265,7 +266,7 @@ const FilterPanel: React.FC<{
 };
 
 
-const PolicyManager: React.FC<PolicyManagerProps> = ({ members, onRenewPolicy, onViewMember, addToast, users, finrootsBranches, insuranceTypes, designations, permissions }) => {
+const PolicyManager: React.FC<PolicyManagerProps> = ({ members, onRenewPolicy, onViewMember, addToast, users, finrootsBranches, insuranceTypes, designations, permissions, roles }) => {
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'daysLeft', direction: 'asc' });
   const [currentPage, setCurrentPage] = useState(1);
@@ -311,7 +312,6 @@ const allPolicies = useMemo(() => {
 
         const primaryAdvisor = users.find(u => u.id === member.assignedTo?.[0]);
 
-        // MODIFICATION START: Replaced time-based logic with action-based logic
         let balanceInstallments: number | null = null;
         const { policyTerm, policyTermUnit, premiumFrequency, installmentsPaid } = policy;
 
@@ -331,7 +331,6 @@ const allPolicies = useMemo(() => {
             
             balanceInstallments = totalInstallments - paidCount;
         }
-        // MODIFICATION END
 
         return {
           ...policy,
@@ -490,7 +489,6 @@ const allPolicies = useMemo(() => {
 
   const handleRenew = (memberId: string, policyId: string) => onRenewPolicy(memberId, policyId);
 
-  // MODIFIED: Added className prop to SortableHeader
   const SortableHeader: React.FC<{ sortKey: string; label: string; className?: string }> = ({ sortKey, label, className }) => (
     <th className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider ${className}`}>
         <button onClick={() => setSortConfig(prev => ({ key: sortKey, direction: prev.key === sortKey && prev.direction === 'asc' ? 'desc' : 'asc' }))} className="group inline-flex items-center">
@@ -546,10 +544,11 @@ const allPolicies = useMemo(() => {
     setRenewalStatusFilter(prev => prev === filter ? 'All' : filter);
   };
 
+  // --- MODIFIED: This logic now uses Roles ---
   const advisorsForFilter = useMemo(() => {
-      const advisorDesignationIds = new Set(designations.filter(d => d.isAdvisor).map(d => d.id));
-      return users.filter(u => advisorDesignationIds.has(u.designationId));
-  }, [users, designations]);
+      const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
+      return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
+  }, [users, roles]);
 
   return (
     <div className="space-y-6">
@@ -606,7 +605,6 @@ const allPolicies = useMemo(() => {
               {filteredAndSortedPolicies.length > 0 ? (
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-gray-50 dark:bg-gray-700/50">
-                    {/* MODIFIED: Reordered table headers and added min-width classes */}
                     <tr>
                       <SortableHeader sortKey="pk" label="ID" />
                       <SortableHeader sortKey="memberName" label="Customer" className="min-w-[180px]" />
@@ -626,7 +624,6 @@ const allPolicies = useMemo(() => {
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {currentPolicies.map(policy => (
                       <tr key={policy.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                        {/* MODIFIED: Reordered table cells */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700 dark:text-gray-200">{policy.pk}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">{policy.memberName}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{policy.policyTypeName}</td>

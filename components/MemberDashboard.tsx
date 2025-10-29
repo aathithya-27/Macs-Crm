@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-// MODIFIED: Import permission types
-import { Member, ModalTab, User, FinRootsBranch, Designation, AppModule, PermissionLevel } from '../types.ts';
+import { Member, ModalTab, User, FinRootsBranch, Designation, AppModule, PermissionLevel, Role } from '../types.ts'; // MODIFIED: Added Role
 import MemberTable from './MemberTable.tsx';
 import Button from './ui/Button.tsx';
 import { Plus, Search, BrainCircuit, Loader2, ArrowLeft, Settings2, Bot } from 'lucide-react';
@@ -8,7 +7,7 @@ import { searchMembersWithNL } from '../services/geminiService.ts';
 import Input from './ui/Input.tsx';
 import Pagination from './ui/Pagination.tsx';
 
-// MODIFICATION: Removed 'processFlow' from the props interface
+// --- MODIFIED: Added roles to props interface ---
 interface MemberDashboardProps {
   members: Member[];
   allMembers: Member[];
@@ -24,6 +23,7 @@ interface MemberDashboardProps {
   finrootsBranches: FinRootsBranch[];
   designations: Designation[];
   permissions: { [key in AppModule]?: PermissionLevel };
+  roles: Role[]; // --- NEW ---
 }
 
 type StatusFilter = 'Active' | 'Inactive' | 'All';
@@ -38,7 +38,7 @@ const ITEMS_PER_PAGE = 10;
 const MemberDashboard: React.FC<MemberDashboardProps> = ({ 
     members, allMembers, currentUser, users, onEditMember, onCreateMember, 
     onConversationalCreate, onDeleteMember, onToggleStatus, onGenerateReview, 
-    addToast, finrootsBranches, designations, permissions
+    addToast, finrootsBranches, designations, permissions, roles
 }) => {
   const [searchMode, setSearchMode] = useState<SearchMode>('ai');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('Active');
@@ -61,9 +61,12 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({
   }, [searchMode, statusFilter, aiSearchQuery, advFilters, advisorViewMode]);
 
 
+  // --- MODIFIED: This logic now uses Roles ---
   const advisorMembers = useMemo(() => {
     const userDesignation = designations.find(d => d.id === currentUser?.designationId);
-    if (userDesignation?.isAdvisor) {
+    const userRole = roles.find(r => r.id === currentUser?.roleId);
+
+    if (userRole?.isAdvisor) {
       let filtered = members.filter(member => 
         member.assignedTo?.includes(currentUser!.id) || member.createdBy === currentUser!.id
       );
@@ -72,8 +75,9 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({
       }
       return filtered;
     }
+    // Admins and other non-advisor roles see all members
     return members;
-  }, [members, currentUser, advisorViewMode, designations]);
+  }, [members, currentUser, advisorViewMode, designations, roles]);
 
 
   const handleAiSearch = useCallback(async () => {
@@ -222,7 +226,7 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({
              <SearchToggleButton mode="advanced" label="Advanced Search" icon={<Settings2 size={14}/>} />
           </div>
 
-          {designations.find(d => d.id === currentUser?.designationId)?.isAdvisor && (
+          {roles.find(r => r.id === currentUser?.roleId)?.isAdvisor && (
             <div className="flex items-center gap-2 mb-4 p-1 bg-gray-200/70 dark:bg-gray-900/50 rounded-lg">
                 <button
                     onClick={() => setAdvisorViewMode('all')}

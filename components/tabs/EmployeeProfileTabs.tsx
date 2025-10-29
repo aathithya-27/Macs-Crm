@@ -1,148 +1,11 @@
 import React, { useState, useMemo, useCallback } from 'react';
-// MODIFIED: Added AppModule, PermissionLevel, and Gender
-import { User, EmployeeProfile, AdvisorEducation, AdvisorAddress, Member, FinRootsBranch, Geography, BankMaster, BusinessVertical, InsuranceTypeMaster, AMC, Designation, AppModule, PermissionLevel, DesignationPermissions, Gender,AccountType  } from '../../types.ts';
+import { User, EmployeeProfile, AdvisorEducation, AdvisorAddress, Member, FinRootsBranch, Geography, BankMaster, BusinessVertical, InsuranceTypeMaster, AMC, Designation, AppModule, PermissionLevel, RolePermissions, Gender, AccountType, Role, DocumentMaster } from '../../types.ts';
 import Input from '../ui/Input.tsx';
 import Button from '../ui/Button.tsx';
 import { Trash2, PlusCircle, X, Users, Copy, Banknote, KeyRound } from 'lucide-react';
 import SearchableSelect from '../ui/SearchableSelect.tsx';
 
 const selectClasses = "block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
-
-// NEW: PermissionsTab Component
-export const PermissionsTab: React.FC<{
-    profile: Partial<EmployeeProfile>;
-    designationId: string;
-    onProfileChange: (newProfileData: Partial<EmployeeProfile>) => void;
-    designationPermissions: DesignationPermissions[];
-    designations: Designation[];
-}> = ({ profile, designationId, onProfileChange, designationPermissions, designations }) => {
-
-    const permissionLevels: PermissionLevel[] = ['none', 'view', 'create', 'modify'];
-    const permissionHierarchy: Record<PermissionLevel, number> = { 'none': 0, 'view': 1, 'create': 2, 'modify': 3 };
-
-    const moduleDisplayOrder: { key: AppModule; name: string }[] = [
-        { key: 'dashboard', name: 'Dashboard' },
-        { key: 'reports & insights', name: 'Reports & Insights' },
-        { key: 'profitAndLoss', name: 'Profit & Loss' },
-        { key: 'advancedReports', name: 'Advanced Reports'},
-        { key: 'pipeline', name: 'Lead Management' },
-        { key: 'calendar', name: 'Calendar' },
-        { key: 'upselling', name:'Upselling'},
-        { key: 'customers', name: 'Customers' },
-        { key: 'taskManagement', name: 'Task Management' },
-        { key: 'policies', name: 'Policies' },
-        { key: 'mutualFunds', name: 'Mutual Funds' },
-        { key: 'notes', name: 'Notes' },
-        { key: 'actionHub', name: 'Action Hub' },
-        { key: 'servicesHub', name: 'Services Hub' },
-        { key: 'location', name: 'Location Services' },
-        { key: 'chatbot', name: 'WhatsApp Bot' },
-        { key: 'employees', name: 'Employee Management' },
-        { key: 'masterMember', name: 'Master Data' },
-    ];
-
-    const defaultPermissions = useMemo(() => {
-        const perms = designationPermissions.find(p => p.designationId === designationId);
-        return perms?.permissions || {};
-    }, [designationId, designationPermissions]);
-
-    const handlePermissionChange = (module: AppModule, level: PermissionLevel) => {
-        const currentOverrides = profile.permissions || {};
-        const newOverrides = { ...currentOverrides };
-
-        const requiredLevel = permissionHierarchy[level];
-        
-        if (requiredLevel >= permissionHierarchy.modify) {
-            newOverrides[module] = 'modify';
-        } else if (requiredLevel >= permissionHierarchy.create) {
-            newOverrides[module] = 'create';
-        } else if (requiredLevel >= permissionHierarchy.view) {
-            newOverrides[module] = 'view';
-        } else {
-            newOverrides[module] = 'none';
-        }
-        
-        onProfileChange({ ...profile, permissions: newOverrides });
-    };
-
-    const resetToDefault = (module: AppModule) => {
-        const { [module]: _, ...rest } = profile.permissions || {};
-        onProfileChange({ ...profile, permissions: rest });
-    };
-    
-    const getEffectivePermission = (module: AppModule): PermissionLevel => {
-        return profile.permissions?.[module] || defaultPermissions[module] || 'none';
-    };
-
-    return (
-        <div className="space-y-4">
-             <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg text-blue-800 dark:text-blue-200 text-sm">
-                Set specific permissions for this employee. If no override is set, the employee will inherit the default permissions from their assigned designation (<strong className="font-semibold">{designations.find(d => d.id === designationId)?.name || 'N/A'}</strong>).
-            </div>
-            <div className="overflow-x-auto border dark:border-gray-700 rounded-lg">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700/50">
-                        <tr>
-                            <th className="px-4 py-3 text-left text-xs font-bold uppercase">Module</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold uppercase">Default Access</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold uppercase">Permission Override</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold uppercase">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {moduleDisplayOrder.map(({ key, name }) => {
-                            const defaultLevel = defaultPermissions[key] || 'none';
-                            const overrideLevel = profile.permissions?.[key];
-                            const effectiveLevel = overrideLevel || defaultLevel;
-                            
-                            return (
-                                <tr key={key}>
-                                    <td className="px-4 py-3 font-medium">{name}</td>
-                                    <td className="px-4 py-3">
-                                        <span className="text-xs font-semibold px-2 py-1 rounded-full bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-200 capitalize">{defaultLevel}</span>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center gap-4">
-                                            {permissionLevels.map(level => {
-                                                const levelValue = permissionHierarchy[level];
-                                                const effectiveValue = permissionHierarchy[effectiveLevel];
-                                                const isChecked = effectiveValue === levelValue;
-                                                const isDisabled = !overrideLevel && defaultLevel === level;
-
-                                                return (
-                                                    <label key={level} className="flex items-center gap-1.5 text-sm cursor-pointer">
-                                                        <input 
-                                                            type="radio"
-                                                            name={`perm-${key}`}
-                                                            checked={isChecked}
-                                                            onChange={() => handlePermissionChange(key, level)}
-                                                            className="h-4 w-4"
-                                                        />
-                                                        <span className="capitalize">{level}</span>
-                                                    </label>
-                                                )
-                                            })}
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <Button
-                                            variant="light"
-                                            size="small"
-                                            onClick={() => resetToDefault(key)}
-                                            disabled={!overrideLevel}
-                                        >
-                                            Reset to Default
-                                        </Button>
-                                    </td>
-                                </tr>
-                            )
-                        })}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    );
-};
 
 const SkillTagsInput: React.FC<{ skills: string; onSkillsChange: (skills: string) => void; }> = ({ skills, onSkillsChange }) => {
     const skillsArray = skills ? skills.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -174,7 +37,6 @@ const SkillTagsInput: React.FC<{ skills: string; onSkillsChange: (skills: string
     );
 };
 
-// NEW: Generic component for tag-based selection
 const TagsSelectionInput: React.FC<{
     label: string;
     placeholder: string;
@@ -231,11 +93,13 @@ const TagsSelectionInput: React.FC<{
     );
 };
 
+// --- MODIFIED: GeneralInfoTab updated ---
+// --- Place this inside your EmployeeProfileTabs.tsx file, replacing the existing GeneralInfoTab ---
 
 export const GeneralInfoTab: React.FC<{ 
     data: Partial<User>; 
     onChange: (field: keyof User | 'profile', value: any) => void;
-    onSave: (employee: User, closeModal?: boolean) => void; // RENAMED
+    onSave: (employee: User, closeModal?: boolean) => void;
     finrootsBranches?: FinRootsBranch[];
     addToast: (message: string, type?: 'success' | 'error') => void;
     bankMasters: BankMaster[];
@@ -243,11 +107,14 @@ export const GeneralInfoTab: React.FC<{
     insuranceTypes?: InsuranceTypeMaster[];
     amcs?: AMC[];
     designations: Designation[];
-    permissions: { [key in AppModule]?: PermissionLevel };
-    genders: Gender[]; // MODIFIED: Added genders prop
+    roles: Role[];
+    genders: Gender[];
     accountTypes: AccountType[]; 
-
-}> = ({ data, onChange, onSave, finrootsBranches, addToast, bankMasters, businessVerticals, insuranceTypes, amcs, designations, permissions, genders,accountTypes  }) => {
+    permissions: { [key in AppModule]?: PermissionLevel };
+}> = ({ 
+    data, onChange, onSave, finrootsBranches, addToast, bankMasters, businessVerticals, 
+    insuranceTypes, amcs, designations, roles, genders, accountTypes, permissions  
+}) => {
     const profile = data.profile || { status: 'Active' };
     const [isResettingPassword, setIsResettingPassword] = useState(false);
     const [newPassword, setNewPassword] = useState('');
@@ -257,17 +124,17 @@ export const GeneralInfoTab: React.FC<{
     };
 
     const isInsuranceVerticalSelected = useMemo(() => {
-        const insuranceVertical = businessVerticals?.find(v => v.name.toLowerCase() === 'insurance');
+        const insuranceVertical = businessVerticals?.find(v => v.name.toLowerCase().includes('insurance'));
         return !!(insuranceVertical && profile.businessVerticalIds?.includes(insuranceVertical.id));
     }, [businessVerticals, profile.businessVerticalIds]);
 
     const isMutualFundsVerticalSelected = useMemo(() => {
-        const mfVertical = businessVerticals?.find(v => v.name.toLowerCase() === 'mutual funds');
+        const mfVertical = businessVerticals?.find(v => v.name.toLowerCase().includes('mutual funds') || v.name.toLowerCase().includes('mutual fund'));
         return !!(mfVertical && profile.businessVerticalIds?.includes(mfVertical.id));
     }, [businessVerticals, profile.businessVerticalIds]);
     
     const isAgentAppointmentVerticalSelected = useMemo(() => {
-        const aaVertical = businessVerticals?.find(v => v.name.toLowerCase() === 'agent appointments (sa)');
+        const aaVertical = businessVerticals?.find(v => v.name.toLowerCase().includes('agent appointments') || v.name.toLowerCase().includes('agent appointment'));
         return !!(aaVertical && profile.businessVerticalIds?.includes(aaVertical.id));
     }, [businessVerticals, profile.businessVerticalIds]);
 
@@ -307,134 +174,8 @@ export const GeneralInfoTab: React.FC<{
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Input label="Date of Birth *" type="date" value={profile.dateOfBirth || ''} onChange={(e) => handleProfileChange('dateOfBirth', e.target.value)} />
-                
-                {/* --- MODIFICATION: Replaced Role with Designation --- */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Designation *</label>
-                    <select
-                        value={data.designationId || ''}
-                        onChange={(e) => onChange('designationId', e.target.value)}
-                        className={selectClasses}
-                    >
-                        <option value="">Select Designation...</option>
-                        {designations.filter(d => d.active).map(des => (
-                            <option key={des.id} value={des.id}>{des.name}</option>
-                        ))}
-                    </select>
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Employee Branch *</label>
-                    <select
-                        value={profile.employeeBranchId || ''}
-                        onChange={(e) => handleProfileChange('employeeBranchId', e.target.value)}
-                        className={selectClasses}
-                        disabled={!finrootsBranches}
-                    >
-                        <option value="">{finrootsBranches ? 'Select Branch...' : 'Branch Info Unavailable'}</option>
-                        {finrootsBranches?.map(branch => (
-                            <option key={branch.id} value={branch.id}>{branch.branchName}</option>
-                        ))}
-                    </select>
-                </div>
-
-                <div className="md:col-span-2">
-                    <TagsSelectionInput
-                        label="Business Vertical *"
-                        placeholder="Add a vertical..."
-                        selectedIds={profile.businessVerticalIds || []}
-                        options={businessVerticals?.filter(v => v.active) || []}
-                        onIdsChange={(ids) => handleProfileChange('businessVerticalIds', ids)}
-                    />
-                </div>
-                
-                <div className="md:col-span-2 space-y-4">
-                    {isInsuranceVerticalSelected && (
-                        <div className="animate-fade-in">
-                            <TagsSelectionInput
-                                label="Insurance Specializations"
-                                placeholder="Add a specialization..."
-                                selectedIds={profile.specializationIds || []}
-                                options={insuranceTypes?.filter(it => it.active && !it.parentId) || []}
-                                onIdsChange={(ids) => handleProfileChange('specializationIds', ids)}
-                            />
-                        </div>
-                    )}
-                    
-                    {isMutualFundsVerticalSelected && (
-                        <div className="animate-fade-in">
-                            <TagsSelectionInput
-                                label="Associated AMCs"
-                                placeholder="Add an AMC..."
-                                selectedIds={profile.amcIds || []}
-                                options={amcs?.filter(amc => amc.active) || []}
-                                onIdsChange={(ids) => handleProfileChange('amcIds', ids)}
-                            />
-                        </div>
-                    )}
-
-                    {isAgentAppointmentVerticalSelected && (
-                        <div className="animate-fade-in">
-                             <Input 
-                                label="Agent Code"
-                                value={profile.agentCode || ''}
-                                onChange={(e) => handleProfileChange('agentCode', e.target.value)}
-                                placeholder="Enter Agent Code"
-                            />
-                        </div>
-                    )}
-                </div>
-
-                <Input label="Date of Joining *" type="date" value={profile.dateOfJoining || ''} onChange={(e) => handleProfileChange('dateOfJoining', e.target.value)} />
-                <Input label="Date of Leaving" type="date" value={profile.dateOfLeaving || ''} onChange={(e) => handleProfileChange('dateOfLeaving', e.target.value)} />
-                
-                 <div className="md:col-span-2 p-4 border rounded-lg dark:border-gray-600 space-y-3">
-                    <h4 className="font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2"><KeyRound size={16}/> Password Management</h4>
-                    {!data.id ? (
-                        <Input
-                            label="Set Initial Password *"
-                            type="password"
-                            value={data.password || ''}
-                            onChange={(e) => onChange('password', e.target.value)}
-                            placeholder="Min. 6 characters"
-                        />
-                    ) : (
-                        <div className="space-y-3">
-                            <Input
-                                label="Current Password"
-                                type="password"
-                                value={data.password || ''}
-                                onChange={() => {}}
-                                readOnly
-                                disabled
-                            />
-                            {isResettingPassword ? (
-                                <div className="animate-fade-in space-y-2">
-                                    <Input 
-                                        label="New Password"
-                                        type="password"
-                                        value={newPassword}
-                                        onChange={(e) => setNewPassword(e.target.value)}
-                                        placeholder="Enter new password"
-                                    />
-                                    <div className="flex items-center gap-2">
-                                        <Button variant="primary" size="small" onClick={handleSavePassword}>Save New Password</Button>
-                                        <Button variant="secondary" size="small" onClick={() => setIsResettingPassword(false)}>Cancel</Button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <Button variant="secondary" onClick={() => setIsResettingPassword(true)}>
-                                    Reset Password
-                                </Button>
-                            )}
-                        </div>
-                    )}
-                </div>
-                
-                <Input label="Father/Mother Name *" value={profile.fatherMotherName || ''} onChange={(e) => handleProfileChange('fatherMotherName', e.target.value)} />
-                {/* --- MODIFICATION START: Replaced radio buttons with dynamic select --- */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Gender *</label>
                     <select
@@ -448,52 +189,200 @@ export const GeneralInfoTab: React.FC<{
                         ))}
                     </select>
                 </div>
-                {/* --- MODIFICATION END --- */}
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Driving Licence?</label>
-                    <input type="checkbox" checked={!!profile.drivingLicenceObtained} onChange={(e) => handleProfileChange('drivingLicenceObtained', e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"/>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Designation *</label>
+                    <select value={data.designationId || ''} onChange={e => onChange('designationId', e.target.value)} className={selectClasses}>
+                        <option value="">-- Select Designation --</option>
+                        {designations.filter(d => d.active).map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
                 </div>
-                <Input label="Driving Licence No *" value={profile.drivingLicenceNo || ''} onChange={(e) => handleProfileChange('drivingLicenceNo', e.target.value)} disabled={!profile.drivingLicenceObtained}/>
-                <Input label="DL Expiry Date *" type="date" value={profile.dlExpiryDate || ''} onChange={(e) => handleProfileChange('dlExpiryDate', e.target.value)} disabled={!profile.drivingLicenceObtained}/>
-                
-                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 border p-4 rounded-lg dark:border-gray-600">
-                    <h4 className="col-span-full font-semibold text-gray-700 dark:text-gray-300">Work Experience</h4>
-                    <div className="md:col-span-2 flex items-center gap-2">
-                        <input
-                            type="checkbox"
-                            id="isFresher"
-                            checked={!!profile.isFresher}
-                            onChange={handleFresherToggle}
-                            className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary accent-brand-primary"
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>
+                    <select value={data.roleId || ''} onChange={e => onChange('roleId', e.target.value || null)} className={selectClasses}>
+                        <option value="">-- No Role --</option>
+                        {roles.filter(r => r.active).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    </select>
+                </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Branch</label>
+                    <select value={profile.employeeBranchId || ''} onChange={e => handleProfileChange('employeeBranchId', e.target.value)} className={selectClasses} disabled={!finrootsBranches}>
+                        <option value="">{finrootsBranches ? 'Select Branch...' : 'Branch Info Unavailable'}</option>
+                        {finrootsBranches?.map(branch => (
+                            <option key={branch.id} value={branch.id}>{branch.branchName}</option>
+                        ))}
+                    </select>
+                </div>
+                <Input label="Date of Joining *" type="date" value={profile.dateOfJoining || ''} onChange={e => handleProfileChange('dateOfJoining', e.target.value)} />
+            </div>
+
+            <div className="md:col-span-2">
+                <TagsSelectionInput
+                    label="Business Vertical *"
+                    placeholder="Add a vertical..."
+                    selectedIds={profile.businessVerticalIds || []}
+                    options={businessVerticals?.filter(v => v.active) || []}
+                    onIdsChange={(ids) => handleProfileChange('businessVerticalIds', ids)}
+                />
+            </div>
+            
+            <div className="md:col-span-2 space-y-4">
+                {isInsuranceVerticalSelected && (
+                    <div className="animate-fade-in">
+                        <TagsSelectionInput
+                            label="Insurance Specializations"
+                            placeholder="Add a specialization..."
+                            selectedIds={profile.specializationIds || []}
+                            options={insuranceTypes?.filter(it => it.active && !it.parentId) || []}
+                            onIdsChange={(ids) => handleProfileChange('specializationIds', ids)}
                         />
-                        <label htmlFor="isFresher" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                            Fresher (No prior work experience)
-                        </label>
                     </div>
+                )}
+                
+                {isMutualFundsVerticalSelected && (
+                    <div className="animate-fade-in">
+                        <TagsSelectionInput
+                            label="Associated AMCs"
+                            placeholder="Add an AMC..."
+                            selectedIds={profile.amcIds || []}
+                            options={amcs?.filter(amc => amc.active) || []}
+                            onIdsChange={(ids) => handleProfileChange('amcIds', ids)}
+                        />
+                    </div>
+                )}
+
+                {isAgentAppointmentVerticalSelected && (
+                    <div className="animate-fade-in">
+                         <Input 
+                            label="Agent Code"
+                            value={profile.agentCode || ''}
+                            onChange={(e) => handleProfileChange('agentCode', e.target.value)}
+                            placeholder="Enter Agent Code"
+                        />
+                    </div>
+                )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Input label="Father Name *" value={profile.fatherName || ''} onChange={(e) => handleProfileChange('fatherName', e.target.value)} />
+                <Input label="Mother Name *" value={profile.motherName || ''} onChange={(e) => handleProfileChange('motherName', e.target.value)} />
+            </div>
+            
+                        {/* --- RE-ADDED: Password Management Section --- */}
+            <div className="md:col-span-2 p-4 border rounded-lg dark:border-gray-600 space-y-3 mt-6">
+                <h4 className="font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2"><KeyRound size={16}/> Password Management</h4>
+                {!data.id ? (
                     <Input
-                        label="Years *"
-                        type="number"
-                        value={profile.workExperienceYears ?? ''}
-                        onChange={e => handleProfileChange('workExperienceYears', e.target.value === '' ? undefined : parseInt(e.target.value, 10))}
-                        disabled={!!profile.isFresher}
+                        label="Set Initial Password *"
+                        type="password"
+                        value={data.password || ''}
+                        onChange={(e) => onChange('password', e.target.value)}
+                        placeholder="Min. 6 characters"
                     />
-                    <Input
-                        label="Months *"
-                        type="number"
-                        value={profile.workExperienceMonths ?? ''}
-                        onChange={e => handleProfileChange('workExperienceMonths', e.target.value === '' ? undefined : parseInt(e.target.value, 10))}
-                        disabled={!!profile.isFresher}
+                ) : (
+                    <div className="space-y-3">
+                        <Input
+                            label="Current Password"
+                            type="password"
+                            value={data.password || ''}
+                            onChange={() => {}}
+                            readOnly
+                            disabled
+                        />
+                        {isResettingPassword ? (
+                            <div className="animate-fade-in space-y-2">
+                                <Input 
+                                    label="New Password"
+                                    type="password"
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    placeholder="Enter new password"
+                                />
+                                <div className="flex items-center gap-2">
+                                    <Button variant="primary" size="small" onClick={handleSavePassword}>Save New Password</Button>
+                                    <Button variant="secondary" size="small" onClick={() => setIsResettingPassword(false)}>Cancel</Button>
+                                </div>
+                            </div>
+                        ) : (
+                            <Button variant="secondary" onClick={() => setIsResettingPassword(true)}>
+                                Reset Password
+                            </Button>
+                        )}
+                    </div>
+                )}
+            </div>
+            {/* Driving Licence Section */}
+            <div className="border border-gray-300 dark:border-gray-700 rounded-xl p-4 mt-4">
+                <label className="block text-base font-semibold text-gray-800 dark:text-gray-200 mb-2">
+                    Driving Licence
+                </label>
+
+                <div className="flex items-center mb-3">
+                    <input
+                    type="checkbox"
+                    checked={!!profile.drivingLicenceObtained}
+                    onChange={(e) => handleProfileChange('drivingLicenceObtained', e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
                     />
-                    <Input
-                        label="Industry *"
-                        value={profile.industry || ''}
-                        onChange={e => handleProfileChange('industry', e.target.value)}
-                        disabled={!!profile.isFresher}
-                    />
+                    <span className="ml-2 text-sm text-gray-700 dark:text-gray-300">Do you have a Driving Licence?</span>
                 </div>
 
-                <div className="md:col-span-2"><SkillTagsInput skills={profile.computerSkills || ''} onSkillsChange={(skills) => handleProfileChange('computerSkills', skills)}/></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                    label="Driving Licence No *"
+                    value={profile.drivingLicenceNo || ''}
+                    onChange={(e) => handleProfileChange('drivingLicenceNo', e.target.value)}
+                    disabled={!profile.drivingLicenceObtained}
+                    />
+                    <Input
+                    label="DL Expiry Date *"
+                    type="date"
+                    value={profile.dlExpiryDate || ''}
+                    onChange={(e) => handleProfileChange('dlExpiryDate', e.target.value)}
+                    disabled={!profile.drivingLicenceObtained}
+                    />
+                </div>
             </div>
+            <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 border p-4 rounded-lg dark:border-gray-600">
+                <h4 className="col-span-full font-semibold text-gray-700 dark:text-gray-300">Work Experience</h4>
+                <div className="md:col-span-2 flex items-center gap-2">
+                    <input
+                        type="checkbox"
+                        id="isFresher"
+                        checked={!!profile.isFresher}
+                        onChange={handleFresherToggle}
+                        className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary accent-brand-primary"
+                    />
+                    <label htmlFor="isFresher" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Fresher (No prior work experience)
+                    </label>
+                </div>
+                <Input
+                    label="Years *"
+                    type="number"
+                    value={profile.workExperienceYears ?? ''}
+                                       onChange={e => handleProfileChange('workExperienceYears', e.target.value === '' ? undefined : parseInt(e.target.value, 10))}
+                    disabled={!!profile.isFresher}
+                />
+                <Input
+                    label="Months *"
+                    type="number"
+                    value={profile.workExperienceMonths ?? ''}
+                    onChange={e => handleProfileChange('workExperienceMonths', e.target.value === '' ? undefined : parseInt(e.target.value, 10))}
+                    disabled={!!profile.isFresher}
+                />
+                <Input
+                    label="Industry *"
+                    value={profile.industry || ''}
+                    onChange={e => handleProfileChange('industry', e.target.value)}
+                    disabled={!!profile.isFresher}
+                />
+            </div>
+
+            <div className="md:col-span-2"><SkillTagsInput skills={profile.computerSkills || ''} onSkillsChange={(skills) => handleProfileChange('computerSkills', skills)}/></div>
 
             <div className="mt-6 pt-6 border-t dark:border-gray-700">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center gap-2">
@@ -504,7 +393,7 @@ export const GeneralInfoTab: React.FC<{
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Bank Name *</label>
                         <select
                             value={profile.bankDetails?.bankName || ''}
-                            onChange={e => handleProfileChange('bankDetails', { ...profile.bankDetails, bankName: e.target.value })}
+                                                       onChange={(e) => handleProfileChange('bankDetails', { ...profile.bankDetails, bankName: e.target.value })}
                             className={selectClasses}
                         >
                             <option value="">Select a Bank...</option>
@@ -528,9 +417,13 @@ export const GeneralInfoTab: React.FC<{
                     </div>
                 </div>
             </div>
+
+
         </div>
     );
 };
+
+// ... (The rest of your components like AddressTab, EducationTab, etc. remain unchanged)
 
 const AddressForm: React.FC<{
   title: string;

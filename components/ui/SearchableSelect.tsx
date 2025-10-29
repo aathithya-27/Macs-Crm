@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, PlusCircle, X } from 'lucide-react';
-import Input from './Input.tsx';
+import Input from './Input.tsx'; // Placeholder, adjust import path if necessary
 
 interface Option {
   value: string;
@@ -67,9 +67,21 @@ const DropdownMenu = ({
         onClose();
       }
     };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === 'Escape') {
+            onClose();
+        }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose, triggerRef]);
+    document.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown); 
+    };
+  }, [onClose, triggerRef]); // Dependency array ensures effect re-runs if onClose/triggerRef changes
 
   if (!targetRect) return null;
   

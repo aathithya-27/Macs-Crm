@@ -1,12 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-// MODIFIED: Removed ProcessStage from imports as it's no longer managed here
 import { 
     Bell, Gift, Shield, Calendar as CalendarIcon, Mic, StopCircle, Trash2, AlertCircle, CheckSquare, MessageSquare, 
     Link, MessageCircle as WhatsAppIcon, Save, Star, X, Check, Loader2, User, Send, Watch, History, 
     Cog, Clock, Workflow, Plus, Edit2, Zap, FileArchive
 } from 'lucide-react';
 import Button from './ui/Button.tsx';
-// MODIFIED: Removed ProcessStage from imports
 import { 
     Member, ActivityLog, Appointment, Task, UpsellOpportunity, CustomScheduledMessage, AutomationRule, DocTemplate, 
     User as UserType, Notification, ModalTab, AppModule, PermissionLevel 
@@ -206,8 +204,6 @@ const ChannelTag: React.FC<{ channel: 'whatsapp' | 'sms' | 'email' | 'call' | st
     return <span className={`px-2 py-1 text-xs font-medium rounded ${style}`}>{channel}</span>;
 };
 
-// Main Component Props
-// MODIFIED: Removed processFlow and onUpdateProcessFlow from props
 interface ActionAutomationHubProps {
     notifications: Notification[];
     onRenewPolicy: (memberId: string, policyId: string) => Promise<boolean>;
@@ -216,7 +212,6 @@ interface ActionAutomationHubProps {
     onNotificationSent: (notificationId: string) => void;
     appointments: Appointment[];
     tasks: Task[];
-    onToggleTask: (taskId: string) => void;
     onDismissItem: (itemId: string) => void;
     savedGreetingUrl: string | null;
     setSavedGreetingUrl: (url: string | null) => void;
@@ -337,7 +332,6 @@ const AddRuleModal: React.FC<{
     );
 }
 
-// MODIFIED: Renamed from HubTab to avoid conflict
 type ActionHubTab = 'actions' | 'automation' | 'tools';
 
 const UpsellOpportunityCard: React.FC<{
@@ -375,36 +369,26 @@ const UpsellOpportunityCard: React.FC<{
     );
 };
 
-// Main Component
-// MODIFIED: Removed processFlow and onUpdateProcessFlow from destructuring
 export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
-    notifications, onRenewPolicy, activityLog, addToast, onNotificationSent, appointments, tasks, onToggleTask,
+    notifications, onRenewPolicy, activityLog, addToast, onNotificationSent, appointments, tasks,
     onDismissItem, savedGreetingUrl, setSavedGreetingUrl, upsellOpportunities, onDismissOpportunity, members,
     onScheduleMessage, onClearAll, onScheduleAppointment, rules, onUpdateRule, onAddRule,
     docTemplates, onUpdateTemplates, currentUser, users, onViewMember, permissions
 }) => {
     const [activeHubTab, setActiveHubTab] = useState<ActionHubTab>('actions');
 
-    // NEW: Permission checks
     const canModifyActions = permissions?.actionHub === 'modify';
     const canModifyAutomation = permissions?.masterMember === 'modify';
     const canModifyPolicies = permissions?.policies === 'modify';
 
-    // --- State for Automation Rules ---
     const [editingRuleId, setEditingRuleId] = useState<number | null>(null);
     const [editedTemplate, setEditedTemplate] = useState('');
     const [editedTiming, setEditedTiming] = useState<{ value: number; unit: 'days' | 'weeks' }>({ value: 7, unit: 'days' });
     const [isAddRuleModalOpen, setIsAddRuleModalOpen] = useState(false);
 
-    // --- MODIFICATION START: All state and logic for Workflow Management has been removed ---
-    // const [editingStage, setEditingStage] = useState<{ index: number; name: string } | null>(null);
-    // const [newStageName, setNewStageName] = useState('');
-    // --- MODIFICATION END ---
-
     const [upcoming, setUpcoming] = useState<any[]>([]);
     const [overdue, setOverdue] = useState<any[]>([]);
     
-    // --- State for Task Filtering (Admin) ---
     const [adminTaskFilter, setAdminTaskFilter] = useState('all');
 
     useEffect(() => {
@@ -427,7 +411,6 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
         setOverdue(overdueNotifications.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()));
     }, [notifications]);
 
-    // --- Automation Rules Logic ---
     const toggleRule = (id: number) => {
         if (!canModifyAutomation) return;
         if(editingRuleId === id) handleCancelClick();
@@ -447,13 +430,6 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
     };
     const handleCancelClick = () => setEditingRuleId(null);
 
-    // --- MODIFICATION START: All handler functions for Workflow have been removed ---
-    // const handleAddStage = ...
-    // const handleRenameStage = ...
-    // const handleDeleteStage = ...
-    // --- MODIFICATION END ---
-    
-    // --- Notification Center Logic ---
     const handleAction = (notificationId: string) => onNotificationSent(notificationId);
     const handleRenew = async (memberId: string, policyId: string, notificationId: string) => {
         if (await onRenewPolicy(memberId, policyId)) handleAction(notificationId);
@@ -466,7 +442,7 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
     
     const visibleTasks = useMemo(() => {
         if (!currentUser) return [];
-        if (currentUser.role === 'Admin') {
+        if (permissions?.actionHub === 'modify' || permissions?.masterMember === 'modify') {
             if (adminTaskFilter === 'all') {
                 return tasks;
             }
@@ -477,7 +453,7 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
             task.primaryContactPerson === currentUser.id || 
             (task.memberId && assignedMemberIds.has(task.memberId))
         );
-    }, [tasks, currentUser, members, adminTaskFilter]);
+    }, [tasks, currentUser, members, adminTaskFilter, permissions]);
 
     const hasNotifications = overdue.length > 0 || upcoming.length > 0;
     
@@ -542,7 +518,6 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <SummaryCard title="Pending Actions" value={notifications.length} icon={<Clock size={24} />} color="text-orange-500" />
                 <SummaryCard title="Active Rules" value={rules.filter(r => r.enabled).length} icon={<Cog size={24} />} color="text-blue-500" />
-                {/* MODIFIED: Workflow stages count is removed */}
                 <SummaryCard title="Doc Templates" value={docTemplates.length} icon={<FileArchive size={24} />} color="text-purple-500" />
                 <SummaryCard title="Upcoming Appts" value={appointments.length} icon={<CalendarIcon size={24} />} color="text-green-500" />
             </div>
@@ -551,7 +526,6 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
                 <div className="flex items-center gap-2 overflow-x-auto">
                     <TabButton label="Action Center" icon={<Bell size={16}/>} isActive={activeHubTab === 'actions'} onClick={() => setActiveHubTab('actions')} />
                     <TabButton label="Automation & Docs" icon={<Cog size={16}/>} isActive={activeHubTab === 'automation'} onClick={() => setActiveHubTab('automation')} />
-                    {/* MODIFIED: Workflow tab button is removed */}
                     <TabButton label="Other Tools" icon={<Zap size={16}/>} isActive={activeHubTab === 'tools'} onClick={() => setActiveHubTab('tools')} />
                 </div>
             </div>
@@ -590,7 +564,7 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
                         <div className="space-y-4">
                             <div>
                                 <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Tasks</h4>
-                                {currentUser?.role === 'Admin' && (
+                                {(permissions?.actionHub === 'modify' || permissions?.masterMember === 'modify') && (
                                     <div className="mb-4">
                                         <label htmlFor="task-advisor-filter" className="text-sm font-medium text-gray-700 dark:text-gray-300 mr-2">Filter by Advisor:</label>
                                         <select
@@ -610,12 +584,6 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
                                     <div key={task.id} className="p-3 border-b border-gray-200 dark:border-gray-700 last:border-b-0">
                                         <div className="flex items-start justify-between">
                                             <div className="flex items-start gap-3 flex-grow">
-                                                <input 
-                                                    type="checkbox" 
-                                                    checked={task.isCompleted} 
-                                                    onChange={() => onToggleTask(task.id)} 
-                                                    className="h-5 w-5 rounded border-gray-300 dark:border-gray-600 text-brand-primary focus:ring-brand-primary bg-gray-100 dark:bg-gray-900 mt-1" 
-                                                />
                                                 <div>
                                                     <span className={`font-medium ${task.isCompleted ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-800 dark:text-gray-200'}`}>
                                                         {task.taskDescription}
@@ -688,8 +656,6 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
                 <DocumentHub templates={docTemplates} onUpdateTemplates={onUpdateTemplates} isReadOnly={!canModifyAutomation} />
             </div>}
             
-            {/* MODIFICATION: This entire 'workflow' block is removed */}
-
             {activeHubTab === 'tools' && <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 animate-fade-in">
                 <AppointmentScheduler members={members} onSchedule={onScheduleAppointment} addToast={addToast} disabled={!canModifyActions} />
                 <CustomMessageScheduler members={members} onSchedule={onScheduleMessage} addToast={addToast} disabled={!canModifyActions} />

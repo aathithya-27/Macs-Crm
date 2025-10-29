@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-// MODIFIED: Import ProcessStageMaster
 import { 
     Member, ModalTab, User, Route, ProcessStage, ProcessLog, Policy, BankDetails, SchemeMaster, 
-    Company, DocumentMaster, SchemeDocumentMapping, RelationshipType, LeadSourceMaster, Geography, 
+    Company, DocumentMaster, /* SchemeDocumentMapping, */ RelationshipType, LeadSourceMaster, Geography, 
     BankMaster, CustomerCategory, CustomerSubCategory, CustomerGroup, FamilyMemberNode, Task, 
-    TaskStatusMaster, TaskMaster, PolicyChecklistMaster, InsuranceTypeMaster, InsuranceFieldMaster, 
+    TaskStatusMaster, TaskMaster, /* PolicyChecklistMaster, */ InsuranceTypeMaster, InsuranceFieldMaster, 
     BusinessVertical, CoveredMember, FinRootsBranch, Religion, CustomerFieldMaster, AMC, 
     MutualFundScheme, MutualFundHolding, MutualFundTransaction, MutualFundFieldMaster, Designation,
     AppModule, PermissionLevel,
-    Gender, MaritalStatus, ProcessStageMaster,AccountType
+    Gender, MaritalStatus, ProcessStageMaster, AccountType, Role, RolePermissions,
+    InsuranceTypeDocumentRule
 } from '../types.ts';
 import Modal from './ui/Modal.tsx';
 import Button from './ui/Button.tsx';
@@ -23,6 +23,27 @@ import { X, Users, UserCheck, Plus, ListTodo, SlidersHorizontal, UserPlus as Use
 import Input from './ui/Input.tsx';
 import SearchableSelect from './ui/SearchableSelect.tsx';
 
+// Constants for validation and security
+const VALIDATION_PATTERNS = {
+    MOBILE: /^\+?[0-9\s-]{10,15}$/,
+    EMAIL: /^\S+@\S+\.\S+$/,
+    XSS_CHARS: /[<>"'&]/g
+} as const;
+
+const ERROR_MESSAGES = {
+    REQUIRED_FIELDS: 'Name, Date of Birth, and Relationship are required.',
+    TASK_DESCRIPTION_REQUIRED: 'Task description is required.',
+    REFERRER_NAME_REQUIRED: 'Referrer name is required.',
+    MOBILE_INVALID: 'A valid mobile number is required.',
+    CREATION_FAILED: 'Failed to create. Please try again.',
+    SAVE_FAILED: 'Failed to save. Please try again.'
+} as const;
+
+const SUCCESS_MESSAGES = {
+    TASK_CREATED: 'Task created successfully.',
+    REFERRER_SAVED: 'Referrer saved successfully.'
+} as const;
+
 const FamilyTreeTab: React.FC<{
     member: Member;
     allMembers: Member[];
@@ -33,13 +54,14 @@ const FamilyTreeTab: React.FC<{
     designations: Designation[];
     genders: Gender[]; 
     maritalStatuses: MaritalStatus[];
-    relationshipTypes: RelationshipType[]; // NEW PROP
-}> = ({ member, allMembers, onRelieveMember, onCreateDependent, onSetSpoc, currentUser, designations, genders, maritalStatuses, relationshipTypes }) => {
+    relationshipTypes: RelationshipType[];
+    permissions: { [key in AppModule]?: PermissionLevel };
+}> = ({ member, allMembers, onRelieveMember, onCreateDependent, onSetSpoc, currentUser, designations, genders, maritalStatuses, relationshipTypes, permissions }) => {
 
     const [isAdding, setIsAdding] = useState(false);
     const [newDependent, setNewDependent] = useState<Partial<Member>>({});
     
-    const isAdmin = useMemo(() => designations.find(d => d.id === currentUser?.designationId)?.name === 'Admin', [currentUser, designations]);
+    const canRelieveMember = permissions?.customers === 'modify';
 
     const titleSpoc = useMemo(() => {
         if (member.spocId) {
@@ -169,7 +191,7 @@ const FamilyTreeTab: React.FC<{
                                 </p>
                                 {isRelieved && <span className="mt-1 text-xs font-bold bg-yellow-200 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300 px-2 py-0.5 rounded-full">Relieved</span>}
                             </div>
-                            {memberNode && !memberNode.isSPOC && isAdmin && !isRelieved && (
+                            {memberNode && !memberNode.isSPOC && canRelieveMember && !isRelieved && (
                                 <Button 
                                     size="small" 
                                     variant="danger" 
@@ -253,7 +275,7 @@ const FamilyTreeTab: React.FC<{
                     </div>
                      <div className="mt-4 space-y-2">
                         <div className="flex justify-between items-center">
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Address</label>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray300">Address</label>
                             <Button size="small" variant="light" type="button" onClick={handleCopyAddress}>
                                 Copy Primary Customer's Address
                             </Button>
@@ -302,12 +324,12 @@ const TasksTab: React.FC<{
     users: User[];
     onCreateTask: (task: Omit<Task, 'id'>) => void;
     addToast: (message: string, type?: 'success' | 'error') => void;
-    permissions: { [key in AppModule]?: PermissionLevel }; // NEW
-}> = ({ member, tasks, taskStatusMasters, taskMasters, users, onCreateTask, addToast, permissions }) => {
+    permissions: { [key in AppModule]?: PermissionLevel };
+    isCurrentUserAdvisor: boolean; // NEW PROP
+}> = ({ member, tasks, taskStatusMasters, taskMasters, users, onCreateTask, addToast, permissions, isCurrentUserAdvisor }) => {
     const [isCreating, setIsCreating] = useState(false);
     
-    // NEW: Permission check
-    const canCreate = permissions?.taskManagement === 'create' || permissions?.taskManagement === 'modify';
+    const canCreate = (permissions?.taskManagement === 'create' || permissions?.taskManagement === 'modify') && !isCurrentUserAdvisor;
 
     const manualTaskMaster = useMemo(() => taskMasters.find(tm => tm.name.toLowerCase() === 'manual' && tm.active), [taskMasters]);
     const autoTaskMaster = useMemo(() => taskMasters.find(tm => tm.name.toLowerCase() === 'auto' && tm.active), [taskMasters]);
@@ -357,7 +379,6 @@ const TasksTab: React.FC<{
         <div className="space-y-4">
             <div className="flex justify-between items-center">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white">Tasks for {member.name}</h3>
-                {/* MODIFIED: Button is permission-gated */}
                 {!isCreating && canCreate && <Button onClick={handleNewTaskClick} variant="primary"><Plus size={16}/> New Task</Button>}
             </div>
 
@@ -556,7 +577,6 @@ interface MemberModalProps {
   users: User[];
   routes: Route[];
   onUpdateRoutes: (data: Route[]) => void;
-  // MODIFIED: Prop type changed to ProcessStageMaster[]
   processFlow: ProcessStageMaster[];
   onGenerateProposal: (member: Member, policy: Policy) => void;
   onFindUpsell: (member: Member) => Promise<string | null>;
@@ -564,7 +584,8 @@ interface MemberModalProps {
   schemes: SchemeMaster[];
   companies: Company[];
   documentMasters: DocumentMaster[];
-  schemeDocumentMappings: SchemeDocumentMapping[];
+  // schemeDocumentMappings: SchemeDocumentMapping[]; // --- REMOVED ---
+  insuranceTypeDocumentRules: InsuranceTypeDocumentRule[]; // --- ADDED ---
   relationshipTypes: RelationshipType[];
   leadSources: LeadSourceMaster[];
   geographies: Geography[];
@@ -576,8 +597,8 @@ interface MemberModalProps {
   allTasks: Task[];
   taskStatusMasters: TaskStatusMaster[];
   taskMasters: TaskMaster[];
-  policyChecklistMasters: PolicyChecklistMaster[];
-  onUpdatePolicyChecklistMasters: (data: PolicyChecklistMaster[]) => void;
+  // policyChecklistMasters: PolicyChecklistMaster[]; // --- REMOVED ---
+  // onUpdatePolicyChecklistMasters: (data: PolicyChecklistMaster[]) => void; // --- REMOVED ---
   insuranceTypes: InsuranceTypeMaster[];
   insuranceFields: InsuranceFieldMaster[];
   onUpdateInsuranceFields: (data: InsuranceFieldMaster[]) => void;
@@ -595,30 +616,28 @@ interface MemberModalProps {
   genders: Gender[];
   maritalStatuses: MaritalStatus[];
   accountTypes: AccountType[];
+  roles: Role[];
 }
 
 export const MemberModal: React.FC<MemberModalProps> = ({
     isOpen, onClose, member, initialTab, onSave, onCreateDependentMember, addToast, onCreateTask, onRelieveMember, 
     currentUser, users, routes, onUpdateRoutes, processFlow, onGenerateProposal, onFindUpsell, 
-    allMembers, schemes, companies, documentMasters, schemeDocumentMappings, relationshipTypes, 
+    allMembers, schemes, companies, documentMasters, insuranceTypeDocumentRules, relationshipTypes, 
     leadSources, geographies, onUpdateGeographies, bankMasters, customerCategories, 
     customerSubCategories, customerGroups, allTasks, taskStatusMasters, taskMasters, 
-    policyChecklistMasters, onUpdatePolicyChecklistMasters, insuranceTypes, insuranceFields, 
-    onUpdateInsuranceFields, customerFieldMasters, onUpdateCustomerFieldMasters, 
+    insuranceTypes, insuranceFields, onUpdateInsuranceFields, customerFieldMasters, onUpdateCustomerFieldMasters, 
     onCreateReferrer, finrootsBranches, religions, onAddDocumentMaster, amcs, 
     mutualFundSchemes, mutualFundFields, designations, permissions,
-    genders, maritalStatuses,accountTypes
+    genders, maritalStatuses, accountTypes, roles
 }) => {
   const [activeTab, setActiveTab] = useState<ModalTab | string>(ModalTab.BasicInfo);
   const [formData, setFormData] = useState<Partial<Member>>({});
-  const [errors, setErrors] = useState<Partial<Record<keyof Member | 'bankDetailsError' | 'email' | 'address', string>>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof Member | 'bankDetailsError' | 'email' | 'address' | 'documentsError', string>>>({});
   const [editingPolicyId, setEditingPolicyId] = useState<string | null>(null);
 
-  // --- MODIFICATION START: State management for multiple process flows ---
   const [selectedProcessFlowKey, setSelectedProcessFlowKey] = useState<string | null>(null);
   const [jumpState, setJumpState] = useState<{isOpen: boolean; targetStage: ProcessStage | null; skippedStages: ProcessStage[]}>({ isOpen: false, targetStage: null, skippedStages: [] });
   const [jumpRemarks, setJumpRemarks] = useState('');
-  // --- MODIFICATION END ---
 
   const prevMemberIdRef = useRef<string | null>(null);
   const [isNewReferrerModalOpen, setIsNewReferrerModalOpen] = useState(false);
@@ -628,24 +647,34 @@ export const MemberModal: React.FC<MemberModalProps> = ({
   const isReadOnly = !!member && !canModify;
 
   const userMap = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users]);
+  // MODIFICATION: Added roleMap
+  const roleMap = useMemo(() => new Map(roles.map(r => [r.id, r.name])), [roles]);
 
-  const creatorName = useMemo(() => {
+  const isCurrentUserAdvisor = useMemo(() => roles.find(r => r.id === currentUser?.roleId)?.isAdvisor === true, [currentUser, roles]);
+
+  // MODIFICATION: Changed logic to display role name instead of user name
+  const creatorRoleName = useMemo(() => {
     if (formData.createdBy) {
+        const creatorUser = users.find(u => u.id === formData.createdBy);
+        if (creatorUser && creatorUser.roleId) {
+            return roleMap.get(creatorUser.roleId) || 'Unknown Role';
+        }
+        // Fallback to user name if role or user not found
         return userMap.get(formData.createdBy) || 'Unknown User';
     }
     return null;
-  }, [formData.createdBy, userMap]);
+  }, [formData.createdBy, users, userMap, roleMap]); // Updated dependencies
 
   const getInitialFormData = (member: Member | null): Partial<Member> => {
     if (member) return JSON.parse(JSON.stringify(member));
-    const isCurrentUserAdvisor = designations.find(d => d.id === currentUser?.designationId)?.isAdvisor;
+
     return {
       name: '', dob: '', maritalStatus: null, gender: null, mobile: '', state: 'Maharashtra', city: 'Mumbai City', address: '',
       memberType: 'Silver', active: true, panCard: '', aadhaar: '', policies: [], voiceNotes: [], documents: [],
-      documentChecklist: {}, lat: 0, lng: 0,
+      lat: 0, lng: 0,
       assignedTo: isCurrentUserAdvisor ? [currentUser!.id] : [],
       routeId: null, 
-      processStages: {}, processHistories: {}, stageLastChangedMap: {}, // New structure
+      processStages: {}, processHistories: {}, stageLastChangedMap: {},
       financialProfile: {}, bankDetails: {}, otherSpecialOccasions: [], isSPOC: false,
       spocId: null, familyName: null, leadSource: { sourceId: null, detail: '' },
       dynamicData: {}, mutualFundHoldings: [],
@@ -669,7 +698,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
       } else {
           prevMemberIdRef.current = null;
       }
-  }, [member, isOpen, initialTab, currentUser, designations]);
+  }, [member, isOpen, initialTab, currentUser, roles, isCurrentUserAdvisor]);
 
   useEffect(() => {
     return () => {
@@ -708,7 +737,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
   }, [errors]);
 
   const validateForm = () => {
-    const newErrors: Partial<Record<keyof Member | 'bankDetailsError' | 'email' | 'address', string>> = {};
+    const newErrors: Partial<Record<keyof Member | 'bankDetailsError' | 'email' | 'address' | 'documentsError', string>> = {};
     if (!formData.name?.trim()) newErrors.name = 'Name is required.';
     if (!formData.mobile?.trim()) newErrors.mobile = 'Mobile number is required.';
     if (!formData.dob) newErrors.dob = 'Date of Birth is required.';
@@ -734,6 +763,58 @@ export const MemberModal: React.FC<MemberModalProps> = ({
         }
     }
 
+    // --- NEW VALIDATION LOGIC FOR MANDATORY DOCUMENTS ---
+    const activePolicies = (formData.policies || []).filter(p => p.status === 'Active');
+    if (activePolicies.length > 0) {
+        const insuranceTypeMap = new Map(insuranceTypes.map(it => [it.id, it]));
+        const missingMandatoryDocs: string[] = [];
+
+        activePolicies.forEach(policy => {
+            if (!policy.insuranceTypeId) return;
+
+            const requiredDocIds = new Set<string>();
+            let currentTypeId: string | null = policy.insuranceTypeId;
+
+            // Gather all rules up the hierarchy
+            while (currentTypeId) {
+                insuranceTypeDocumentRules.forEach(rule => {
+                    if (rule.insuranceTypeId === currentTypeId) {
+                        requiredDocIds.add(rule.documentId);
+                    }
+                });
+                currentTypeId = insuranceTypeMap.get(currentTypeId)?.parentId || null;
+            }
+
+            requiredDocIds.forEach(docId => {
+                let isMandatory = false;
+                let hierarchyTypeId: string | null = policy.insuranceTypeId;
+                 while (hierarchyTypeId) {
+                    const rule = insuranceTypeDocumentRules.find(r => r.insuranceTypeId === hierarchyTypeId && r.documentId === docId);
+                    if (rule?.isMandatory) {
+                        isMandatory = true;
+                        break;
+                    }
+                    hierarchyTypeId = insuranceTypeMap.get(hierarchyTypeId)?.parentId || null;
+                }
+
+                if (isMandatory) {
+                    const docMaster = documentMasters.find(dm => dm.id === docId);
+                    if (docMaster) {
+                        const isUploaded = (formData.documents || []).some(d => d.documentType === docMaster.name);
+                        if (!isUploaded) {
+                            missingMandatoryDocs.push(docMaster.name);
+                        }
+                    }
+                }
+            });
+        });
+
+        if (missingMandatoryDocs.length > 0) {
+            newErrors.documentsError = `The following mandatory documents are missing: ${[...new Set(missingMandatoryDocs)].join(', ')}. Please upload them in the Documents tab.`;
+        }
+    }
+    // --- END NEW VALIDATION LOGIC ---
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -746,6 +827,10 @@ export const MemberModal: React.FC<MemberModalProps> = ({
         }
     } else {
         addToast('Please correct the validation errors.', 'error');
+        // If the error is a document error, switch to the documents tab
+        if (errors.documentsError || 'documentsError' in errors) {
+            setActiveTab(ModalTab.Documents);
+        }
     }
   };
 
@@ -754,6 +839,9 @@ export const MemberModal: React.FC<MemberModalProps> = ({
         onSave(formData as Member, true);
     } else {
         addToast('Please correct the errors before saving.', 'error');
+        if (errors.documentsError || 'documentsError' in errors) {
+            setActiveTab(ModalTab.Documents);
+        }
     }
   };
 
@@ -762,7 +850,6 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     setFormData(prev => ({...prev, ...memberData}));
   }, [onSave]);
 
-  // --- MODIFICATION START: Logic for multiple process flows ---
   const insuranceTypeMap = useMemo(() => new Map(insuranceTypes.map(it => [it.id, it])), [insuranceTypes]);
 
   const getParentInsuranceType = useCallback((typeId: string): InsuranceTypeMaster | null => {
@@ -776,14 +863,12 @@ export const MemberModal: React.FC<MemberModalProps> = ({
       return current;
   }, [insuranceTypeMap]);
 
-  // --- MODIFICATION: Reworked workflow generation to be policy-specific ---
   const applicableWorkflows = useMemo(() => {
       const workflows: { key: string; name: string }[] = [];
       (formData.policies || []).forEach(policy => {
           if (policy.insuranceTypeId) {
               const parentType = getParentInsuranceType(policy.insuranceTypeId);
               if (parentType) {
-                  // Use the unique policy ID as the key
                   workflows.push({
                       key: policy.id,
                       name: `${parentType.name} - (${policy.schemeName || 'Unspecified'})`
@@ -798,7 +883,6 @@ export const MemberModal: React.FC<MemberModalProps> = ({
   }, [formData, getParentInsuranceType]);
 
   useEffect(() => {
-      // If the previously selected key (policy) is removed, reset the selection
       if (applicableWorkflows.length > 0) {
           if (!selectedProcessFlowKey || !applicableWorkflows.some(w => w.key === selectedProcessFlowKey)) {
               setSelectedProcessFlowKey(applicableWorkflows[0].key);
@@ -818,7 +902,6 @@ export const MemberModal: React.FC<MemberModalProps> = ({
               .sort((a, b) => a.order - b.order);
       }
 
-      // Find the policy corresponding to the selected key
       const selectedPolicy = formData.policies?.find(p => p.id === selectedProcessFlowKey);
       if (!selectedPolicy || !selectedPolicy.insuranceTypeId) return [];
 
@@ -969,6 +1052,11 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     <X className="w-6 h-6" />
                 </button>
             </div>
+            {errors.documentsError && activeTab !== ModalTab.Documents && (
+                <div className="mt-2 p-2 bg-red-100 border border-red-400 text-red-700 rounded animate-fade-in">
+                    <p className="text-sm font-semibold">{errors.documentsError}</p>
+                </div>
+            )}
         </div>
 
         <div className="flex-grow overflow-hidden flex flex-col">
@@ -1012,6 +1100,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                         permissions={permissions}
                         genders={genders}
                         maritalStatuses={maritalStatuses}
+                        roles={roles}
                     />}
                 {activeTab === ModalTab.Documents && 
                     <DocumentsTab 
@@ -1022,11 +1111,10 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                         errors={errors} 
                         bankMasters={bankMasters} 
                         accountTypes={accountTypes}
-                        policyChecklistMasters={policyChecklistMasters} 
-                        onUpdatePolicyChecklistMasters={onUpdatePolicyChecklistMasters} 
                         documentMasters={documentMasters} 
                         onAddDocumentMaster={onAddDocumentMaster} 
                         insuranceTypes={insuranceTypes}
+                        insuranceTypeDocumentRules={insuranceTypeDocumentRules}
                         permissions={permissions}
                     />}
                 {activeTab === ModalTab.Policies && 
@@ -1111,6 +1199,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                         currentUser={currentUser} 
                         designations={designations}
                         permissions={permissions}
+                        isCurrentUserAdvisor={isCurrentUserAdvisor}
                     />}
                 {activeTab === ModalTab.Family && 
                     <FamilyTreeTab 
@@ -1124,6 +1213,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                         genders={genders}
                         maritalStatuses={maritalStatuses}
                         relationshipTypes={relationshipTypes}
+                        permissions={permissions}
                     />}
                 {activeTab === ModalTab.Tasks && 
                     <TasksTab 
@@ -1135,15 +1225,17 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                         onCreateTask={onCreateTask} 
                         addToast={addToast} 
                         permissions={permissions}
+                        isCurrentUserAdvisor={isCurrentUserAdvisor}
                     />}
             </div>
         </div>
 
         <div className="flex-shrink-0 flex justify-between items-center p-6 pt-4 border-t border-gray-200 dark:border-gray-700 gap-3">
             <div>
-                {creatorName && (
+                {/* MODIFICATION: Changed creatorName to creatorRoleName */}
+                {creatorRoleName && (
                     <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Created by: <span className="font-semibold">{creatorName}</span>
+                        Created by: <span className="font-semibold">{creatorRoleName}</span>
                     </p>
                 )}
             </div>

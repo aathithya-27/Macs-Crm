@@ -70,7 +70,7 @@ const Input: React.FC<InputProps> = ({ label, id, type, ...props }) => {
             type="button"
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 cursor-pointer hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none"
             onClick={() => setShowPassword(!showPassword)}
-            aria-label={showPassword ? "Hide password" : "Show password"}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
           >
             {showPassword ? (
               <EyeOff className="w-5 h-5" />

@@ -268,7 +268,6 @@ const PolicyEditor: React.FC<{
     handlePaymentVerification: (policyId: string) => Promise<void>;
     verifyingPayment: string | null;
     onGenerateProposal: (member: Member, policy: Policy) => void;
-    onSave: (memberData: Member, closeModal?: boolean) => void;
     currentUser: User | null;
     schemes: SchemeMaster[];
     companies: Company[];
@@ -283,7 +282,7 @@ const PolicyEditor: React.FC<{
     genders: Gender[]; 
 }> = ({ 
     policy, data, allMembers, handlePolicyChange, handleFileUpload, handlePaymentVerification, 
-    verifyingPayment, onGenerateProposal, onSave, currentUser, schemes, companies, 
+    verifyingPayment, onGenerateProposal, currentUser, schemes, companies, 
     setEditingPolicyId, getPaymentStatusIcon, addToast, insuranceTypes, 
     insuranceFields, onUpdateInsuranceFields, designations, permissions, genders
 }) => {
@@ -297,7 +296,8 @@ const PolicyEditor: React.FC<{
     
     const canModify = permissions?.policies === 'modify';
     const isReadOnly = !canModify;
-    const isAdmin = useMemo(() => designations.find(d => d.id === currentUser?.designationId)?.name === 'Admin', [currentUser, designations]);
+    const canManagePolicyStatus = permissions?.policies === 'modify';
+    const canViewCommissions = permissions?.policies === 'modify';
     const [isRenewalDateManual, setIsRenewalDateManual] = useState(false);
 
 
@@ -587,13 +587,6 @@ const PolicyEditor: React.FC<{
                     >
                         <X size={16}/> Done
                     </Button>
-                    <Button 
-                        onClick={() => onSave(data as Member, false)} 
-                        variant="success" 
-                        disabled={isReadOnly}
-                    >
-                        <Save size={16}/> Save Changes
-                    </Button>
                 </div>
             </div>
             <div className="space-y-6">
@@ -691,6 +684,14 @@ const PolicyEditor: React.FC<{
                                 </div>
                             </div>
                         </div>
+                        <Input 
+                            label="Policy Number" 
+                            type="text" 
+                            value={policy.policyNumber || ''} 
+                            onChange={(e) => handlePolicyChange(policy.id, { policyNumber: e.target.value })} 
+                            disabled={isReadOnly} 
+                            placeholder="Enter policy number"
+                        />
                     </div>
                 </FormSection>
 
@@ -844,7 +845,7 @@ const PolicyEditor: React.FC<{
                             enabled={policy.status === 'Active'} 
                             onChange={(enabled) => handlePolicyChange(policy.id, { status: enabled ? 'Active' : 'Inactive' })} 
                             srLabel="Toggle policy status" 
-                            disabled={isReadOnly || !isAdmin}
+                            disabled={isReadOnly || !canManagePolicyStatus}
                         />
                     </div>
                     <div className="flex items-center justify-between">
@@ -1127,7 +1128,7 @@ const PolicyEditor: React.FC<{
                     </div>
                 </FormSection>
 
-                {isAdmin && policy.commission && (
+                {canViewCommissions && policy.commission && (
                     <FormSection title="Commission Details (Admin Only)">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                             <Input
@@ -1457,7 +1458,6 @@ export const PoliciesTab: React.FC<PoliciesTabProps> = ({
                     handlePaymentVerification={handlePaymentVerification}
                     verifyingPayment={verifyingPayment}
                     onGenerateProposal={onGenerateProposal}
-                    onSave={onSave}
                     currentUser={currentUser}
                     schemes={schemes}
                     companies={companies}

@@ -1,7 +1,7 @@
 // --- START OF FILE AdvancedReports.tsx ---
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Member, Policy, User, Task, Lead, FinRootsBranch, SchemeMaster, Company, Expense, ManualIncome, CustomerTier, AttendanceState, BusinessVertical, TaskStatusMaster, ExpenseCategoryLevel1, ExpenseCategoryLevel2, ExpenseCategoryLevel3, IncomeCategoryLevel1, IncomeCategoryLevel2, CustomerFieldMaster, InsuranceFieldMaster, InsuranceTypeMaster, ManualCommission, Designation } from '../types.ts'; // MODIFIED
+import { Member, Policy, User, Task, Lead, FinRootsBranch, SchemeMaster, Company, Expense, ManualIncome, CustomerTier, AttendanceState, BusinessVertical, TaskStatusMaster, ExpenseCategoryLevel1, ExpenseCategoryLevel2, ExpenseCategoryLevel3, IncomeCategoryLevel1, IncomeCategoryLevel2, CustomerFieldMaster, InsuranceFieldMaster, InsuranceTypeMaster, ManualCommission, Designation, Role } from '../types.ts'; // MODIFIED: Added Role
 import { Download, FileX, BarChart3, Info, PieChart as PieChartIcon, BarChartHorizontal } from 'lucide-react';
 import Button from './ui/Button.tsx';
 import Input from './ui/Input.tsx';
@@ -18,7 +18,7 @@ interface jsPDFWithAutoTable extends jsPDF {
     autoTable: (options: any) => jsPDFWithAutoTable;
 }
 
-// --- Component Props Definition ---
+// --- MODIFIED: Added roles to props interface ---
 interface AdvancedReportsProps {
     members: Member[];
     users: User[];
@@ -43,7 +43,8 @@ interface AdvancedReportsProps {
     customerFieldMasters: CustomerFieldMaster[];
     insuranceFields: InsuranceFieldMaster[];
     insuranceTypes: InsuranceTypeMaster[];
-    designations: Designation[]; // NEW PROP
+    designations: Designation[];
+    roles: Role[]; // --- NEW ---
 }
 
 // --- Type Definitions for Reporting ---
@@ -99,7 +100,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         manualIncomes, manualCommissions, currentUser, customerTiers, attendance, businessVerticals, 
         taskStatusMasters, expenseCategoriesLevel1, expenseCategoriesLevel2, 
         expenseCategoriesLevel3, incomeCategoriesLevel1, incomeCategoriesLevel2, 
-         customerFieldMasters, insuranceFields, insuranceTypes, designations
+         customerFieldMasters, insuranceFields, insuranceTypes, designations, roles
     } = props;
 
     // --- State Management ---
@@ -119,12 +120,12 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     const [viewMode, setViewMode] = useState<ViewMode>('table');
 
 
-    // --- Memoized Select Options ---
+    // --- MODIFIED: This logic now uses Roles ---
     const advisorOptions = useMemo(() => {
-        const advisorDesignationIds = new Set(designations.filter(d => d.isAdvisor).map(d => d.id));
-        const advisors = users.filter(u => advisorDesignationIds.has(u.designationId));
+        const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
+        const advisors = users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
         return [{ value: 'all', label: 'All Advisors' }, ...advisors.map(u => ({ value: u.id, label: u.name }))];
-    }, [users, designations]);
+    }, [users, roles]);
 
     const branchOptions = useMemo(() => [{ value: 'all', label: 'All Branches' }, ...branches.map(b => ({ value: b.branchId, label: b.branchName }))], [branches]);
     const policyTypeOptions = useMemo(() => [{ value: 'all', label: 'All Policy Types' }, ...insuranceTypes.filter(it => !it.parentId && it.active).map(it => ({ value: it.id, label: it.name }))], [insuranceTypes]);
@@ -596,7 +597,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         const blob = new Blob([`\uFEFF${content}`], { type: contentType });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
-        link.setAttribute('href', url);
+           link.setAttribute('href', url);
         link.setAttribute('download', filename);
         document.body.appendChild(link);
         link.click();
@@ -623,7 +624,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                 });
                 (doc as jsPDFWithAutoTable).autoTable({
                     head: [['Field', 'Value']],
-                    body: customerData,
+                                                                                                                                         body: customerData,
                     startY: 25, theme: 'striped',
                 });
                 
@@ -635,7 +636,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                     }));
                     (doc as jsPDFWithAutoTable).autoTable({
                         head: [policyInfoColumns.map(c => c.label)],
-                        body: policyData,
+                                         body: policyData,
                         theme: 'grid',
                     });
                 } else {
@@ -715,7 +716,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                 return String(value ?? 'N/A');
             })
         );
-        const safeReportType = reportType.replace(/([A-Z])/g, '_$1').toLowerCase();
+         const safeReportType = reportType.replace(/([A-Z])/g, '_$1').toLowerCase();
         const filename = `${safeReportType}_report_${format(new Date(), 'yyyy-MM-dd')}`;
         const reportTitle = `${reportType.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())} Report (${startDate} to ${endDate})`;
         
@@ -727,7 +728,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             (doc as jsPDFWithAutoTable).text(reportTitle, 14, 15);
             (doc as jsPDFWithAutoTable).autoTable({
                 head: [headers],
-                body: data,
+                         body: data,
                 startY: 20, theme: 'grid', styles: { fontSize: 8, cellPadding: 2 },
                 headStyles: { fillColor: [41, 128, 185], textColor: 255 },
                 alternateRowStyles: { fillColor: [245, 245, 245] },

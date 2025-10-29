@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
-// MODIFIED: Import permission types
-import { User, EmployeeModalTab, EmployeeProfile, Member, Geography, BankMaster, Designation, AppModule, PermissionLevel,Gender } from '../types.ts';
+import { User, EmployeeModalTab, EmployeeProfile, Member, Geography, BankMaster, Designation, AppModule, PermissionLevel, Gender, AccountType, Role } from '../types.ts'; // MODIFIED: Added Role
 import Button from './ui/Button.tsx';
 import { User as UserIcon, MapPin, BookOpen, Save, Edit, KeyRound, Users } from 'lucide-react';
 import { GeneralInfoTab, AddressTab, EducationTab, EmployeeCustomersTab } from './tabs/EmployeeProfileTabs.tsx';
 import { ChangePasswordModal } from './ChangePasswordModal.tsx';
 
 
+// --- MODIFIED: Added roles to props interface ---
 interface ProfilePageProps {
   user: User | null;
   onUpdateProfile: (user: User, closeModal?: boolean) => void;
@@ -19,20 +19,21 @@ interface ProfilePageProps {
   bankMasters: BankMaster[];
   designations: Designation[]; 
   permissions: { [key in AppModule]?: PermissionLevel };
-  genders: Gender[]; // MODIFIED: Added genders prop
+  genders: Gender[];
+  accountTypes: AccountType[];
+  roles: Role[]; // --- NEW ---
 }
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ 
     user, onUpdateProfile, onUpdatePassword, addToast, allMembers, 
     users, geographies, onUpdateGeographies, bankMasters, designations, permissions,
-    genders // MODIFIED: Destructure genders from props
+    genders, accountTypes, roles
 }) => {
   const [formData, setFormData] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<EmployeeModalTab>(EmployeeModalTab.GeneralInfo);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const designationMap = useMemo(() => new Map(designations.map(d => [d.id, d.name])), [designations]);
   
-  // NEW: Permission check. A user can modify their own profile if they have any access level above 'none' for the dashboard as a baseline.
   const canModify = permissions?.dashboard !== 'none';
 
   useEffect(() => { if (user) setFormData(JSON.parse(JSON.stringify(user))); }, [user]);
@@ -63,10 +64,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     }
   };
   
+  // --- MODIFIED: This logic now uses Roles ---
   const isCurrentUserAdvisor = useMemo(() => {
-      const userDesignation = designations.find(d => d.id === user?.designationId);
-      return userDesignation?.isAdvisor === true;
-  }, [user, designations]);
+      const userRole = roles.find(r => r.id === user?.roleId);
+      return userRole?.isAdvisor === true;
+  }, [user, roles]);
 
   const TABS_CONFIG = [
       { name: EmployeeModalTab.GeneralInfo, icon: <UserIcon size={16}/> },
@@ -103,7 +105,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                 </div>
             </div>
             <div className="flex items-center gap-2 p-6 pt-0">
-              {/* MODIFIED: Buttons are disabled based on permission */}
               <Button onClick={() => setIsPasswordModalOpen(true)} variant="secondary" disabled={!canModify}><KeyRound size={16}/> Change Password</Button>
               <Button onClick={handleSave} variant="primary" disabled={!canModify}><Save size={16}/> Save Changes</Button>
             </div>
@@ -120,8 +121,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
         </div>
         
             <div className="p-6 bg-white dark:bg-gray-800 rounded-b-lg shadow-sm border border-t-0 dark:border-gray-700">
-            {/* MODIFIED: Pass permissions and genders to child tabs */}
-            {activeTab === EmployeeModalTab.GeneralInfo && <GeneralInfoTab data={formData} onChange={handleChange} onSave={onUpdateProfile} addToast={addToast} bankMasters={bankMasters} designations={designations} permissions={permissions} genders={genders} />}
+            {activeTab === EmployeeModalTab.GeneralInfo && <GeneralInfoTab data={formData} onChange={handleChange} onSave={onUpdateProfile} addToast={addToast} bankMasters={bankMasters} designations={designations} permissions={permissions} genders={genders} accountTypes={accountTypes} roles={roles} />}
             {activeTab === EmployeeModalTab.Address && <AddressTab data={formData} onChange={handleChange} geographies={geographies} onUpdateGeographies={onUpdateGeographies} addToast={addToast} />}
             {activeTab === EmployeeModalTab.Education && <EducationTab data={formData} onChange={handleChange} />}
             {activeTab === EmployeeModalTab.Customers && <EmployeeCustomersTab employee={formData} allMembers={allMembers} users={users} />}

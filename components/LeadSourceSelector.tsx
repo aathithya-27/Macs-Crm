@@ -54,12 +54,12 @@ const LeadSourceSelector: React.FC<LeadSourceSelectorProps> = ({ value, onLeadSo
         onLeadSourceChange({ sourceId: value?.sourceId || null, detail: e.target.value });
     };
 
+    // --- THIS IS THE MODIFIED LOGIC ---
     const showReferrerField = useMemo(() => {
         if (!value?.sourceId) return false;
         let current = leadSourceMap.get(value.sourceId);
         while (current) {
-            const lowerCaseName = current.name.toLowerCase();
-            if (lowerCaseName === 'referral' || lowerCaseName === 'existing client') {
+            if (current.allowReferrerSelection) {
                 return true;
             }
             current = current.parentId ? leadSourceMap.get(current.parentId) : undefined;

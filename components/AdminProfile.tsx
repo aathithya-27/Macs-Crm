@@ -1,19 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
-// MODIFIED: Import permission types
-import { User, Member, Designation, AppModule, PermissionLevel } from '../types.ts';
+import { User, Member, Designation, AppModule, PermissionLevel, Role } from '../types.ts'; // MODIFIED: Added Role
 import { Shield, Users, UserPlus, HardDrive, Edit, Database, DollarSign } from 'lucide-react';
 import Button from './ui/Button.tsx';
 
+// --- MODIFIED: Added roles to props interface ---
 interface AdminProfileProps {
     user: User;
     users: User[];
     allMembers: Member[];
-    onOpenEmployeeModal: () => void; // RENAMED
+    onOpenEmployeeModal: () => void;
     onUpdateProfile: (user: User) => void;
     addToast: (message: string, type?: 'success' | 'error') => void;
-    designations: Designation[]; // NEW PROP
-    // NEW: Accept permissions prop
+    designations: Designation[];
     permissions: { [key in AppModule]?: PermissionLevel };
+    roles: Role[]; // --- NEW ---
 }
 
 const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: string | number; color: string; }> = ({ icon, label, value, color }) => (
@@ -28,22 +28,23 @@ const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: string |
     </div>
 );
 
-const AdminProfile: React.FC<AdminProfileProps> = ({ user, users, allMembers, onOpenEmployeeModal, onUpdateProfile, addToast, designations, permissions }) => {
+const AdminProfile: React.FC<AdminProfileProps> = ({ user, users, allMembers, onOpenEmployeeModal, onUpdateProfile, addToast, designations, permissions, roles }) => {
     
     const [localUser, setLocalUser] = useState(user);
     const designationMap = useMemo(() => new Map(designations.map(d => [d.id, d.name])), [designations]);
+    const roleMap = useMemo(() => new Map(roles.map(r => [r.id, r.name])), [roles]);
 
-    // NEW: Permission check for the employees module
     const canCreate = permissions?.employees === 'create' || permissions?.employees === 'modify';
 
     useEffect(() => {
         setLocalUser(user);
     }, [user]);
     
+    // --- MODIFIED: This logic now uses Roles ---
     const advisors = useMemo(() => {
-        const advisorDesignationIds = new Set(designations.filter(d => d.isAdvisor).map(d => d.id));
-        return users.filter(u => advisorDesignationIds.has(u.designationId));
-    }, [users, designations]);
+        const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
+        return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
+    }, [users, roles]);
 
     const recentEmployees = [...users].sort((a,b) => new Date(b.profile?.dateOfCreation || 0).getTime() - new Date(a.profile?.dateOfCreation || 0).getTime()).slice(0, 3);
     
@@ -58,7 +59,7 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user, users, allMembers, on
             if (currentUrl && currentUrl.startsWith('blob:')) {
                 URL.revokeObjectURL(currentUrl);
             }
-            const newUrl = URL.createObjectURL(file);
+                 const newUrl = URL.createObjectURL(file);
             const updatedUser = { ...localUser, profile: { ...localUser.profile, photoUrl: newUrl } as User['profile'] };
             setLocalUser(updatedUser);
             onUpdateProfile(updatedUser);
@@ -92,7 +93,7 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user, users, allMembers, on
                         </div>
                         <h2 className="mt-4 text-xl font-semibold text-gray-900 dark:text-white">{localUser.name}</h2>
                         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{localUser.email}</p>
-                        <p className="mt-2 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 inline-block px-2 py-1 rounded-full">{designationMap.get(localUser.designationId) || 'Admin'}</p>
+                        <p className="mt-2 text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200 inline-block px-2 py-1 rounded-full">{roleMap.get(localUser.roleId) || 'Unknown Role'}</p>
                         <Button variant="secondary" size="small" className="mt-4" onClick={() => handleSimulatedAction("Password change modal would open here.")}>
                             Change Password
                         </Button>
@@ -102,7 +103,6 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user, users, allMembers, on
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
                         <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Quick Actions</h3>
                         <div className="space-y-3">
-                            {/* MODIFIED: Button is now permission-gated */}
                             <Button 
                                 onClick={onOpenEmployeeModal} 
                                 variant="success" 

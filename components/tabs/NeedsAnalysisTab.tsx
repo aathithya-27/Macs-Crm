@@ -58,7 +58,7 @@ export const NeedsAnalysisTab: React.FC<NeedsAnalysisTabProps> = ({ data, onChan
       {/* Left Column: Data Input */}
       <div className="lg:w-1/3 flex-shrink-0">
         <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Financial Profile</h3>
+            <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Financial Info</h3>
             
             <Input 
                 label="Annual Income (₹)"

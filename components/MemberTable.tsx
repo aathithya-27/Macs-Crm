@@ -48,7 +48,7 @@ const MemberTable: React.FC<MemberTableProps> = ({
   const userMap = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users]);
   const memberSnoToNameMap = useMemo(() => new Map(allMembers.map(m => [m.sno, m.name])), [allMembers]);
   const branchMap = useMemo(() => new Map(finrootsBranches.map(b => [b.id, b.branchName])), [finrootsBranches]);
-  const isAdmin = useMemo(() => designations.find(d => d.id === currentUser?.designationId)?.name === 'Admin', [currentUser, designations]);
+  const canToggleStatus = permissions?.customers === 'modify';
 
   const SortableHeader: React.FC<{ sortKey: string; label: string; className?: string; }> = ({ sortKey, label, className = '' }) => (
     <th className={`px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider ${className}`}>
@@ -190,7 +190,7 @@ const MemberTable: React.FC<MemberTableProps> = ({
                     enabled={member.active}
                     onChange={() => onToggleStatus(member.id)}
                     srLabel={`Toggle status for ${member.name}`}
-                    disabled={!canModify && !isAdmin}
+                    disabled={!canModify && !canToggleStatus}
                 />
               </td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{member.createdAt ? new Date(member.createdAt).toLocaleDateString('en-GB') : 'N/A'}</td>
@@ -278,7 +278,7 @@ const MemberTable: React.FC<MemberTableProps> = ({
                 </div>
                  <div className="flex items-center gap-2">
                     <p className="text-gray-500 dark:text-gray-400 font-medium">Status:</p>
-                    <ToggleSwitch enabled={member.active} onChange={() => onToggleStatus(member.id)} disabled={!canModify && !isAdmin} />
+                    <ToggleSwitch enabled={member.active} onChange={() => onToggleStatus(member.id)} disabled={!canModify && !canToggleStatus} />
                 </div>
                 <div>
                     <p className="text-gray-500 dark:text-gray-400 font-medium">Assigned To</p>

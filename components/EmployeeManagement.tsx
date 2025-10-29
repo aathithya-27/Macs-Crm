@@ -1,8 +1,7 @@
-import React, { useState, useMemo, useEffect } from 'react';
-// MODIFIED: Import permission types
-import { User, Member, FinRootsBranch, AttendanceState, Designation, AppModule, PermissionLevel } from '../types.ts';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { User, Member, FinRootsBranch, AttendanceState, Designation, AppModule, PermissionLevel, Role, AttendanceRecord } from '../types.ts';
 import Button from './ui/Button.tsx';
-import { Plus, Search, Edit, Users, Building, Info, ArrowUp, ArrowDown, Edit2 } from 'lucide-react';
+import { Plus, Search, Edit, Users, Building, Info, ArrowUp, ArrowDown, Edit2, Briefcase, Clock, X } from 'lucide-react';
 import ToggleSwitch from './ui/ToggleSwitch.tsx';
 import { ViewByBranchModal } from './ViewByBranchModal.tsx';
 import Pagination from './ui/Pagination.tsx';
@@ -14,17 +13,16 @@ type SortConfig = { key: SortKey; direction: 'asc' | 'desc' };
 
 const ITEMS_PER_PAGE = 10;
 
-// --- New Modal for Editing Leave Reason ---
 const EditLeaveReasonModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
-    employee: User | null; // RENAMED
+    employee: User | null;
     initialReason: string;
     onSave: (newReason: string) => void;
 }> = ({ isOpen, onClose, employee, initialReason, onSave }) => {
-    const [reason, setReason] = React.useState(initialReason);
+    const [reason, setReason] = useState(initialReason);
 
-    React.useEffect(() => {
+    useEffect(() => {
         if (isOpen) {
             setReason(initialReason);
         }
@@ -38,62 +36,63 @@ const EditLeaveReasonModal: React.FC<{
     return (
         <Modal isOpen={isOpen} onClose={onClose}>
             <div className="p-6">
-                <h2 className="text-xl font-bold text-gray-800 dark:text-white">Edit Leave Reason</h2>
+                <h2 className="text-xl font-bold text-gray-800 dark:text-white">Reason for Absence</h2>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">For {employee?.name}</p>
             </div>
             <div className="p-6">
                 <Input
-                    label="Reason for Absence"
+                    label="Reason"
                     value={reason}
-                    onChange={(e) => setReason(e.target.value)}
+                                       onChange={(e) => setReason(e.target.value)}
                     placeholder="Enter reason..."
+                    autoFocus
                 />
             </div>
             <div className="flex justify-end p-6 gap-3 border-t border-gray-200 dark:border-gray-700">
                 <Button variant="secondary" onClick={onClose}>Cancel</Button>
-                <Button variant="primary" onClick={handleSave}>Save Reason</Button>
+                <Button variant="primary" onClick={handleSave} disabled={!reason.trim()}>Save Reason</Button>
             </div>
         </Modal>
     );
 };
 
-
-interface EmployeeManagementProps { // RENAMED
+interface EmployeeManagementProps {
   users: User[];
   allMembers: Member[];
-  onOpenEmployeeModal: (employee: User | null) => void; // RENAMED
+  onOpenEmployeeModal: (employee: User | null) => void;
   onToggleStatus: (userId: string) => void;
   attendance: AttendanceState;
-  onUpdateAttendance: (userId: string, status: 'Present' | 'Absent', reason?: string) => void;
+  onUpdateAttendance: (userId: string, status: AttendanceRecord['status'], reason?: string) => void;
   finrootsBranches: FinRootsBranch[];
   addToast: (message: string, type?: 'success' | 'error') => void;
-  designations: Designation[]; // NEW PROP
-  // NEW: Accept permissions prop
+  designations: Designation[];
   permissions: { [key in AppModule]?: PermissionLevel };
+  roles: Role[];
 }
 
-const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembers, onOpenEmployeeModal, onToggleStatus, attendance, onUpdateAttendance, finrootsBranches, addToast, designations, permissions }) => {
-  const [searchQuery, setSearchQuery] = React.useState('');
-  const [statusFilter, setStatusFilter] = React.useState<'All Employees' | 'Active' | 'Inactive'>('Active'); // RENAMED
-  const [branchFilter, setBranchFilter] = React.useState<string[]>([]);
-  const [sortConfig, setSortConfig] = React.useState<SortConfig>({ key: 'name', direction: 'asc' });
-  const [isBranchModalOpen, setIsBranchModalOpen] = React.useState(false);
-  const [currentPage, setCurrentPage] = React.useState(1);
-  const [isReasonModalOpen, setIsReasonModalOpen] = React.useState(false);
-  const [editingEmployeeForReason, setEditingEmployeeForReason] = React.useState<User | null>(null); // RENAMED
+const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembers, onOpenEmployeeModal, onToggleStatus, attendance, onUpdateAttendance, finrootsBranches, addToast, designations, permissions, roles }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'All Employees' | 'Active' | 'Inactive'>('Active');
+  const [branchFilter, setBranchFilter] = useState<string[]>([]);
+  const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'name', direction: 'asc' });
+  const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isReasonModalOpen, setIsReasonModalOpen] = useState(false);
+  const [editingEmployeeForReason, setEditingEmployeeForReason] = useState<User | null>(null);
+  const [attendanceMenuFor, setAttendanceMenuFor] = useState<string | null>(null);
 
-  // NEW: Permission checks for the employees module
   const canCreate = permissions?.employees === 'create' || permissions?.employees === 'modify';
   const canModify = permissions?.employees === 'modify';
 
-  React.useEffect(() => {
+  useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, statusFilter, branchFilter]);
   
-  const branchMap = React.useMemo(() => new Map(finrootsBranches.map(b => [b.id, b.branchName])), [finrootsBranches]);
-  const designationMap = React.useMemo(() => new Map(designations.map(d => [d.id, d.name])), [designations]);
+  const branchMap = useMemo(() => new Map(finrootsBranches.map(b => [b.id, b.branchName])), [finrootsBranches]);
+  const designationMap = useMemo(() => new Map(designations.map(d => [d.id, d.name])), [designations]);
+  const roleMap = useMemo(() => new Map(roles.map(r => [r.id, r.name])), [roles]);
 
-  const employees = React.useMemo(() => { // RENAMED
+  const employees = useMemo(() => {
     let filteredEmployees = users.filter(user => 
         (user.employeeId.toLowerCase().includes(searchQuery.toLowerCase()) || 
          user.name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -107,7 +106,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
         filteredEmployees = filteredEmployees.filter(emp => emp.profile?.employeeBranchId && branchFilter.includes(emp.profile.employeeBranchId));
     }
     
-    const getTodaysStatus = (userId: string) => {
+       const getTodaysStatus = (userId: string) => {
         const today = new Date().toISOString().split('T')[0];
         const records = attendance[userId];
         if (!records || records.length === 0) return 'Z'; // Not Marked
@@ -125,7 +124,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
                 bValue = new Date(b.profile?.dateOfJoining || 0).getTime();
                 break;
             case 'branch':
-                aValue = branchMap.get(a.profile?.employeeBranchId || '') || 'ZZZ'; // Unassigned last
+                aValue = branchMap.get(a.profile?.employeeBranchId || '') || 'ZZZ';
                 bValue = branchMap.get(b.profile?.employeeBranchId || '') || 'ZZZ';
                 break;
             case 'attendance':
@@ -154,7 +153,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
   }, [users, searchQuery, statusFilter, branchFilter, sortConfig, branchMap, attendance]);
   
   const totalPages = Math.ceil(employees.length / ITEMS_PER_PAGE);
-  const currentEmployees = React.useMemo(() => {
+  const currentEmployees = useMemo(() => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     return employees.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [currentPage, employees]);
@@ -168,15 +167,21 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
     });
   };
 
-  const handleOpenReasonModal = (employee: User) => {
-    setEditingEmployeeForReason(employee);
-    setIsReasonModalOpen(true);
+  const handleAdminMarkAttendance = (employee: User, status: AttendanceRecord['status']) => {
+    if (status === 'Present' || status === 'Work From Home') {
+        onUpdateAttendance(employee.id, status, '');
+        setAttendanceMenuFor(null);
+    } else { // Absent
+        setEditingEmployeeForReason(employee);
+        setIsReasonModalOpen(true);
+        setAttendanceMenuFor(null);
+    }
   };
-
+  
   const handleSaveReason = (newReason: string) => {
     if (editingEmployeeForReason) {
         onUpdateAttendance(editingEmployeeForReason.id, 'Absent', newReason);
-        addToast(`Leave reason for ${editingEmployeeForReason.name} updated.`, 'success');
+        addToast(`Attendance for ${editingEmployeeForReason.name} updated.`, 'success');
     }
   };
 
@@ -205,7 +210,6 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Employee Management</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">Create, view, and manage employee profiles.</p>
         </div>
-        {/* MODIFIED: Button is now permission-gated */}
         {canCreate && (
             <Button onClick={() => onOpenEmployeeModal(null)} variant="success">
                 <Plus size={16} /> Create New Employee
@@ -247,6 +251,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">ID</th>
                     <SortableHeader sortKey="name" label="Employee" />
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Designation</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Role</th>
                     <SortableHeader sortKey="branch" label="Branch" />
                     <SortableHeader sortKey="joiningDate" label="Date of Joining" />
                     <SortableHeader sortKey="attendance" label="Attendance Today" />
@@ -280,35 +285,44 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {designationMap.get(employee.designationId) || 'N/A'}
                           </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            {employee.roleId ? roleMap.get(employee.roleId) : <span className="italic text-gray-400 dark:text-gray-500">None</span>}
+                          </td>
                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                              {branchMap.get(employee.profile?.employeeBranchId || '') || 'Unassigned'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {employee.profile?.dateOfJoining ? new Date(employee.profile.dateOfJoining).toLocaleDateString('en-GB') : 'N/A'}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm">
-                            {todaysRecord ? (
-                                todaysRecord.status === 'Present' ? (
-                                    <span className="font-semibold text-green-600 dark:text-green-400">Present</span>
-                                ) : (
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-semibold text-red-600 dark:text-red-400">
-                                            Absent {todaysRecord.reason ? `- ${todaysRecord.reason}` : ''}
-                                        </span>
-                                        <Button size="small" variant="light" className="!p-1" onClick={() => handleOpenReasonModal(employee)} title="Edit Reason" disabled={!canModify}>
-                                            <Edit2 size={12}/>
-                                        </Button>
-                                    </div>
-                                )
-                            ) : (
-                                <div className="flex gap-2">
-                                    <Button size="small" variant="success" onClick={() => onUpdateAttendance(employee.id, 'Present')} disabled={!canModify}>P</Button>
-                                    <Button size="small" variant="danger" onClick={() => onUpdateAttendance(employee.id, 'Absent', 'Marked by Admin')} disabled={!canModify}>A</Button>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm relative">
+                            {attendanceMenuFor === employee.id ? (
+                                <div className="absolute z-10 top-0 left-0 bg-white dark:bg-gray-900 shadow-lg rounded-lg p-2 flex items-center gap-2 border dark:border-gray-600">
+                                    <Button size="small" variant="light" className="!p-2" onClick={() => handleAdminMarkAttendance(employee, 'Present')} title="Present"><Users size={18}/></Button>
+                                    <Button size="small" variant="light" className="!p-2" onClick={() => handleAdminMarkAttendance(employee, 'Work From Home')} title="Work From Home"><Briefcase size={18}/></Button>
+                                    <Button size="small" variant="light" className="!p-2" onClick={() => handleAdminMarkAttendance(employee, 'Absent')} title="Absent"><X size={18}/></Button>
+                                    <div className="border-l h-6 mx-1 dark:border-gray-600"></div>
+                                    <Button size="small" variant="light" className="!p-2" onClick={() => setAttendanceMenuFor(null)} title="Cancel"><X size={18} className="text-red-500"/></Button>
                                 </div>
+                            ) : todaysRecord ? (
+                                <div className="flex flex-col items-start">
+                                    <div className="flex items-center gap-2">
+                                        {todaysRecord.status === 'Present' && <span className="font-semibold text-green-600 dark:text-green-400 flex items-center gap-2"><Users size={14}/> Present</span>}
+                                        {todaysRecord.status === 'Work From Home' && <span className="font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-2"><Briefcase size={14}/> WFH</span>}
+                                        {todaysRecord.status === 'Absent' && <span className="font-semibold text-red-600 dark:text-red-400 flex items-center gap-2"><X size={14}/> Absent</span>}
+                                        
+                                        {canModify && <Button size="small" variant="light" className="!p-1" onClick={() => setAttendanceMenuFor(employee.id)}><Edit2 size={12}/></Button>}
+                                    </div>
+                                    {todaysRecord.reason && todaysRecord.status === 'Absent' && (
+                                        <p className="text-xs text-gray-400 truncate max-w-[150px]" title={todaysRecord.reason}>{todaysRecord.reason}</p>
+                                    )}
+                                </div>
+                            ) : (
+                                <button onClick={() => canModify && setAttendanceMenuFor(employee.id)} className="text-gray-500 italic hover:text-gray-700 dark:hover:text-gray-300 disabled:cursor-not-allowed" disabled={!canModify}>
+                                    Not Marked
+                                </button>
                             )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
-                            {/* MODIFIED: Toggle is disabled if user lacks modify permission */}
                             <ToggleSwitch 
                               enabled={employee.profile?.status === 'Active'}
                               onChange={() => onToggleStatus(employee.id)}
@@ -318,7 +332,6 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <div className="flex items-center gap-2">
-                                {/* MODIFIED: Edit button is now disabled based on permission */}
                                 <Button size="small" variant="light" onClick={() => onOpenEmployeeModal(employee)} disabled={!canModify} title={!canModify ? "You don't have permission to modify employees" : "Edit employee details"}>
                                     <Edit className="w-4 h-4" /> Edit
                                 </Button>
@@ -357,7 +370,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
         onClose={() => setIsReasonModalOpen(false)}
         employee={editingEmployeeForReason}
         initialReason={todaysRecordForModal?.reason || ''}
-        onSave={handleSaveReason}
+        onSave={(newReason) => handleSaveReason(newReason)}
       />
     </div>
   );

@@ -1,25 +1,21 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { Company, DocumentNumbering, User } from '../types.ts';
+import { Company, DocumentNumbering, User, ManualReceipt, ReceiptLineItem as ReceiptLineItemType } from '../types.ts';
 import { Download, X, Plus, Trash2, Save } from 'lucide-react';
 // @ts-ignore
 import * as htmlToImage from 'https://cdn.skypack.dev/html-to-image';
 
 // --- Type Definitions ---
 
-export interface ReceiptLineItem {
-    id: string;
-    description: string;
-    paymentMode: 'Cash' | 'UPI' | 'Cheque' | 'NetBanking';
-    amount: number;
-}
+interface LineItem extends ReceiptLineItemType {}
 
 export interface ReceiptSaveData {
+    id?: string;
     receiptNo: string;
     date: string;
     receivedFrom: string;
     address?: string;
     finYearId: string;
-    lineItems: Omit<ReceiptLineItem, 'id'>[];
+    lineItems: Omit<LineItem, 'id'>[];
     createdBy: string;
 }
 
@@ -28,10 +24,13 @@ interface ManualReceiptModalProps {
     onClose: () => void;
     companyInfo: Company | null;
     currentUser: User | null;
-    activeFinancialYearId: string | null;
-    docNumberingConfig: DocumentNumbering | null;
-    lastReceiptNumber: number;
-    onSave: (data: Omit<ReceiptSaveData, 'createdBy'>) => void;
+    // --- MODIFICATION: Props now refer to the correct FY for NEW receipts ---
+    activeFinancialYearId: string | null; // This will be the ID of the TRUE current FY for saving
+    docNumberingConfig: DocumentNumbering | null; // This is the config for the TRUE current FY
+    lastReceiptNumber: number; // This is the count for the TRUE current FY
+    onSave: (data: Omit<ReceiptSaveData, 'createdBy' | 'id'> & { id?: string }) => void;
+    receiptToEdit?: ManualReceipt | null;
+    triggerExport?: boolean;
 }
 
 
@@ -61,7 +60,6 @@ const Button: React.FC<{
     );
 };
 
-// --- CORRECTED: numberToWords function to handle larger numbers ---
 const numberToWords = (num: number): string => {
     const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
     const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
@@ -119,13 +117,15 @@ const ManualReceiptModal: React.FC<ManualReceiptModalProps> = ({
     docNumberingConfig,
     lastReceiptNumber,
     onSave,
+    receiptToEdit,
+    triggerExport = false,
 }) => {
     // Receipt-level state
     const [receiptNo, setReceiptNo] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [receivedFrom, setReceivedFrom] = useState('');
     const [address, setAddress] = useState('');
-    const [lineItems, setLineItems] = useState<ReceiptLineItem[]>([
+    const [lineItems, setLineItems] = useState<LineItem[]>([
         { id: `new-${Date.now()}`, description: '', paymentMode: 'Cash', amount: 0 }
     ]);
     
@@ -134,26 +134,36 @@ const ManualReceiptModal: React.FC<ManualReceiptModalProps> = ({
     // Initialize or reset the modal state
     useEffect(() => {
         if (isOpen) {
-            // --- MODIFICATION START: Added suffix to number generation ---
-            if (docNumberingConfig) {
-                const nextNumber = docNumberingConfig.startingNumber + lastReceiptNumber;
-                const suffix = docNumberingConfig.suffix || '';
-                setReceiptNo(`${docNumberingConfig.prefix}${nextNumber}${suffix}`);
+            if (receiptToEdit) {
+                setReceiptNo(receiptToEdit.receiptNo);
+                setDate(receiptToEdit.date);
+                setReceivedFrom(receiptToEdit.receivedFrom);
+                setAddress(receiptToEdit.address || '');
+                setLineItems(receiptToEdit.lineItems);
             } else {
-                setReceiptNo(`TEMP-${lastReceiptNumber + 1}`); // Fallback
+                // --- MODIFICATION: This logic now correctly uses the props for the CURRENT FY ---
+                if (docNumberingConfig) {
+                    const nextNumber = docNumberingConfig.startingNumber + lastReceiptNumber;
+                    const suffix = docNumberingConfig.suffix || '';
+                    setReceiptNo(`${docNumberingConfig.prefix}${nextNumber}${suffix}`);
+                } else {
+                    setReceiptNo(`TEMP-${lastReceiptNumber + 1}`);
+                }
+                setDate(new Date().toISOString().split('T')[0]);
+                setReceivedFrom('');
+                setAddress('');
+                setLineItems([{ id: `new-${Date.now()}`, description: '', paymentMode: 'Cash', amount: 0 }]);
             }
-            // --- MODIFICATION END ---
 
-            // Reset form
-            setDate(new Date().toISOString().split('T')[0]);
-            setReceivedFrom('');
-            setAddress('');
-            setLineItems([{ id: `new-${Date.now()}`, description: '', paymentMode: 'Cash', amount: 0 }]);
+            if (triggerExport) {
+                setTimeout(exportImage, 300);
+            }
         }
-    }, [isOpen, docNumberingConfig, lastReceiptNumber]);
+    }, [isOpen, receiptToEdit, docNumberingConfig, lastReceiptNumber, triggerExport]);
+
 
     const addLineItem = () => {
-        const newLine: ReceiptLineItem = {
+        const newLine: LineItem = {
             id: `new-${Date.now()}`,
             description: '',
             paymentMode: 'Cash',
@@ -168,7 +178,7 @@ const ManualReceiptModal: React.FC<ManualReceiptModalProps> = ({
         }
     };
 
-    const updateLineItem = (id: string, field: keyof Omit<ReceiptLineItem, 'id'>, value: any) => {
+    const updateLineItem = (id: string, field: keyof Omit<LineItem, 'id'>, value: any) => {
         setLineItems(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
     };
     
@@ -185,12 +195,14 @@ const ManualReceiptModal: React.FC<ManualReceiptModalProps> = ({
             alert('Amount must be greater than zero.');
             return;
         }
+        // --- MODIFICATION: This now correctly uses the activeFinancialYearId passed in for saving ---
         if (!activeFinancialYearId) {
             alert('Cannot save: Active Financial Year not found.');
             return;
         }
-
-        const saveData: Omit<ReceiptSaveData, 'createdBy'> = {
+        
+        const saveData: Omit<ReceiptSaveData, 'createdBy' | 'id'> & { id?: string } = {
+            id: receiptToEdit?.id,
             receiptNo,
             date,
             receivedFrom,
@@ -200,9 +212,9 @@ const ManualReceiptModal: React.FC<ManualReceiptModalProps> = ({
         };
         onSave(saveData);
 
-        if (shouldExport) {
+        if (shouldExport && !triggerExport) {
             setTimeout(exportImage, 100);
-        } else {
+        } else if (!shouldExport) {
             onClose();
         }
     };
@@ -211,13 +223,13 @@ const ManualReceiptModal: React.FC<ManualReceiptModalProps> = ({
         if (receiptRef.current) {
             htmlToImage.toPng(receiptRef.current, { quality: 1, pixelRatio: 2, backgroundColor: '#ffffff' })
                 .then((dataUrl: string) => {
-                    const link = document.createElement('a');
-                    link.download = `Receipt-${receiptNo.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
-                    link.href = dataUrl;
+                                 const link = document.createElement('a');
+                                 link.download = `Receipt-${receiptNo.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+                                 link.href = dataUrl;
                     link.click();
                     onClose();
                 }).catch((err: Error) => {
-                    console.error('Receipt export failed:', err)
+                                              console.error('Receipt export failed:', err)
                     onClose();
                 });
         } else {
@@ -230,11 +242,10 @@ const ManualReceiptModal: React.FC<ManualReceiptModalProps> = ({
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 animate-fade-in">
-            {/* --- FIX: Increased modal width --- */}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col">
                 {/* Modal Header */}
                 <div className="p-4 flex justify-between items-center border-b dark:border-gray-700 flex-shrink-0">
-                    <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Manual Receipt</h3>
+                    <h3 className="text-xl font-semibold text-gray-800 dark:text-white">{receiptToEdit ? `Edit Receipt #${receiptToEdit.receiptNo}` : 'Manual Receipt'}</h3>
                     <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"><X className="text-gray-600 dark:text-gray-300" /></button>
                 </div>
 
@@ -276,7 +287,6 @@ const ManualReceiptModal: React.FC<ManualReceiptModalProps> = ({
                                     <th className="border border-black p-1 text-center font-bold w-12">S.No</th>
                                     <th className="border border-black p-1 text-center font-bold">Description</th>
                                     <th className="border border-black p-1 text-center font-bold w-36">Payment Mode</th>
-                                    {/* --- FIX: Added fixed width to Amount column --- */}
                                     <th className="border border-black p-1 text-center font-bold w-40">Amount (₹)</th>
                                     <th className="border border-black p-1 text-center font-bold w-12"></th>
                                 </tr>
@@ -296,7 +306,6 @@ const ManualReceiptModal: React.FC<ManualReceiptModalProps> = ({
                                                 <option>NetBanking</option>
                                             </select>
                                         </td>
-                                        {/* --- FIX: Added fixed width to Amount cell --- */}
                                         <td className="border border-black p-0 text-right w-40">
                                             <input type="number" value={item.amount || ''} onChange={e => updateLineItem(item.id, 'amount', parseFloat(e.target.value) || 0)} className="w-full h-full border-none focus:outline-none bg-transparent text-right p-1" />
                                         </td>
@@ -323,10 +332,10 @@ const ManualReceiptModal: React.FC<ManualReceiptModalProps> = ({
                  {/* Modal Footer */}
                 <div className="p-4 flex justify-end items-center border-t dark:border-gray-700 flex-shrink-0 gap-4">
                     <Button onClick={() => handleSave(false)} variant="success">
-                        <Save size={16} /> Save Receipt
+                        <Save size={16} /> {receiptToEdit ? 'Update Receipt' : 'Save Receipt'}
                     </Button>
                     <Button onClick={() => handleSave(true)} variant="primary">
-                        <Download size={16} /> Save & Export
+                        <Download size={16} /> {receiptToEdit ? 'Update & Export' : 'Save & Export'}
                     </Button>
                 </div>
             </div>

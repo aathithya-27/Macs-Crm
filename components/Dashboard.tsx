@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-// MODIFIED: Import permission types
-import { Member, UpsellOpportunity, Lead, ModalTab, Tab, User, TodaysFocusItem, Task, DashboardTaskTypeFilter, CustomerTier, TaskStatusMaster, Designation, AppModule, PermissionLevel } from '../types.ts';
+import { Member, UpsellOpportunity, Lead, ModalTab, Tab, User, TodaysFocusItem, Task, CustomerTier, TaskStatusMaster, Designation, AppModule, PermissionLevel, Role } from '../types.ts';
 import TodaysFocus from './TodaysFocus.tsx';
 import { Users, Bell, Shield, TrendingUp, Gem, Award, Star, ShieldCheck, CheckCircle, ListTodo, ArrowRight, Edit2, Trash2, X, Calendar, User as UserIcon, Briefcase, MessageSquare } from 'lucide-react';
 import Button from './ui/Button.tsx';
@@ -22,7 +21,6 @@ interface DashboardProps {
     dismissedFocusItems: string[];
     onDismissFocusItem: (itemId: string) => void;
     allTasks: Task[];
-    onToggleTask: (taskId: string) => void;
     onUpdateTask: (task: Task) => void;
     onDeleteTask: (taskId: string) => void;
     todaysFocusItems: TodaysFocusItem[];
@@ -34,8 +32,8 @@ interface DashboardProps {
     taskStatusMasters: TaskStatusMaster[];
     addToast: (message: string, type?: 'success' | 'error') => void;
     designations: Designation[];
-    // NEW: Accept permissions prop
     permissions: { [key in AppModule]?: PermissionLevel };
+    roles: Role[];
 }
 
 // New Task Detail Modal Component
@@ -51,19 +49,18 @@ const TaskDetailModal: React.FC<{
     taskStatusMasters: TaskStatusMaster[];
     currentUser: User | null;
     addToast: (message: string, type?: 'success' | 'error') => void;
-    // NEW: Pass permissions
     permissions: { [key in AppModule]?: PermissionLevel };
-}> = ({ task, isOpen, onClose, onUpdateTask, onDeleteTask, users, members, leads, taskStatusMasters, currentUser, addToast, permissions }) => {
+    isReadOnly: boolean;
+}> = ({ task, isOpen, onClose, onUpdateTask, onDeleteTask, users, members, leads, taskStatusMasters, currentUser, addToast, permissions, isReadOnly }) => {
     const [isEditMode, setIsEditMode] = useState(false);
     const [editedTask, setEditedTask] = useState<Partial<Task> | null>(null);
 
-    // NEW: Permission checks for task management
-    const canModify = permissions?.taskManagement === 'modify';
+    const canModify = permissions?.taskManagement === 'modify' && !isReadOnly;
 
     React.useEffect(() => {
         if (task) {
             setEditedTask({ ...task });
-            setIsEditMode(false); // Reset to view mode whenever a new task is opened
+            setIsEditMode(false);
         }
     }, [task]);
 
@@ -114,15 +111,15 @@ const TaskDetailModal: React.FC<{
     };
 
     const clientName = task.memberId ? memberMap.get(task.memberId) : leadMap.get(task.leadId || '');
-    const statusName = taskStatusMasters.find(s => s.id === task.statusId)?.name || 'Unknown';
-    const isOverdue = !task.isCompleted && new Date(task.expectedCompletionDateTime) < new Date();
+    const currentStatusInfo = taskStatusMasters.find(s => s.id === task.statusId);
+    const statusName = currentStatusInfo?.name || 'Unknown';
+    const isOverdue = !currentStatusInfo?.isEndState && new Date(task.expectedCompletionDateTime) < new Date();
 
     return (
         <Modal isOpen={isOpen} onClose={onClose}>
             <div className="flex justify-between items-center p-6 border-b dark:border-gray-700">
                 <h2 className="text-xl font-bold text-brand-dark dark:text-white">{isEditMode ? 'Edit Task' : 'Task Details'}</h2>
                 <div className="flex items-center gap-2">
-                    {/* MODIFIED: Buttons are now permission-gated */}
                     {canModify && !isEditMode && (
                         <>
                             <Button variant="light" size="small" onClick={() => setIsEditMode(true)}><Edit2 size={14} /> Edit</Button>
@@ -160,10 +157,6 @@ const TaskDetailModal: React.FC<{
                             value={editedTask.expectedCompletionDateTime?.split('T')[0] || ''}
                             onChange={(e) => setEditedTask({ ...editedTask, expectedCompletionDateTime: e.target.value })}
                         />
-                         <div className="flex items-center gap-2">
-                             <input type="checkbox" id="isSharedModal" checked={editedTask.isShared} onChange={e => setEditedTask({...editedTask, isShared: e.target.checked})} />
-                             <label htmlFor="isSharedModal" className="text-sm font-medium text-gray-700 dark:text-gray-300">Share this task</label>
-                        </div>
                     </>
                 ) : (
                     <>
@@ -221,26 +214,25 @@ const TaskOverview: React.FC<{
   tasks: Task[];
   users: User[];
   currentUser: User;
-  onToggleTask: (taskId: string) => void;
   onViewAllTasks: () => void;
   onViewTask: (task: Task) => void;
-  // NEW: Pass permissions
   permissions: { [key in AppModule]?: PermissionLevel };
-}> = ({ tasks, users, currentUser, onToggleTask, onViewAllTasks, onViewTask, permissions }) => {
-  const [typeFilter, setTypeFilter] = useState<DashboardTaskTypeFilter>('all');
+}> = ({ tasks, users, currentUser, onViewAllTasks, onViewTask, permissions }) => {
+  const [typeFilter, setTypeFilter] = useState<'all' | 'personal' | 'customer'>('all');
   const [statusFilter, setStatusFilter] = useState<'pending' | 'completed'>('pending');
 
   const userMap = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users]);
   
-  // NEW: Permission check for task management
   const canModifyTasks = permissions?.taskManagement === 'modify';
 
   const tasksForUser = useMemo(() => {
-    if (currentUser.designationId === 'des-admin') {
+    // Users with modify or view permissions can see all tasks
+    // Users with create permission or no permission only see their own tasks
+    if (permissions?.taskManagement === 'modify' || permissions?.taskManagement === 'view') {
       return tasks;
     }
     return tasks.filter(t => t.primaryContactPerson === currentUser.id || t.alternateContactPersons?.includes(currentUser.id));
-  }, [tasks, currentUser]);
+  }, [tasks, currentUser, permissions]);
   
   const filteredTasks = useMemo(() => {
     return tasksForUser.filter(task => {
@@ -254,9 +246,6 @@ const TaskOverview: React.FC<{
               break;
           case 'customer':
               typeMatch = !!task.memberId || !!task.leadId;
-              break;
-          case 'shared':
-              typeMatch = !!task.isShared;
               break;
           default:
               typeMatch = true;
@@ -300,19 +289,17 @@ const TaskOverview: React.FC<{
             <FilterButton label="Pending" isActive={statusFilter === 'pending'} onClick={() => setStatusFilter('pending')} />
             <FilterButton label="Completed" isActive={statusFilter === 'completed'} onClick={() => setStatusFilter('completed')} />
           </div>
-          {currentUser.designationId === 'des-admin' && (
+          {(permissions?.taskManagement === 'view' || permissions?.taskManagement === 'modify') && (
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Type:</span>
               <FilterButton label="All" isActive={typeFilter === 'all'} onClick={() => setTypeFilter('all')} />
               <FilterButton label="Personal" isActive={typeFilter === 'personal'} onClick={() => setTypeFilter('personal')} />
               <FilterButton label="Customer" isActive={typeFilter === 'customer'} onClick={() => setTypeFilter('customer')} />
-              <FilterButton label="Shared" isActive={typeFilter === 'shared'} onClick={() => setTypeFilter('shared')} />
             </div>
           )}
         </div>
         <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400" title="Color Legend">
             <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700"></span> Personal</div>
-            <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700"></span> Shared</div>
             <div className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm bg-gray-100 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600"></span> Completed</div>
         </div>
       </div>
@@ -326,26 +313,12 @@ const TaskOverview: React.FC<{
               className={`p-3 rounded-md border cursor-pointer flex items-center gap-3 transition-colors ${
                 task.isCompleted
                   ? 'bg-gray-100 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600'
-                  : task.isShared
-                  ? 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-700 hover:bg-red-100 dark:hover:bg-red-900/40'
                   : 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/40'
               }`}
               title={
-                  task.isCompleted ? 'Completed Task' : (task.isShared ? 'Shared Task' : 'Personal Task')
+                  task.isCompleted ? 'Completed Task' : 'Personal Task'
               }
             >
-              <input
-                type="checkbox"
-                checked={task.isCompleted}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  onToggleTask(task.id);
-                }}
-                className="h-5 w-5 rounded border-gray-300 text-brand-primary focus:ring-brand-primary flex-shrink-0"
-                aria-label={`Mark task "${task.taskDescription}" as ${task.isCompleted ? 'incomplete' : 'complete'}`}
-                // MODIFIED: Toggle is disabled if user cannot modify
-                disabled={!canModifyTasks}
-              />
               <div className="flex-1">
                 <p className={`font-medium text-sm ${
                   task.isCompleted ? 'line-through text-gray-500 dark:text-gray-400' : 'text-gray-800 dark:text-gray-200'
@@ -373,7 +346,7 @@ const TaskOverview: React.FC<{
 };
 
 
-const Dashboard: React.FC<DashboardProps> = ({ members, leads, notifications, upsellOpportunities, onOpenModal, onOpenLeadModal, currentUser, users, dismissedFocusItems, onDismissFocusItem, allTasks, onToggleTask, onUpdateTask, onDeleteTask, todaysFocusItems, isFocusLoading, focusError, onRefreshFocus, customerTiers, onViewTier, taskStatusMasters, addToast, designations, permissions }) => {
+const Dashboard: React.FC<DashboardProps> = ({ members, leads, notifications, upsellOpportunities, onOpenModal, onOpenLeadModal, currentUser, users, dismissedFocusItems, onDismissFocusItem, allTasks, onUpdateTask, onDeleteTask, todaysFocusItems, isFocusLoading, focusError, onRefreshFocus, customerTiers, onViewTier, taskStatusMasters, addToast, designations, permissions, roles }) => {
     
     const navigate = useNavigate();
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -392,23 +365,19 @@ const Dashboard: React.FC<DashboardProps> = ({ members, leads, notifications, up
 
     const userMap = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users]);
 
+    const isCurrentUserAdvisor = useMemo(() => roles.find(r => r.id === currentUser?.roleId)?.isAdvisor === true, [currentUser, roles]);
+
     const pendingMembers = useMemo(() => {
         const basePending = members
             .filter(m => m.active && (!m.policies || m.policies.length === 0))
             .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
         
-        const userDesignation = designations.find(d => d.id === currentUser?.designationId);
-
-        if (userDesignation?.name === 'Admin') {
-            return basePending;
-        }
-        
-        if (userDesignation?.isAdvisor) {
+        if (isCurrentUserAdvisor) {
             return basePending.filter(member => member.assignedTo?.includes(currentUser!.id));
         }
 
-        return [];
-    }, [members, currentUser, designations]);
+        return basePending;
+    }, [members, currentUser, isCurrentUserAdvisor]);
 
     const StatCard: React.FC<{ icon: React.ReactElement<any>; title: string; value: string | number; subtext?: string; color: { bg: string; text: string; darkBg: string } }> = ({ icon, title, value, subtext, color }) => (
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700 flex items-center gap-5 h-full">
@@ -473,7 +442,6 @@ const Dashboard: React.FC<DashboardProps> = ({ members, leads, notifications, up
                 </div>
             </div>
             
-            {/* Stat Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <button onClick={() => navigate('/customers')} className="text-left w-full transition-transform transform hover:-translate-y-1 focus:outline-none focus:ring-2 focus:ring-brand-primary focus:ring-offset-2 dark:focus:ring-offset-gray-900 rounded-lg">
                     <StatCard icon={<Users />} title="Customers" value={members.length} subtext={`${members.filter(m=>m.active).length} active`} color={{ bg: 'bg-blue-100', text: 'text-blue-600', darkBg: 'bg-blue-900/30' }} />
@@ -511,7 +479,6 @@ const Dashboard: React.FC<DashboardProps> = ({ members, leads, notifications, up
                         isLoading={isFocusLoading}
                         error={focusError}
                         onRefresh={onRefreshFocus}
-                        // NEW: Pass permissions prop
                         permissions={permissions}
                     />
                 </div>
@@ -537,7 +504,7 @@ const Dashboard: React.FC<DashboardProps> = ({ members, leads, notifications, up
                                             <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">{member.name}</p>
                                             <p className="text-xs text-gray-500 dark:text-gray-400">
                                                 Created on {new Date(member.createdAt || 0).toLocaleDateString('en-GB')}
-                                                {currentUser?.designationId === 'des-admin' && member.createdBy && (
+                                                {!isCurrentUserAdvisor && member.createdBy && (
                                                     <span className="text-gray-400 dark:text-gray-500"> by {userMap.get(member.createdBy) || 'Unknown'}</span>
                                                 )}
                                             </p>
@@ -546,7 +513,6 @@ const Dashboard: React.FC<DashboardProps> = ({ members, leads, notifications, up
                                             size="small"
                                             variant="secondary"
                                             onClick={() => onOpenModal(member, ModalTab.Policies)}
-                                            // MODIFIED: Button is disabled if user cannot modify policies
                                             disabled={permissions.policies !== 'modify' && permissions.policies !== 'create'}
                                         >
                                             Add Policy
@@ -565,19 +531,15 @@ const Dashboard: React.FC<DashboardProps> = ({ members, leads, notifications, up
                 </div>
             </div>
 
-             {/* New Task Overview Section */}
             {currentUser && <TaskOverview
                 tasks={allTasks}
                 users={users}
                 currentUser={currentUser}
-                onToggleTask={onToggleTask}
                 onViewAllTasks={() => navigate('/taskManagement')}
                 onViewTask={(task) => setSelectedTask(task)}
-                // NEW: Pass permissions prop
                 permissions={permissions}
             />}
 
-             {/* Customer Distribution */}
              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Customer Distribution by Membership</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -598,7 +560,6 @@ const Dashboard: React.FC<DashboardProps> = ({ members, leads, notifications, up
                 </div>
             </div>
 
-            {/* Render the Task Detail Modal */}
             <TaskDetailModal
                 isOpen={!!selectedTask}
                 onClose={() => setSelectedTask(null)}
@@ -611,8 +572,8 @@ const Dashboard: React.FC<DashboardProps> = ({ members, leads, notifications, up
                 taskStatusMasters={taskStatusMasters}
                 currentUser={currentUser}
                 addToast={addToast}
-                // NEW: Pass permissions prop
                 permissions={permissions}
+                isReadOnly={isCurrentUserAdvisor}
             />
         </div>
     );

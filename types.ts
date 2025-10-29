@@ -1,5 +1,16 @@
 import React from 'react';
 
+// --- NEW: Role Interface ---
+// A Role defines a set of permissions and system responsibilities.
+export interface Role {
+  id: string;
+  name: string;
+  isAdvisor: boolean; // This flag now lives here. It determines core sales/advisory functions.
+  canViewLocationTracker?: boolean; // Permission to view the location tracker tab
+  active?: boolean;
+  order?: number;
+}
+
 // --- NEW: Financial Year & Document Numbering Types ---
 export interface FinancialYear {
   id: string;
@@ -43,11 +54,11 @@ export interface ManualReceipt {
 // --- NEW: Granular Permission Level Definition ---
 export type PermissionLevel = 'view' | 'create' | 'modify' | 'none';
 
-// --- NEW: Designation & Permission Types ---
+// --- MODIFIED: Designation & Permission Types ---
 export interface Designation {
   id: string;
   name: string;
-  isAdvisor: boolean; // Key flag to identify advisor-like roles
+  rank?: number;
   active?: boolean;
   order?: number;
 }
@@ -90,7 +101,7 @@ export interface FestivalDate {
 }
 
 
-// --- Employee & User Types (Previously Advisor) ---
+// --- MODIFIED: Employee & User Types ---
 
 export type AdvisorSpecialization = 'Life' | 'Health' | 'Motor' | 'Home' | 'Travel';
 
@@ -156,7 +167,8 @@ export interface EmployeeProfile { // RENAMED from AdvisorProfile
   amcIds?: string[];
   agentCode?: string; // NEW: To store the agent code for agent appointments
   branchName?: string;
-  fatherMotherName?: string;
+  fatherName?: string;
+  motherName?: string;
   gender?: string | null; // MODIFIED from 'Male' | 'Female' | 'Other';
   workExperienceYears?: number;
   workExperienceMonths?: number;
@@ -191,13 +203,14 @@ export interface User {
   name: string;
   email: string;
   /** @deprecated Use `designationId` instead. */
-  role: string; // Kept for backwards compatibility if needed, but logic should move to designation
-  designationId: string; // REPLACES role
+  role: string;
+  designationId: string;
+  roleId?: string | null; // --- ADDED: This will link a user to their permissions Role ---
   company: string;
   companyId: string;
   initials: string;
   password?: string;
-  profile?: EmployeeProfile; // RENAMED
+  profile?: EmployeeProfile;
 }
 
 
@@ -388,6 +401,7 @@ export interface Policy {
   companyId?: string;
   isLegacyFamilyPolicy?: boolean;
   insuranceTypeId?: string | null;
+  policyNumber?: string;
 
   policyTerm?: number;
   policyTermUnit?: 'Years' | 'Months';
@@ -510,7 +524,7 @@ export interface Member {
   bankDetails?: BankDetails;
   createdBy?: string;
   createdAt?: string;
-  documentChecklist?: { [key: string]: boolean | string };
+  // documentChecklist?: { [key: string]: boolean | string }; // --- REMOVED ---
   company: string;
   companyId: string;
   branchId?: string;
@@ -735,7 +749,7 @@ export enum ModalTab {
     Tasks = 'Tasks',
     Family = 'Family',
     NotesAndReminders = 'Notes & Special Dates',
-    NeedsAnalysis = 'Needs Analysis',
+    NeedsAnalysis = ' Finance Info',
     Notes = 'Notes',
     Investments = 'Investments'
 }
@@ -762,7 +776,7 @@ export interface TodaysFocusItem {
 }
 
 export interface AttendanceRecord {
-  status: 'Present' | 'Absent';
+  status: 'Present' | 'Absent' | 'Work From Home';
   reason?: string;
   timestamp: string;
 }
@@ -795,17 +809,16 @@ export interface DocTemplate {
     content: string;
 }
 
-/** @deprecated Use `Designation` and `DesignationPermissions` instead. */
-export type Role = 'Admin' | 'Advisor' | 'Support';
+/** @deprecated This is replaced by the Role interface. */
+export type DeprecatedRole = 'Admin' | 'Advisor' | 'Support';
 export type AppModule = 'dashboard' | 'reports & insights' | 'profitAndLoss' | 'calendar' | 'employees' | 'pipeline' | 'customers' | 'taskManagement' | 'policies' | 'notes' | 'actionHub' | 'servicesHub' | 'location' | 'chatbot' | 'masterMember' | 'advancedReports' | 'upselling' | 'mutualFunds';
-/** @deprecated Use `DesignationPermissions` instead. */
+/** @deprecated Use Role-based permissions instead. */
 export interface RolePermissions {
-  role: Role;
+  roleId: string;
   permissions: {
-    [key in AppModule]?: boolean;
+    [key in AppModule]?: PermissionLevel;
   };
 }
-
 
 // --- Miscellaneous Types ---
 
@@ -1033,6 +1046,7 @@ export interface LeadSourceMaster {
   parentId: string | null;
   active?: boolean;
   order?: number;
+  allowReferrerSelection?: boolean; // --- THIS IS THE NEW PROPERTY ---
 }
 export type ReferralType = LeadSourceMaster;
 export interface SchemeMaster { 
@@ -1046,12 +1060,21 @@ export interface SchemeMaster {
     insuranceTypeId?: string;
 }
 export interface Geography { id: string; name: string; type: 'Country' | 'State' | 'District' | 'City' | 'Area'; parentId: string | null; active?: boolean; }
-export interface TaskStatusMaster { id: string; name: string; active?: boolean; order?: number; }
+// --- MODIFICATION START ---
+export interface TaskStatusMaster { 
+    id: string; 
+    name: string; 
+    active?: boolean; 
+    order?: number; 
+    isInitialState?: boolean; // Task moves to this state after being opened
+    isEndState?: boolean;     // This status is considered a final state
+}
+// --- MODIFICATION END ---
 export interface GiftMaster { id: string; name: string; active?: boolean; order?: number; }
 export interface RelationshipType { id: string; name: string; active?: boolean; }
 export interface DocumentMaster { id: string; name: string; active?: boolean; order?: number; }
 export interface RelationshipType {id: string; name: string; active?: boolean;  order?: number;}
-export interface SchemeDocumentMapping { schemeId: string; documentId: string; }
+// export interface SchemeDocumentMapping { schemeId: string; documentId: string; } // --- REMOVED ---
 export interface CustomerCategory { id: string; name: string; active?: boolean; order?: number; }
 export interface CustomerSubCategory { id: string; name: string; parentId: string; active?: boolean; order?: number; }
 export interface CustomerGroup { id: string; name: string; active?: boolean; order?: number; }
@@ -1060,14 +1083,15 @@ export interface TaskMaster { id: string; name: string; active?: boolean; order?
 export interface AccountType { id: string; name: string; active?: boolean; order?: number; }
 // --- MODIFICATION END ---
 
-export interface PolicyChecklistMaster { 
-    id: string; 
-    name: string; 
-    parentId: string | null; 
-    policyType: string; 
-    active?: boolean; 
-    order?: number; 
-}
+/** @deprecated Replaced by InsuranceTypeDocumentRule */
+// export interface PolicyChecklistMaster { 
+//     id: string; 
+//     name: string; 
+//     parentId: string | null; 
+//     policyType: string; 
+//     active?: boolean; 
+//     order?: number; 
+// }
 export interface Route { id: string; name: string; active?: boolean; order?: number; }
 
 export interface InsuranceTypeMaster {
@@ -1078,6 +1102,15 @@ export interface InsuranceTypeMaster {
     order?: number;
     parentId: string | null; 
 }
+
+// --- NEW INTERFACE FOR DOCUMENT RULES ---
+export interface InsuranceTypeDocumentRule {
+  id: string;
+  insuranceTypeId: string;
+  documentId: string;
+  isMandatory: boolean;
+}
+// --- END NEW INTERFACE ---
 
 export interface InsuranceFieldMaster {
     id: string;

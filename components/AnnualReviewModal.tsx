@@ -30,7 +30,7 @@ const AnnualReviewModal: React.FC<AnnualReviewModalProps> = ({ isOpen, onClose, 
       setTimeout(() => setIsCopied(false), 2000);
     }, (err) => {
       addToast('Failed to copy report.', 'error');
-      console.error('Could not copy text: ', err);
+                console.error('Could not copy text: ', err);
     });
   };
 

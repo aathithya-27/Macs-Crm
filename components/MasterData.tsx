@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
-// MODIFIED: Added FinancialYear, DocumentNumbering to imports
+// MODIFIED: Added FinancialYear, DocumentNumbering, InsuranceTypeDocumentRule and removed unused types
 import { 
     BusinessVertical, LeadSourceMaster, SchemeMaster, Company, FinRootsBranch, Geography, RelationshipType, 
-    DocumentMaster, SchemeDocumentMapping, GiftMaster, TaskStatusMaster, CustomerCategory, PolicyType, GeneralInsuranceType,
-    BankMaster, Member, FinRootsCompanyInfo, CustomerSubCategory, CustomerGroup, TaskMaster, EmployeeProfile, BranchCompanyMapping, PolicyChecklistMaster,
+    DocumentMaster, /*SchemeDocumentMapping,*/ GiftMaster, TaskStatusMaster, CustomerCategory, PolicyType, GeneralInsuranceType,
+    BankMaster, Member, FinRootsCompanyInfo, CustomerSubCategory, CustomerGroup, TaskMaster, EmployeeProfile, BranchCompanyMapping, /*PolicyChecklistMaster,*/
     InsuranceTypeMaster,
     InsuranceFieldMaster,
     CustomerFieldMaster,
@@ -26,12 +26,14 @@ import {
     MutualFundSchemeCategory,
     MutualFundFieldMaster,
     Gender, MaritalStatus, CustomerType,
-    ProcessStageMaster,AccountType,
-    FinancialYear, DocumentNumbering
+    ProcessStageMaster,AccountType,Role,RolePermissions,
+    FinancialYear, DocumentNumbering,PermissionLevel,
+    InsuranceTypeDocumentRule
 } from '../types.ts';
-import { Database, Briefcase,Layers,Handshake ,HandCoins,UserPlus ,Sparkles ,HeartHandshake ,Globe2,Landmark ,Venus ,Heart , Users, GitBranch, MapPin, Link as LinkIcon, FileText as FileTextIcon, Gift, CheckSquare, Settings, Plus, Save, Edit2, Trash2, X, Building, Search, AlertTriangle, ChevronRight, ListTodo, SlidersHorizontal, ArrowUp, ArrowDown, CornerDownRight, GripVertical, ChevronDown, Lock, Award, IndianRupee, Calendar as CalendarIcon, Check, TrendingUp, UserCog, Route as RouteIcon } from 'lucide-react';
+import { Database, Briefcase,Layers,Handshake,Link2 ,HandCoins,UserPlus ,Sparkles ,HeartHandshake ,Globe2,Landmark ,Venus ,Heart , Users, GitBranch, MapPin, Link as LinkIcon, FileText as FileTextIcon, Gift, CheckSquare, Settings, Plus, Save, Edit2, Trash2, X, Building, Search, AlertTriangle, ChevronRight, ListTodo, SlidersHorizontal, ArrowUp, ArrowDown, CornerDownRight, GripVertical, ChevronDown, Lock, Award, IndianRupee, Calendar as CalendarIcon, Check, TrendingUp, UserCog, Route as RouteIcon } from 'lucide-react';
 
 // --- MOVED PROPS INTERFACE TO TOP LEVEL ---
+// --- MODIFIED: Added Roles and renamed permission props ---
 interface MasterDataProps {
     addToast: (message: string, type?: 'success' | 'error') => void;
     allMembers: Member[];
@@ -42,7 +44,7 @@ interface MasterDataProps {
     onUpdateLeadSources: (data: LeadSourceMaster[]) => void;
     schemes: SchemeMaster[];
     onUpdateSchemes: (data: SchemeMaster[]) => void;
-     agencies: Company[];
+    agencies: Company[];
     onUpdateAgencies: (data: Company[]) => void;
     finrootsBranches: FinRootsBranch[];
     onUpdateFinrootsBranches: (data: FinRootsBranch[]) => void;
@@ -54,8 +56,10 @@ interface MasterDataProps {
     onUpdateRelationshipTypes: (data: RelationshipType[]) => void;
     documentMasters: DocumentMaster[];
     onUpdateDocumentMasters: (data: DocumentMaster[]) => void;
-    schemeDocumentMappings: SchemeDocumentMapping[];
-    onUpdateSchemeDocumentMappings: (data: SchemeDocumentMapping[]) => void;
+    // schemeDocumentMappings: SchemeDocumentMapping[]; // --- REMOVED ---
+    // onUpdateSchemeDocumentMappings: (data: SchemeDocumentMapping[]) => void; // --- REMOVED ---
+    insuranceTypeDocumentRules: InsuranceTypeDocumentRule[]; // --- ADDED ---
+    onUpdateInsuranceTypeDocumentRules: (data: InsuranceTypeDocumentRule[]) => void; // --- ADDED ---
     giftMasters: GiftMaster[];
     onUpdateGiftMasters: (data: GiftMaster[]) => void;
     customerTiers: CustomerTier[];
@@ -72,8 +76,8 @@ interface MasterDataProps {
     onUpdateCustomerGroups: (data: CustomerGroup[]) => void;
     taskMasters: TaskMaster[];
     onUpdateTaskMasters: (data: TaskMaster[]) => void;
-    policyChecklistMasters: PolicyChecklistMaster[];
-    onUpdatePolicyChecklistMasters: (data: PolicyChecklistMaster[]) => void;
+    // policyChecklistMasters: PolicyChecklistMaster[]; // --- REMOVED ---
+    // onUpdatePolicyChecklistMasters: (data: PolicyChecklistMaster[]) => void; // --- REMOVED ---
     insuranceTypes: InsuranceTypeMaster[];
     onUpdateInsuranceTypes: (data: InsuranceTypeMaster[]) => void;
     insuranceFields: InsuranceFieldMaster[];
@@ -87,6 +91,10 @@ interface MasterDataProps {
     onUpdateRoutes: (data: Route[]) => void;
     designations: Designation[];
     onUpdateDesignations: (data: Designation[]) => void;
+    roles: Role[];
+    onUpdateRoles: (data: Role[]) => void;
+    rolePermissions: RolePermissions[]; // Corrected
+    onUpdateRolePermissions: (permissions: RolePermissions) => void; // Corrected
     customerTierCalculationMethod: 'sumAssured' | 'premium';
     onUpdateCustomerTierCalculationMethod: (method: 'sumAssured' | 'premium') => void;
     expenseCategoriesLevel1: ExpenseCategoryLevel1[];
@@ -121,21 +129,20 @@ interface MasterDataProps {
     onUpdateProcessStageMasters: (data: ProcessStageMaster[]) => void;
     accountTypes: AccountType[];
     onUpdateAccountTypes: (data: AccountType[]) => void;
-    // --- NEW: Props for Financial Year system ---
     financialYears: FinancialYear[];
     onUpdateFinancialYears: (data: FinancialYear[]) => void;
     documentNumbering: DocumentNumbering[];
     onUpdateDocumentNumbering: (data: DocumentNumbering[]) => void;
     activeFinancialYearId: string | null;
 }
-
 // --- MOVED SHARED CONSTANTS TO TOP LEVEL ---
-const selectClasses = "block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
-const themeAwareInputClasses = "block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
-const modalInputClasses = "w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
+const selectClasses = "block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800";
+const themeAwareInputClasses = "block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800";
+const modalInputClasses = "w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800";
 
 // --- INLINED UI COMPONENTS TO FIX BUILD ERRORS ---
 
+// amazonq-ignore-next-line
 const Button = React.forwardRef<
     HTMLButtonElement,
     {
@@ -190,7 +197,7 @@ const Input: React.FC<React.InputHTMLAttributes<HTMLInputElement> & { label?: st
         {label && <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{label}</label>}
         <input
             {...props}
-            className={`block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white ${props.className}`}
+            className={`block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 ${props.className}`}
         />
     </div>
 );
@@ -203,7 +210,7 @@ const Modal: React.FC<{
 }> = ({ isOpen, onClose, children, contentClassName = "bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg transform transition-all" }) => {
     const modalRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
+       useEffect(() => {
         if (!isOpen) return;
 
         const modalNode = modalRef.current;
@@ -326,7 +333,7 @@ const SearchableSelect: React.FC<{
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const filteredOptions = useMemo(() =>
+       const filteredOptions = useMemo(() =>
         options.filter(opt => opt.label.toLowerCase().includes(searchTerm.toLowerCase())),
         [options, searchTerm]
     );
@@ -411,7 +418,8 @@ const DocNumRuleModal: React.FC<{
     onSave: (data: Partial<DocumentNumbering>) => void;
     initialData: Partial<DocumentNumbering> | null;
     financialYears: FinancialYear[];
-}> = ({ isOpen, onClose, onSave, initialData, financialYears }) => {
+    canModify: boolean; // Permissions Prop
+}> = ({ isOpen, onClose, onSave, initialData, financialYears, canModify }) => {
 
     const [prefix, setPrefix] = useState('');
     const [startingNumber, setStartingNumber] = useState('');
@@ -436,7 +444,7 @@ const DocNumRuleModal: React.FC<{
 
     const handleSaveClick = () => {
         const finalStartingNumber = parseInt(startingNumber, 10);
-        if (!prefix.trim() || !finYearId) {
+               if (!prefix.trim() || !finYearId) {
             alert('Prefix and Financial Year are required.'); // Replace with addToast in real app
             return;
         }
@@ -461,9 +469,9 @@ const DocNumRuleModal: React.FC<{
             <form onSubmit={e => { e.preventDefault(); handleSaveClick(); }}>
                 <div className="p-6 border-b"><h2 className="text-xl font-bold">{initialData?.id ? 'Edit' : 'Add'} {initialData?.type} Rule</h2></div>
                 <div className="p-6 space-y-4">
-                    <Input label="Prefix (Kword)" value={prefix} onChange={e => setPrefix(e.target.value)} placeholder="e.g., VCH/25-26/" required />
+                    <Input label="Prefix (Kword)" value={prefix} onChange={e => setPrefix(e.target.value)} placeholder="e.g., VCH/25-26/" required disabled={!canModify}/>
                     {/* --- MODIFICATION: Added Suffix Input --- */}
-                    <Input label="Suffix (Optional)" value={suffix} onChange={e => setSuffix(e.target.value)} placeholder="e.g., /FIN" />
+                    <Input label="Suffix (Optional)" value={suffix} onChange={e => setSuffix(e.target.value)} placeholder="e.g., /FIN" disabled={!canModify}/>
                     <Input 
                         label="Starting Number" 
                         type="text"
@@ -472,16 +480,17 @@ const DocNumRuleModal: React.FC<{
                         value={startingNumber} 
                         onChange={handleStartingNumberChange} 
                         required 
+                        disabled={!canModify}
                     />
                     <div>
                         <label className="block text-sm font-medium mb-1">Financial Year</label>
-                        <select value={finYearId || ''} onChange={e => setFinYearId(e.target.value)} className={selectClasses} required>
+                        <select value={finYearId || ''} onChange={e => setFinYearId(e.target.value)} className={selectClasses} required disabled={!canModify}>
                             <option value="" disabled>Select FY</option>
                             {financialYears.map(fy => <option key={fy.id} value={fy.id}>{fy.finYear}</option>)}
                         </select>
                     </div>
                 </div>
-                <div className="flex justify-end p-6 gap-3 border-t"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit">Save Rule</Button></div>
+                <div className="flex justify-end p-6 gap-3 border-t"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" disabled={!canModify}>Save Rule</Button></div>
             </form>
         </Modal>
     );
@@ -490,11 +499,11 @@ const DocNumRuleModal: React.FC<{
 
 
 // --- Financial Year Management Component ---
-const FinancialYearManager: React.FC<MasterDataProps> = (props) => {
+const FinancialYearManager: React.FC<MasterDataProps & { canCreate: boolean; canModify: boolean }> = (props) => {
     const { 
         financialYears, onUpdateFinancialYears, 
         documentNumbering, onUpdateDocumentNumbering,
-        addToast, activeFinancialYearId
+        addToast, activeFinancialYearId, canCreate, canModify
     } = props;
     
     const [selectedFinYearId, setSelectedFinYearId] = useState<string | null>(activeFinancialYearId);
@@ -517,6 +526,7 @@ const FinancialYearManager: React.FC<MasterDataProps> = (props) => {
     };
 
     const handleSaveFY = () => {
+        if (!canModify) return;
         if (!editingFY || !editingFY.finYear?.trim() || !editingFY.fromDate || !editingFY.toDate) {
             addToast('All fields are required.', 'error');
             return;
@@ -525,11 +535,14 @@ const FinancialYearManager: React.FC<MasterDataProps> = (props) => {
             addToast('"From Date" must be earlier than "To Date".', 'error');
             return;
         }
+        
+        // FIX: Ensure status is correctly typed before saving
+        const statusToSave: 'Active' | 'Inactive' = (editingFY.status === 'Active' || editingFY.status === 'Inactive') ? editingFY.status : 'Active';
 
         if (editingFY.id) {
-            onUpdateFinancialYears(financialYears.map(fy => fy.id === editingFY.id ? editingFY as FinancialYear : fy));
+            onUpdateFinancialYears(financialYears.map(fy => fy.id === editingFY.id ? { ...editingFY as FinancialYear, status: statusToSave } : fy));
         } else {
-            const newFY: FinancialYear = { id: `fy-${Date.now()}`, ...editingFY } as FinancialYear;
+            const newFY: FinancialYear = { id: `fy-${Date.now()}`, ...editingFY, status: statusToSave } as FinancialYear;
             onUpdateFinancialYears([...financialYears, newFY]);
         }
         closeFYModal();
@@ -549,6 +562,7 @@ const FinancialYearManager: React.FC<MasterDataProps> = (props) => {
     };
 
     const handleSaveDocNum = (dataToSave: Partial<DocumentNumbering>) => {
+        if (!canModify) return;
         const isDuplicate = documentNumbering.some(dn => 
             dn.id !== dataToSave.id &&
             dn.type === dataToSave.type &&
@@ -560,13 +574,21 @@ const FinancialYearManager: React.FC<MasterDataProps> = (props) => {
             return;
         }
 
+        // FIX: Explicitly cast status to the union type when mapping/updating
         if (dataToSave.id) {
-            onUpdateDocumentNumbering(documentNumbering.map(dn => dn.id === dataToSave.id ? dataToSave as DocumentNumbering : dn));
+            onUpdateDocumentNumbering(documentNumbering.map(dn => 
+                dn.id === dataToSave.id 
+                    ? { 
+                        ...dataToSave as DocumentNumbering, 
+                        status: (dataToSave.status === 'Active' || dataToSave.status === 'Inactive') ? dataToSave.status as 'Active' | 'Inactive' : dn.status
+                      } 
+                    : dn
+            ));
         } else {
             const newDocNum: DocumentNumbering = {
                 id: `dn-${Date.now()}`,
                 ...dataToSave,
-                status: 'Active'
+                status: 'Active' // Initial status is already literal 'Active'
             } as DocumentNumbering;
             onUpdateDocumentNumbering([...documentNumbering, newDocNum]);
         }
@@ -580,7 +602,7 @@ const FinancialYearManager: React.FC<MasterDataProps> = (props) => {
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{title}</h3>
-                <Button onClick={(e) => openDocNumModal(type, null, e)} disabled={!selectedFinYearId}><Plus size={16}/> Add Rule</Button>
+                {canCreate && <Button onClick={(e) => openDocNumModal(type, null, e)} disabled={!selectedFinYearId}><Plus size={16}/> Add Rule</Button>}
             </div>
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -599,8 +621,8 @@ const FinancialYearManager: React.FC<MasterDataProps> = (props) => {
                                 {/* --- MODIFICATION: Added Suffix Cell --- */}
                                 <td className="px-4 py-2 font-mono">{item.suffix || 'N/A'}</td>
                                 <td className="px-4 py-2">{item.startingNumber}</td>
-                                <td className="px-4 py-2"><ToggleSwitch enabled={item.status === 'Active'} onChange={val => onUpdateDocumentNumbering(documentNumbering.map(dn => dn.id === item.id ? {...dn, status: val ? 'Active' : 'Inactive'} : dn))} /></td>
-                                <td className="px-4 py-2"><Button size="small" variant="light" onClick={(e) => openDocNumModal(type, item, e)}><Edit2 size={14}/></Button></td>
+                                <td className="px-4 py-2"><ToggleSwitch enabled={item.status === 'Active'} onChange={val => onUpdateDocumentNumbering(documentNumbering.map(dn => dn.id === item.id ? {...dn, status: val ? 'Active' as const : 'Inactive' as const} : dn))} disabled={!canModify}/></td>
+                                <td className="px-4 py-2"><Button size="small" variant="light" onClick={(e) => openDocNumModal(type, item, e)} disabled={!canModify}><Edit2 size={14}/></Button></td>
                             </tr>
                         ))}
                          {items.length === 0 && (
@@ -618,7 +640,7 @@ const FinancialYearManager: React.FC<MasterDataProps> = (props) => {
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Financial Years</h3>
-                    <Button onClick={(e) => openFYModal(null, e)}><Plus size={16}/> Add Financial Year</Button>
+                    {canCreate && <Button onClick={(e) => openFYModal(null, e)}><Plus size={16}/> Add Financial Year</Button>}
                 </div>
                 <div className="overflow-x-auto max-h-60">
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -635,8 +657,8 @@ const FinancialYearManager: React.FC<MasterDataProps> = (props) => {
                                     <td className="px-4 py-2 font-medium">{fy.finYear}</td>
                                     <td className="px-4 py-2">{fy.fromDate}</td>
                                     <td className="px-4 py-2">{fy.toDate}</td>
-                                    <td className="px-4 py-2"><ToggleSwitch enabled={fy.status === 'Active'} onChange={val => onUpdateFinancialYears(financialYears.map(f => f.id === fy.id ? {...f, status: val ? 'Active' : 'Inactive'} : f))} /></td>
-                                    <td className="px-4 py-2"><Button size="small" variant="light" onClick={(e) => { e.stopPropagation(); openFYModal(fy, e);}}><Edit2 size={14}/></Button></td>
+                                    <td className="px-4 py-2"><ToggleSwitch enabled={fy.status === 'Active'} onChange={val => onUpdateFinancialYears(financialYears.map(f => f.id === fy.id ? {...f, status: val ? 'Active' as const : 'Inactive' as const} : f))} disabled={!canModify}/></td>
+                                    <td className="px-4 py-2"><Button size="small" variant="light" onClick={(e) => { e.stopPropagation(); openFYModal(fy, e);}} disabled={!canModify}><Edit2 size={14}/></Button></td>
                                 </tr>
                             ))}
                         </tbody>
@@ -652,13 +674,13 @@ const FinancialYearManager: React.FC<MasterDataProps> = (props) => {
             {isFYModalOpen && editingFY && (
                 <Modal isOpen={isFYModalOpen} onClose={closeFYModal}>
                     <form onSubmit={e => {e.preventDefault(); handleSaveFY();}}>
-                        <div className="p-6 border-b"><h2 className="text-xl font-bold">{editingFY.id ? 'Edit' : 'Add'} Financial Year</h2></div>
+                        <div className="p-6"><h2 className="text-xl font-bold">{editingFY.id ? 'Edit' : 'Add'} Financial Year</h2></div>
                         <div className="p-6 space-y-4">
-                            <Input label="Financial Year Label" value={editingFY.finYear || ''} onChange={e => setEditingFY(p => p ? {...p, finYear: e.target.value} : null)} placeholder="e.g., 2025-2026" required />
-                            <Input label="From Date" type="date" value={editingFY.fromDate || ''} onChange={e => setEditingFY(p => p ? {...p, fromDate: e.target.value} : null)} required />
-                            <Input label="To Date" type="date" value={editingFY.toDate || ''} onChange={e => setEditingFY(p => p ? {...p, toDate: e.target.value} : null)} required />
+                            <Input label="Financial Year Label" value={editingFY.finYear || ''} onChange={e => setEditingFY(p => p ? {...p, finYear: e.target.value} : null)} placeholder="e.g., 2025-2026" required disabled={!canModify} />
+                            <Input label="From Date" type="date" value={editingFY.fromDate || ''} onChange={e => setEditingFY(p => p ? {...p, fromDate: e.target.value} : null)} required disabled={!canModify}/>
+                            <Input label="To Date" type="date" value={editingFY.toDate || ''} onChange={e => setEditingFY(p => p ? {...p, toDate: e.target.value} : null)} required disabled={!canModify}/>
                         </div>
-                        <div className="flex justify-end p-6 gap-3 border-t"><Button type="button" variant="secondary" onClick={closeFYModal}>Cancel</Button><Button type="submit">Save</Button></div>
+                        <div className="flex justify-end p-6 gap-3 border-t"><Button type="button" variant="secondary" onClick={closeFYModal}>Cancel</Button><Button type="submit" disabled={!canModify}>Save</Button></div>
                     </form>
                 </Modal>
             )}
@@ -669,24 +691,26 @@ const FinancialYearManager: React.FC<MasterDataProps> = (props) => {
                 onSave={handleSaveDocNum}
                 initialData={editingDocNum}
                 financialYears={financialYears}
+                canModify={canModify}
             />
         </div>
     );
 };
 
-
-// --- START: NEW Designation Management Component ---
-const DesignationManager: React.FC<{
-    items: Designation[];
-    onUpdate: (items: Designation[]) => void;
+// --- NEW: Role Management Component ---
+const RoleManager: React.FC<{
+    items: Role[];
+    onUpdate: (items: Role[]) => void;
     addToast: MasterDataProps['addToast'];
     users: User[];
-}> = ({ items, onUpdate, addToast, users }) => {
+    canCreate: boolean;
+    canModify: boolean;
+}> = ({ items, onUpdate, addToast, users, canCreate, canModify }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingItem, setEditingItem] = useState<Partial<Designation> | null>(null);
+    const [editingItem, setEditingItem] = useState<Partial<Role> | null>(null);
     const triggerButtonRef = useRef<HTMLButtonElement>(null);
 
-    const openModal = (item: Designation | null, event?: React.MouseEvent<HTMLElement>) => {
+    const openModal = (item: Role | null, event?: React.MouseEvent<HTMLElement>) => {
         if (event) triggerButtonRef.current = event.currentTarget as HTMLButtonElement;
         setEditingItem(item ? { ...item } : { name: '', isAdvisor: false, active: true });
         setIsModalOpen(true);
@@ -699,18 +723,228 @@ const DesignationManager: React.FC<{
     };
 
     const handleSave = () => {
+        if (!canModify) return;
         if (!editingItem || !editingItem.name?.trim()) {
-            addToast('Designation name is required.', 'error');
+            addToast('Role name is required.', 'error');
             return;
         }
 
         if (editingItem.id) {
-            onUpdate(items.map(i => i.id === editingItem.id ? (editingItem as Designation) : i));
+            onUpdate(items.map(i => i.id === editingItem.id ? (editingItem as Role) : i));
+        } else {
+            const newItem: Role = {
+                id: `role-${Date.now()}`,
+                name: editingItem.name.trim(),
+                isAdvisor: editingItem.isAdvisor || false,
+                active: true,
+                order: items.length,
+            };
+            onUpdate([...items, newItem]);
+        }
+        closeModal();
+    };
+
+    const handleToggle = (id: string) => {
+        onUpdate(items.map(i => i.id === id ? { ...i, active: !i.active } : i));
+    };
+
+    const handleDelete = (id: string) => {
+        const usersWithRole = users.filter(u => u.roleId === id);
+        if (usersWithRole.length > 0) {
+            addToast(`Cannot delete: ${usersWithRole.length} employee(s) are assigned this role.`, 'error');
+            return;
+        }
+        onUpdate(items.filter(i => i.id !== id));
+        addToast('Role deleted successfully.', 'success');
+    };
+
+    return (
+        <div>
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Manage Roles</h3>
+                {canCreate && (
+                    <Button onClick={(e) => openModal(null, e)} variant="primary">
+                        <Plus size={16}/> Add Role
+                    </Button>
+                )}
+            </div>
+            <div className="overflow-y-auto border dark:border-gray-700 rounded-lg max-h-96">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                    <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0">
+                        <tr>
+                            <th className="px-6 py-3 text-left text-xs font-bold uppercase w-12">ID</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold uppercase">Name</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold uppercase">Is Advisor Role?</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold uppercase">Status</th>
+                            <th className="px-6 py-3 text-left text-xs font-bold uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        {items.map((item, index) => (
+                            <tr key={item.id}>
+                                <td className="px-6 py-4 text-sm text-grey-500">{index + 1}</td>
+                                <td className="px-6 py-4 font-medium">{item.name}</td>
+                                <td className="px-6 py-4">
+                                    <ToggleSwitch
+                                        enabled={item.isAdvisor}
+                                        onChange={(val) => onUpdate(items.map(i => i.id === item.id ? { ...i, isAdvisor: val } : i))}
+                                        disabled={!canModify}
+                                    />
+                                </td>
+                                <td className="px-6 py-4">
+                                    <ToggleSwitch enabled={!!item.active} onChange={() => handleToggle(item.id)} disabled={!canModify}/>
+                                </td>
+                                <td className="px-6 py-4">
+                                    <div className="flex items-center gap-2">
+                                        <Button size="small" variant="light" onClick={(e) => openModal(item, e)} disabled={!canModify}><Edit2 size={16}/></Button>
+                                        {canModify && <Button size="small" variant="danger" onClick={() => handleDelete(item.id)}><Trash2 size={16}/></Button>}
+                                    </div>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+            {isModalOpen && editingItem && (
+                <Modal isOpen={isModalOpen} onClose={closeModal}>
+                    <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+                        <div className="p-6">
+                            <h2 className="text-xl font-bold">{editingItem.id ? 'Edit' : 'Add'} Role</h2>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <Input
+                                label="Role Name"
+                                value={editingItem.name || ''}
+                                onChange={e => setEditingItem(prev => prev ? { ...prev, name: e.target.value } : null)}
+                                disabled={!canModify}
+                            />
+                            <div className="flex items-center gap-4 pt-2">
+                                <label className="font-medium">Is Advisor Role?</label>
+                                <ToggleSwitch
+                                    enabled={!!editingItem.isAdvisor}
+                                    onChange={val => setEditingItem(prev => prev ? { ...prev, isAdvisor: val } : null)}
+                                    disabled={!canModify}
+                                />
+                                <p className="text-xs text-gray-500">Enable this if this role is for sales and customer-facing activities.</p>
+                            </div>
+                        </div>
+                        <div className="flex justify-end p-6 gap-3 border-t">
+                            <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
+                            <Button type="submit" disabled={!canModify}>Save</Button>
+                        </div>
+                    </form>
+                </Modal>
+            )}
+        </div>
+    );
+};
+// --- NEW: Designation Rule Modal Component ---
+const DesignationRuleModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (data: Partial<Designation>) => void;
+    initialData: Partial<Designation> | null;
+    canModify: boolean;
+}> = ({ isOpen, onClose, onSave, initialData, canModify }) => {
+
+    const [name, setName] = useState('');
+    const [rank, setRank] = useState<string>(''); // Use string for the input field
+
+    useEffect(() => {
+        if (isOpen && initialData) {
+            setName(initialData.name || '');
+            setRank(initialData.rank?.toString() || ''); // Convert number to string for input
+        }
+    }, [isOpen, initialData]);
+
+    const handleRankChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        // Allow only numbers or an empty string
+        if (/^[0-9]*$/.test(val)) {
+            setRank(val);
+        }
+    };
+
+    const handleSaveClick = () => {
+        if (!name.trim()) {
+            // In a real app, you'd use the addToast prop here
+            alert('Designation name is required.');
+            return;
+        }
+
+        onSave({
+            ...initialData,
+            name,
+            rank: rank === '' ? undefined : parseInt(rank, 10), // Convert back to number or undefined
+        });
+    };
+    
+    if (!isOpen) return null;
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose}>
+            <form onSubmit={e => { e.preventDefault(); handleSaveClick(); }}>
+                <div className="p-6 border-b"><h2 className="text-xl font-bold">{initialData?.id ? 'Edit' : 'Add'} Designation</h2></div>
+                <div className="p-6 space-y-4">
+                    <Input 
+                        label="Designation Name" 
+                        value={name} 
+                        onChange={e => setName(e.target.value)} 
+                        required 
+                        disabled={!canModify}
+                    />
+                    <Input 
+                        label="Rank" 
+                        type="text"
+                        pattern="[0-9]*"
+                        inputMode="numeric"
+                        value={rank} 
+                        onChange={handleRankChange} 
+                        placeholder="e.g., 1 (lower is higher rank)"
+                        disabled={!canModify}
+                    />
+                </div>
+                <div className="flex justify-end p-6 gap-3 border-t"><Button type="button" variant="secondary" onClick={onClose}>Cancel</Button><Button type="submit" disabled={!canModify}>Save Designation</Button></div>
+            </form>
+        </Modal>
+    );
+};
+const DesignationManager: React.FC<{
+    items: Designation[];
+    onUpdate: (items: Designation[]) => void;
+    addToast: MasterDataProps['addToast'];
+    users: User[];
+    canCreate: boolean;
+    canModify: boolean;
+}> = ({ items, onUpdate, addToast, users, canCreate, canModify }) => {
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingItem, setEditingItem] = useState<Partial<Designation> | null>(null);
+    const triggerButtonRef = useRef<HTMLButtonElement>(null);
+
+    const openModal = (item: Designation | null, event?: React.MouseEvent<HTMLElement>) => {
+        if (event) triggerButtonRef.current = event.currentTarget as HTMLButtonElement;
+        // --- FIX: Do NOT auto-fill rank for new items. Let it be undefined. ---
+        setEditingItem(item ? { ...item } : { name: '', active: true });
+        setIsModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setEditingItem(null);
+        setIsModalOpen(false);
+        triggerButtonRef.current?.focus();
+    };
+
+    const handleSave = (dataToSave: Partial<Designation>) => {
+        if (!canModify) return;
+
+        if (dataToSave.id) {
+            onUpdate(items.map(i => i.id === dataToSave.id ? (dataToSave as Designation) : i));
         } else {
             const newItem: Designation = {
                 id: `des-${Date.now()}`,
-                name: editingItem.name.trim(),
-                isAdvisor: editingItem.isAdvisor || false,
+                name: dataToSave.name!.trim(),
+                // --- FIX: The rank will be undefined if the user leaves it blank ---
+                rank: dataToSave.rank, 
                 active: true,
                 order: items.length,
             };
@@ -733,84 +967,224 @@ const DesignationManager: React.FC<{
         addToast('Designation deleted successfully.', 'success');
     };
 
+    const sortedItems = useMemo(() => {
+        // --- FIX: Sorting with `?? Infinity` ensures items without a rank appear at the end ---
+        return [...items].sort((a, b) => (a.rank ?? Infinity) - (b.rank ?? Infinity));
+    }, [items]);
+
     return (
         <div>
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Manage Designations</h3>
-                <Button onClick={(e) => openModal(null, e)} variant="primary">
-                    <Plus size={16}/> Add Designation
-                </Button>
+                {canCreate && (
+                    <Button onClick={(e) => openModal(null, e)} variant="primary">
+                        <Plus size={16}/> Add Designation
+                    </Button>
+                )}
             </div>
             <div className="overflow-y-auto border dark:border-gray-700 rounded-lg max-h-96">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0">
-                        <tr>
-                            <th className="px-6 py-3 text-left text-xs font-bold uppercase w-12">ID</th>
-                            <th className="px-6 py-3 text-left text-xs font-bold uppercase">Name</th>
-                            <th className="px-6 py-3 text-left text-xs font-bold uppercase">Is Advisor Role?</th>
-                            <th className="px-6 py-3 text-left text-xs font-bold uppercase">Status</th>
-                            <th className="px-6 py-3 text-left text-xs font-bold uppercase">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {items.map((item, index) => (
-                            <tr key={item.id}>
-                                <td className="px-6 py-4 text-sm text-grey-500">{index + 1}</td>
-                                <td className="px-6 py-4 font-medium">{item.name}</td>
-                                <td className="px-6 py-4">
-                                    <ToggleSwitch
-                                        enabled={item.isAdvisor}
-                                        onChange={(val) => onUpdate(items.map(i => i.id === item.id ? { ...i, isAdvisor: val } : i))}
-                                    />
-                                </td>
-                                <td className="px-6 py-4">
-                                    <ToggleSwitch enabled={!!item.active} onChange={() => handleToggle(item.id)} />
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-2">
-                                        <Button size="small" variant="light" onClick={(e) => openModal(item, e)}><Edit2 size={16}/></Button>
-                                        <Button size="small" variant="danger" onClick={() => handleDelete(item.id)}><Trash2 size={16}/></Button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+    <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0">
+            <tr>
+                <th className="px-6 py-3 text-left text-xs font-bold uppercase w-12">ID</th>
+                <th className="px-6 py-3 text-left text-xs font-bold uppercase">Name</th>
+                <th className="px-6 py-3 text-left text-xs font-bold uppercase">Rank</th>
+                <th className="px-6 py-3 text-left text-xs font-bold uppercase">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-bold uppercase">Actions</th>
+            </tr>
+        </thead>
+        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+            {sortedItems.map((item, index) => (
+                <tr key={item.id}>
+                    <td className="px-6 py-4 text-sm text-gray-500">{index + 1}</td>
+                    <td className="px-6 py-4 font-medium">{item.name}</td>
+                    <td className="px-6 py-4">
+                        {item.rank ?? <span className="text-gray-400 italic">N/A</span>}
+                    </td>
+                    <td className="px-6 py-4">
+                        <ToggleSwitch
+                            enabled={!!item.active}
+                            onChange={() => handleToggle(item.id)}
+                            disabled={!canModify}
+                        />
+                    </td>
+                    <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                            <Button
+                                size="small"
+                                variant="light"
+                                onClick={(e) => openModal(item, e)}
+                                disabled={!canModify}
+                            >
+                                <Edit2 size={16}/>
+                            </Button>
+                            {canModify && (
+                                <Button
+                                    size="small"
+                                    variant="danger"
+                                    onClick={() => handleDelete(item.id)}
+                                >
+                                    <Trash2 size={16}/>
+                                </Button>
+                            )}
+                        </div>
+                    </td>
+                </tr>
+            ))}
+        </tbody>
+    </table>
+</div>
+            
+            <DesignationRuleModal
+                isOpen={isModalOpen}
+                onClose={closeModal}
+                onSave={handleSave}
+                initialData={editingItem}
+                canModify={canModify}
+            />
+        </div>
+    );
+};
+// --- NEW: Designation Permissions Management Component ---
+// --- MODIFIED: Renamed to RolePermissionsManager and logic updated to use Roles ---
+const RolePermissionsManager: React.FC<{
+    roles: Role[];
+    rolePermissions: RolePermissions[];
+    onUpdate: (permissions: RolePermissions) => void;
+    addToast: MasterDataProps['addToast'];
+    canModify: boolean;
+}> = ({ roles, rolePermissions, onUpdate, addToast, canModify }) => {
+    const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
+    const [currentPermissions, setCurrentPermissions] = useState<RolePermissions['permissions'] | null>(null);
+
+    const moduleDisplayOrder: { key: AppModule; name: string }[] = [
+        { key: 'dashboard', name: 'Dashboard' },
+        { key: 'reports & insights', name: 'Reports & Insights' },
+        { key: 'profitAndLoss', name: 'Profit & Loss' },
+        { key: 'advancedReports', name: 'Advanced Reports'},
+        { key: 'pipeline', name: 'Lead Management' },
+        { key: 'calendar', name: 'Calendar' },
+        { key: 'upselling', name:'Upselling'},
+        { key: 'customers', name: 'Customers' },
+        { key: 'taskManagement', name: 'Task Management' },
+        { key: 'policies', name: 'Policies' },
+        { key: 'mutualFunds', name: 'Mutual Funds' },
+        { key: 'notes', name: 'Notes' },
+        { key: 'actionHub', name: 'Action Hub' },
+        { key: 'servicesHub', name: 'Services Hub' },
+        { key: 'location', name: 'Location Services' },
+        { key: 'chatbot', name: 'WhatsApp Bot' },
+        { key: 'employees', name: 'Employee Management' },
+        { key: 'masterMember', name: 'Master Data' },
+    ];
+
+    // Map roles to the format expected by SearchableSelect
+    const roleOptions = useMemo(() => 
+        roles
+            .filter(r => r.active)
+            .map(r => ({ value: r.id, label: r.name }))
+    , [roles]);
+
+    useEffect(() => {
+        if (selectedRoleId) {
+            const perms = rolePermissions.find(p => p.roleId === selectedRoleId);
+            setCurrentPermissions(perms ? { ...perms.permissions } : {});
+        } else {
+            setCurrentPermissions(null);
+        }
+    }, [selectedRoleId, rolePermissions]);
+
+    const handlePermissionChange = (module: AppModule, level: PermissionLevel) => {
+        setCurrentPermissions(prev => prev ? { ...prev, [module]: level } : null);
+    };
+
+    const handleSave = () => {
+        if (!canModify) return;
+        if (!selectedRoleId || !currentPermissions) {
+            addToast('No role selected or permissions are invalid.', 'error');
+            return;
+        }
+        onUpdate({
+            roleId: selectedRoleId,
+            permissions: currentPermissions,
+        });
+        addToast('Permissions updated successfully!', 'success');
+    };
+
+    return (
+        <div className="space-y-6"> {/* Removed flex layout to simplify to a single column */}
+            <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+                    Manage Role Permissions
+                </h3>
             </div>
-            {isModalOpen && editingItem && (
-                <Modal isOpen={isModalOpen} onClose={closeModal}>
-                    <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-                        <div className="p-6">
-                            <h2 className="text-xl font-bold">{editingItem.id ? 'Edit' : 'Add'} Designation</h2>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            <Input
-                                label="Designation Name"
-                                value={editingItem.name || ''}
-                                onChange={e => setEditingItem(prev => prev ? { ...prev, name: e.target.value } : null)}
-                            />
-                            <div className="flex items-center gap-4 pt-2">
-                                <label className="font-medium">Is Advisor Role?</label>
-                                <ToggleSwitch
-                                    enabled={!!editingItem.isAdvisor}
-                                    onChange={val => setEditingItem(prev => prev ? { ...prev, isAdvisor: val } : null)}
-                                />
-                                <p className="text-xs text-gray-500">Enable this if employees with this designation can be assigned to customers and leads.</p>
-                            </div>
-                        </div>
-                        <div className="flex justify-end p-6 gap-3 border-t">
-                            <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
-                            <Button type="submit">Save</Button>
-                        </div>
-                    </form>
-                </Modal>
+            
+            {/* --- NEW: Searchable Dropdown for Role Selection --- */}
+            <SearchableSelect
+                label="Select Role"
+                options={roleOptions}
+                value={selectedRoleId}
+                onChange={setSelectedRoleId}
+                placeholder="Search for a role..."
+            />
+            {/* --- END NEW --- */}
+
+            {selectedRoleId && currentPermissions ? (
+                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+                            Permissions for "{roles.find(r => r.id === selectedRoleId)?.name}"
+                        </h3>
+                        {canModify && <Button onClick={handleSave}><Save size={16}/> Save Permissions</Button>}
+                    </div>
+                    <div className="overflow-x-auto max-h-[70vh]">
+                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0">
+                                <tr>
+                                    <th className="px-4 py-3 text-left text-xs font-bold uppercase">Module</th>
+                                    <th className="px-4 py-3 text-left text-xs font-bold uppercase">Access Level</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
+                                {moduleDisplayOrder.map(({ key, name }) => (
+                                    <tr key={key}>
+                                        <td className="px-4 py-3 font-medium">{name}</td>
+                                        <td className="px-4 py-3">
+                                            <fieldset disabled={!canModify}>
+                                                <div className="flex items-center gap-4">
+                                                    {(['none', 'view', 'create', 'modify'] as PermissionLevel[]).map(level => (
+                                                        <label key={level} className="flex items-center gap-1.5 text-sm cursor-pointer">
+                                                            <input
+                                                                type="radio"
+                                                                name={`perm-${key}`}
+                                                                checked={(currentPermissions[key] || 'none') === level}
+                                                                onChange={() => handlePermissionChange(key, level)}
+                                                                className="h-4 w-4"
+                                                            />
+                                                            <span className="capitalize">{level}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            </fieldset>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            ) : (
+                <div className="flex items-center justify-center h-64 text-center text-gray-500 dark:text-gray-400 border-2 border-dashed dark:border-gray-600 rounded-lg p-8">
+                    <div>
+                        <Lock size={48} className="mx-auto text-gray-300 dark:text-gray-500"/>
+                        <p className="mt-4 font-semibold">Select a Role</p>
+                        <p className="text-sm">Select a role from the dropdown above to manage its application permissions.</p>
+                    </div>
+                </div>
             )}
         </div>
     );
 };
-// --- END: NEW Designation Management Component ---
-
-
 // --- NEW: Income Category Management Component ---
 const IncomeCategoryManager: React.FC<{
     level1Data: IncomeCategoryLevel1[];
@@ -818,7 +1192,9 @@ const IncomeCategoryManager: React.FC<{
     onUpdateLevel1: (data: IncomeCategoryLevel1[]) => void;
     onUpdateLevel2: (data: IncomeCategoryLevel2[]) => void;
     addToast: MasterDataProps['addToast'];
-}> = ({ level1Data, level2Data, onUpdateLevel1, onUpdateLevel2, addToast }) => {
+    canCreate: boolean;
+    canModify: boolean;
+}> = ({ level1Data, level2Data, onUpdateLevel1, onUpdateLevel2, addToast, canCreate, canModify }) => {
     
     type CategoryItem = IncomeCategoryLevel1 | IncomeCategoryLevel2;
     
@@ -843,6 +1219,7 @@ const IncomeCategoryManager: React.FC<{
     };
 
     const handleSave = () => {
+        if (!canModify) return;
         const { level, data } = modalState;
         if (!data || !data.name?.trim()) {
             addToast('Category name is required.', 'error');
@@ -913,7 +1290,7 @@ const IncomeCategoryManager: React.FC<{
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{title}</h3>
-                <Button onClick={onAdd}><Plus size={16}/> Add Category</Button>
+                {canCreate && <Button onClick={onAdd}><Plus size={16}/> Add Category</Button>}
             </div>
             <div className="overflow-x-auto max-h-60">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -930,10 +1307,10 @@ const IncomeCategoryManager: React.FC<{
                                 <td className="px-4 py-2 text-sm text-gray-500">{index + 1}</td>
                                 <td className="px-4 py-2 text-sm font-mono text-gray-500 hidden">{item.id}</td>
                                 <td className="px-4 py-2 font-medium">{item.name}</td>
-                                <td className="px-4 py-2"><ToggleSwitch enabled={!!item.active} onChange={() => onToggle(item.id)} /></td>
+                                <td className="px-4 py-2"><ToggleSwitch enabled={!!item.active} onChange={() => onToggle(item.id)} disabled={!canModify} /></td>
                                 <td className="px-4 py-2">
                                     <div className="flex gap-2">
-                                        <Button size="small" variant="light" onClick={(e) => onEdit(item, e)}><Edit2 size={14}/></Button>
+                                        <Button size="small" variant="light" onClick={(e) => onEdit(item, e)} disabled={!canModify}><Edit2 size={14}/></Button>
                                     </div>
                                 </td>
                             </tr>
@@ -982,17 +1359,18 @@ const IncomeCategoryManager: React.FC<{
                                         onChange={e => setModalState(p => ({...p, data: {...p.data, parentId: e.target.value}}))}
                                         className={selectClasses}
                                         required
+                                        disabled={!canModify}
                                     >
                                         <option value="">-- Select Income Category --</option>
                                         {level1Data.filter(l1 => l1.active).map(l1 => <option key={l1.id} value={l1.id}>{l1.name}</option>)}
                                     </select>
                                 </div>
                             )}
-                            <Input label="Category Name" value={modalState.data?.name || ''} onChange={e => setModalState(p => ({...p, data: {...p.data, name: e.target.value}}))} required/>
+                            <Input label="Category Name" value={modalState.data?.name || ''} onChange={e => setModalState(p => ({...p, data: {...p.data, name: e.target.value}}))} required disabled={!canModify}/>
                         </div>
                         <div className="flex justify-end p-6 gap-3 border-t border-gray-200 dark:border-gray-700">
                             <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
-                            <Button type="submit" variant="primary">Save</Button>
+                            <Button type="submit" variant="primary" disabled={!canModify}>Save</Button>
                         </div>
                     </form>
                 </Modal>
@@ -1010,7 +1388,9 @@ const ExpenseCategoryManager: React.FC<{
     onUpdateLevel2: (data: ExpenseCategoryLevel2[]) => void;
     onUpdateLevel3: (data: ExpenseCategoryLevel3[]) => void;
     addToast: MasterDataProps['addToast'];
-}> = ({ level1Data, level2Data, level3Data, onUpdateLevel1, onUpdateLevel2, onUpdateLevel3, addToast }) => {
+    canCreate: boolean;
+    canModify: boolean;
+}> = ({ level1Data, level2Data, level3Data, onUpdateLevel1, onUpdateLevel2, onUpdateLevel3, addToast, canCreate, canModify }) => {
     
     type CategoryItem = ExpenseCategoryLevel1 | ExpenseCategoryLevel2 | ExpenseCategoryLevel3;
     
@@ -1035,6 +1415,7 @@ const ExpenseCategoryManager: React.FC<{
     };
 
     const handleSave = () => {
+        if (!canModify) return;
         const { level, data } = modalState;
         if (!data || !data.name?.trim()) {
             addToast('Category name is required.', 'error');
@@ -1121,7 +1502,7 @@ const ExpenseCategoryManager: React.FC<{
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{title}</h3>
-                <Button onClick={onAdd}><Plus size={16}/> Add Category</Button>
+                {canCreate && <Button onClick={onAdd}><Plus size={16}/> Add Category</Button>}
             </div>
             <div className="overflow-x-auto max-h-60">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -1138,10 +1519,10 @@ const ExpenseCategoryManager: React.FC<{
                                 <td className="px-4 py-2 text-sm text-gray-500">{index + 1}</td>
                                 <td className="px-4 py-2 text-sm font-mono text-gray-500 hidden">{item.id}</td>
                                 <td className="px-4 py-2 font-medium">{item.name}</td>
-                                <td className="px-4 py-2"><ToggleSwitch enabled={!!item.active} onChange={() => onToggle(item.id)} /></td>
+                                <td className="px-4 py-2"><ToggleSwitch enabled={!!item.active} onChange={() => onToggle(item.id)} disabled={!canModify} /></td>
                                 <td className="px-4 py-2">
                                     <div className="flex gap-2">
-                                        <Button size="small" variant="light" onClick={(e) => onEdit(item, e)}><Edit2 size={14}/></Button>
+                                        <Button size="small" variant="light" onClick={(e) => onEdit(item, e)} disabled={!canModify}><Edit2 size={14}/></Button>
                                     </div>
                                 </td>
                             </tr>
@@ -1221,6 +1602,7 @@ const ExpenseCategoryManager: React.FC<{
                                         onChange={e => setModalState(p => ({...p, data: {...p.data, parentId: e.target.value}}))}
                                         className={selectClasses}
                                         required
+                                        disabled={!canModify}
                                     >
                                         <option value="">-- Select Expense Category --</option>
                                         {level1Data.filter(l1 => l1.active).map(l1 => <option key={l1.id} value={l1.id}>{l1.name}</option>)}
@@ -1239,6 +1621,7 @@ const ExpenseCategoryManager: React.FC<{
                                             }}
                                             className={selectClasses}
                                             required
+                                            disabled={!canModify}
                                         >
                                             <option value="">-- Select Expense Category --</option>
                                             {level1Data.filter(l1 => l1.active).map(l1 => <option key={l1.id} value={l1.id}>{l1.name}</option>)}
@@ -1250,7 +1633,7 @@ const ExpenseCategoryManager: React.FC<{
                                             value={(modalState.data as Partial<ExpenseCategoryLevel3>).parentId || ''}
                                             onChange={e => setModalState(p => ({...p, data: {...p.data, parentId: e.target.value}}))}
                                             className={selectClasses}
-                                            disabled={!modalLevel1Parent}
+                                            disabled={!modalLevel1Parent || !canModify}
                                             required
                                         >
                                             <option value="">-- Select Expense Head Category --</option>
@@ -1259,11 +1642,11 @@ const ExpenseCategoryManager: React.FC<{
                                     </div>
                                 </>
                             )}
-                            <Input label="Category Name" value={modalState.data?.name || ''} onChange={e => setModalState(p => ({...p, data: {...p.data, name: e.target.value}}))} required/>
+                            <Input label="Category Name" value={modalState.data?.name || ''} onChange={e => setModalState(p => ({...p, data: {...p.data, name: e.target.value}}))} required disabled={!canModify}/>
                         </div>
                         <div className="flex justify-end p-6 gap-3 border-t border-gray-200 dark:border-gray-700">
                             <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
-                            <Button type="submit" variant="primary">Save</Button>
+                            <Button type="submit" variant="primary" disabled={!canModify}>Save</Button>
                         </div>
                     </form>
                 </Modal>
@@ -1274,8 +1657,8 @@ const ExpenseCategoryManager: React.FC<{
 
 
 // --- MODIFICATION START: This is the updated ReligionsAndFestivalsManager component ---
-const ReligionsAndFestivalsManager: React.FC<MasterDataProps> = (props) => {
-    const { religions, onUpdateReligions, festivals, onUpdateFestivals, festivalDates, onUpdateFestivalDates, addToast, allMembers } = props;
+const ReligionsAndFestivalsManager: React.FC<MasterDataProps & { canCreate: boolean; canModify: boolean }> = (props) => {
+    const { religions, onUpdateReligions, festivals, onUpdateFestivals, festivalDates, onUpdateFestivalDates, addToast, allMembers, canCreate, canModify } = props;
 
     // State for main search query
     const [searchQuery, setSearchQuery] = useState('');
@@ -1315,6 +1698,7 @@ const ReligionsAndFestivalsManager: React.FC<MasterDataProps> = (props) => {
 
 
     const handleSaveFestival = () => {
+        if (!canModify) return;
         if (!editingFestival || !editingFestival.name?.trim()) {
             addToast('Festival name is required.', 'error');
             return;
@@ -1361,6 +1745,7 @@ const ReligionsAndFestivalsManager: React.FC<MasterDataProps> = (props) => {
     }
 
     const handleSaveDate = () => {
+        if (!canModify) return;
         if (!editingDate || !editingDate.festivalId || !editingDate.date) {
             addToast('Festival and Date are required.', 'error');
             return;
@@ -1537,13 +1922,15 @@ const ReligionsAndFestivalsManager: React.FC<MasterDataProps> = (props) => {
                 showSearchBar={false}
                 codeColumnDisplay="hidden"
                 dependencyCheck={(id) => allMembers.filter(m => m.religionId === id).map(m => ({ name: m.name, type: 'member' }))}
+                canCreate={canCreate}
+                canModify={canModify}
             />
 
             {/* Festivals Table */}
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Festival</h3>
-                    <Button onClick={(e) => openFestivalModal(null, e)}><Plus size={16}/> Add Festival</Button>
+                    {canCreate && <Button onClick={(e) => openFestivalModal(null, e)}><Plus size={16}/> Add Festival</Button>}
                 </div>
                 <div className="overflow-x-auto max-h-80">
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -1560,11 +1947,11 @@ const ReligionsAndFestivalsManager: React.FC<MasterDataProps> = (props) => {
                                     <td className="px-4 py-2 text-sm text-gray-500">{index + 1}</td>
                                     <td className="px-4 py-2 font-medium">{item.name}</td>
                                     <td className="px-4 py-2 text-sm">{religionMap.get(item.religionId!) || 'General'}</td>
-                                    <td className="px-4 py-2"><ToggleSwitch enabled={!!item.active} onChange={() => handleToggleFestival(item.id)} /></td>
+                                    <td className="px-4 py-2"><ToggleSwitch enabled={!!item.active} onChange={() => handleToggleFestival(item.id)} disabled={!canModify} /></td>
                                     <td className="px-4 py-2">
                                         <div className="flex gap-2">
-                                            <Button size="small" variant="light" onClick={(e) => openFestivalModal(item, e)}><Edit2 size={14}/></Button>
-                                            <Button size="small" variant="danger" onClick={() => handleDeleteFestival(item.id)}><Trash2 size={14}/></Button>
+                                            <Button size="small" variant="light" onClick={(e) => openFestivalModal(item, e)} disabled={!canModify}><Edit2 size={14}/></Button>
+                                            {canModify && <Button size="small" variant="danger" onClick={() => handleDeleteFestival(item.id)}><Trash2 size={14}/></Button>}
                                         </div>
                                     </td>
                                 </tr>
@@ -1613,23 +2000,25 @@ const ReligionsAndFestivalsManager: React.FC<MasterDataProps> = (props) => {
                                                     new Date(row.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
                                                 }
                                             </span>
-                                            <button 
-                                                type="button" 
-                                                className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400" 
-                                                title="Add another date for this festival" 
-                                                onClick={(e) => openDateModal({ festivalId: row.festivalId }, e)}
-                                            >
-                                                <CalendarIcon size={16}/>
-                                            </button>
+                                            {canCreate && (
+                                                <button 
+                                                    type="button" 
+                                                    className="text-gray-400 hover:text-blue-600 dark:hover:text-blue-400" 
+                                                    title="Add another date for this festival" 
+                                                    onClick={(e) => openDateModal({ festivalId: row.festivalId }, e)}
+                                                >
+                                                    <CalendarIcon size={16}/>
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                     {/* --- MODIFICATION END --- */}
                                     <td className="px-4 py-2">
-                                        <ToggleSwitch enabled={!!row.active} onChange={() => row.isPlaceholder ? handleToggleFestival(row.festivalId) : handleToggleDate(row.id)} />
+                                        <ToggleSwitch enabled={!!row.active} onChange={() => row.isPlaceholder ? handleToggleFestival(row.festivalId) : handleToggleDate(row.id)} disabled={!canModify} />
                                     </td>
                                     <td className="px-4 py-2">
                                         <div className="flex gap-2">
-                                            {!row.isPlaceholder && (
+                                            {!row.isPlaceholder && canModify && (
                                                 <>
                                                     <Button size="small" variant="light" className="!p-1.5" onClick={(e) => openDateModal(row as FestivalDate, e)}><Edit2 size={14}/></Button>
                                                     <Button size="small" variant="danger" className="!p-1.5" onClick={() => handleDeleteDate(row.id)}><Trash2 size={14}/></Button>
@@ -1648,14 +2037,14 @@ const ReligionsAndFestivalsManager: React.FC<MasterDataProps> = (props) => {
                     <form onSubmit={e => { e.preventDefault(); handleSaveFestival(); }}>
                         <div className="p-6"><h2 className="text-xl font-bold">{editingFestival?.id ? 'Edit' : 'Add'} Festival</h2></div>
                         <div className="p-6 space-y-4">
-                            <Input label="Festival Name" value={editingFestival?.name || ''} onChange={e => setEditingFestival(p => p ? {...p, name: e.target.value} : null)} />
+                            <Input label="Festival Name" value={editingFestival?.name || ''} onChange={e => setEditingFestival(p => p ? {...p, name: e.target.value} : null)} disabled={!canModify} />
                             <label className="block text-sm font-medium">Religion</label>
-                            <select value={editingFestival?.religionId || ''} onChange={e => setEditingFestival(p => p ? {...p, religionId: e.target.value || null} : null)} className={selectClasses}>
+                            <select value={editingFestival?.religionId || ''} onChange={e => setEditingFestival(p => p ? {...p, religionId: e.target.value || null} : null)} className={selectClasses} disabled={!canModify}>
                                 <option value="">-- General --</option>
                                 {religions.filter(r => r.active).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                             </select>
                         </div>
-                        <div className="flex justify-end p-6 gap-3 border-t"><Button type="button" variant="secondary" onClick={closeFestivalModal}>Cancel</Button><Button type="submit">Save</Button></div>
+                        <div className="flex justify-end p-6 gap-3 border-t"><Button type="button" variant="secondary" onClick={closeFestivalModal}>Cancel</Button><Button type="submit" disabled={!canModify}>Save</Button></div>
                     </form>
                 </Modal>
             )}
@@ -1666,13 +2055,13 @@ const ReligionsAndFestivalsManager: React.FC<MasterDataProps> = (props) => {
                         <div className="p-6"><h2 className="text-xl font-bold">{editingDate?.id ? 'Edit' : 'Add'} Festival Date</h2></div>
                         <div className="p-6 space-y-4">
                              <label className="block text-sm font-medium">Festival</label>
-                            <select value={editingDate?.festivalId || ''} onChange={e => setEditingDate(p => p ? {...p, festivalId: e.target.value} : null)} className={selectClasses} required disabled={!!editingDate?.festivalId && !editingDate.id}>
+                            <select value={editingDate?.festivalId || ''} onChange={e => setEditingDate(p => p ? {...p, festivalId: e.target.value} : null)} className={selectClasses} required disabled={!!editingDate?.festivalId && !editingDate.id || !canModify}>
                                 <option value="">-- Select Festival --</option>
                                 {festivals.filter(f => f.active).map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
                             </select>
-                            <Input label="Date" type="date" value={editingDate?.date || ''} onChange={e => setEditingDate(p => p ? {...p, date: e.target.value} : null)} />
+                            <Input label="Date" type="date" value={editingDate?.date || ''} onChange={e => setEditingDate(p => p ? {...p, date: e.target.value} : null)} disabled={!canModify}/>
                         </div>
-                        <div className="flex justify-end p-6 gap-3 border-t"><Button type="button" variant="secondary" onClick={closeDateModal}>Cancel</Button><Button type="submit">Save Date</Button></div>
+                        <div className="flex justify-end p-6 gap-3 border-t"><Button type="button" variant="secondary" onClick={closeDateModal}>Cancel</Button><Button type="submit" disabled={!canModify}>Save Date</Button></div>
                     </form>
                 </Modal>
             )}
@@ -1691,7 +2080,8 @@ const TierRuleModal: React.FC<{
     customerTypes: CustomerType[];
     gifts: GiftMaster[];
     mode: 'sumAssured' | 'premium' | 'edit';
-}> = ({ isOpen, onClose, onSave, initialData, tiers, customerTypes, gifts, mode }) => {
+    canModify: boolean;
+}> = ({ isOpen, onClose, onSave, initialData, tiers, customerTypes, gifts, mode, canModify }) => {
     const [formData, setFormData] = useState<Partial<CustomerTier>>({});
 
     useEffect(() => {
@@ -1734,6 +2124,7 @@ const TierRuleModal: React.FC<{
                         value={formData.customerTypeId || ''}
                         onChange={e => handleChange('customerTypeId', e.target.value)}
                         className={selectClasses}
+                        disabled={!canModify}
                     >
                         <option value="">-- Select a Type --</option>
                         {customerTypes.map(type => {
@@ -1755,6 +2146,7 @@ const TierRuleModal: React.FC<{
                         value={formData.minimumSumAssured === 0 ? '' : String(formData.minimumSumAssured || '')}
                         onChange={e => handleNumericChange('minimumSumAssured', e.target.value)}
                         placeholder="e.g., 50000"
+                        disabled={!canModify}
                     />
                 )}
 
@@ -1766,12 +2158,13 @@ const TierRuleModal: React.FC<{
                         value={formData.minimumPremium === 0 ? '' : String(formData.minimumPremium || '')}
                         onChange={e => handleNumericChange('minimumPremium', e.target.value)}
                         placeholder="e.g., 5000"
+                        disabled={!canModify}
                     />
                 )}
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assign Gift</label>
-                    <select value={formData.giftId || ''} onChange={e => handleChange('giftId', e.target.value || null)} className={selectClasses}>
+                    <select value={formData.giftId || ''} onChange={e => handleChange('giftId', e.target.value || null)} className={selectClasses} disabled={!canModify}>
                         <option value="">-- No Gift --</option>
                         {gifts.filter(g => g.active).map(gift => <option key={gift.id} value={gift.id}>{gift.name}</option>)}
                     </select>
@@ -1779,7 +2172,7 @@ const TierRuleModal: React.FC<{
             </div>
             <div className="flex justify-end p-6 gap-3 border-t border-gray-200 dark:border-gray-700">
                 <Button variant="secondary" onClick={onClose}>Cancel</Button>
-                <Button variant="primary" onClick={handleSaveClick}>Save Tier</Button>
+                <Button variant="primary" onClick={handleSaveClick} disabled={!canModify}>Save Tier</Button>
             </div>
         </Modal>
     );
@@ -1797,7 +2190,9 @@ const TierManager: React.FC<{
     calculationMethod: 'sumAssured' | 'premium';
     onUpdateCalculationMethod: (method: 'sumAssured' | 'premium') => void;
     customerTypes: CustomerType[];
-}> = ({ tiers, onUpdateTiers, gifts, onUpdateGifts, addToast, calculationMethod, onUpdateCalculationMethod, customerTypes }) => {
+    canCreate: boolean;
+    canModify: boolean;
+}> = ({ tiers, onUpdateTiers, gifts, onUpdateGifts, addToast, calculationMethod, onUpdateCalculationMethod, customerTypes, canCreate, canModify }) => {
     const [isTierModalOpen, setIsTierModalOpen] = useState(false);
     const [editingTier, setEditingTier] = useState<Partial<CustomerTier> | null>(null);
     const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
@@ -1825,6 +2220,7 @@ const TierManager: React.FC<{
     }
 
     const handleSaveTier = (tierData: CustomerTier) => {
+        if (!canModify) return;
         let updatedTiers;
         if (tierData.id) { // Update
             updatedTiers = tiers.map(t => t.id === tierData.id ? tierData : t);
@@ -1858,6 +2254,7 @@ const TierManager: React.FC<{
     }
 
     const handleSaveGift = () => {
+        if (!canModify) return;
         if (!editingGift || !editingGift.name?.trim()) {
             addToast('Gift name is required.', 'error');
             return;
@@ -1921,12 +2318,14 @@ const TierManager: React.FC<{
                         <button
                             onClick={() => onUpdateCalculationMethod('sumAssured')}
                             className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${calculationMethod === 'sumAssured' ? 'bg-white text-gray-800 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-600 hover:bg-white/70 dark:text-gray-400 dark:hover:bg-gray-600'}`}
+                            disabled={!canModify}
                         >
                             Sum Assured
                         </button>
                         <button
                             onClick={() => onUpdateCalculationMethod('premium')}
                             className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${calculationMethod === 'premium' ? 'bg-white text-gray-800 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-600 hover:bg-white/70 dark:text-gray-400 dark:hover:bg-gray-600'}`}
+                            disabled={!canModify}
                         >
                             Premium
                         </button>
@@ -1942,7 +2341,7 @@ const TierManager: React.FC<{
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Customer Type (by Sum Assured)</h3>
-                        <Button onClick={(e) => openTierModal(null, 'sumAssured', e)}><Plus size={16}/> Add Tier</Button>
+                        {canCreate && <Button onClick={(e) => openTierModal(null, 'sumAssured', e)}><Plus size={16}/> Add Tier</Button>}
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm">
@@ -1960,18 +2359,18 @@ const TierManager: React.FC<{
                                 {sortedTiers.map(tier => (
                                     <tr 
                                         key={tier.id}
-                                        draggable
+                                        draggable={canModify}
                                         onDragStart={e => handleTierDragStart(e, tier.id)}
                                         onDragOver={handleTierDragOver}
                                         onDrop={e => handleTierDrop(e, tier.id)}
-                                        className={`border-b dark:border-gray-700/50 cursor-move ${draggedTierId === tier.id ? 'opacity-50' : ''} ${!tier.active ? 'opacity-50' : ''}`}
+                                        className={`border-b dark:border-gray-700/50 ${canModify ? 'cursor-move' : ''} ${draggedTierId === tier.id ? 'opacity-50' : ''} ${!tier.active ? 'opacity-50' : ''}`}
                                     >
                                         <td className="py-2"><GripVertical size={16} className="text-gray-400"/></td>
                                         <td className="py-2 font-medium">{customerTypeMap.get(tier.customerTypeId) || tier.name}</td>
                                         <td className="py-2">{tier.minimumSumAssured?.toLocaleString('en-IN') || '-'}</td>
                                         <td className="py-2">{gifts.find(g => g.id === tier.giftId)?.name || <span className="text-gray-400 italic">None</span>}</td>
-                                        <td className="py-2 text-center"><ToggleSwitch enabled={tier.active !== false} onChange={() => handleToggleTier(tier.id)} /></td>
-                                        <td className="py-2 text-center"><Button size="small" variant="light" className="!p-1.5" onClick={(e) => openTierModal(tier, 'edit', e)}><Edit2 size={14}/></Button></td>
+                                        <td className="py-2 text-center"><ToggleSwitch enabled={tier.active !== false} onChange={() => handleToggleTier(tier.id)} disabled={!canModify}/></td>
+                                        <td className="py-2 text-center"><Button size="small" variant="light" className="!p-1.5" onClick={(e) => openTierModal(tier, 'edit', e)} disabled={!canModify}><Edit2 size={14}/></Button></td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -1983,7 +2382,7 @@ const TierManager: React.FC<{
                 <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Customer Type (by Premium)</h3>
-                        <Button onClick={(e) => openTierModal(null, 'premium', e)}><Plus size={16}/> Add Tier</Button>
+                        {canCreate && <Button onClick={(e) => openTierModal(null, 'premium', e)}><Plus size={16}/> Add Tier</Button>}
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm">
@@ -2001,18 +2400,18 @@ const TierManager: React.FC<{
                                 {sortedTiers.map(tier => (
                                     <tr 
                                         key={tier.id}
-                                        draggable
+                                        draggable={canModify}
                                         onDragStart={e => handleTierDragStart(e, tier.id)}
                                         onDragOver={handleTierDragOver}
                                         onDrop={e => handleTierDrop(e, tier.id)}
-                                        className={`border-b dark:border-gray-700/50 cursor-move ${draggedTierId === tier.id ? 'opacity-50' : ''} ${!tier.active ? 'opacity-50' : ''}`}
+                                        className={`border-b dark:border-gray-700/50 ${canModify ? 'cursor-move' : ''} ${draggedTierId === tier.id ? 'opacity-50' : ''} ${!tier.active ? 'opacity-50' : ''}`}
                                     >
                                         <td className="py-2"><GripVertical size={16} className="text-gray-400"/></td>
                                         <td className="py-2 font-medium">{customerTypeMap.get(tier.customerTypeId) || tier.name}</td>
                                         <td className="py-2">{tier.minimumPremium?.toLocaleString('en-IN') || '-'}</td>
                                         <td className="py-2">{gifts.find(g => g.id === tier.giftId)?.name || <span className="text-gray-400 italic">None</span>}</td>
-                                        <td className="py-2 text-center"><ToggleSwitch enabled={tier.active !== false} onChange={() => handleToggleTier(tier.id)} /></td>
-                                        <td className="py-2 text-center"><Button size="small" variant="light" className="!p-1.5" onClick={(e) => openTierModal(tier, 'edit', e)}><Edit2 size={14}/></Button></td>
+                                        <td className="py-2 text-center"><ToggleSwitch enabled={tier.active !== false} onChange={() => handleToggleTier(tier.id)} disabled={!canModify}/></td>
+                                        <td className="py-2 text-center"><Button size="small" variant="light" className="!p-1.5" onClick={(e) => openTierModal(tier, 'edit', e)} disabled={!canModify}><Edit2 size={14}/></Button></td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -2023,7 +2422,7 @@ const TierManager: React.FC<{
                 <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Master Gift List</h3>
-                        <Button onClick={(e) => openGiftModal(null, e)}><Plus size={16}/></Button>
+                        {canCreate && <Button onClick={(e) => openGiftModal(null, e)}><Plus size={16}/></Button>}
                     </div>
                     <div className="overflow-y-auto max-h-80 pr-2">
                         <table className="w-full text-left text-sm">
@@ -2033,8 +2432,8 @@ const TierManager: React.FC<{
                                         <td className={`py-2 ${!gift.active ? 'line-through' : ''}`}>{gift.name}</td>
                                         <td className="py-2 text-right">
                                             <div className="flex items-center justify-end gap-2">
-                                                <ToggleSwitch enabled={gift.active !== false} onChange={() => handleToggleGift(gift.id)} />
-                                                <Button size="small" variant="light" className="!p-1.5" onClick={(e) => openGiftModal(gift, e)}><Edit2 size={14}/></Button>
+                                                <ToggleSwitch enabled={gift.active !== false} onChange={() => handleToggleGift(gift.id)} disabled={!canModify}/>
+                                                <Button size="small" variant="light" className="!p-1.5" onClick={(e) => openGiftModal(gift, e)} disabled={!canModify}><Edit2 size={14}/></Button>
                                             </div>
                                         </td>
                                     </tr>
@@ -2054,6 +2453,7 @@ const TierManager: React.FC<{
                 customerTypes={customerTypes}
                 gifts={gifts}
                 mode={tierModalMode}
+                canModify={canModify}
             />
 
             {isGiftModalOpen && (
@@ -2062,11 +2462,11 @@ const TierManager: React.FC<{
                         <h2 className="text-xl font-bold text-brand-dark dark:text-white">{editingGift?.id ? 'Edit' : 'Add'} Gift</h2>
                     </div>
                     <div className="p-6">
-                        <Input label="Gift Name" value={editingGift?.name || ''} onChange={e => setEditingGift(p => p ? {...p, name: e.target.value} : null)} />
+                        <Input label="Gift Name" value={editingGift?.name || ''} onChange={e => setEditingGift(p => p ? {...p, name: e.target.value} : null)} disabled={!canModify}/>
                     </div>
                     <div className="flex justify-end p-6 gap-3 border-t border-gray-200 dark:border-gray-700">
                         <Button variant="secondary" onClick={closeGiftModal}>Cancel</Button>
-                        <Button variant="primary" onClick={handleSaveGift}>Save Gift</Button>
+                        <Button variant="primary" onClick={handleSaveGift} disabled={!canModify}>Save Gift</Button>
                     </div>
                 </Modal>
             )}
@@ -2080,7 +2480,9 @@ const LeadSourceManager: React.FC<{
     items: LeadSourceMaster[];
     onUpdate: (items: LeadSourceMaster[]) => void;
     addToast: MasterDataProps['addToast'];
-}> = ({ items, onUpdate, addToast }) => {
+    canCreate: boolean;
+    canModify: boolean;
+}> = ({ items, onUpdate, addToast, canCreate, canModify }) => {
     
     const [editingItem, setEditingItem] = useState<Partial<LeadSourceMaster> | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -2124,6 +2526,7 @@ const LeadSourceManager: React.FC<{
                 id: null, 
                 name: '', 
                 parentId, 
+                allowReferrerSelection: false,
             });
         }
         setIsModalOpen(true);
@@ -2136,6 +2539,7 @@ const LeadSourceManager: React.FC<{
     };
 
     const handleSave = () => {
+        if (!canModify) return;
         if (!editingItem || !editingItem.name?.trim()) {
             addToast('Source name cannot be empty.', 'error');
             return;
@@ -2152,6 +2556,7 @@ const LeadSourceManager: React.FC<{
                 parentId: editingItem.parentId,
                 active: true,
                 order: siblings.length,
+                allowReferrerSelection: editingItem.allowReferrerSelection || false,
             };
             updatedItems = [...items, newItem];
         }
@@ -2160,7 +2565,45 @@ const LeadSourceManager: React.FC<{
     };
     
     const handleToggle = (id: string) => {
-        onUpdate(items.map(i => i.id === id ? {...i, active: i.active === false ? true : false } : i));
+        const itemToToggle = items.find(i => i.id === id);
+        if (!itemToToggle) return;
+
+        const newStatus = !itemToToggle.active;
+
+        // A Set to store the IDs of the item and all its descendants
+        const idsToUpdate = new Set<string>();
+        
+        // A queue to process the hierarchy efficiently
+        const idsToProcess: string[] = [id];
+        idsToUpdate.add(id);
+
+        // Traverse the tree to find all children, grandchildren, etc.
+        while (idsToProcess.length > 0) {
+            const currentParentId = idsToProcess.shift(); // Get the next parent from the queue
+
+            // Find all direct children of the current parent
+            items.forEach(item => {
+                if (item.parentId === currentParentId) {
+                    idsToUpdate.add(item.id);
+                    idsToProcess.push(item.id); // Add the child to the queue to process its children
+                }
+            });
+        }
+
+        // Update the state for all items in the set
+        const updatedItems = items.map(item => {
+            if (idsToUpdate.has(item.id)) {
+                return { ...item, active: newStatus };
+            }
+            return item;
+        });
+
+        onUpdate(updatedItems);
+        addToast(`"${itemToToggle.name}" and all its sub-sources have been ${newStatus ? 'activated' : 'deactivated'}.`, 'success');
+    };
+    
+    const handleReferrerToggle = (id: string) => {
+        onUpdate(items.map(i => i.id === id ? { ...i, allowReferrerSelection: !i.allowReferrerSelection } : i));
     };
 
     const handleDragStart = (e: React.DragEvent<HTMLDivElement>, sourceId: string) => {
@@ -2289,7 +2732,7 @@ const LeadSourceManager: React.FC<{
             <div className="relative">
                 {isDropTargetBefore && <div className="h-1 bg-blue-500 rounded-full mx-2 my-1"></div>}
                 <div 
-                    draggable 
+                    draggable={canModify}
                     onDragStart={e => handleDragStart(e, source.id)} 
                     onDragEnd={handleDragEnd} 
                     onDragOver={e => handleDragOver(e, source.id)}
@@ -2303,9 +2746,11 @@ const LeadSourceManager: React.FC<{
                     <div className="flex-grow">
                         <span className="font-medium text-gray-800 dark:text-gray-200" style={{ marginLeft: `${level === 0 ? 0 : 4}px` }}>{source.name}</span>
                     </div>
-                    <ToggleSwitch enabled={source.active !== false} onChange={() => handleToggle(source.id)} />
-                    <Button size="small" variant="light" className="!p-1.5" onClick={(e) => openModal(source.id, null, e)}><Plus size={14}/></Button>
-                    <Button size="small" variant="light" className="!p-1.5" onClick={(e) => openModal(source.parentId, source, e)}><Edit2 size={14}/></Button>
+                    <div className="flex items-center gap-3">
+                        <ToggleSwitch enabled={source.active !== false} onChange={() => handleToggle(source.id)} disabled={!canModify}/>
+                        {canCreate && <Button size="small" variant="light" className="!p-1.5" onClick={(e) => openModal(source.id, null, e)}><Plus size={14}/></Button>}
+                        <Button size="small" variant="light" className="!p-1.5" onClick={(e) => openModal(source.parentId, source, e)} disabled={!canModify}><Edit2 size={14}/></Button>
+                    </div>
                 </div>
                  {isDropTargetAfter && <div className="h-1 bg-blue-500 rounded-full mx-2 my-1"></div>}
 
@@ -2320,7 +2765,7 @@ const LeadSourceManager: React.FC<{
         <div>
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Lead/Referral Management</h3>
-                <Button onClick={(e) => openModal(null, null, e)} variant="primary"><Plus size={16}/> Add Lead Source</Button>
+                {canCreate && <Button onClick={(e) => openModal(null, null, e)} variant="primary"><Plus size={16}/> Add Lead Source</Button>}
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                 Build a hierarchy of your lead sources. Drag and drop to reorder or create sub-sources.
@@ -2365,11 +2810,20 @@ const LeadSourceManager: React.FC<{
                               label="Source Name"
                               value={editingItem.name || ''}
                               onChange={(e) => setEditingItem(prev => prev ? { ...prev, name: e.target.value } : null)}
+                              disabled={!canModify}
                           />
+                          <div className="flex items-center gap-3 pt-2">
+                              <label htmlFor="allowReferrerSelection" className="font-medium text-gray-700 dark:text-gray-300">Allow Referrer Selection?</label>
+                              <ToggleSwitch
+                                  enabled={!!editingItem.allowReferrerSelection}
+                                  onChange={val => setEditingItem(prev => prev ? { ...prev, allowReferrerSelection: val } : null)}
+                                  disabled={!canModify}
+                              />
+                          </div>
                       </div>
                       <div className="flex justify-end p-6 gap-3 border-t border-gray-200 dark:border-gray-700">
                           <Button variant="secondary" onClick={closeModal}>Cancel</Button>
-                          <Button variant="primary" onClick={handleSave}>Save</Button>
+                          <Button variant="primary" onClick={handleSave} disabled={!canModify}>Save</Button>
                       </div>
                  </Modal>
             )}
@@ -2379,6 +2833,7 @@ const LeadSourceManager: React.FC<{
 
 
 // --- Generic Manager for Simple Lists (REVISED) ---
+// --- UPDATED CODE (Complete GenericMasterManager Component) ---
 const GenericMasterManager: React.FC<{
     title: string;
     items: any[];
@@ -2389,15 +2844,20 @@ const GenericMasterManager: React.FC<{
     extraFields?: {
         label: string;
         field: string;
-        type: 'select';
-        options: {value: string; label: string}[];
+        type: 'select' | 'boolean' | 'multiselect';
+        options?: {value: string; label: string}[];
     }[];
     reorderable?: boolean;
     showAddButton?: boolean;
     showSearchBar?: boolean;
     codeColumnDisplay?: 'default' | 'group' | 'hidden';
     onBeforeSave?: (item: any) => boolean;
-}> = ({ title, items, onUpdate, addToast, noun, dependencyCheck, extraFields, reorderable = false,showAddButton = true, showSearchBar = true, codeColumnDisplay = 'default', onBeforeSave }) => {
+    initialStateKey?: string;
+    endStateKey?: string;
+    onUpdateInitialState?: (itemId: string) => void;
+    canCreate: boolean;
+    canModify: boolean;
+}> = ({ title, items, onUpdate, addToast, noun, dependencyCheck, extraFields, reorderable = false,showAddButton = true, showSearchBar = true, codeColumnDisplay = 'default', onBeforeSave, initialStateKey, endStateKey, onUpdateInitialState, canCreate, canModify }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<any | null>(null);
@@ -2409,7 +2869,6 @@ const GenericMasterManager: React.FC<{
     
     const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
 
-    // FIX: Use a state for group options that can be updated dynamically
     const [groupOptions, setGroupOptions] = useState<{ value: string; label: string }[]>([]);
 
     const existingGroups = useMemo(() => {
@@ -2418,7 +2877,6 @@ const GenericMasterManager: React.FC<{
         return [...new Set(groups)];
     }, [items, noun]);
 
-    // Update group options when modal opens
     useEffect(() => {
         if (isModalOpen) {
             setGroupOptions(existingGroups.map(g => ({ value: g, label: g })));
@@ -2470,11 +2928,9 @@ const GenericMasterManager: React.FC<{
 
     const openModal = (item: any | null, event?: React.MouseEvent<HTMLElement>) => {
         if (event) triggerButtonRef.current = event.currentTarget as HTMLButtonElement;
-        // REVISED: Safer default state creation
         const defaultState = { id: null, name: '', label: '', fieldType: 'text', columnHeaders: [''], rowHeaders: [''], options: [''], columnSpan: 1, group: '' };
         const initialState = item ? { ...defaultState, ...item } : defaultState;
 
-        // FIX: Ensure headers and options are always arrays when needed
         if (initialState.fieldType === 'table') {
             if (!Array.isArray(initialState.columnHeaders) || initialState.columnHeaders.length === 0) initialState.columnHeaders = [''];
             if (!Array.isArray(initialState.rowHeaders) || initialState.rowHeaders.length === 0) initialState.rowHeaders = [''];
@@ -2495,6 +2951,7 @@ const GenericMasterManager: React.FC<{
 
 
     const handleSave = () => {
+        if (!canModify) return;
         const displayKey = noun === 'Field' ? 'label' : 'name';
         const displayName = editingItem?.[displayKey];
 
@@ -2522,7 +2979,6 @@ const GenericMasterManager: React.FC<{
                 ...editingItem, 
                 id: newId, 
                 [displayKey]: displayName.trim(),
-                // NEW: Ensure fieldName is generated for custom fields
                 fieldName: noun === 'Field' ? toCamelCase(displayName.trim()) : undefined,
                 active: true, 
                 order: items.length 
@@ -2587,7 +3043,6 @@ const GenericMasterManager: React.FC<{
         if (itemToAction?.action === 'toggle') {
             performToggle(itemToAction.id);
         }
-        // Deletion is blocked if there are dependents, so no action here.
         setIsWarningModalOpen(false);
         setItemToAction(null);
         setDependentItems([]);
@@ -2682,7 +3137,7 @@ const GenericMasterManager: React.FC<{
                             />
                         </form>
                     )}
-                    {showAddButton && (
+                    {showAddButton && canCreate && (
                         <Button onClick={(e) => openModal(null, e)} variant="primary" className="w-full md:w-auto flex-shrink-0">
                             <Plus size={16}/> Add New {noun}
                         </Button>
@@ -2704,20 +3159,22 @@ const GenericMasterManager: React.FC<{
                                 className={codeColumnDisplay === 'hidden' ? 'hidden' : ''}
                             />
                             <SortableHeader sortKey={displayKey} label="Name" sortConfig={sortConfig} onSort={handleSort} reorderable={reorderable} />
+                            {initialStateKey && <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-300 uppercase">Initial State</th>}
+                            {endStateKey && <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-300 uppercase">End State</th>}
                             <SortableHeader sortKey="active" label="Status" sortConfig={sortConfig} onSort={handleSort} reorderable={reorderable} />
-                            <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-300 uppercase">Actions</th>
+                            {noun !== 'Business Vertical' && <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-300 uppercase">Actions</th>}
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         {sortedItems.map((item, index) => (
                             <tr 
                                 key={item.id} 
-                                draggable={reorderable}
+                                draggable={reorderable && canModify}
                                 onDragStart={e => reorderable && handleDragStart(e, item.id)}
                                 onDragOver={e => reorderable && handleDragOver(e)}
                                 onDrop={e => reorderable && handleDrop(e, item.id)}
                                 onDragEnd={() => reorderable && handleDragEnd()}
-                                className={`transition-all ${item.active === false ? 'opacity-60' : ''} ${draggedItemId === item.id ? 'opacity-30' : ''} ${reorderable ? 'hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-move' : ''}`}
+                                className={`transition-all ${item.active === false ? 'opacity-60' : ''} ${draggedItemId === item.id ? 'opacity-30' : ''} ${reorderable && canModify ? 'hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-move' : ''}`}
                             >
                                 {reorderable && <td className="px-2 py-3"><GripVertical size={16} className="text-gray-400" /></td>}
                                 <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
@@ -2725,13 +3182,38 @@ const GenericMasterManager: React.FC<{
                                     {codeColumnDisplay === 'group' ? (item.group || <span className="italic text-gray-400">N/A</span>) : item.id}
                                 </td>
                                 <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-200">{item[displayKey]}</td>
-                                <td className="px-6 py-3 whitespace-nowrap"><ToggleSwitch enabled={item.active !== false} onChange={() => handleToggle(item)} /></td>
-                                <td className="px-6 py-3 whitespace-nowrap">
-                                    <div className="flex items-center gap-2">
-                                        <button onClick={(e) => openModal(item, e)} className="text-blue-600 hover:text-blue-800 p-1.5 rounded-md hover:bg-gray-100 dark:text-blue-400 dark:hover:bg-gray-600" aria-label={`Edit ${item.name}`}><Edit2 size={16}/></button>
-                                        <button onClick={() => handleDelete(item)} className="text-red-600 hover:text-red-800 p-1.5 rounded-md hover:bg-gray-100 dark:text-red-400 dark:hover:bg-gray-600" aria-label={`Delete ${item.name}`}><Trash2 size={16}/></button>
-                                    </div>
-                                </td>
+                                {initialStateKey && onUpdateInitialState && (
+                                    <td className="px-6 py-3 whitespace-nowrap">
+                                        <input
+                                            type="radio"
+                                            name="initialStateRadio"
+                                            checked={!!item[initialStateKey]}
+                                            onChange={() => onUpdateInitialState(item.id)}
+                                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                            disabled={!canModify}
+                                        />
+                                    </td>
+                                )}
+                                {endStateKey && (
+                                    <td className="px-6 py-3 whitespace-nowrap">
+                                        <ToggleSwitch
+                                            enabled={!!item[endStateKey]}
+                                            onChange={val => onUpdate(items.map(i => i.id === item.id ? { ...i, [endStateKey]: val } : i))}
+                                            disabled={!canModify}
+                                        />
+                                    </td>
+                                )}
+                                <td className="px-6 py-3 whitespace-nowrap"><ToggleSwitch enabled={item.active !== false} onChange={() => handleToggle(item)} disabled={!canModify} /></td>
+                                {noun !== 'Business Vertical' && (
+                                    <td className="px-6 py-3 whitespace-nowrap">
+                                        <div className="flex items-center gap-2">
+                                            {noun !== 'Task Type' && <button onClick={(e) => openModal(item, e)} className="text-blue-600 hover:text-blue-800 p-1.5 rounded-md hover:bg-gray-100 dark:text-blue-400 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed" aria-label={`Edit ${item.name}`} disabled={!canModify}><Edit2 size={16}/></button>}
+                                            {noun !== 'Task Type' && canModify && (
+                                                <button onClick={() => handleDelete(item)} className="text-red-600 hover:text-red-800 p-1.5 rounded-md hover:bg-gray-100 dark:text-red-400 dark:hover:bg-gray-600" aria-label={`Delete ${item.name}`}><Trash2 size={16}/></button>
+                                            )}
+                                        </div>
+                                    </td>
+                                )}
                             </tr>
                         ))}
                     </tbody>
@@ -2746,129 +3228,186 @@ const GenericMasterManager: React.FC<{
             >
                 <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{editingItem?.id ? 'Edit' : 'Add'} {noun}</h2>
-                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
-                        <Input
-                            label={noun === 'Field' ? 'Field Label' : `${noun} Name`}
-                            value={editingItem?.[displayKey] || ''}
-                            onChange={e => setEditingItem((prev: any) => prev ? {...prev, [displayKey]: e.target.value} : null)}
-                        />
-                        {extraFields?.map(field => (
-                            <div key={field.field}>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{field.label}</label>
-                                <select
-                                    value={editingItem?.[field.field] || ''}
-                                    onChange={e => setEditingItem((prev: any) => prev ? {...prev, [field.field]: e.target.value} : null)}
-                                    className={modalInputClasses}
-                                >
-                                    <option value="">Select...</option>
-                                    {field.options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                                </select>
-                            </div>
-                        ))}
-                        {noun === 'Field' && (
-                            <>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <SearchableSelect
-                                            label="Group Name (Optional)"
-                                            options={groupOptions}
-                                            value={editingItem?.group || ''}
-                                            onChange={value => setEditingItem((prev: any) => prev ? { ...prev, group: value } : null)}
-                                            onCreate={value => {
-                                                if (value) {
-                                                    setEditingItem((prev: any) => prev ? { ...prev, group: value } : null);
-                                                    setGroupOptions(prev => [...prev, { value, label: value}]);
-                                                }
-                                            }}
-                                            placeholder="Select or type..."
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Column Span</label>
+                    <fieldset disabled={!canModify}>
+                        <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                            <Input
+                                label={noun === 'Field' ? 'Field Label' : `${noun} Name`}
+                                value={editingItem?.[displayKey] || ''}
+                                onChange={e => setEditingItem((prev: any) => prev ? {...prev, [displayKey]: e.target.value} : null)}
+                            />
+                            {extraFields?.map(field => {
+                                if (field.type === 'boolean') {
+                                    return (
+                                        <div key={field.field} className="flex items-center justify-between gap-4 pt-2 border-t dark:border-gray-600">
+                                            <label htmlFor={field.field} className="font-medium text-gray-700 dark:text-gray-300">{field.label}</label>
+                                            <ToggleSwitch
+                                                enabled={!!editingItem?.[field.field]}
+                                                onChange={val => setEditingItem((prev: any) => prev ? { ...prev, [field.field]: val } : null)}
+                                            />
+                                        </div>
+                                    );
+                                }
+                                if (field.type === 'multiselect') {
+                                    return (
+                                        <div key={field.field} className="pt-2 border-t dark:border-gray-600">
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{field.label}</label>
+                                            <select
+                                                multiple
+                                                value={editingItem?.[field.field] || []}
+                                                onChange={e => {
+                                                    const selectedIds = Array.from(e.target.selectedOptions, option => option.value);
+                                                    setEditingItem((prev: any) => prev ? {...prev, [field.field]: selectedIds} : null);
+                                                }}
+                                                className={`${modalInputClasses} h-32`}
+                                            >
+                                                {field.options
+                                                    ?.filter(opt => opt.value !== editingItem?.id) 
+                                                    .map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                            </select>
+                                            <p className="text-xs text-gray-400 mt-1">Hold Ctrl (or Cmd on Mac) to select multiple options.</p>
+                                        </div>
+                                    )
+                                }
+                                if (field.type === 'select') {
+                                    return (
+                                    <div key={field.field}>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{field.label}</label>
                                         <select
-                                            value={editingItem?.columnSpan || 1}
-                                            onChange={e => setEditingItem((prev: any) => prev ? { ...prev, columnSpan: parseInt(e.target.value, 10) } : null)}
+                                            value={editingItem?.[field.field] || ''}
+                                            onChange={e => setEditingItem((prev: any) => prev ? {...prev, [field.field]: e.target.value} : null)}
                                             className={modalInputClasses}
                                         >
-                                            <option value={1}>1 Column (Default)</option>
-                                            <option value={2}>2 Columns</option>
-                                            <option value={3}>3 Columns</option>
+                                            <option value="">Select...</option>
+                                            {field.options?.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                         </select>
                                     </div>
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Field Type</label>
-                                    <select
-                                        value={editingItem?.fieldType || 'text'}
-                                        onChange={e => setEditingItem((prev: any) => prev ? {...prev, fieldType: e.target.value} : null)}
-                                        className={modalInputClasses}
-                                    >
-                                        <option value="text">Text Input</option>
-                                        <option value="number">Number Input</option>
-                                        <option value="date">Date Input</option>
-                                        <option value="boolean">Toggle (Yes/No)</option>
-                                        <option value="select">Dropdown (Select)</option>
-                                        <option value="checkbox">Checkbox Group</option>
-                                        <option value="table">Table</option>
-                                    </select>
-                                </div>
+                                    );
+                                }
+                                return null;
+                            })}
+                            {noun === 'Field' && (
+                                <>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <SearchableSelect
+                                                label="Group Name (Optional)"
+                                                options={groupOptions}
+                                                value={editingItem?.group || ''}
+                                                onChange={value => setEditingItem((prev: any) => prev ? { ...prev, group: value } : null)}
+                                                onCreate={value => {
+                                                    if (value) {
+                                                        setEditingItem((prev: any) => prev ? { ...prev, group: value } : null);
+                                                        setGroupOptions(prev => [...prev, { value, label: value}]);
+                                                    }
+                                                }}
+                                                placeholder="Select or type..."
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Column Span</label>
+                                            <select
+                                                value={editingItem?.columnSpan || 1}
+                                                onChange={e => setEditingItem((prev: any) => prev ? { ...prev, columnSpan: parseInt(e.target.value, 10) } : null)}
+                                                className={modalInputClasses}
+                                            >
+                                                <option value={1}>1 Column (Default)</option>
+                                                <option value={2}>2 Columns</option>
+                                                <option value={3}>3 Columns</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Field Type</label>
+                                        <select
+                                            value={editingItem?.fieldType || 'text'}
+                                            onChange={e => setEditingItem((prev: any) => prev ? {...prev, fieldType: e.target.value} : null)}
+                                            className={modalInputClasses}
+                                        >
+                                            <option value="text">Text Input</option>
+                                            <option value="number">Number Input</option>
+                                            <option value="date">Date Input</option>
+                                            <option value="boolean">Toggle (Yes/No)</option>
+                                            <option value="select">Dropdown (Select)</option>
+                                            <option value="checkbox">Checkbox Group</option>
+                                            <option value="table">Table</option>
+                                        </select>
+                                    </div>
 
-                                {['select', 'checkbox'].includes(editingItem?.fieldType) && (
-                                     <div className="space-y-2 p-3 border dark:border-gray-600 rounded-lg animate-fade-in">
-                                        <h4 className="text-sm font-semibold">Define Options</h4>
-                                        {(editingItem.options || []).map((option: string, index: number) => (<div key={index} className="flex items-center gap-2"><Input label="" placeholder={`Option ${index + 1}`} value={option} onChange={e => handleOptionChange(index, e.target.value)} /><Button type="button" variant="danger" size="small" className="!p-2" onClick={() => removeOption(index)}><Trash2 size={14} /></Button></div>))}
-                                        <Button type="button" variant="light" size="small" onClick={addOption}><Plus size={14} /> Add Option</Button>
-                                    </div>
-                                )}
-                                
-                                {editingItem?.fieldType === 'table' && (
-                                    <div className="space-y-4 p-3 border dark:border-gray-600 rounded-lg animate-fade-in">
-                                        <div className="space-y-2">
-                                            <h4 className="text-sm font-semibold">Define Table Columns</h4>
-                                            {(editingItem.columnHeaders || ['']).map((header: string, index: number) => (
-                                                <div key={index} className="flex items-center gap-2">
-                                                    <Input
-                                                        label=""
-                                                        placeholder={`Column ${index + 1} Name`}
-                                                        value={header}
-                                                        onChange={e => handleHeaderChange('column', index, e.target.value)}
-                                                    />
-                                                    <Button type="button" variant="danger" size="small" className="!p-2" onClick={() => removeHeader('column', index)}>
-                                                        <Trash2 size={14} />
-                                                    </Button>
-                                                </div>
-                                            ))}
-                                            <Button type="button" variant="light" size="small" onClick={() => addHeader('column')}>
-                                                <Plus size={14} /> Add Column
-                                            </Button>
+                                    {['select', 'checkbox'].includes(editingItem?.fieldType) && (
+                                        <div className="space-y-2 p-3 border dark:border-gray-600 rounded-lg animate-fade-in">
+                                            <h4 className="text-sm font-semibold">Define Options</h4>
+                                            {(editingItem.options || []).map((option: string, index: number) => (<div key={index} className="flex items-center gap-2"><Input label="" placeholder={`Option ${index + 1}`} value={option} onChange={e => handleOptionChange(index, e.target.value)} /><Button type="button" variant="danger" size="small" className="!p-2" onClick={() => removeOption(index)}><Trash2 size={14} /></Button></div>))}
+                                            <Button type="button" variant="light" size="small" onClick={addOption}><Plus size={14} /> Add Option</Button>
                                         </div>
-                                        <div className="space-y-2">
-                                            <h4 className="text-sm font-semibold">Define Table Rows</h4>
-                                            {(editingItem.rowHeaders || ['']).map((header: string, index: number) => (
-                                                <div key={index} className="flex items-center gap-2">
-                                                    <Input
-                                                        label=""
-                                                        placeholder={`Row ${index + 1} Name`}
-                                                        value={header}
-                                                        onChange={e => handleHeaderChange('row', index, e.target.value)}
-                                                    />
-                                                    <Button type="button" variant="danger" size="small" className="!p-2" onClick={() => removeHeader('row', index)}>
-                                                        <Trash2 size={14} />
-                                                    </Button>
-                                                </div>
-                                            ))}
-                                            <Button type="button" variant="light" size="small" onClick={() => addHeader('row')}>
-                                                <Plus size={14} /> Add Row
-                                            </Button>
+                                    )}
+                                    
+                                    {editingItem?.fieldType === 'table' && (
+                                        <div className="space-y-4 p-3 border dark:border-gray-600 rounded-lg animate-fade-in">
+                                            <div className="space-y-2">
+                                                <h4 className="text-sm font-semibold">Define Table Columns</h4>
+                                                {(editingItem.columnHeaders || ['']).map((header: string, index: number) => (
+                                                    <div key={index} className="flex items-center gap-2">
+                                                        <Input
+                                                            label=""
+                                                            placeholder={`Column ${index + 1} Name`}
+                                                            value={header}
+                                                            onChange={e => handleHeaderChange('column', index, e.target.value)}
+                                                        />
+                                                        <Button type="button" variant="danger" size="small" className="!p-2" onClick={() => removeHeader('column', index)}>
+                                                            <Trash2 size={14} />
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                                <Button type="button" variant="light" size="small" onClick={() => addHeader('column')}>
+                                                    <Plus size={14} /> Add Column
+                                                </Button>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <h4 className="text-sm font-semibold">Define Table Rows</h4>
+                                                {(editingItem.rowHeaders || ['']).map((header: string, index: number) => (
+                                                    <div key={index} className="flex items-center gap-2">
+                                                        <Input
+                                                            label=""
+                                                            placeholder={`Row ${index + 1} Name`}
+                                                            value={header}
+                                                            onChange={e => handleHeaderChange('row', index, e.target.value)}
+                                                        />
+                                                        <Button type="button" variant="danger" size="small" className="!p-2" onClick={() => removeHeader('row', index)}>
+                                                            <Trash2 size={14} />
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                                <Button type="button" variant="light" size="small" onClick={() => addHeader('row')}>
+                                                    <Plus size={14} /> Add Row
+                                                </Button>
+                                            </div>
                                         </div>
-                                    </div>
-                                )}
-                            </>
-                        )}
-                    </div>
+                                    )}
+                                </>
+                            )}
+                            {initialStateKey && (
+                                <div className="flex items-center justify-between gap-4 pt-2 border-t dark:border-gray-600">
+                                    <label className="font-medium text-gray-700 dark:text-gray-300">Set as Initial State</label>
+                                    <ToggleSwitch
+                                        enabled={!!editingItem?.[initialStateKey]}
+                                        onChange={val => setEditingItem((prev: any) => prev ? { ...prev, [initialStateKey]: val } : null)}
+                                    />
+                                </div>
+                            )}
+                            {endStateKey && (
+                                <div className="flex items-center justify-between gap-4 pt-2 border-t dark:border-gray-600">
+                                    <label className="font-medium text-gray-700 dark:text-gray-300">Set as End State</label>
+                                    <ToggleSwitch
+                                        enabled={!!editingItem?.[endStateKey]}
+                                        onChange={val => setEditingItem((prev: any) => prev ? { ...prev, [endStateKey]: val } : null)}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    </fieldset>
                     <div className="flex justify-end gap-4 mt-8">
                         <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
-                        <Button type="submit" variant="success">Save</Button>
+                        <Button type="submit" variant="success" disabled={!canModify}>Save</Button>
                     </div>
                 </form>
             </Modal>
@@ -2916,7 +3455,6 @@ const GenericMasterManager: React.FC<{
         </div>
     );
 };
-
 // --- MODIFICATION START: New component for managing process stages ---
 const ProcessStageManager: React.FC<{
     title: string;
@@ -2925,7 +3463,9 @@ const ProcessStageManager: React.FC<{
     addToast: MasterDataProps['addToast'];
     allMembers: Member[];
     typeId: string | null; // insuranceTypeId or 'mutual-fund' for dependency check
-}> = ({ title, items, onUpdate, addToast, allMembers, typeId }) => {
+    canCreate: boolean;
+    canModify: boolean;
+}> = ({ title, items, onUpdate, addToast, allMembers, typeId, canCreate, canModify }) => {
     
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<Partial<ProcessStageMaster> | null>(null);
@@ -2947,6 +3487,7 @@ const ProcessStageManager: React.FC<{
     };
     
     const handleSave = () => {
+        if (!canModify) return;
         if (!editingItem || !editingItem.name?.trim()) {
             addToast('Stage name is required.', 'error');
             return;
@@ -3012,7 +3553,7 @@ const ProcessStageManager: React.FC<{
         <div>
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{title}</h3>
-                <Button onClick={(e) => openModal(null, e)} size="small"><Plus size={14}/> Add Stage</Button>
+                {canCreate && <Button onClick={(e) => openModal(null, e)} size="small"><Plus size={14}/> Add Stage</Button>}
             </div>
             <div className="overflow-y-auto border dark:border-gray-700 rounded-lg max-h-96">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -3025,16 +3566,16 @@ const ProcessStageManager: React.FC<{
                     </tr></thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700" onDragEnd={handleDragEnd}>
                         {sortedItems.map((item, index) => (
-                            <tr key={item.id} draggable onDragStart={e => handleDragStart(e, item.id)} onDragOver={handleDragOver} onDrop={e => handleDrop(e, item.id)}
-                                className={`transition-all ${!item.active ? 'opacity-60' : ''} ${draggedItemId === item.id ? 'opacity-30' : ''} hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-move`}>
+                            <tr key={item.id} draggable={canModify} onDragStart={e => handleDragStart(e, item.id)} onDragOver={handleDragOver} onDrop={e => handleDrop(e, item.id)}
+                                className={`transition-all ${!item.active ? 'opacity-60' : ''} ${draggedItemId === item.id ? 'opacity-30' : ''} ${canModify ? 'hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-move' : ''}`}>
                                 <td className="px-2 py-3"><GripVertical size={16} className="text-gray-400" /></td>
                                 <td className="px-6 py-3 text-sm text-gray-500">{index + 1}</td>
                                 <td className="px-6 py-3 font-medium">{item.name}</td>
-                                <td className="px-6 py-3"><ToggleSwitch enabled={!!item.active} onChange={() => handleToggle(item.id)} /></td>
+                                <td className="px-6 py-3"><ToggleSwitch enabled={!!item.active} onChange={() => handleToggle(item.id)} disabled={!canModify}/></td>
                                 <td className="px-6 py-3">
                                     <div className="flex gap-2">
-                                        <Button size="small" variant="light" className="!p-1.5" onClick={(e) => openModal(item, e)}><Edit2 size={14}/></Button>
-                                        <Button size="small" variant="danger" className="!p-1.5" onClick={() => handleDelete(item.id)}><Trash2 size={14}/></Button>
+                                        <Button size="small" variant="light" className="!p-1.5" onClick={(e) => openModal(item, e)} disabled={!canModify}><Edit2 size={14}/></Button>
+                                        {canModify && <Button size="small" variant="danger" className="!p-1.5" onClick={() => handleDelete(item.id)}><Trash2 size={14}/></Button>}
                                     </div>
                                 </td>
                             </tr>
@@ -3046,8 +3587,8 @@ const ProcessStageManager: React.FC<{
                 <Modal isOpen={isModalOpen} onClose={closeModal}>
                     <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
                         <div className="p-6"><h2 className="text-xl font-bold">{editingItem.id ? 'Edit' : 'Add'} Stage</h2></div>
-                        <div className="p-6"><Input label="Stage Name" value={editingItem.name || ''} onChange={e => setEditingItem(p => p ? {...p, name: e.target.value} : null)} /></div>
-                        <div className="flex justify-end p-6 gap-3 border-t"><Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button><Button type="submit">Save</Button></div>
+                        <div className="p-6"><Input label="Stage Name" value={editingItem.name || ''} onChange={e => setEditingItem(p => p ? {...p, name: e.target.value} : null)} disabled={!canModify}/></div>
+                        <div className="flex justify-end p-6 gap-3 border-t"><Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button><Button type="submit" disabled={!canModify}>Save</Button></div>
                     </form>
                 </Modal>
             )}
@@ -3056,15 +3597,88 @@ const ProcessStageManager: React.FC<{
 };
 // --- MODIFICATION END ---
 
+// --- MODIFICATION START: This is the updated PolicyConfigurationManager component ---
 
-// --- MODIFICATION START: Updated PolicyConfigurationManager to include ProcessStageManager ---
-const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
+// --- NEW SELF-CONTAINED MODAL COMPONENT ---
+const InsuranceTypeModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onSave: (data: Partial<InsuranceTypeMaster>) => void;
+    initialData: Partial<InsuranceTypeMaster> | null;
+    businessVerticals: BusinessVertical[];
+    parentTypeName?: string;
+    canModify: boolean;
+}> = ({ isOpen, onClose, onSave, initialData, businessVerticals, parentTypeName, canModify }) => {
+    
+    const [formData, setFormData] = useState<Partial<InsuranceTypeMaster>>({});
+
+    useEffect(() => {
+        if (isOpen) {
+            setFormData(initialData || {});
+        }
+    }, [isOpen, initialData]);
+
+    const handleChange = (field: keyof InsuranceTypeMaster, value: any) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleSaveClick = () => {
+        onSave(formData);
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose}>
+            <form onSubmit={(e) => { e.preventDefault(); handleSaveClick(); }}>
+                <div className="p-6">
+                    <h2 className="text-xl font-bold">{formData.id ? 'Edit' : 'Add'} {formData.parentId ? 'Insurance Sub-Type' : 'Insurance Type'}</h2>
+                    {parentTypeName && <p className="text-sm text-gray-500">Adding as a Sub-Type of "{parentTypeName}"</p>}
+                </div>
+                <div className="p-6 space-y-4">
+                    {!formData.parentId && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Business Vertical</label>
+                            <select
+                                value={formData.verticalId || ''}
+                                onChange={(e) => handleChange('verticalId', e.target.value)}
+                                className={selectClasses}
+                                required
+                                disabled={!canModify}
+                            >
+                                <option value="">-- Select Vertical --</option>
+                                {businessVerticals.filter(bv => bv.active).map(bv => (
+                                    <option key={bv.id} value={bv.id}>{bv.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
+                    <Input
+                        label="Name"
+                        value={formData.name || ''}
+                        onChange={(e) => handleChange('name', e.target.value)}
+                        required
+                        disabled={!canModify}
+                    />
+                </div>
+                <div className="flex justify-end p-6 gap-3 border-t">
+                    <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+                    <Button type="submit" variant="primary" disabled={!canModify}>Save</Button>
+                </div>
+            </form>
+        </Modal>
+    );
+};
+
+
+const PolicyConfigurationManager: React.FC<MasterDataProps & { canCreate: boolean; canModify: boolean }> = (props) => {
     const { 
         insuranceTypes, onUpdateInsuranceTypes, 
         insuranceFields, onUpdateInsuranceFields, 
-        policyChecklistMasters, onUpdatePolicyChecklistMasters, 
-        addToast, allMembers, businessVerticals,
-        processStageMasters, onUpdateProcessStageMasters // new props
+        addToast, allMembers, businessVerticals, schemes,
+        processStageMasters, onUpdateProcessStageMasters,
+        documentMasters, insuranceTypeDocumentRules, onUpdateInsuranceTypeDocumentRules,
+        canCreate, canModify
     } = props;
     
     const [selectedParentTypeId, setSelectedParentTypeId] = useState<string | null>(null);
@@ -3072,8 +3686,11 @@ const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
     const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
     const [editingType, setEditingType] = useState<Partial<InsuranceTypeMaster> | null>(null);
     const triggerButtonRef = useRef<HTMLButtonElement>(null);
-
     const [searchQuery, setSearchQuery] = useState('');
+
+    const [isWarningModalOpen, setIsWarningModalOpen] = useState(false);
+    const [itemToAction, setItemToAction] = useState<{ id: string; name: string; } | null>(null);
+    const [dependentItems, setDependentItems] = useState<{ name: string; type: 'field' | 'policy' }[]>([]);
 
     const parentTypes = useMemo(() => insuranceTypes.filter(it => !it.parentId).sort((a,b) => (a.order ?? 0) - (b.order ?? 0)), [insuranceTypes]);
     
@@ -3086,22 +3703,6 @@ const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
             }
         }
     }, [parentTypes, selectedParentTypeId]);
-
-    useEffect(() => {
-        const checklistRootNames = new Set(policyChecklistMasters.filter(p => !p.parentId).map(p => p.name));
-        const missingRoots = insuranceTypes.filter(it => it.active && !checklistRootNames.has(it.name));
-
-        if (missingRoots.length > 0) {
-            const newRoots: PolicyChecklistMaster[] = missingRoots.map(type => ({
-                id: `pcl-root-${type.id}`,
-                name: type.name,
-                parentId: null,
-                policyType: type.name, 
-                active: true,
-            }));
-            onUpdatePolicyChecklistMasters([...policyChecklistMasters, ...newRoots]);
-        }
-    }, [insuranceTypes, policyChecklistMasters, onUpdatePolicyChecklistMasters]);
     
     const filteredData = useMemo(() => {
         const lowerCaseQuery = searchQuery.toLowerCase();
@@ -3110,122 +3711,108 @@ const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
                 parentTypes,
                 childTypes: selectedParentTypeId ? insuranceTypes.filter(it => it.parentId === selectedParentTypeId).sort((a,b) => (a.order ?? 0) - (b.order ?? 0)) : [],
                 fields: selectedConfigTypeId ? insuranceFields.filter(f => f.insuranceTypeId === selectedConfigTypeId) : [],
-                checklistItems: selectedConfigTypeId ? policyChecklistMasters.filter(p => {
-                    const selectedType = insuranceTypes.find(it => it.id === selectedConfigTypeId);
-                    const typeChecklistRoot = policyChecklistMasters.find(r => r.name === selectedType?.name && !r.parentId);
-                    return p.parentId === typeChecklistRoot?.id;
-                }) : [],
             };
         }
 
         const visibleTypeIds = new Set<string>();
-
         const filteredFields = insuranceFields.filter(f => f.label.toLowerCase().includes(lowerCaseQuery));
         filteredFields.forEach(f => visibleTypeIds.add(f.insuranceTypeId));
-
-        const filteredChecklists = policyChecklistMasters.filter(c => c.name.toLowerCase().includes(lowerCaseQuery) && c.parentId);
-        filteredChecklists.forEach(c => {
-            const root = policyChecklistMasters.find(r => r.id === c.parentId);
-            const type = insuranceTypes.find(it => it.name === root?.name);
-            if (type) visibleTypeIds.add(type.id);
-        });
         
-        insuranceTypes.forEach(type => {
-            if (type.name.toLowerCase().includes(lowerCaseQuery)) {
-                visibleTypeIds.add(type.id);
-            }
-        });
-
-        visibleTypeIds.forEach(id => {
-            const type = insuranceTypes.find(it => it.id === id);
-            if (type?.parentId) {
-                visibleTypeIds.add(type.parentId);
-            }
-        });
-
+        insuranceTypes.forEach(type => { if (type.name.toLowerCase().includes(lowerCaseQuery)) { visibleTypeIds.add(type.id); } });
+        visibleTypeIds.forEach(id => { const type = insuranceTypes.find(it => it.id === id); if (type?.parentId) { visibleTypeIds.add(type.parentId); } });
+        
         const filteredParentTypes = parentTypes.filter(pt => visibleTypeIds.has(pt.id));
         const filteredChildTypes = selectedParentTypeId ? insuranceTypes.filter(it => it.parentId === selectedParentTypeId && visibleTypeIds.has(it.id)) : [];
-        const filteredChecklistItems = selectedConfigTypeId ? policyChecklistMasters.filter(p => {
-            const selectedType = insuranceTypes.find(it => it.id === selectedConfigTypeId);
-            const typeChecklistRoot = policyChecklistMasters.find(r => r.name === selectedType?.name && !r.parentId);
-            return p.parentId === typeChecklistRoot?.id && p.name.toLowerCase().includes(lowerCaseQuery);
-        }) : [];
-
-        return {
-            parentTypes: filteredParentTypes,
-            childTypes: filteredChildTypes,
-            fields: selectedConfigTypeId ? filteredFields.filter(f => f.insuranceTypeId === selectedConfigTypeId) : [],
-            checklistItems: filteredChecklistItems,
+        
+        return { 
+            parentTypes: filteredParentTypes, 
+            childTypes: filteredChildTypes, 
+            fields: selectedConfigTypeId ? filteredFields.filter(f => f.insuranceTypeId === selectedConfigTypeId) : [], 
         };
-    }, [searchQuery, parentTypes, selectedParentTypeId, selectedConfigTypeId, insuranceTypes, insuranceFields, policyChecklistMasters]);
-
+    }, [searchQuery, parentTypes, selectedParentTypeId, selectedConfigTypeId, insuranceTypes, insuranceFields]);
 
     const openTypeModal = (item: Partial<InsuranceTypeMaster> | null, event?: React.MouseEvent<HTMLElement>) => {
         if(event) triggerButtonRef.current = event.currentTarget as HTMLButtonElement;
         let initialData: Partial<InsuranceTypeMaster>;
-
-        if (item && item.id) { // Editing an existing item
-            initialData = { ...item };
-        } else if (item && item.parentId) { // Adding a new child
-            const parent = parentTypes.find(p => p.id === item.parentId);
-            initialData = { 
-                name: '', 
-                parentId: item.parentId, 
-                active: true, 
-                verticalId: parent ? parent.verticalId : '' // Inherit verticalId from parent
-            };
-        } else { // Adding a new parent
-            initialData = { name: '', parentId: null, active: true, verticalId: '' };
-        }
-
+        if (item && item.id) { initialData = { ...item }; } 
+        else if (item && item.parentId) { const parent = parentTypes.find(p => p.id === item.parentId); initialData = { name: '', parentId: item.parentId, active: true, verticalId: parent ? parent.verticalId : '' }; } 
+        else { initialData = { name: '', parentId: null, active: true, verticalId: '' }; }
         setEditingType(initialData);
         setIsTypeModalOpen(true);
     };
     
-    const closeTypeModal = () => {
-        setIsTypeModalOpen(false);
-        triggerButtonRef.current?.focus();
-    }
+    const closeTypeModal = () => { setIsTypeModalOpen(false); triggerButtonRef.current?.focus(); }
 
-
-    const handleSaveType = () => {
-        if (!editingType || !editingType.name?.trim()) {
-            addToast('Insurance Type name is required.', 'error');
-            return;
-        }
-        if (!editingType.verticalId) {
-            addToast('Business Vertical is required.', 'error');
-            return;
-        }
-        
-        if (!editingType.parentId) { // This check applies only to Parent types
-            const selectedVertical = businessVerticals.find(bv => bv.id === editingType.verticalId);
-            if (selectedVertical && selectedVertical.name.toLowerCase() !== 'insurance') {
-                props.addToast('Policy configurations can only be linked to the "Insurance" business vertical.', 'error');
-                return; // Stop the save
-            }
-        }
-
+    const handleSaveType = (typeData: Partial<InsuranceTypeMaster>) => {
+        if (!canModify) return;
+        if (!typeData || !typeData.name?.trim()) { addToast('Insurance Type name is required.', 'error'); return; }
+        if (!typeData.verticalId) { addToast('Business Vertical is required.', 'error'); return; }
         let updatedTypes : InsuranceTypeMaster[];
-        if (editingType.id) {
-            updatedTypes = insuranceTypes.map(it => it.id === editingType.id ? (editingType as InsuranceTypeMaster) : it);
-        } else {
-            const newItem: InsuranceTypeMaster = {
-                id: `ins-type-${Date.now()}`,
-                name: editingType.name.trim(),
-                parentId: editingType.parentId || null,
-                active: true,
-                order: insuranceTypes.length,
-                verticalId: editingType.verticalId,
-            };
-            updatedTypes = [...insuranceTypes, newItem];
-        }
+        if (typeData.id) { updatedTypes = insuranceTypes.map(it => it.id === typeData.id ? (typeData as InsuranceTypeMaster) : it); } 
+        else { const newItem: InsuranceTypeMaster = { id: `ins-type-${Date.now()}`, name: typeData.name.trim(), parentId: typeData.parentId || null, active: true, order: insuranceTypes.length, verticalId: typeData.verticalId, }; updatedTypes = [...insuranceTypes, newItem]; }
         onUpdateInsuranceTypes(updatedTypes);
         closeTypeModal();
     };
+    
+    const checkTypeDependencies = (typeId: string): { name: string; type: 'field' | 'policy' }[] => {
+        const type = insuranceTypes.find(it => it.id === typeId);
+        if (!type) return [];
+        let dependents: { name: string; type: 'field' | 'policy' }[] = [];
 
+        if (!type.parentId) { // It's a parent
+            const children = insuranceTypes.filter(it => it.parentId === typeId);
+            dependents.push(...children.map(c => ({ name: `Sub-Type: ${c.name}`, type: 'field' as const })));
+        }
+
+        const schemesLinked = schemes.filter(s => s.insuranceTypeId === typeId);
+        dependents.push(...schemesLinked.map(s => ({ name: `Scheme: ${s.name}`, type: 'policy' as const })));
+
+        return dependents;
+    };
+
+    const performToggle = (id: string) => {
+        const typeToToggle = insuranceTypes.find(it => it.id === id);
+        if (!typeToToggle) return;
+        const newStatus = !typeToToggle.active;
+        if (!typeToToggle.parentId) { // It's a parent, cascade the status
+            const childIds = insuranceTypes.filter(it => it.parentId === id).map(it => it.id);
+            onUpdateInsuranceTypes(insuranceTypes.map(it => (it.id === id || childIds.includes(it.id)) ? { ...it, active: newStatus } : it));
+            addToast(`"${typeToToggle.name}" and its sub-types have been ${newStatus ? 'activated' : 'deactivated'}.`, 'success');
+        } else { // It's a child, toggle only itself
+            onUpdateInsuranceTypes(insuranceTypes.map(it => it.id === id ? { ...it, active: newStatus } : it));
+        }
+    };
+    
     const handleToggleType = (id: string) => {
-        onUpdateInsuranceTypes(insuranceTypes.map(it => it.id === id ? { ...it, active: !it.active } : it));
+        const typeToToggle = insuranceTypes.find(it => it.id === id);
+        if (!typeToToggle) return;
+
+        if (typeToToggle.active) { // Only show warning when DEACTIVATING
+            const dependents = checkTypeDependencies(id);
+            const childDependents = !typeToToggle.parentId 
+                ? insuranceTypes.filter(it => it.parentId === id).flatMap(child => checkTypeDependencies(child.id))
+                : [];
+            const allDependents = [...dependents, ...childDependents];
+
+            if (allDependents.length > 0) {
+                setItemToAction({ id, name: typeToToggle.name });
+                setDependentItems(allDependents);
+                setIsWarningModalOpen(true);
+            } else {
+                performToggle(id); // Deactivate directly if no dependents
+            }
+        } else {
+            performToggle(id); // Activate directly without warning
+        }
+    };
+    
+    const confirmWarningAction = () => {
+        if (itemToAction) {
+            performToggle(itemToAction.id);
+        }
+        setIsWarningModalOpen(false);
+        setItemToAction(null);
+        setDependentItems([]);
     };
 
     const TypeTable: React.FC<{
@@ -3238,7 +3825,7 @@ const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700">
             <div className="flex justify-between items-center mb-4">
                 <h4 className="text-lg font-semibold text-gray-800 dark:text-white">{title}</h4>
-                <Button onClick={onAdd} size="small"><Plus size={14}/> Add</Button>
+                {canCreate && <Button onClick={onAdd} size="small"><Plus size={14}/> Add</Button>}
             </div>
             <div className="overflow-x-auto max-h-60">
                 <table className="min-w-full">
@@ -3257,9 +3844,9 @@ const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
                             >
                                 <td className="px-3 py-2 text-sm">{index + 1}</td>
                                 <td className="px-3 py-2 font-medium">{item.name}</td>
-                                <td className="px-3 py-2"><ToggleSwitch enabled={!!item.active} onChange={() => handleToggleType(item.id)} /></td>
+                                <td className="px-3 py-2"><ToggleSwitch enabled={!!item.active} onChange={() => handleToggleType(item.id)} disabled={!canModify}/></td>
                                 <td className="px-3 py-2">
-                                    <Button size="small" variant="light" className="!p-1.5" onClick={(e) => { e.stopPropagation(); openTypeModal(item, e); }}><Edit2 size={14}/></Button>
+                                    <Button size="small" variant="light" className="!p-1.5" onClick={(e) => { e.stopPropagation(); openTypeModal(item, e); }} disabled={!canModify}><Edit2 size={14}/></Button>
                                 </td>
                             </tr>
                         ))}
@@ -3269,56 +3856,97 @@ const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
         </div>
     );
     
-    const ChecklistManager: React.FC<{items: PolicyChecklistMaster[], typeId: string}> = ({ items, typeId }) => {
-        const selectedType = insuranceTypes.find(it => it.id === typeId);
-        if (!selectedType) return null;
+    const DocumentRuleManager: React.FC<{typeId: string}> = ({ typeId }) => {
+        const [docToAdd, setDocToAdd] = useState<string>('');
         
-        const typeChecklistRoot = policyChecklistMasters.find(p => p.name === selectedType.name && !p.parentId);
-        if (!typeChecklistRoot) {
-             return <div className="p-4 text-center text-gray-500">Checklist root not found for "{selectedType.name}". A root item with a matching name must exist.</div>;
-        }
+        const rulesForType = useMemo(() => 
+            insuranceTypeDocumentRules.filter(r => r.insuranceTypeId === typeId),
+        [insuranceTypeDocumentRules, typeId]);
         
-        const handleUpdate = (newItems: any[]) => {
-            const itemsToKeep = policyChecklistMasters.filter(p => p.parentId !== typeChecklistRoot.id);
-            const updatedCategoryItems = newItems.map(item => ({
-                ...item,
-                parentId: typeChecklistRoot.id,
-                policyType: selectedType.name
-            }));
-            onUpdatePolicyChecklistMasters([...itemsToKeep, ...updatedCategoryItems]);
+        const documentMap = useMemo(() => new Map(documentMasters.map(d => [d.id, d.name])), [documentMasters]);
+        
+        const availableDocs = useMemo(() => 
+            documentMasters.filter(d => d.active && !rulesForType.some(r => r.documentId === d.id)), 
+        [documentMasters, rulesForType]);
+
+        const handleAddRule = () => {
+            if (!docToAdd || !canCreate) return;
+            const newRule: InsuranceTypeDocumentRule = {
+                id: `rule-${Date.now()}`,
+                insuranceTypeId: typeId,
+                documentId: docToAdd,
+                isMandatory: false, // Default to not mandatory
+            };
+            onUpdateInsuranceTypeDocumentRules([...insuranceTypeDocumentRules, newRule]);
+            setDocToAdd(''); // Reset dropdown
+        };
+
+        const handleToggleMandatory = (ruleId: string) => {
+            onUpdateInsuranceTypeDocumentRules(
+                insuranceTypeDocumentRules.map(r => r.id === ruleId ? { ...r, isMandatory: !r.isMandatory } : r)
+            );
+        };
+
+        const handleRemoveRule = (ruleId: string) => {
+            onUpdateInsuranceTypeDocumentRules(
+                insuranceTypeDocumentRules.filter(r => r.id !== ruleId)
+            );
         };
 
         return (
-            <GenericMasterManager 
-                codeColumnDisplay="hidden"
-                reorderable={true}
-                title={`Checklist for ${selectedType.name}`}
-                items={items}
-                onUpdate={handleUpdate}
-                addToast={addToast}
-                noun="Checklist Item"
-                showSearchBar={false}
-            />
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Document Requirements</h3>
+                {canCreate && (
+                    <div className="flex items-center gap-2 mb-4">
+                        <select 
+                            value={docToAdd} 
+                            onChange={e => setDocToAdd(e.target.value)} 
+                            className={selectClasses + " flex-grow"}
+                        >
+                            <option value="">-- Select a document to add --</option>
+                            {availableDocs.map(doc => (
+                                <option key={doc.id} value={doc.id}>{doc.name}</option>
+                            ))}
+                        </select>
+                        <Button onClick={handleAddRule} disabled={!docToAdd}>
+                            <Plus size={16}/> Add
+                        </Button>
+                    </div>
+                )}
+                <div className="space-y-3 max-h-60 overflow-y-auto">
+                    {rulesForType.length > 0 ? rulesForType.map(rule => (
+                        <div key={rule.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md">
+                            <span className="font-medium text-sm">{documentMap.get(rule.documentId) || 'Unknown Document'}</span>
+                            <div className="flex items-center gap-4">
+                                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                                    <ToggleSwitch 
+                                        enabled={rule.isMandatory}
+                                        onChange={() => handleToggleMandatory(rule.id)}
+                                        disabled={!canModify}
+                                    />
+                                    Mandatory
+                                </label>
+                                {canModify && (
+                                    <Button size="small" variant="danger" className="!p-1.5" onClick={() => handleRemoveRule(rule.id)}>
+                                        <Trash2 size={14}/>
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                    )) : (
+                        <p className="text-center text-gray-500 py-4">No documents required for this type.</p>
+                    )}
+                </div>
+            </div>
         );
     };
+
 
     const checkFieldDependencies = (fieldId: string) => {
         const field = insuranceFields.find(f => f.id === fieldId);
         if (!field) return [];
-
         const dependents: { name: string; type: 'policy' }[] = [];
-        for (const member of allMembers) {
-            for (const policy of member.policies || []) {
-                if (policy.insuranceTypeId === field.insuranceTypeId && policy.dynamicData) {
-                    if ( (policy.dynamicData[field.fieldName] !== undefined && policy.dynamicData[field.fieldName] !== '' && policy.dynamicData[field.fieldName]?.length !== 0) ||
-                         (policy.dynamicData[field.label] !== undefined) ) 
-                    {
-                        dependents.push({ name: `${member.name} (Policy: ${policy.schemeName || 'N/A'})`, type: 'policy' });
-                        break; 
-                    }
-                }
-            }
-        }
+        for (const member of allMembers) { for (const policy of member.policies || []) { if (policy.insuranceTypeId === field.insuranceTypeId && policy.dynamicData) { if ( (policy.dynamicData[field.fieldName] !== undefined && policy.dynamicData[field.fieldName] !== '' && policy.dynamicData[field.fieldName]?.length !== 0) || (policy.dynamicData[field.label] !== undefined) ) { dependents.push({ name: `${member.name} (Policy: ${policy.schemeName || 'N/A'})`, type: 'policy' }); break; } } } }
         return dependents;
     };
     
@@ -3328,150 +3956,82 @@ const PolicyConfigurationManager: React.FC<MasterDataProps> = (props) => {
         <div>
             <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Policy Configuration</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Define Insurance types, their Sub-Type, and the specific fields & checklists for each.</p>
-            
             <div className="relative my-4">
-                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                    <Search className="h-5 w-5 text-gray-400" />
-                </div>
-                <Input
-                    type="search"
-                    placeholder="Search all types, fields, and checklist items..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10"
-                />
+                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none"> <Search className="h-5 w-5 text-gray-400" /> </div>
+                <Input type="search" placeholder="Search all types, fields, and checklist items..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10" />
             </div>
-
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                <TypeTable 
-                    title="Manage Insurance Type"
-                    items={filteredData.parentTypes}
-                    selectedId={selectedParentTypeId}
-                    onSelectRow={(id) => {
-                        setSelectedParentTypeId(id);
-                        setSelectedConfigTypeId(id);
-                    }}
-                    onAdd={(e) => openTypeModal({ parentId: null }, e)}
-                />
-                <TypeTable 
-                    title="Manage Insurance Sub-Type"
-                    items={filteredData.childTypes}
-                    selectedId={selectedConfigTypeId === selectedParentTypeId ? null : selectedConfigTypeId}
-                    onSelectRow={(id) => {
-                        setSelectedConfigTypeId(id);
-                    }}
-                    onAdd={(e) => {
-                        if (!selectedParentTypeId) {
-                            addToast('Please select a Insurance type first.', 'error');
-                            return;
-                        }
-                        openTypeModal({ parentId: selectedParentTypeId }, e);
-                    }}
-                />
+                <TypeTable title="Manage Insurance Type" items={filteredData.parentTypes} selectedId={selectedParentTypeId} onSelectRow={(id) => { setSelectedParentTypeId(id); setSelectedConfigTypeId(id); }} onAdd={(e) => openTypeModal({ parentId: null }, e)} />
+                <TypeTable title="Manage Insurance Sub-Type" items={filteredData.childTypes} selectedId={selectedConfigTypeId === selectedParentTypeId ? null : selectedConfigTypeId} onSelectRow={(id) => { setSelectedConfigTypeId(id); }} onAdd={(e) => { if (!selectedParentTypeId) { addToast('Please select a Insurance type first.', 'error'); return; } openTypeModal({ parentId: selectedParentTypeId }, e); }} />
             </div>
-
             {selectedConfigTypeId && (
                 <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg animate-fade-in space-y-8">
-                    <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300">
-                        Configure for: <span className="text-blue-600 dark:text-blue-400">{insuranceTypes.find(it => it.id === selectedConfigTypeId)?.name}</span>
-                    </h4>
-                    
-                    {isParentTypeSelected && (
-                        <ProcessStageManager
-                            key={`psm-${selectedConfigTypeId}`}
-                            title="Manage Process Flow"
-                            items={processStageMasters.filter(psm => psm.insuranceTypeId === selectedConfigTypeId)}
-                            onUpdate={(updatedStages) => {
-                                const otherStages = processStageMasters.filter(psm => psm.insuranceTypeId !== selectedConfigTypeId);
-                                const newStagesForType = updatedStages.map(s => ({ ...s, insuranceTypeId: selectedConfigTypeId, isMutualFund: false }));
-                                onUpdateProcessStageMasters([...otherStages, ...newStagesForType]);
-                            }}
-                            addToast={addToast}
-                            allMembers={allMembers}
-                            typeId={selectedConfigTypeId}
-                        />
-                    )}
-                    
+                    <h4 className="text-lg font-semibold text-gray-700 dark:text-gray-300"> Configure for: <span className="text-blue-600 dark:text-blue-400">{insuranceTypes.find(it => it.id === selectedConfigTypeId)?.name}</span> </h4>
+                    {isParentTypeSelected && (<ProcessStageManager key={`psm-${selectedConfigTypeId}`} title="Manage Process Flow" items={processStageMasters.filter(psm => psm.insuranceTypeId === selectedConfigTypeId)} onUpdate={(updatedStages) => { const otherStages = processStageMasters.filter(psm => psm.insuranceTypeId !== selectedConfigTypeId); const newStagesForType = updatedStages.map(s => ({ ...s, insuranceTypeId: selectedConfigTypeId, isMutualFund: false })); onUpdateProcessStageMasters([...otherStages, ...newStagesForType]); }} addToast={addToast} allMembers={allMembers} typeId={selectedConfigTypeId} canCreate={canCreate} canModify={canModify}/>)}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <div>
-                            <GenericMasterManager
-                                codeColumnDisplay="group"
-                                reorderable={true}
-                                title={`Fields`}
-                                items={filteredData.fields}
-                                onUpdate={(newItemsForType) => {
-                                    const otherFields = insuranceFields.filter(f => f.insuranceTypeId !== selectedConfigTypeId);
-                                    const finalNewFields = newItemsForType.map((item: any) => ({
-                                        ...item,
-                                        insuranceTypeId: selectedConfigTypeId,
-                                    }));
-                                    onUpdateInsuranceFields([...otherFields, ...finalNewFields] as InsuranceFieldMaster[]);
-                                }}
-                                addToast={addToast}
-                                noun="Field"
-                                dependencyCheck={checkFieldDependencies}
-                                showSearchBar={false}
-                            />
-                        </div>
-                        <ChecklistManager key={selectedConfigTypeId} typeId={selectedConfigTypeId} items={filteredData.checklistItems} />
+                        <GenericMasterManager codeColumnDisplay="group" reorderable={true} title={`Fields`} items={filteredData.fields} onUpdate={(newItemsForType) => { const otherFields = insuranceFields.filter(f => f.insuranceTypeId !== selectedConfigTypeId); const finalNewFields = newItemsForType.map((item: any) => ({ ...item, insuranceTypeId: selectedConfigTypeId, })); onUpdateInsuranceFields([...otherFields, ...finalNewFields] as InsuranceFieldMaster[]); }} addToast={addToast} noun="Field" dependencyCheck={checkFieldDependencies} showSearchBar={false} canCreate={canCreate} canModify={canModify}/>
+                        <DocumentRuleManager key={selectedConfigTypeId} typeId={selectedConfigTypeId} />
                     </div>
                 </div>
             )}
-            
-{isTypeModalOpen && editingType && (
-                <Modal isOpen={isTypeModalOpen} onClose={closeTypeModal}>
-                     <form onSubmit={(e) => { e.preventDefault(); handleSaveType(); }}>
-                        <div className="p-6">
-                            <h2 className="text-xl font-bold">{editingType.id ? 'Edit' : 'Add'} {editingType.parentId ? 'Insurance Sub-Type' : 'Insurance Type'}</h2>
-                            <p className="text-sm text-gray-500">{editingType.parentId ? `Adding as a Sub-Type of "${parentTypes.find(p=>p.id === editingType.parentId)?.name}"` : 'Adding as a new Insurance type.'}</p>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            {!editingType.parentId && (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Business Vertical</label>
-                                    <select 
-                                        value={editingType.verticalId || ''}
-                                        onChange={(e) => setEditingType(p => p ? {...p, verticalId: e.target.value} : null)}
-                                        className={selectClasses}
-                                        required
-                                    >
-                                        <option value="">-- Select Vertical --</option>
-                                        {businessVerticals.filter(bv => bv.active).map(bv => (
-                                            <option key={bv.id} value={bv.id}>{bv.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            )}
-                            <Input label="Name" value={editingType.name || ''} onChange={(e) => setEditingType(p => p ? {...p, name: e.target.value} : null)} required />
-                        </div>
-                        <div className="flex justify-end p-6 gap-3 border-t">
-                            <Button type="button" variant="secondary" onClick={closeTypeModal}>Cancel</Button>
-                            <Button type="submit" variant="primary">Save</Button>
-                        </div>
-                     </form>
-                </Modal>
-            )}
 
+            <InsuranceTypeModal
+                isOpen={isTypeModalOpen}
+                onClose={closeTypeModal}
+                onSave={handleSaveType}
+                initialData={editingType}
+                businessVerticals={businessVerticals}
+                parentTypeName={editingType?.parentId ? parentTypes.find(p => p.id === editingType.parentId)?.name : undefined}
+                canModify={canModify}
+            />
+            
+            <Modal
+                isOpen={isWarningModalOpen}
+                onClose={() => setIsWarningModalOpen(false)}
+                contentClassName="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-lg"
+            >
+                <div className="sm:flex sm:items-start">
+                    <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
+                        <AlertTriangle className="h-6 w-6 text-red-600" aria-hidden="true" />
+                    </div>
+                    <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                        <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title">
+                            Deactivate "{itemToAction?.name}"?
+                        </h3>
+                        <div className="mt-2">
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                This item is currently used by <strong>{dependentItems.length} record(s)</strong>. Deactivating it may cause data inconsistencies.
+                            </p>
+                            <ul className="text-xs text-gray-400 dark:text-gray-500 mt-2 list-disc list-inside max-h-24 overflow-y-auto bg-gray-50 dark:bg-gray-700/50 p-2 rounded">
+                                {dependentItems.slice(0, 5).map((item, index) => <li key={index}>{item.name}</li>)}
+                                {dependentItems.length > 5 && <li>...and {dependentItems.length - 5} more.</li>}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse gap-3">
+                    <Button variant="danger" onClick={confirmWarningAction}>
+                        Deactivate Anyway
+                    </Button>
+                    <Button variant="secondary" onClick={() => setIsWarningModalOpen(false)}>
+                        Cancel
+                    </Button>
+                </div>
+            </Modal>
         </div>
     );
 };
-// --- MODIFICATION END ---
-// --- MOVED TO TOP LEVEL ---
-// const SchemeCompanyDataTable: React.FC<{...}> = (...) => { ... };
-
-// --- START: REPLACE THIS ENTIRE COMPONENT in MasterData.tsx ---
 
 // --- MasterData.tsx -> SchemesAndMappingsManager Component ---
 
-const SchemesAndMappingsManager: React.FC<MasterDataProps> = (props) => {
+const SchemesAndMappingsManager: React.FC<MasterDataProps & { canCreate: boolean; canModify: boolean }> = (props) => {
     // --- FIX: Use 'agencies' prop instead of 'companies' ---
-    const { schemes, onUpdateSchemes, agencies, onUpdateAgencies, addToast, documentMasters, schemeDocumentMappings, onUpdateSchemeDocumentMappings, allMembers, insuranceTypes } = props;
+    const { schemes, onUpdateSchemes, agencies, onUpdateAgencies, addToast, documentMasters, allMembers, insuranceTypes, canCreate, canModify } = props;
     const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
     const [editingCompany, setEditingCompany] = useState<Company | null>(null);
     const [isSchemeModalOpen, setIsSchemeModalOpen] = useState(false);
     const [editingScheme, setEditingScheme] = useState<SchemeMaster | null>(null);
     const [schemeFormData, setSchemeFormData] = useState<Partial<SchemeMaster>>({});
-    const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
     const [companySearch, setCompanySearch] = useState('');
     const [schemeSearch, setSchemeSearch] = useState('');
     const [warningModalContent, setWarningModalContent] = useState<{ title: string; message: string; onConfirm?: () => void; dependents?: Member[] } | null>(null);
@@ -3558,9 +4118,11 @@ const SchemesAndMappingsManager: React.FC<MasterDataProps> = (props) => {
                             onChange={(e) => onSearch(e.target.value)}
                         />
                     </div>
-                    <Button onClick={onAddItem} variant="primary" className="w-full md:w-auto flex-shrink-0">
-                        <Plus size={16}/> Add New {noun}
-                    </Button>
+                    {canCreate && (
+                        <Button onClick={onAddItem} variant="primary" className="w-full md:w-auto flex-shrink-0">
+                            <Plus size={16}/> Add New {noun}
+                        </Button>
+                    )}
                 </div>
                 <div className="overflow-y-auto border dark:border-gray-700 rounded-lg max-h-96">
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -3578,22 +4140,22 @@ const SchemesAndMappingsManager: React.FC<MasterDataProps> = (props) => {
                             {sortedItems.map((item, index) => (
                                 <tr 
                                     key={item.id} 
-                                    draggable
+                                    draggable={canModify}
                                     onDragStart={e => handleDragStart(e, item.id)}
                                     onDragOver={handleDragOver}
                                     onDrop={e => handleDrop(e, item.id)}
                                     onDragEnd={handleDragEnd}
-                                    className={`hover:bg-gray-50 dark:hover:bg-gray-700/40 cursor-move ${item.active === false ? 'opacity-60' : ''} ${draggedItemId === item.id ? 'opacity-30' : ''}`}
+                                    className={`hover:bg-gray-50 dark:hover:bg-gray-700/40 ${canModify ? 'cursor-move' : ''} ${item.active === false ? 'opacity-60' : ''} ${draggedItemId === item.id ? 'opacity-30' : ''}`}
                                 >
                                     <td className="px-2 py-3"><GripVertical size={16} className="text-gray-400" /></td>
                                     <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
                                     <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-200">{item.name}</td>
                                     <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{getInsuranceTypeName(item)}</td>
-                                    <td className="px-6 py-3 whitespace-nowrap"><ToggleSwitch enabled={item.active !== false} onChange={() => onToggleItem(item.id)} /></td>
+                                    <td className="px-6 py-3 whitespace-nowrap"><ToggleSwitch enabled={item.active !== false} onChange={() => onToggleItem(item.id)} disabled={!canModify}/></td>
                                     <td className="px-6 py-3 whitespace-nowrap">
                                         <div className="flex items-center gap-2">
-                                            <Button size="small" variant="light" className="!p-1.5" onClick={(e) => onEditItem(item, e)}><Edit2 size={14}/></Button>
-                                            <Button size="small" variant="danger" className="!p-1.5" onClick={() => onDeleteItem(item.id)}><Trash2 size={14}/></Button>
+                                            <Button size="small" variant="light" className="!p-1.5" onClick={(e) => onEditItem(item, e)} disabled={!canModify}><Edit2 size={14}/></Button>
+                                            {canModify && <Button size="small" variant="danger" className="!p-1.5" onClick={() => onDeleteItem(item.id)}><Trash2 size={14}/></Button>}
                                         </div>
                                     </td>
                                 </tr>
@@ -3628,6 +4190,7 @@ const SchemesAndMappingsManager: React.FC<MasterDataProps> = (props) => {
     };
 
     const saveCompany = () => {
+        if(!canModify) return;
         if(!editingCompany || !editingCompany.name.trim()) return addToast('Agency name is required.', 'error');
         
         if (editingCompany.id) {
@@ -3692,8 +4255,6 @@ const SchemesAndMappingsManager: React.FC<MasterDataProps> = (props) => {
         } else {
             setModalParentType(null);
         }
-
-        setSelectedDocIds(scheme ? schemeDocumentMappings.filter(m => m.schemeId === scheme.id).map(m => m.documentId) : []);
         setIsSchemeModalOpen(true);
     };
     
@@ -3704,6 +4265,7 @@ const SchemesAndMappingsManager: React.FC<MasterDataProps> = (props) => {
 
 
     const saveScheme = () => {
+        if (!canModify) return;
         if (!schemeFormData.name?.trim() || !schemeFormData.companyId) return addToast('Scheme Name and Agency are required.', 'error');
         if (!schemeFormData.insuranceTypeId) return addToast('Insurance Type must be selected.', 'error');
 
@@ -3717,9 +4279,6 @@ const SchemesAndMappingsManager: React.FC<MasterDataProps> = (props) => {
             schemeToSave.order = schemes.filter(s => s.companyId === schemeToSave.companyId).length;
             onUpdateSchemes([...schemes, schemeToSave as SchemeMaster]);
         }
-        const otherMappings = schemeDocumentMappings.filter(m => m.schemeId !== schemeToSave.id);
-        const newMappings = selectedDocIds.map(docId => ({ schemeId: schemeToSave.id!, documentId: docId }));
-        onUpdateSchemeDocumentMappings([...otherMappings, ...newMappings]);
         closeSchemeModal();
         setModalParentType(null);
     };
@@ -3754,7 +4313,6 @@ const SchemesAndMappingsManager: React.FC<MasterDataProps> = (props) => {
         } else {
             if (window.confirm(`Are you sure you want to delete the scheme "${scheme.name}"? This action cannot be undone.`)) {
                 onUpdateSchemes(schemes.filter(s => s.id !== schemeId));
-                onUpdateSchemeDocumentMappings(schemeDocumentMappings.filter(m => m.schemeId !== schemeId));
                 addToast(`Scheme "${scheme.name}" deleted successfully.`, 'success');
             }
         }
@@ -3799,9 +4357,11 @@ const SchemesAndMappingsManager: React.FC<MasterDataProps> = (props) => {
                         onChange={(e) => setCompanySearch(e.target.value)}
                     />
                 </div>
-                <Button onClick={(e) => openCompanyModal(null, e)} variant="primary" className="w-full">
-                    <Plus size={16}/> Add New Agency
-                </Button>
+                {canCreate && (
+                    <Button onClick={(e) => openCompanyModal(null, e)} variant="primary" className="w-full">
+                        <Plus size={16}/> Add New Agency
+                    </Button>
+                )}
             </div>
             {/* --- MODIFICATION END --- */}
             <div className="flex-1 overflow-y-auto border dark:border-gray-700 rounded-lg">
@@ -3824,16 +4384,18 @@ const SchemesAndMappingsManager: React.FC<MasterDataProps> = (props) => {
                                 <td className="px-4 py-3 text-sm text-gray-500">{index + 1}</td>
                                 <td className="px-4 py-3 font-medium text-gray-800 dark:text-gray-200">{company.name}</td>
                                 <td className="px-4 py-3">
-                                    <ToggleSwitch enabled={!!company.active} onChange={() => toggleCompany(company.id)} />
+                                    <ToggleSwitch enabled={!!company.active} onChange={() => toggleCompany(company.id)} disabled={!canModify}/>
                                 </td>
                                 <td className="px-4 py-3">
                                     <div className="flex items-center gap-2">
-                                        <Button size="small" variant="light" className="!p-1.5" onClick={(e) => openCompanyModal(company, e)}>
+                                        <Button size="small" variant="light" className="!p-1.5" onClick={(e) => openCompanyModal(company, e)} disabled={!canModify}>
                                             <Edit2 size={14}/>
                                         </Button>
-                                        <Button size="small" variant="danger" className="!p-1.5" onClick={(e) => { e.stopPropagation(); handleDeleteCompany(company.id); }}>
-                                            <Trash2 size={14}/>
-                                        </Button>
+                                        {canModify && (
+                                            <Button size="small" variant="danger" className="!p-1.5" onClick={(e) => { e.stopPropagation(); handleDeleteCompany(company.id); }}>
+                                                <Trash2 size={14}/>
+                                            </Button>
+                                        )}
                                     </div>
                                 </td>
                             </tr>
@@ -3943,11 +4505,12 @@ const SchemesAndMappingsManager: React.FC<MasterDataProps> = (props) => {
                             label="Agency Name"
                             value={editingCompany?.name || ''}
                             onChange={e => setEditingCompany(c => c ? {...c, name: e.target.value} : null)}
+                            disabled={!canModify}
                         />
                     </div>
                     <div className="flex justify-end gap-4 mt-8">
                         <Button type="button" variant="secondary" onClick={closeCompanyModal}>Cancel</Button>
-                        <Button type="submit" variant="success">Save</Button>
+                        <Button type="submit" variant="success" disabled={!canModify}>Save</Button>
                     </div>
                 </form>
             </Modal>
@@ -3961,42 +4524,43 @@ const SchemesAndMappingsManager: React.FC<MasterDataProps> = (props) => {
             >
                 <form onSubmit={(e) => { e.preventDefault(); saveScheme(); }}>
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{editingScheme ? 'Edit' : 'New'} Scheme</h2>
-                    <div className="space-y-4">
-                        <Input label="Scheme Name" value={schemeFormData.name || ''} onChange={e => setSchemeFormData(s => ({...s, name: e.target.value}))}/>
-                        
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Insurance Type (Parent)</label>
-                            <select 
-                                value={modalParentType || ''} 
-                                onChange={e => {
-                                    const newParentId = e.target.value;
-                                    setModalParentType(newParentId);
-                                    setSchemeFormData(s => ({...s, insuranceTypeId: newParentId}));
-                                }} 
-                                className={themeAwareInputClasses}>
-                                    <option value="">Select Type...</option>
-                                    {parentTypeOptions.map(it => <option key={it.id} value={it.id}>{it.name}</option>)}
-                            </select>
-                        </div>
-                        {childTypeOptions.length > 0 && (
-                            <div className="animate-fade-in">
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Insurance Sub-Type (Child)</label>
+                    <fieldset disabled={!canModify}>
+                        <div className="space-y-4">
+                            <Input label="Scheme Name" value={schemeFormData.name || ''} onChange={e => setSchemeFormData(s => ({...s, name: e.target.value}))}/>
+                            
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Insurance Type (Parent)</label>
                                 <select 
-                                    value={schemeFormData.insuranceTypeId || ''} 
-                                    onChange={e => setSchemeFormData(s => ({...s, insuranceTypeId: e.target.value}))} 
+                                    value={modalParentType || ''} 
+                                    onChange={e => {
+                                        const newParentId = e.target.value;
+                                        setModalParentType(newParentId);
+                                        setSchemeFormData(s => ({...s, insuranceTypeId: newParentId}));
+                                    }} 
                                     className={themeAwareInputClasses}>
-                                        <option value={modalParentType || ''}>-- Select Sub-Type (or keep parent) --</option>
-                                        {childTypeOptions.map(it => <option key={it.id} value={it.id}>{it.name}</option>)}
+                                        <option value="">Select Type...</option>
+                                        {parentTypeOptions.map(it => <option key={it.id} value={it.id}>{it.name}</option>)}
                                 </select>
                             </div>
-                        )}
+                            {childTypeOptions.length > 0 && (
+                                <div className="animate-fade-in">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Insurance Sub-Type (Child)</label>
+                                    <select 
+                                        value={schemeFormData.insuranceTypeId || ''} 
+                                        onChange={e => setSchemeFormData(s => ({...s, insuranceTypeId: e.target.value}))} 
+                                        className={themeAwareInputClasses}>
+                                            <option value={modalParentType || ''}>-- Select Sub-Type (or keep parent) --</option>
+                                            {childTypeOptions.map(it => <option key={it.id} value={it.id}>{it.name}</option>)}
+                                    </select>
+                                </div>
+                            )}
 
-                        <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Agency</label><select value={schemeFormData.companyId} onChange={e => setSchemeFormData(s => ({...s, companyId: e.target.value}))} className={themeAwareInputClasses} disabled={!!selectedCompanyId}><option value="">Select Agency...</option>{agencies.filter(c => c.active !== false).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
-                        <div><h4 className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Required Documents</h4><div className="grid grid-cols-2 gap-3 p-3 bg-gray-100 dark:bg-slate-700/50 rounded-md max-h-40 overflow-y-auto">{documentMasters.filter(d=>d.active!==false).map(d => <label key={d.id} className="flex items-center gap-2 text-sm"><input type="checkbox" checked={selectedDocIds.includes(d.id)} onChange={e => setSelectedDocIds(p => e.target.checked ? [...p, d.id] : p.filter(id => id !== d.id))} className="h-4 w-4 rounded-sm border-gray-300 dark:border-gray-500 bg-white dark:bg-slate-600 text-green-500 focus:ring-green-600"/>{d.name}</label>)}</div></div>
-                    </div>
+                            <div><label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Agency</label><select value={schemeFormData.companyId} onChange={e => setSchemeFormData(s => ({...s, companyId: e.target.value}))} className={themeAwareInputClasses} disabled={!!selectedCompanyId}><option value="">Select Agency...</option>{agencies.filter(c => c.active !== false).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                        </div>
+                    </fieldset>
                     <div className="flex justify-end gap-4 mt-8">
                         <Button type="button" variant="secondary" onClick={closeSchemeModal}>Cancel</Button>
-                        <Button type="submit" variant="success">Save Scheme</Button>
+                        <Button type="submit" variant="success" disabled={!canModify}>Save Scheme</Button>
                     </div>
                 </form>
             </Modal>
@@ -4006,7 +4570,7 @@ const SchemesAndMappingsManager: React.FC<MasterDataProps> = (props) => {
 
 // --- END: REPLACE THIS ENTIRE COMPONENT in MasterData.tsx ---
 
-const CompanyMasterManager: React.FC<MasterDataProps> = ({ operatingCompanies, onUpdateOperatingCompanies, currentUser, geographies }) => {
+const CompanyMasterManager: React.FC<MasterDataProps & { canModify: boolean }> = ({ operatingCompanies, onUpdateOperatingCompanies, currentUser, geographies, canModify }) => {
     const [companyData, setCompanyData] = useState<Company | null>(null);
 
     // State for cascading dropdowns
@@ -4105,58 +4669,62 @@ const CompanyMasterManager: React.FC<MasterDataProps> = ({ operatingCompanies, o
         <div>
             <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Company Master</h3>
-                <Button onClick={handleSave} variant="primary"><Save size={16}/> Save Company Details</Button>
+                {canModify && <Button onClick={handleSave} variant="primary"><Save size={16}/> Save Company Details</Button>}
             </div>
-            <div className="space-y-6 bg-gray-50 dark:bg-gray-800/50 p-6 rounded-lg">
-                <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                    <h4 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Company Info</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Input label="Company Code" name="companyCode" value={companyData.companyCode || ''} onChange={handleInputChange} disabled/>
-                        <Input label="Company Name" name="name" value={companyData.name} onChange={handleInputChange} />
-                        <Input label="Registered Name" name="mailingName" value={companyData.mailingName || ''} onChange={handleInputChange} />
-                        <Input label="Date of Creation" name="dateOfCreation" type="date" value={companyData.dateOfCreation || ''} onChange={handleInputChange} />
-                        <div className="flex items-center gap-2">
-                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
-                            <ToggleSwitch enabled={companyData.active || false} onChange={() => setCompanyData(prev => prev ? ({...prev, active: !prev.active}) : null)} />
-                            <span>{companyData.active ? 'Active' : 'Inactive'}</span>
+            <fieldset disabled={!canModify}>
+                <div className="space-y-6 bg-gray-50 dark:bg-gray-800/50 p-6 rounded-lg">
+                    <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                        <h4 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Company Info</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Input label="Company Code" name="companyCode" value={companyData.companyCode || ''} onChange={handleInputChange} disabled/>
+                            <Input label="Company Name" name="name" value={companyData.name} onChange={handleInputChange} />
+                            <Input label="Registered Name" name="mailingName" value={companyData.mailingName || ''} onChange={handleInputChange} />
+                            <Input label="Date of Creation" name="dateOfCreation" type="date" value={companyData.dateOfCreation || ''} onChange={handleInputChange} />
+                            <div className="flex items-center gap-2">
+                                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                                <ToggleSwitch enabled={companyData.active || false} onChange={() => setCompanyData(prev => prev ? ({...prev, active: !prev.active}) : null)} />
+                                <span>{companyData.active ? 'Active' : 'Inactive'}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                        <h4 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Address & Contact</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <Input label="Line 1" value={companyData.address?.line1 || ''} onChange={e => handleAddressChange('line1', e.target.value)} />
+                            <Input label="Line 2" value={companyData.address?.line2 || ''} onChange={e => handleAddressChange('line2', e.target.value)} />
+                            <Input label="Line 3" value={companyData.address?.line3 || ''} onChange={e => handleAddressChange('line3', e.target.value)} />
+                            
+                            <SearchableSelect label="Country" options={countryOptions} value={selectedCountry} onChange={val => { setSelectedCountry(val); setSelectedState(null); setSelectedDistrict(null); setSelectedCity(null); handleAddressChange('country', val ? geographies.find(g => g.id === val)?.name || 'India' : 'India'); }} />
+                            <SearchableSelect label="State" options={stateOptions} value={selectedState} onChange={val => { setSelectedState(val); setSelectedDistrict(null); setSelectedCity(null); handleAddressChange('state', val ? geographies.find(g => g.id === val)?.name || null : null); }} disabled={!selectedCountry} />
+                            <SearchableSelect label="District" options={districtOptions} value={selectedDistrict} onChange={val => { setSelectedDistrict(val); setSelectedCity(null); handleAddressChange('district', val ? geographies.find(g => g.id === val)?.name || null : null); }} disabled={!selectedState} />
+                            <SearchableSelect label="City" options={cityOptions} value={selectedCity} onChange={val => { setSelectedCity(val); handleAddressChange('city', val ? geographies.find(g => g.id === val)?.name || null : null); }} disabled={!selectedDistrict} />
+
+                            <Input label="Area" value={companyData.address?.area || ''} onChange={e => handleAddressChange('area', e.target.value)} />
+                            <Input label="Pin Code" value={companyData.address?.pinCode || ''} onChange={e => handleAddressChange('pinCode', e.target.value)} />
+
+                            <Input label="Phone No." name="phoneNo" value={companyData.contact?.phoneNo || ''} onChange={handleContactChange} />
+                            <Input label="Email ID" name="emailId" type="email" value={companyData.contact?.emailId || ''} onChange={handleContactChange} />
+                            
+                            <Input label="FAX No." name="faxNo" value={companyData.contact?.faxNo || ''} onChange={handleContactChange} />
+                        </div>
+                    </div>
+                    <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                        <h4 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Tax Info</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <Input label="GSTIN" name="gstin" value={companyData.gstin || ''} onChange={handleInputChange} />
+                            <Input label="PAN" name="pan" value={companyData.pan || ''} onChange={handleInputChange} />
+                            <Input label="TAN" name="tan" value={companyData.tan || ''} onChange={handleInputChange} />
                         </div>
                     </div>
                 </div>
-                <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                    <h4 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Address & Contact</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Input label="Line 1" value={companyData.address?.line1 || ''} onChange={e => handleAddressChange('line1', e.target.value)} />
-                        <Input label="Line 2" value={companyData.address?.line2 || ''} onChange={e => handleAddressChange('line2', e.target.value)} />
-                        <Input label="Line 3" value={companyData.address?.line3 || ''} onChange={e => handleAddressChange('line3', e.target.value)} />
-                        
-                        <SearchableSelect label="Country" options={countryOptions} value={selectedCountry} onChange={val => { setSelectedCountry(val); setSelectedState(null); setSelectedDistrict(null); setSelectedCity(null); handleAddressChange('country', val ? geographies.find(g => g.id === val)?.name || 'India' : 'India'); }} />
-                        <SearchableSelect label="State" options={stateOptions} value={selectedState} onChange={val => { setSelectedState(val); setSelectedDistrict(null); setSelectedCity(null); handleAddressChange('state', val ? geographies.find(g => g.id === val)?.name || null : null); }} disabled={!selectedCountry} />
-                        <SearchableSelect label="District" options={districtOptions} value={selectedDistrict} onChange={val => { setSelectedDistrict(val); setSelectedCity(null); handleAddressChange('district', val ? geographies.find(g => g.id === val)?.name || null : null); }} disabled={!selectedState} />
-                        <SearchableSelect label="City" options={cityOptions} value={selectedCity} onChange={val => { setSelectedCity(val); handleAddressChange('city', val ? geographies.find(g => g.id === val)?.name || null : null); }} disabled={!selectedDistrict} />
-
-                        <Input label="Area" value={companyData.address?.area || ''} onChange={e => handleAddressChange('area', e.target.value)} />
-                        <Input label="Pin Code" value={companyData.address?.pinCode || ''} onChange={e => handleAddressChange('pinCode', e.target.value)} />
-
-                        <Input label="Phone No." name="phoneNo" value={companyData.contact?.phoneNo || ''} onChange={handleContactChange} />
-                        <Input label="Email ID" name="emailId" type="email" value={companyData.contact?.emailId || ''} onChange={handleContactChange} />
-                        
-                        <Input label="FAX No." name="faxNo" value={companyData.contact?.faxNo || ''} onChange={handleContactChange} />
-                    </div>
-                </div>
-                <div className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                    <h4 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Tax Info</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <Input label="GSTIN" name="gstin" value={companyData.gstin || ''} onChange={handleInputChange} />
-                        <Input label="PAN" name="pan" value={companyData.pan || ''} onChange={handleInputChange} />
-                        <Input label="TAN" name="tan" value={companyData.tan || ''} onChange={handleInputChange} />
-                    </div>
-                </div>
-            </div>
+            </fieldset>
         </div>
     );
 };
 
-const BranchesManager: React.FC<MasterDataProps> = ({ finrootsBranches, onUpdateFinrootsBranches, addToast, operatingCompanies, currentUser, geographies }) => {
+// ... (code from the start of the file down to the middle of BranchesManager)
+
+const BranchesManager: React.FC<MasterDataProps & { canCreate: boolean; canModify: boolean }> = ({ finrootsBranches, onUpdateFinrootsBranches, addToast, operatingCompanies, currentUser, geographies, canCreate, canModify }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingBranch, setEditingBranch] = useState<Partial<FinRootsBranch> | null>(null);
@@ -4262,6 +4830,7 @@ const BranchesManager: React.FC<MasterDataProps> = ({ finrootsBranches, onUpdate
 
 
     const handleSave = () => {
+        if (!canModify) return;
         if (!editingBranch || !editingBranch.branchName?.trim()) return addToast(`Branch name cannot be empty.`, 'error');
         if (!branchIdSuffix.trim()) return addToast('Branch code suffix cannot be empty.', 'error');
 
@@ -4335,9 +4904,11 @@ const BranchesManager: React.FC<MasterDataProps> = ({ finrootsBranches, onUpdate
                         className="w-full pl-10 pr-4 py-2 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-brand-primary focus:border-brand-primary dark:bg-gray-700 dark:text-white dark:border-gray-600"
                     />
                 </form>
-                <Button onClick={(e) => openModal(null, e)} variant="primary" className="w-full md:w-auto flex-shrink-0">
-                    <Plus size={16}/> Add New Branch
-                </Button>
+                {canCreate && (
+                    <Button onClick={(e) => openModal(null, e)} variant="primary" className="w-full md:w-auto flex-shrink-0">
+                        <Plus size={16}/> Add New Branch
+                    </Button>
+                )}
             </div>
             <div className="overflow-y-auto border dark:border-gray-700 rounded-lg max-h-96">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -4356,8 +4927,8 @@ const BranchesManager: React.FC<MasterDataProps> = ({ finrootsBranches, onUpdate
                                 <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{index + 1}</td>
                                 <td className="px-6 py-3 whitespace-nowrap text-sm font-semibold text-gray-500 dark:text-gray-400 font-mono hidden">{branch.branchId}</td>
                                 <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-200">{branch.branchName}</td>
-                                <td className="px-6 py-3 whitespace-nowrap"><ToggleSwitch enabled={branch.active || false} onChange={() => handleToggle(branch.id)} /></td>
-                                <td className="px-6 py-3 whitespace-nowrap"><Button size="small" variant="light" onClick={(e) => openModal(branch, e)}><Edit2 size={14}/> Edit</Button></td>
+                                <td className="px-6 py-3 whitespace-nowrap"><ToggleSwitch enabled={branch.active || false} onChange={() => handleToggle(branch.id)} disabled={!canModify}/></td>
+                                <td className="px-6 py-3 whitespace-nowrap"><Button size="small" variant="light" onClick={(e) => openModal(branch, e)} disabled={!canModify}><Edit2 size={14}/> Edit</Button></td>
                             </tr>
                         ))}
                     </tbody>
@@ -4373,58 +4944,60 @@ const BranchesManager: React.FC<MasterDataProps> = ({ finrootsBranches, onUpdate
             >
                 <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
                     <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{editingBranch?.id ? 'Edit' : 'Add'} Branch</h2>
-                    <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-4">
-                        <div className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
-                            <h4 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Branch Details</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Branch ID *</label>
-                                    <div className="flex items-end gap-2">
-                                        <Input label="" value={companyCode} disabled />
-                                        <span className="pb-2 font-bold">-</span>
-                                        <Input
-                                            label=""
-                                            value={branchIdSuffix}
-                                            onChange={e => setBranchIdSuffix(e.target.value.toUpperCase())}
-                                            placeholder="e.g., ERD"
-                                        />
+                    <fieldset disabled={!canModify}>
+                        <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-4">
+                            <div className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+                                <h4 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Branch Details</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Branch ID *</label>
+                                        <div className="flex items-end gap-2">
+                                            <Input label="" value={companyCode} disabled />
+                                            <span className="pb-2 font-bold">-</span>
+                                            <Input
+                                                label=""
+                                                value={branchIdSuffix}
+                                                onChange={e => setBranchIdSuffix(e.target.value.toUpperCase())}
+                                                placeholder="e.g., ERD"
+                                            />
+                                        </div>
+                                    </div>
+                                    <Input label="Branch Name" name="branchName" value={editingBranch.branchName} onChange={handleInputChange} />
+                                    <Input label="Date of Creation" name="dateOfCreation" type="date" value={editingBranch.dateOfCreation || ''} onChange={handleInputChange} />
+                                    <div className="flex items-center gap-4 pt-6">
+                                        <label className="flex items-center gap-2"><input type="checkbox" name="active" checked={editingBranch.active} onChange={handleInputChange} /> Active</label>
                                     </div>
                                 </div>
-                                <Input label="Branch Name" name="branchName" value={editingBranch.branchName} onChange={handleInputChange} />
-                                <Input label="Date of Creation" name="dateOfCreation" type="date" value={editingBranch.dateOfCreation || ''} onChange={handleInputChange} />
-                                <div className="flex items-center gap-4 pt-6">
-                                    <label className="flex items-center gap-2"><input type="checkbox" name="active" checked={editingBranch.active} onChange={handleInputChange} /> Active</label>
+                            </div>
+                            <div className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+                                <h4 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Address Details</h4>
+                                <div className="grid grid-cols-1 gap-4">
+                                    <Input label="Line 1" value={editingBranch.address?.line1 || ''} onChange={e => handleAddressChange('line1', e.target.value)} />
+                                    <Input label="Line 2" value={editingBranch.address?.line2 || ''} onChange={e => handleAddressChange('line2', e.target.value)} />
+                                    <Input label="Line 3" value={editingBranch.address?.line3 || ''} onChange={e => handleAddressChange('line3', e.target.value)} />
+                                    <SearchableSelect label="Country" options={modalCountryOptions} value={modalSelectedCountry} onChange={val => { setModalSelectedCountry(val); setModalSelectedState(null); setModalSelectedDistrict(null); setModalSelectedCity(null); handleAddressChange('country', val ? geographies.find(g => g.id === val)?.name || 'India' : 'India'); }} />
+                                    <SearchableSelect label="State" options={modalStateOptions} value={modalSelectedState} onChange={val => { setModalSelectedState(val); setModalSelectedDistrict(null); setModalSelectedCity(null); handleAddressChange('state', val ? geographies.find(g => g.id === val)?.name || null : null); }} disabled={!modalSelectedCountry} />
+                                    <SearchableSelect label="District" options={modalDistrictOptions} value={modalSelectedDistrict} onChange={val => { setModalSelectedDistrict(val); setModalSelectedCity(null); handleAddressChange('district', val ? geographies.find(g => g.id === val)?.name || null : null);}} disabled={!modalSelectedState} />
+                                    <SearchableSelect label="City" options={modalCityOptions} value={modalSelectedCity} onChange={val => { setModalSelectedCity(val); handleAddressChange('city', val ? geographies.find(g => g.id === val)?.name || null : null); }} disabled={!modalSelectedDistrict} />
+                                    <Input label="Area" value={editingBranch.address?.area || ''} onChange={e => handleAddressChange('area', e.target.value)} />
+                                    <Input label="Pin Code" value={editingBranch.address?.pinCode || ''} onChange={e => handleAddressChange('pinCode', e.target.value)} />
+                                    <Input label="Phone No." value={editingBranch.address?.phone || ''} onChange={e => handleAddressChange('phone', e.target.value)} />
+                                    <Input label="FAX No." value={editingBranch.address?.fax || ''} onChange={e => handleAddressChange('fax', e.target.value)} />
+                                </div>
+                            </div>
+                            <div className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
+                                <h4 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Tax Info</h4>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <Input label="GSTIN" name="gstin" value={editingBranch.gstin || ''} onChange={handleInputChange} />
+                                    <Input label="PAN" name="pan" value={editingBranch.pan || ''} onChange={handleInputChange} />
+                                    <Input label="TAN" name="tan" value={editingBranch.tan || ''} onChange={handleInputChange} />
                                 </div>
                             </div>
                         </div>
-                        <div className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
-                            <h4 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Address Details</h4>
-                            <div className="grid grid-cols-1 gap-4">
-                                <Input label="Line 1" value={editingBranch.address?.line1 || ''} onChange={e => handleAddressChange('line1', e.target.value)} />
-                                <Input label="Line 2" value={editingBranch.address?.line2 || ''} onChange={e => handleAddressChange('line2', e.target.value)} />
-                                <Input label="Line 3" value={editingBranch.address?.line3 || ''} onChange={e => handleAddressChange('line3', e.target.value)} />
-                                <SearchableSelect label="Country" options={modalCountryOptions} value={modalSelectedCountry} onChange={val => { setModalSelectedCountry(val); setModalSelectedState(null); setModalSelectedDistrict(null); setModalSelectedCity(null); handleAddressChange('country', val ? geographies.find(g => g.id === val)?.name || 'India' : 'India'); }} />
-                                <SearchableSelect label="State" options={modalStateOptions} value={modalSelectedState} onChange={val => { setModalSelectedState(val); setModalSelectedDistrict(null); setModalSelectedCity(null); handleAddressChange('state', val ? geographies.find(g => g.id === val)?.name || null : null); }} disabled={!modalSelectedCountry} />
-                                <SearchableSelect label="District" options={modalDistrictOptions} value={modalSelectedDistrict} onChange={val => { setModalSelectedDistrict(val); setModalSelectedCity(null); handleAddressChange('district', val ? geographies.find(g => g.id === val)?.name || null : null);}} disabled={!modalSelectedState} />
-                                <SearchableSelect label="City" options={modalCityOptions} value={modalSelectedCity} onChange={val => { setModalSelectedCity(val); handleAddressChange('city', val ? geographies.find(g => g.id === val)?.name || null : null); }} disabled={!modalSelectedDistrict} />
-                                <Input label="Area" value={editingBranch.address?.area || ''} onChange={e => handleAddressChange('area', e.target.value)} />
-                                <Input label="Pin Code" value={editingBranch.address?.pinCode || ''} onChange={e => handleAddressChange('pinCode', e.target.value)} />
-                                <Input label="Phone No." value={editingBranch.address?.phone || ''} onChange={e => handleAddressChange('phone', e.target.value)} />
-                                <Input label="FAX No." value={editingBranch.address?.fax || ''} onChange={e => handleAddressChange('fax', e.target.value)} />
-                            </div>
-                        </div>
-                        <div className="p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
-                            <h4 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">Tax Info</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <Input label="GSTIN" name="gstin" value={editingBranch.gstin || ''} onChange={handleInputChange} />
-                                <Input label="PAN" name="pan" value={editingBranch.pan || ''} onChange={handleInputChange} />
-                                <Input label="TAN" name="tan" value={editingBranch.tan || ''} onChange={handleInputChange} />
-                            </div>
-                        </div>
-                    </div>
+                    </fieldset>
                     <div className="flex justify-end gap-4 mt-8">
                         <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
-                        <Button type="submit" variant="success">Save</Button>
+                        <Button type="submit" variant="success" disabled={!canModify}>Save</Button>
                     </div>
                 </form>
             </Modal>
@@ -4433,7 +5006,7 @@ const BranchesManager: React.FC<MasterDataProps> = ({ finrootsBranches, onUpdate
     );
 };
 
-const GeographyManager: React.FC<{geographies: Geography[];onUpdateGeographies: (geos: Geography[]) => void;addToast: MasterDataProps['addToast'];allMembers: Member[];}> = ({ geographies, onUpdateGeographies, addToast, allMembers }) => {   
+const GeographyManager: React.FC<{geographies: Geography[];onUpdateGeographies: (geos: Geography[]) => void;addToast: MasterDataProps['addToast'];allMembers: Member[]; canCreate: boolean; canModify: boolean;}> = ({ geographies, onUpdateGeographies, addToast, allMembers, canCreate, canModify }) => {   
     type GeoTab = 'Country' | 'State' | 'District' | 'City' | 'Area';
     
     const [editingGeo, setEditingGeo] = useState<Partial<Geography> | null>(null);
@@ -4537,6 +5110,7 @@ const GeographyManager: React.FC<{geographies: Geography[];onUpdateGeographies: 
     };
 
     const handleSave = () => {
+        if (!canModify) return;
         if (!editingGeo || !editingGeo.name?.trim()) {
             addToast('Name is required', 'error');
             return;
@@ -4625,7 +5199,7 @@ const GeographyManager: React.FC<{geographies: Geography[];onUpdateGeographies: 
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
                  <div className="flex justify-between items-center mb-4">
                     <h4 className="text-lg font-semibold text-gray-800 dark:text-white">Manage {type}</h4>
-                    <Button onClick={(e) => openModal(type, null, e)}><Plus size={16}/> Add {type}</Button>
+                    {canCreate && <Button onClick={(e) => openModal(type, null, e)}><Plus size={16}/> Add {type}</Button>}
                 </div>
                 <div className="overflow-x-auto max-h-60">
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -4642,10 +5216,10 @@ const GeographyManager: React.FC<{geographies: Geography[];onUpdateGeographies: 
                                     <td className="px-4 py-2 text-sm text-gray-500">{index + 1}</td>
                                     <td className="px-4 py-2 text-sm font-mono text-gray-500 hidden">{getGeoCode(item)}</td>
                                     <td className="px-4 py-2 font-medium">{item.name}</td>
-                                    <td className="px-4 py-2"><ToggleSwitch enabled={!!item.active} onChange={() => handleToggle(item)} /></td>
+                                    <td className="px-4 py-2"><ToggleSwitch enabled={!!item.active} onChange={() => handleToggle(item)} disabled={!canModify}/></td>
                                     <td className="px-4 py-2">
                                         <div className="flex gap-2">
-                                            <Button size="small" variant="light" onClick={(e) => openModal(type, item, e)}><Edit2 size={14}/></Button>
+                                            <Button size="small" variant="light" onClick={(e) => openModal(type, item, e)} disabled={!canModify}><Edit2 size={14}/></Button>
                                         </div>
                                     </td>
                                 </tr>
@@ -4690,17 +5264,19 @@ const GeographyManager: React.FC<{geographies: Geography[];onUpdateGeographies: 
                         <div className="p-6 border-b dark:border-gray-700">
                              <h2 className="text-xl font-bold text-gray-900 dark:text-white">{editingGeo?.id ? 'Edit' : 'Add'} {editingGeo?.type}</h2>
                         </div>
-                        <div className="space-y-4 p-6 max-h-[60vh] overflow-y-auto">
-                            {editingGeo?.type === 'State' && <div><label className="block text-sm font-medium mb-1">Country</label><SearchableSelect options={countryOptions} value={modalCountry} onChange={setModalCountry} placeholder="Select Country..."/></div>}
-                            {editingGeo?.type === 'District' && <><div className="mb-4"><label className="block text-sm font-medium mb-1">Country</label><SearchableSelect options={countryOptions} value={modalCountry} onChange={val => { setModalCountry(val); setModalState(null); }} placeholder="Select Country..."/></div><div><label className="block text-sm font-medium mb-1">State</label><SearchableSelect options={stateOptions} value={modalState} onChange={setModalState} placeholder="Select State..." disabled={!modalCountry}/></div></>}
-                            {editingGeo?.type === 'City' && <><div className="mb-4"><label className="block text-sm font-medium mb-1">Country</label><SearchableSelect options={countryOptions} value={modalCountry} onChange={val => { setModalCountry(val); setModalState(null); setModalDistrict(null); }} placeholder="Select Country..."/></div><div className="mb-4"><label className="block text-sm font-medium mb-1">State</label><SearchableSelect options={stateOptions} value={modalState} onChange={val => { setModalState(val); setModalDistrict(null);}} placeholder="Select State..." disabled={!modalCountry}/></div><div><label className="block text-sm font-medium mb-1">District</label><SearchableSelect options={districtOptions} value={modalDistrict} onChange={setModalDistrict} placeholder="Select District..." disabled={!modalState}/></div></>}
-                            {editingGeo?.type === 'Area' && <><div className="mb-4"><label className="block text-s font-medium mb-1">Country</label><SearchableSelect options={countryOptions} value={modalCountry} onChange={val => { setModalCountry(val); setModalState(null); setModalDistrict(null); setModalCity(null); }} placeholder="Select Country..."/></div><div className="mb-4"><label className="block text-sm font-medium mb-1">State</label><SearchableSelect options={stateOptions} value={modalState} onChange={val => { setModalState(val); setModalDistrict(null); setModalCity(null); }} placeholder="Select State..." disabled={!modalCountry}/></div><div className="mb-4"><label className="block text-sm font-medium mb-1">District</label><SearchableSelect options={districtOptions} value={modalDistrict} onChange={val => {setModalDistrict(val); setModalCity(null);}} placeholder="Select District..." disabled={!modalState}/></div><div><label className="block text-sm font-medium mb-1">City</label><SearchableSelect options={cityOptions} value={modalCity} onChange={setModalCity} placeholder="Select City..." disabled={!modalDistrict}/></div></>}
+                        <fieldset disabled={!canModify}>
+                            <div className="space-y-4 p-6 max-h-[60vh] overflow-y-auto">
+                                {editingGeo?.type === 'State' && <div><label className="block text-sm font-medium mb-1">Country</label><SearchableSelect options={countryOptions} value={modalCountry} onChange={setModalCountry} placeholder="Select Country..."/></div>}
+                                {editingGeo?.type === 'District' && <><div className="mb-4"><label className="block text-sm font-medium mb-1">Country</label><SearchableSelect options={countryOptions} value={modalCountry} onChange={val => { setModalCountry(val); setModalState(null); }} placeholder="Select Country..."/></div><div><label className="block text-sm font-medium mb-1">State</label><SearchableSelect options={stateOptions} value={modalState} onChange={setModalState} placeholder="Select State..." disabled={!modalCountry}/></div></>}
+                                {editingGeo?.type === 'City' && <><div className="mb-4"><label className="block text-sm font-medium mb-1">Country</label><SearchableSelect options={countryOptions} value={modalCountry} onChange={val => { setModalCountry(val); setModalState(null); setModalDistrict(null); }} placeholder="Select Country..."/></div><div className="mb-4"><label className="block text-sm font-medium mb-1">State</label><SearchableSelect options={stateOptions} value={modalState} onChange={val => { setModalState(val); setModalDistrict(null);}} placeholder="Select State..." disabled={!modalCountry}/></div><div><label className="block text-sm font-medium mb-1">District</label><SearchableSelect options={districtOptions} value={modalDistrict} onChange={setModalDistrict} placeholder="Select District..." disabled={!modalState}/></div></>}
+                                {editingGeo?.type === 'Area' && <><div className="mb-4"><label className="block text-s font-medium mb-1">Country</label><SearchableSelect options={countryOptions} value={modalCountry} onChange={val => { setModalCountry(val); setModalState(null); setModalDistrict(null); setModalCity(null); }} placeholder="Select Country..."/></div><div className="mb-4"><label className="block text-sm font-medium mb-1">State</label><SearchableSelect options={stateOptions} value={modalState} onChange={val => { setModalState(val); setModalDistrict(null); setModalCity(null); }} placeholder="Select State..." disabled={!modalCountry}/></div><div className="mb-4"><label className="block text-sm font-medium mb-1">District</label><SearchableSelect options={districtOptions} value={modalDistrict} onChange={val => {setModalDistrict(val); setModalCity(null);}} placeholder="Select District..." disabled={!modalState}/></div><div><label className="block text-sm font-medium mb-1">City</label><SearchableSelect options={cityOptions} value={modalCity} onChange={setModalCity} placeholder="Select City..." disabled={!modalDistrict}/></div></>}
 
-                            <Input label="Name" value={editingGeo?.name || ''} onChange={e => setEditingGeo(g => g ? {...g, name: e.target.value} : null)}/>
-                        </div>
+                                <Input label="Name" value={editingGeo?.name || ''} onChange={e => setEditingGeo(g => g ? {...g, name: e.target.value} : null)}/>
+                            </div>
+                        </fieldset>
                          <div className="flex justify-end gap-4 p-6 border-t dark:border-gray-700">
                             <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
-                            <Button type="submit" variant="success">Save</Button>
+                            <Button type="submit" variant="success" disabled={!canModify}>Save</Button>
                         </div>
                     </form>
                 </Modal>
@@ -4747,12 +5323,52 @@ const GeographyManager: React.FC<{geographies: Geography[];onUpdateGeographies: 
 // --- MasterData.tsx -> Main MasterData Component ---
 
 export const MasterData: React.FC<MasterDataProps> = (props) => {
-    const [activeTab, setActiveTab] = useState<string>('companyMaster'); // MODIFIED: Default to new tab
+    // --- MODIFIED: Destructure new and renamed props ---
+    const { 
+        addToast, allMembers, users, businessVerticals, onUpdateBusinessVerticals,
+        leadSources, onUpdateLeadSources, schemes, onUpdateSchemes, agencies, onUpdateAgencies,
+        finrootsBranches, onUpdateFinrootsBranches, finrootsCompanyInfo, onUpdateFinRootsCompanyInfo,
+        geographies, onUpdateGeographies, relationshipTypes, onUpdateRelationshipTypes,
+        documentMasters, onUpdateDocumentMasters, insuranceTypeDocumentRules, onUpdateInsuranceTypeDocumentRules,
+        giftMasters, onUpdateGiftMasters, customerTiers, onUpdateCustomerTiers,
+        taskStatuses, onUpdateTaskStatuses, customerCategories, onUpdateCustomerCategories,
+        bankMasters, onUpdateBankMasters, customerSubCategories, onUpdateCustomerSubCategories,
+        customerGroups, onUpdateCustomerGroups, taskMasters, onUpdateTaskMasters,
+        insuranceTypes, onUpdateInsuranceTypes,
+        insuranceFields, onUpdateInsuranceFields, customerFieldMasters, onUpdateCustomerFieldMasters,
+        currentUser, operatingCompanies, onUpdateOperatingCompanies, routes, onUpdateRoutes,
+        designations, onUpdateDesignations,
+        roles, onUpdateRoles, // --- NEW ---
+        rolePermissions, onUpdateRolePermissions, // --- RENAMED ---
+        customerTierCalculationMethod, onUpdateCustomerTierCalculationMethod,
+        expenseCategoriesLevel1, onUpdateExpenseCategoriesLevel1, expenseCategoriesLevel2, onUpdateExpenseCategoriesLevel2,
+        expenseCategoriesLevel3, onUpdateExpenseCategoriesLevel3, incomeCategoriesLevel1, onUpdateIncomeCategoriesLevel1,
+        incomeCategoriesLevel2, onUpdateIncomeCategoriesLevel2, religions, onUpdateReligions,
+        festivals, onUpdateFestivals, festivalDates, onUpdateFestivalDates, amcs, onUpdateAmcs,
+        mutualFundSchemes, onUpdateMutualFundSchemes, mutualFundFields, onUpdateMutualFundFields,
+        genders, onUpdateGenders, maritalStatuses, onUpdateMaritalStatuses, customerTypes, onUpdateCustomerTypes,
+        processStageMasters, onUpdateProcessStageMasters, accountTypes, onUpdateAccountTypes,
+        financialYears, onUpdateFinancialYears, documentNumbering, onUpdateDocumentNumbering,
+        activeFinancialYearId
+    } = props;
+
+    const [activeTab, setActiveTab] = useState<string>('companyMaster');
     const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
     const mobileNavRef = useRef<HTMLDivElement>(null);
     const [focusArea, setFocusArea] = useState<'nav' | 'content'>('nav');
     const navContainerRef = useRef<HTMLDivElement>(null);
     const contentContainerRef = useRef<HTMLDivElement>(null);
+
+    // --- FIX: Centralized permission checking ---
+    const permissionLevel = useMemo(() => {
+        if (!currentUser || !rolePermissions) return 'none';
+        const userPermissions = rolePermissions.find(p => p.roleId === currentUser.roleId);
+        return userPermissions?.permissions.masterMember || 'none';
+    }, [currentUser, rolePermissions]);
+
+    const canCreate = permissionLevel === 'create' || permissionLevel === 'modify';
+    const canModify = permissionLevel === 'modify';
+    // --- End of fix ---
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -4813,7 +5429,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
         };
     }, [focusArea]);
 
-    // MODIFIED: Navigation items updated to add new sections
+    // --- MODIFIED: Navigation items updated ---
     const navItems = [
         { id: 'companyMaster', label: 'Company Master', icon: <Building size={18}/> },
         { id: 'branches', label: 'Branch', icon: <GitBranch size={18}/> },
@@ -4821,9 +5437,11 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
         { id: 'policyConfiguration', label: 'Policy Configuration', icon: <SlidersHorizontal size={18}/>},
         { id: 'schemesAndMappings', label: 'Agency and Scheme', icon: <Handshake  size={18}/> },
         { id: 'mutualFunds', label: 'Mutual Funds', icon: <HandCoins size={18}/> },
-        { id: 'customerMaster', label: 'Add Customer Field', icon: <UserPlus  size={18} /> },
         { id: 'designation', label: 'Designation', icon: <UserCog size={18}/> }, 
-        { id: 'financialYear', label: 'Financial Year', icon: <CalendarIcon size={18}/> }, // NEW
+        { id: 'role', label: 'Role', icon: <Award size={18}/> },
+        { id: 'rolePermissions', label: 'Role Permissions', icon: <Lock size={18}/> }, 
+        { id: 'customerMaster', label: 'Add Customer Field', icon: <UserPlus  size={18} /> },
+        { id: 'financialYear', label: 'Financial Year', icon: <CalendarIcon size={18}/> },
         { id: 'religionsAndFestivals', label: 'Religions & Festivals', icon: <Sparkles  size={18}/> },
         { id: 'leadSources', label: 'Lead/Referral', icon: <Users size={18}/> },
         { id: 'relationshipTypes', label: 'Relationship', icon: <HeartHandshake  size={18}/> },
@@ -4832,8 +5450,8 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
         { id: 'bankMasters', label: 'Bank Master', icon: <Landmark  size={18} /> },
         { id: 'taskStatuses', label: 'Task Status', icon: <CheckSquare size={18}/> },
         { id: 'customerSegments', label: 'Customer Segment', icon: <Users size={18}/> },
-        { id: 'genders', label: 'Gender', icon: <Venus  size={18}/> }, // NEW
-        { id: 'maritalStatuses', label: 'Marital Status', icon: <Heart size={18}/> }, // NEW
+        { id: 'genders', label: 'Gender', icon: <Venus  size={18}/> },
+        { id: 'maritalStatuses', label: 'Marital Status', icon: <Heart size={18}/> },
         { id: 'taskMasters', label: 'Task Type', icon: <CheckSquare size={18}/> },
         { id: 'tierManagement', label: 'Type & Gift Management', icon: <Award size={18}/> },
         { id: 'expenseCategories', label: 'Expense Categories', icon: <ArrowUp  size={18}/> },
@@ -4845,16 +5463,20 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
         navItems.find(item => item.id === activeTab)?.label || 'Select a category',
     [activeTab, navItems]);
     
+    // --- MODIFIED: renderContent function updated to pass permission props ---
     const renderContent = () => {
+        const permissionProps = { canCreate, canModify };
         switch(activeTab) {
-            case 'companyMaster': return <CompanyMasterManager {...props} />;
-            case 'financialYear': return <FinancialYearManager {...props} />; // NEW
-            case 'branches': return <BranchesManager {...props} />;
-            case 'designation': return <DesignationManager items={props.designations} onUpdate={props.onUpdateDesignations} addToast={props.addToast} users={props.users} />;
-            case 'policyConfiguration': return <PolicyConfigurationManager {...props} />;
-            case 'businessVerticals': return <GenericMasterManager key="businessVerticals" title="Manage Business Vertical" items={props.businessVerticals} onUpdate={props.onUpdateBusinessVerticals} addToast={props.addToast} noun="Business Vertical" reorderable={true} codeColumnDisplay="hidden" dependencyCheck={(id) => props.insuranceTypes.filter(it => it.verticalId === id).map(it => ({ name: it.name, type: 'field' }))} />;
-            case 'leadSources': return <LeadSourceManager items={props.leadSources} onUpdate={props.onUpdateLeadSources} addToast={props.addToast} />;
-            case 'schemesAndMappings': return <SchemesAndMappingsManager {...props} />;
+            case 'companyMaster': return <CompanyMasterManager {...props} {...permissionProps} />;
+            case 'financialYear': return <FinancialYearManager {...props} {...permissionProps} />;
+            case 'branches': return <BranchesManager {...props} {...permissionProps} />;
+            case 'designation': return <DesignationManager items={designations} onUpdate={onUpdateDesignations} addToast={addToast} users={users} {...permissionProps} />;
+            case 'role': return <RoleManager items={roles} onUpdate={onUpdateRoles} addToast={addToast} users={users} {...permissionProps} />;
+            case 'rolePermissions': return <RolePermissionsManager roles={roles} rolePermissions={rolePermissions} onUpdate={onUpdateRolePermissions} addToast={addToast} {...permissionProps} />;
+            case 'policyConfiguration': return <PolicyConfigurationManager {...props} {...permissionProps} />;
+            case 'businessVerticals': return <GenericMasterManager key="businessVerticals" title="Manage Business Vertical" items={businessVerticals} onUpdate={onUpdateBusinessVerticals} addToast={addToast} noun="Business Vertical" reorderable={true} codeColumnDisplay="hidden" dependencyCheck={(id) => props.insuranceTypes.filter(it => it.verticalId === id).map(it => ({ name: it.name, type: 'field' }))} showAddButton={false} {...permissionProps} />;
+            case 'leadSources': return <LeadSourceManager items={props.leadSources} onUpdate={props.onUpdateLeadSources} addToast={props.addToast} {...permissionProps} />;
+            case 'schemesAndMappings': return <SchemesAndMappingsManager {...props} {...permissionProps} />;
             
             case 'mutualFunds':
                 const mfCategories: { value: string; label: string }[] = ['Equity', 'Debt', 'Hybrid', 'Solution Oriented', 'Other'].map(c => ({ value: c, label: c }));
@@ -4883,13 +5505,9 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                                     props.addToast('Business Vertical is required for an AMC.', 'error');
                                     return false;
                                 }
-                                const selectedVertical = props.businessVerticals.find(bv => bv.id === item.verticalId);
-                                if (selectedVertical && selectedVertical.name.toLowerCase() !== 'mutual funds') {
-                                    props.addToast('AMCs can only be linked to the "Mutual Funds" business vertical.', 'error');
-                                    return false;
-                                }
                                 return true;
                             }}
+                            {...permissionProps}
                         />
                         <GenericMasterManager
                             key="mfSchemes"
@@ -4915,6 +5533,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                                 }
                             ]}
                             dependencyCheck={(id) => props.allMembers.flatMap(m => m.mutualFundHoldings || []).filter(h => h.schemeId === id).map(h => ({ name: `Folio ${h.folioNumber}`, type: 'member' }))}
+                            {...permissionProps}
                         />
                          <GenericMasterManager
                             key="mutualFundFields"
@@ -4925,8 +5544,8 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                             noun="Field"
                             reorderable={true}
                             codeColumnDisplay="group"
+                            {...permissionProps}
                         />
-                        {/* --- MODIFICATION START: Added ProcessStageManager for Mutual Funds --- */}
                         <ProcessStageManager
                             key="psm-mf"
                             title="Manage Mutual Fund Process Flow"
@@ -4939,12 +5558,12 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                             addToast={props.addToast}
                             allMembers={props.allMembers}
                             typeId="mutual-fund"
+                            {...permissionProps}
                         />
-                        {/* --- MODIFICATION END --- */}
                     </div>
                 );
-            case 'geography': return <GeographyManager geographies={props.geographies} onUpdateGeographies={props.onUpdateGeographies} addToast={props.addToast} allMembers={props.allMembers} />;
-            case 'documentMasters': return <GenericMasterManager key="documentMasters" title="Manage Document Master" items={props.documentMasters} onUpdate={props.onUpdateDocumentMasters} addToast={props.addToast} noun="Document" reorderable={true} codeColumnDisplay="hidden" dependencyCheck={(id) => props.schemeDocumentMappings.filter(sdm => sdm.documentId === id).map(sdm => ({ name: `Scheme ID: ${sdm.schemeId}`, type: 'policy' }))} />;
+            case 'geography': return <GeographyManager geographies={props.geographies} onUpdateGeographies={props.onUpdateGeographies} addToast={props.addToast} allMembers={props.allMembers} {...permissionProps} />;
+            case 'documentMasters': return <GenericMasterManager key="documentMasters" title="Manage Document Master" items={props.documentMasters} onUpdate={props.onUpdateDocumentMasters} addToast={props.addToast} noun="Document" reorderable={true} codeColumnDisplay="hidden" {...permissionProps} />;
             case 'tierManagement': return <TierManager
                 tiers={props.customerTiers}
                 onUpdateTiers={props.onUpdateCustomerTiers}
@@ -4953,9 +5572,30 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                 addToast={props.addToast}
                 calculationMethod={props.customerTierCalculationMethod}
                 onUpdateCalculationMethod={props.onUpdateCustomerTierCalculationMethod}
-                customerTypes={props.customerTypes} // MODIFIED: Pass customerTypes
+                customerTypes={props.customerTypes}
+                {...permissionProps}
                 />;
-            case 'taskStatuses': return <GenericMasterManager key="taskStatuses" title="Manage Task Status" items={props.taskStatuses} onUpdate={props.onUpdateTaskStatuses} addToast={props.addToast} noun="Task Status" reorderable={true} codeColumnDisplay="hidden" dependencyCheck={(id) => props.allMembers.flatMap(m => m.policies.flatMap(p => (p as any).tasks || [])).filter((t: any) => t.statusId === id).map((t: any) => ({ name: t.taskDescription, type: 'task' }))} />;
+            case 'taskStatuses': return <GenericMasterManager 
+                key="taskStatuses" 
+                title="Manage Task Status" 
+                items={props.taskStatuses} 
+                onUpdate={props.onUpdateTaskStatuses} 
+                addToast={props.addToast} 
+                noun="Task Status" 
+                reorderable={true} 
+                codeColumnDisplay="hidden" 
+                dependencyCheck={(id) => props.allMembers.flatMap(m => m.policies.flatMap(p => (p as any).tasks || [])).filter((t: any) => t.statusId === id).map((t: any) => ({ name: t.taskDescription, type: 'task' }))}
+                initialStateKey="isInitialState"
+                endStateKey="isEndState"
+                onUpdateInitialState={(itemId) => {
+                    const updatedStatuses = props.taskStatuses.map(status => ({
+                        ...status,
+                        isInitialState: status.id === itemId
+                    }));
+                    props.onUpdateTaskStatuses(updatedStatuses);
+                }}
+                {...permissionProps}
+            />;
             case 'routes':
                 return <GenericMasterManager 
                     key="routes" 
@@ -4966,8 +5606,9 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                     noun="Route" 
                     reorderable={true} 
                     codeColumnDisplay="hidden"
+                    {...permissionProps}
                 />;
-            case 'religionsAndFestivals': return <ReligionsAndFestivalsManager {...props} />;
+            case 'religionsAndFestivals': return <ReligionsAndFestivalsManager {...props} {...permissionProps} />;
             case 'expenseCategories': return <ExpenseCategoryManager 
                 level1Data={props.expenseCategoriesLevel1} 
                 level2Data={props.expenseCategoriesLevel2} 
@@ -4976,6 +5617,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                 onUpdateLevel2={props.onUpdateExpenseCategoriesLevel2}
                 onUpdateLevel3={props.onUpdateExpenseCategoriesLevel3}
                 addToast={props.addToast}
+                {...permissionProps}
                 />;
             case 'incomeCategories': return <IncomeCategoryManager 
                 level1Data={props.incomeCategoriesLevel1} 
@@ -4983,6 +5625,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                 onUpdateLevel1={props.onUpdateIncomeCategoriesLevel1}
                 onUpdateLevel2={props.onUpdateIncomeCategoriesLevel2}
                 addToast={props.addToast}
+                {...permissionProps}
                 />;
             case 'relationshipTypes': return <GenericMasterManager 
                 key="relationshipTypes" 
@@ -4994,12 +5637,10 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                 reorderable={true}
                 codeColumnDisplay="hidden"
                 dependencyCheck={(id) => props.allMembers.filter(m => m.dynamicData?.relationship === props.relationshipTypes.find(rt => rt.id === id)?.name).map(m => ({ name: m.name, type: 'member' }))} 
+                {...permissionProps}
                 />;
 
             
-            // --- MODIFICATION START: Added new cases and refactored customerSegments ---
-            // ... (code from previous response)
-
             case 'customerSegments': return (
                 <div className="space-y-8">
                     <GenericMasterManager 
@@ -5011,6 +5652,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                         dependencyCheck={(id) => props.allMembers.filter(m => m.customerCategoryId === id).map(m => ({ name: m.name, type: 'member' }))}
                         reorderable={true}
                         codeColumnDisplay="hidden"
+                        {...permissionProps}
                     />
                     <GenericMasterManager 
                         title="Manage Customer Sub-Category" 
@@ -5027,6 +5669,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                         }]}
                         reorderable={true}
                         codeColumnDisplay="hidden"
+                        {...permissionProps}
                     />
                     <GenericMasterManager 
                         title="Manage Customer Group" 
@@ -5037,6 +5680,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                         dependencyCheck={(id) => props.allMembers.filter(m => m.customerGroupId === id).map(m => ({ name: m.name, type: 'member' }))}
                         reorderable={true}
                         codeColumnDisplay="hidden"
+                        {...permissionProps}
                     />
                     <GenericMasterManager 
                         title="Manage Customer Type"
@@ -5047,6 +5691,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                         reorderable={true}
                         codeColumnDisplay="hidden"
                         dependencyCheck={(id) => props.customerTiers.filter(t => t.customerTypeId === id).map(t => ({ name: t.name || 'Unnamed Tier', type: 'policy' }))}
+                        {...permissionProps}
                     />
                 </div>
             );
@@ -5060,6 +5705,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                 reorderable={true} 
                 codeColumnDisplay="hidden"
                 dependencyCheck={(id) => props.allMembers.filter(m => m.gender === id).map(m => ({ name: m.name, type: 'member' }))}
+                {...permissionProps}
             />;
             case 'maritalStatuses': return <GenericMasterManager 
                 key="maritalStatuses" 
@@ -5071,9 +5717,9 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                 reorderable={true} 
                 codeColumnDisplay="hidden"
                 dependencyCheck={(id) => props.allMembers.filter(m => m.maritalStatus === id).map(m => ({ name: m.name, type: 'member' }))}
+                {...permissionProps}
             />;
-            // --- MODIFICATION END ---
-             case 'customerMaster': return (
+            case 'customerMaster': return (
                 <GenericMasterManager
                     key="customerMaster"
                     title="Manage Custom Customer Field"
@@ -5083,6 +5729,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                     noun="Field"
                     reorderable={true}
                     codeColumnDisplay="group"
+                    {...permissionProps}
                 />
             );
             case 'taskMasters': return (
@@ -5097,6 +5744,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                         codeColumnDisplay="hidden"
                         showAddButton={false}
                         dependencyCheck={(id) => props.allMembers.flatMap(m => (m as any).tasks || []).filter((t: any) => t.taskMasterId === id).map((t: any) => ({ name: t.taskDescription, type: 'task' }))}
+                        {...permissionProps}
                     />
                 </div>
             );
@@ -5137,6 +5785,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                                 return props.allMembers.filter(m => m.bankDetails?.bankName === item.bankName).map(m => ({ name: m.name, type: 'member' }));
                             }}
                             codeColumnDisplay="hidden"
+                            {...permissionProps}
                         />
                         <GenericMasterManager
                             key="accountTypes"
@@ -5147,6 +5796,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                             noun="Account Type"
                             reorderable={true}
                             codeColumnDisplay="hidden"
+                            {...permissionProps}
                         />
                     </div>
                 );

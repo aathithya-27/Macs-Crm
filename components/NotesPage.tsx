@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-// MODIFIED: Import permission-related types
-import { Member, VoiceNote, User, Lead, FinRootsBranch, Designation, AppModule, PermissionLevel } from '../types.ts';
+import { Member, VoiceNote, User, Lead, FinRootsBranch, Designation, AppModule, PermissionLevel, Role, Task } from '../types.ts';
 import { searchVoiceNotes, SearchResult, summarizeTranscript, transcribeAudioToEnglish, summarizeManualText } from '../services/geminiService.ts';
 import Button from './ui/Button.tsx';
 import { NotebookText, Search, BrainCircuit, Loader2, Calendar, Download, FileText, ArrowLeft, Mic, StopCircle, Save, X, Brain, PlusCircle, Trash2, Tag, Languages, RefreshCw, XCircle, PencilLine, Settings2, User as UserIcon, CheckCircle, GripVertical, List, Briefcase, ChevronDown } from 'lucide-react';
@@ -62,7 +61,7 @@ const NoteCard = ({ note, memberName, memberId, highlights = [], onCreateTaskFro
         const blob = new Blob([summary], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-        a.href = url;
+          a.href = url;
         a.download = filename.replace(/\.[^/.]+$/, ".txt");
         document.body.appendChild(a);
         a.click();
@@ -131,20 +130,20 @@ interface NotesPageProps {
   leads: Lead[];
   onSaveMember: (member: Member, closeModal?: boolean) => void;
   onSaveLeadNote: (leadId: string, newNote: VoiceNote) => void;
-  onCreateTask: (description: string, dueDate?: string, memberName?: string, memberId?: string) => void;
+  onCreateTask: (task: Omit<Task, 'id'>) => void;
   addToast: (message: string, type?: 'success' | 'error') => void;
   currentUser: User | null;
   users: User[];
   finrootsBranches: FinRootsBranch[];
-  designations: Designation[]; // NEW PROP
-  // NEW: Accept permissions prop
+  designations: Designation[];
   permissions: { [key in AppModule]?: PermissionLevel };
+  roles: Role[];
 }
 
 
 const NotesPage: React.FC<NotesPageProps> = ({ 
     members, leads, onSaveMember, onSaveLeadNote, onCreateTask, addToast, 
-    currentUser, users, finrootsBranches, designations, permissions
+    currentUser, users, finrootsBranches, designations, permissions, roles
 }) => {
     // --- State for Note Creator ---
     const [creatorMode, setCreatorMode] = useState<CreatorMode>('voice');
@@ -181,7 +180,6 @@ const NotesPage: React.FC<NotesPageProps> = ({
         return { selectedClient: null, isLead: false };
     }, [selectedClientId, members, leads]);
     
-    // MODIFIED: This check now uses the permissions prop
     const canCreateNote = useMemo(() => {
         if (!selectedClient || !currentUser) {
             return false;
@@ -193,24 +191,30 @@ const NotesPage: React.FC<NotesPageProps> = ({
     }, [selectedClient, currentUser, isLead, permissions]);
 
     const membersForDropdown = useMemo(() => {
-        const userDesignation = designations.find(d => d.id === currentUser?.designationId);
-        if (userDesignation?.name === 'Admin') {
+        const userRole = roles.find(r => r.id === currentUser?.roleId);
+        const hasViewAllPermission = permissions?.customers === 'view' || permissions?.customers === 'create' || permissions?.customers === 'modify';
+
+        if (hasViewAllPermission && !userRole?.isAdvisor) {
             return members.filter(m => m.active);
         }
-        if (userDesignation?.isAdvisor) {
+        if (userRole?.isAdvisor) {
             return members.filter(member => member.active && (member.assignedTo || []).includes(currentUser!.id));
         }
         return [];
-    }, [members, currentUser, designations]);
+    }, [members, currentUser, roles, permissions]);
     
     const clientsForDropdown = useMemo(() => {
         const memberOptions = membersForDropdown.map(m => ({ value: `member:${m.id}`, label: m.name, type: 'Customer' }));
-        const userDesignation = designations.find(d => d.id === currentUser?.designationId);
+        
+        const userRole = roles.find(r => r.id === currentUser?.roleId);
+        const hasViewAllLeads = permissions?.pipeline === 'view' || permissions?.pipeline === 'create' || permissions?.pipeline === 'modify';
+
         const leadOptions = (leads || [])
-            .filter(l => l.status !== 'Won' && l.status !== 'Lost' && (userDesignation?.name === 'Admin' || l.assignedTo === currentUser?.id))
+            .filter(l => l.status !== 'Won' && l.status !== 'Lost' && (hasViewAllLeads && !userRole?.isAdvisor || l.assignedTo === currentUser?.id))
             .map(l => ({ value: `lead:${l.id}`, label: l.name, type: 'Lead' }));
+            
         return [...memberOptions, ...leadOptions].sort((a, b) => a.label.localeCompare(b.label));
-    }, [membersForDropdown, leads, currentUser, designations]);
+    }, [membersForDropdown, leads, currentUser, roles, permissions]);
 
     useEffect(() => {
         return () => {
@@ -378,13 +382,15 @@ const NotesPage: React.FC<NotesPageProps> = ({
     
     const visibleNotesForUser = useMemo(() => {
         if (!currentUser) return [];
-        const userDesignation = designations.find(d => d.id === currentUser.designationId);
+        const userRole = roles.find(r => r.id === currentUser.roleId);
+        const hasViewAllPermission = (permissions?.customers === 'view' || permissions?.customers === 'create' || permissions?.customers === 'modify') && 
+                                   (permissions?.pipeline === 'view' || permissions?.pipeline === 'create' || permissions?.pipeline === 'modify');
 
-        if (userDesignation?.name === 'Admin') {
+        if (hasViewAllPermission && !userRole?.isAdvisor) {
             return allNotesWithContext;
         }
 
-        if (userDesignation?.isAdvisor) {
+        if (userRole?.isAdvisor) {
             const assignedMemberIds = new Set(
                 members
                     .filter(m => (m.assignedTo || []).includes(currentUser.id))
@@ -402,7 +408,7 @@ const NotesPage: React.FC<NotesPageProps> = ({
             );
         }
         return [];
-    }, [allNotesWithContext, currentUser, members, leads, designations]);
+    }, [allNotesWithContext, currentUser, members, leads, roles, permissions]);
 
 
     const handleSearch = useCallback(async () => {
@@ -433,12 +439,13 @@ const NotesPage: React.FC<NotesPageProps> = ({
     };
     
     const noteTakers = useMemo(() => {
-        const isAdmin = designations.find(d => d.id === currentUser?.designationId)?.name === 'Admin';
-        if (!isAdmin) return [];
+        const userRole = roles.find(r => r.id === currentUser?.roleId);
+        const hasManagementPermission = (permissions?.customers === 'create' || permissions?.customers === 'modify') && !userRole?.isAdvisor;
+        if (!hasManagementPermission) return [];
         
-        const advisorDesignationIds = new Set(designations.filter(d => d.isAdvisor).map(d => d.id));
-        return users.filter(user => advisorDesignationIds.has(user.designationId));
-    }, [users, currentUser, designations]);
+        const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
+        return users.filter(user => user.roleId && advisorRoleIds.has(user.roleId));
+    }, [users, currentUser, roles, permissions]);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -467,8 +474,9 @@ const NotesPage: React.FC<NotesPageProps> = ({
             }).map(item => ({...item, highlights: advSearchFilters.keyword ? [advSearchFilters.keyword] : []}));
         }
 
-        const isAdmin = designations.find(d => d.id === currentUser?.designationId)?.name === 'Admin';
-        if (isAdmin && advisorFilter !== 'all') {
+        const userRole = roles.find(r => r.id === currentUser?.roleId);
+        const hasFilterPermission = (permissions?.customers === 'create' || permissions?.customers === 'modify') && !userRole?.isAdvisor;
+        if (hasFilterPermission && advisorFilter !== 'all') {
             return notesToDisplay.filter(item => {
                 const client = item.member as Member | Lead;
                 if ('assignedTo' in client && Array.isArray(client.assignedTo)) {
@@ -481,11 +489,12 @@ const NotesPage: React.FC<NotesPageProps> = ({
         }
 
         return notesToDisplay;
-    }, [searchMode, searchResults, visibleNotesForUser, searchPerformed, advSearchFilters, currentUser, advisorFilter, designations]);
+    }, [searchMode, searchResults, visibleNotesForUser, searchPerformed, advSearchFilters, currentUser, advisorFilter, roles, permissions]);
     
     const notesGroupedByClient = useMemo(() => {
-        const isAdmin = designations.find(d => d.id === currentUser?.designationId)?.name === 'Admin';
-        if (adminViewMode === 'client' && isAdmin) {
+        const userRole = roles.find(r => r.id === currentUser?.roleId);
+        const hasGroupViewPermission = (permissions?.customers === 'create' || permissions?.customers === 'modify') && !userRole?.isAdvisor;
+        if (adminViewMode === 'client' && hasGroupViewPermission) {
             type GroupedNotes = Record<string, NoteGroup>;
             const initialValue: GroupedNotes = {};
             
@@ -498,7 +507,7 @@ const NotesPage: React.FC<NotesPageProps> = ({
             }, initialValue);
         }
         return null;
-    }, [adminViewMode, displayedNotes, currentUser, designations]);
+    }, [adminViewMode, displayedNotes, currentUser, roles, permissions]);
 
     const totalPages = Math.ceil((notesGroupedByClient ? Object.keys(notesGroupedByClient).length : displayedNotes.length) / ITEMS_PER_PAGE);
     const currentNotes = useMemo(() => {
@@ -528,7 +537,14 @@ const NotesPage: React.FC<NotesPageProps> = ({
     }, [members, onSaveMember, addToast]);
 
     const handleCreateTaskFromActionItem = useCallback((clientId: string, clientName: string, noteId: string, actionItemText: string) => {
-        onCreateTask(actionItemText, undefined, clientName, clientId);
+        onCreateTask({
+            triggeringPoint: 'Voice Note Action Item',
+            taskDescription: actionItemText,
+            expectedCompletionDateTime: new Date().toISOString(),
+            memberId: clientId,
+            taskType: 'Manual',
+            isCompleted: false, // --- MODIFICATION: Added missing property ---
+        });
         handleDismissActionItem(clientId, noteId, actionItemText);
     }, [onCreateTask, handleDismissActionItem]);
 
@@ -684,7 +700,10 @@ const NotesPage: React.FC<NotesPageProps> = ({
                        <button onClick={() => setSearchMode('ai')} className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-full transition-colors ${searchMode === 'ai' ? 'bg-brand-primary text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'}`}><BrainCircuit size={14}/> AI Search</button>
                        <button onClick={() => setSearchMode('advanced')} className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-full transition-colors ${searchMode === 'advanced' ? 'bg-brand-primary text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'}`}><Settings2 size={14}/> Advanced</button>
                     </div>
-                     {designations.find(d => d.id === currentUser?.designationId)?.name === 'Admin' && (
+                     {(() => {
+                        const userRole = roles.find(r => r.id === currentUser?.roleId);
+                        return (permissions?.customers === 'create' || permissions?.customers === 'modify') && !userRole?.isAdvisor;
+                     })() && (
                         <div className="my-4 p-2 bg-gray-100 dark:bg-gray-900 rounded-lg flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <label htmlFor="advisor-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Filter by Employee:</label>
@@ -737,7 +756,10 @@ const NotesPage: React.FC<NotesPageProps> = ({
                 {isSearching ? (
                     <div className="flex flex-col items-center justify-center h-64"><Loader2 className="w-8 h-8 animate-spin text-brand-primary" /><span className="mt-4 text-lg text-gray-600 dark:text-gray-300">Searching with Gemini...</span></div>
                 ) : (notesGroupedByClient ? Object.keys(notesGroupedByClient).length : displayedNotes.length) > 0 ? (
-                    currentUser?.role === 'Admin' && notesGroupedByClient ? (
+                    (() => {
+                        const userRole = roles.find(r => r.id === currentUser?.roleId);
+                        return (permissions?.customers === 'create' || permissions?.customers === 'modify') && !userRole?.isAdvisor;
+                    })() && notesGroupedByClient ? (
                         <div className="space-y-8 mt-6">
                             {currentNotes.map(([memberId, group]: [string, any]) => (
                                 <div key={memberId}>

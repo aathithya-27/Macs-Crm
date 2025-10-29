@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Member, UploadedDocument, BankDetails, BankMaster, PolicyChecklistMaster, Policy, GeneralInsuranceType, DocumentMaster, InsuranceTypeMaster, AppModule, PermissionLevel,AccountType  } from '../../types.ts';
+import { Member, UploadedDocument, BankDetails, BankMaster, Policy, DocumentMaster, InsuranceTypeMaster, AppModule, PermissionLevel, AccountType, InsuranceTypeDocumentRule } from '../../types.ts';
 import Input from '../ui/Input.tsx';
 import { extractDataFromImage } from '../../services/geminiService.ts';
-import { ImageIcon, Loader2, FileText, Download, FileText as FileTextIcon, Send, CheckCircle, Clock, Banknote, ClipboardList, Check, Plus, Trash2, Save, X } from 'lucide-react';
+import { ImageIcon, Loader2, FileText, Download, FileText as FileTextIcon, Send, CheckCircle, Clock, Banknote, ClipboardList, Check, Plus, Trash2, Save, X, UploadCloud, Eye, ZoomIn, Image, FileType, Sheet, Video, Music, File } from 'lucide-react';
 import Button from '../ui/Button.tsx';
 
 interface DocumentsTabProps {
@@ -13,47 +13,12 @@ interface DocumentsTabProps {
   errors: Partial<Record<keyof Member | 'bankDetailsError', string>>;
   bankMasters: BankMaster[];
   accountTypes: AccountType[];
-  policyChecklistMasters: PolicyChecklistMaster[];
-  onUpdatePolicyChecklistMasters: (data: PolicyChecklistMaster[]) => void;
   documentMasters: DocumentMaster[];
   onAddDocumentMaster: (name: string) => void;
-  // NEW PROP to access the insurance type hierarchy
   insuranceTypes: InsuranceTypeMaster[];
+  insuranceTypeDocumentRules: InsuranceTypeDocumentRule[];
   permissions: { [key in AppModule]?: PermissionLevel };
 }
-
-const CustomChecklistItemAdder: React.FC<{
-    category: PolicyChecklistMaster;
-    onAdd: (name: string, category: PolicyChecklistMaster) => void;
-}> = ({ category, onAdd }) => {
-    const [newItemName, setNewItemName] = useState('');
-
-    const handleAdd = () => {
-        if (newItemName.trim()) {
-            onAdd(newItemName.trim(), category);
-            setNewItemName('');
-        }
-    };
-
-    return (
-        <div className="flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-700/50 rounded-md">
-            <Input 
-                placeholder="Add custom item..." 
-                value={newItemName} 
-                onChange={e => setNewItemName(e.target.value)} 
-                className="flex-grow !py-1 bg-white text-gray-900 dark:bg-gray-700 dark:text-white"
-                onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAdd();
-                    }
-                }}
-            />
-            <Button variant="secondary" size="small" onClick={handleAdd} className="!p-1.5"><Plus size={16}/></Button>
-        </div>
-    );
-};
-
 
 export const DocumentsTab: React.FC<DocumentsTabProps> = ({ 
     data, 
@@ -63,19 +28,12 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
     errors, 
     bankMasters, 
     accountTypes,
-    policyChecklistMasters, 
-    onUpdatePolicyChecklistMasters,
     documentMasters,
     onAddDocumentMaster,
-    insuranceTypes, // Destructure new prop
+    insuranceTypes,
+    insuranceTypeDocumentRules,
 }) => {
   const [loadingOcr, setLoadingOcr] = useState<'pan' | 'aadhaar' | null>(null);
-  const [addressProofIsImage, setAddressProofIsImage] = useState(true);
-
-  // --- NEW STATE for dynamic document upload ---
-  const [selectedDocType, setSelectedDocType] = useState('');
-  const [isAddingNewDocType, setIsAddingNewDocType] = useState(false);
-  const [newDocTypeName, setNewDocTypeName] = useState('');
 
 
   const handleOcrFileChange = useCallback(async (event: React.ChangeEvent<HTMLInputElement>, field: 'panCard' | 'aadhaar') => {
@@ -131,10 +89,7 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
   
   const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>, documentType: string) => {
     const file = event.target.files?.[0];
-    if (file) {
-      if (documentType === 'Proof of Address') {
-        setAddressProofIsImage(file.type.startsWith('image/'));
-      }
+    if (file && documentType) {
       const objectUrl = URL.createObjectURL(file);
       
       const newDoc: UploadedDocument = {
@@ -149,170 +104,54 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
       onChange('documents', (prevDocs: UploadedDocument[] | undefined) => [...(prevDocs || []), newDoc]);
       
       if(documentType === 'Photo') onChange('photoUrl', objectUrl);
-      if(documentType === 'Proof of Address') onChange('addressProofUrl', objectUrl);
       
       addToast(`'${file.name}' uploaded for ${documentType}.`, 'success');
       event.target.value = ''; // Reset file input
     }
   }, [onChange, addToast]);
 
-  const handleAddNewDocType = () => {
-      if (!newDocTypeName.trim()) {
-          addToast("Document type name cannot be empty.", "error");
-          return;
-      }
-      if (documentMasters.some(doc => doc.name.toLowerCase() === newDocTypeName.trim().toLowerCase())) {
-          addToast("This document type already exists.", "error");
-          return;
-      }
-      onAddDocumentMaster(newDocTypeName.trim());
-      setSelectedDocType(newDocTypeName.trim());
-      setNewDocTypeName('');
-      setIsAddingNewDocType(false);
-      addToast(`New document type "${newDocTypeName.trim()}" added.`, "success");
-  };
+    // --- MODIFICATION START: Logic now groups strictly by the policy's specific insurance type ---
+    const groupedDocumentRequirements = useMemo(() => {
+        const activePolicies = (data.policies || []).filter(p => p.status === 'Active');
+        if (activePolicies.length === 0) return {};
 
-
-    const handleMarkAsSigned = (docId: string) => {
-        const updatedDocs = (data.documents || []).map(doc => {
-            if (doc.id === docId) {
-                return { ...doc, status: 'Signed' as const };
-            }
-            return doc;
-        });
-        onChange('documents', updatedDocs);
-        addToast('Proposal marked as signed!', 'success');
-    };
-    
-    // Fallback for old data structure
-    const getPolicyTypeKey_legacy = (policyType: Policy['policyType'], generalType?: GeneralInsuranceType): string | null => {
-        if (policyType === 'Life Insurance') return 'Life Insurance';
-        if (policyType === 'Health Insurance') return 'Health Insurance';
-        if (policyType === 'General Insurance') return generalType || 'General Insurance';
-        return null;
-    }
-      
-    const { requiredDocumentTree, customChecklistItems } = useMemo(() => {
-        const ownPolicies = data.policies || [];
-        const inheritedPolicies: Policy[] = [];
-
-        // Find inherited policies if the member is a dependent
-        if (data.spocId && data.memberId) {
-            const spoc = allMembers.find(m => m.sno === data.spocId);
-            if (spoc) {
-                (spoc.policies || []).forEach(policy => {
-                    if (policy.policyHolderType === 'Family') {
-                        const isCovered = policy.coveredMembers?.some(cm => 
-                            (cm.memberId && cm.memberId === data.memberId) || 
-                            (!cm.memberId && cm.name.toLowerCase() === data.name?.toLowerCase() && cm.dob === data.dob)
-                        );
-                        if (isCovered) {
-                            inheritedPolicies.push(policy);
-                        }
-                    }
-                });
-            }
-        }
-    
-        const allApplicablePolicies = [...ownPolicies, ...inheritedPolicies];
-        const activePolicies = allApplicablePolicies.filter(p => p.status === 'Active');
-
-        if (activePolicies.length === 0) {
-            return { requiredDocumentTree: [], customChecklistItems: [] };
-        }
+        const insuranceTypeMap = new Map(insuranceTypes.map(it => [it.id, it]));
+        const requirements: Record<string, { docId: string; name: string; isMandatory: boolean; }[]> = {};
         
-        // --- NEW HIERARCHICAL LOGIC ---
-        const insuranceTypeMap = new Map(insuranceTypes.map(it => [it.id, it.name]));
-        
-        // 1. Get all unique, active insuranceTypeId's from the policies
-        const activeInsuranceTypeIds = new Set<string>();
-        activePolicies.forEach(p => {
-            if (p.insuranceTypeId) {
-                activeInsuranceTypeIds.add(p.insuranceTypeId);
-            }
-        });
+        // Get unique insurance type IDs from active policies
+        const uniqueTypeIds = [...new Set(activePolicies.map(p => p.insuranceTypeId).filter(Boolean))];
 
-        // 2. Get the names of these insurance types
-        const activeInsuranceTypeNames = new Set<string>();
-        activeInsuranceTypeIds.forEach(id => {
-            const name = insuranceTypeMap.get(id);
-            if (name) {
-                activeInsuranceTypeNames.add(name);
+        uniqueTypeIds.forEach(typeId => {
+            const typeInfo = insuranceTypeMap.get(typeId as string);
+            if (!typeInfo) return;
+
+            const groupName = typeInfo.name;
+            if (!requirements[groupName]) {
+                requirements[groupName] = [];
             }
-        });
-        
-        // 3. Fallback for old data structure for backward compatibility
-        activePolicies.forEach(p => {
-            if (!p.insuranceTypeId) {
-                const key = getPolicyTypeKey_legacy(p.policyType, p.generalInsuranceType);
-                if (key) {
-                    activeInsuranceTypeNames.add(key);
+
+            // Get rules ONLY for this specific type
+            const rulesForThisType = insuranceTypeDocumentRules.filter(rule => rule.insuranceTypeId === typeId);
+
+            rulesForThisType.forEach(rule => {
+                const docMaster = documentMasters.find(dm => dm.id === rule.documentId);
+                if (docMaster) {
+                    requirements[groupName].push({
+                        docId: docMaster.id,
+                        name: docMaster.name,
+                        isMandatory: rule.isMandatory,
+                    });
                 }
-            }
+            });
         });
+        
+        // Sort docs within each group
+        Object.values(requirements).forEach(group => group.sort((a, b) => a.name.localeCompare(b.name)));
+        
+        return requirements;
+    }, [data.policies, insuranceTypes, insuranceTypeDocumentRules, documentMasters]);
+    // --- MODIFICATION END ---
 
-        // 4. Find the root checklist items that match these names
-        const relevantChecklistRootIds = new Set<string>();
-        policyChecklistMasters.forEach(item => {
-            if (!item.parentId && item.active && activeInsuranceTypeNames.has(item.name)) {
-                relevantChecklistRootIds.add(item.id);
-            }
-        });
-
-        // 5. Build the final tree based on these root IDs
-        const finalTree: { category: PolicyChecklistMaster, items: PolicyChecklistMaster[] }[] = [];
-        policyChecklistMasters.forEach(item => {
-            // If the item is a root that we care about
-            if (relevantChecklistRootIds.has(item.id)) {
-                const children = policyChecklistMasters.filter(child => child.parentId === item.id && child.active);
-                if (children.length > 0) {
-                    finalTree.push({ category: item, items: children });
-                }
-            }
-        });
-        // --- END OF NEW HIERARCHICAL LOGIC ---
-
-        finalTree.forEach(node => node.items.sort((a, b) => a.name.localeCompare(b.name)));
-
-        const masterItemsNames = new Set(policyChecklistMasters.map(i => i.name));
-        const customItems = Object.entries(data.documentChecklist || {})
-            .filter(([key]) => !masterItemsNames.has(key))
-            .map(([key, value]) => ({ name: key, value }));
-
-        return { requiredDocumentTree: finalTree, customChecklistItems: customItems };
-
-    }, [data, allMembers, policyChecklistMasters, insuranceTypes]);
-
-
-    const handleChecklistChange = (docName: string, value: any) => {
-        const newChecklist = { ...(data.documentChecklist || {}), [docName]: value };
-        onChange('documentChecklist', newChecklist);
-    };
-
-    const handleAddCustomChecklistItem = (itemName: string, category: PolicyChecklistMaster) => {
-        const masterNames = new Set(policyChecklistMasters.map(i => i.name.toLowerCase()));
-        if (masterNames.has(itemName.toLowerCase()) || (data.documentChecklist && itemName in data.documentChecklist)) {
-            addToast('This checklist item already exists.', 'error');
-            return;
-        }
-
-        const newItem: PolicyChecklistMaster = {
-            id: `pcl-custom-${Date.now()}`,
-            name: itemName,
-            parentId: category.id,
-            policyType: category.policyType, // Kept for consistency, though linkage is via parentId
-            active: true,
-        };
-
-        onUpdatePolicyChecklistMasters([...policyChecklistMasters, newItem]);
-        handleChecklistChange(itemName, false);
-        addToast(`"${itemName}" added to checklist and master data.`, 'success');
-    };
-
-    const handleDeleteCustomChecklistItem = (itemName: string) => {
-        const { [itemName]: _, ...rest } = (data.documentChecklist || {});
-        onChange('documentChecklist', rest);
-    };
 
     const handleBankDetailsChange = useCallback((field: keyof BankDetails, value: string) => {
         const newBankDetails = {
@@ -322,41 +161,34 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
         onChange('bankDetails', newBankDetails);
     }, [data.bankDetails, onChange]);
 
+    const handleRemoveDocument = (docType: string) => {
+        const updatedDocs = (data.documents || []).filter(doc => doc.documentType !== docType);
+        onChange('documents', updatedDocs);
+        addToast(`Document for ${docType} removed.`, 'success');
+    }
+
+    const getFileIcon = (mimeType: string) => {
+        if (mimeType.startsWith('image/')) return <Image size={24} className="text-blue-500" />;
+        if (mimeType === 'application/pdf') return <FileType size={24} className="text-red-500" />;
+        if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return <Sheet size={24} className="text-green-500" />;
+        if (mimeType.startsWith('video/')) return <Video size={24} className="text-purple-500" />;
+        if (mimeType.startsWith('audio/')) return <Music size={24} className="text-orange-500" />;
+        if (mimeType.includes('word') || mimeType.includes('document')) return <FileTextIcon size={24} className="text-blue-600" />;
+        return <File size={24} className="text-gray-500" />;
+    };
+
+    const isImageFile = (mimeType: string) => {
+        return mimeType.startsWith('image/');
+    };
+
+    const handlePreviewClick = (fileUrl: string, fileName: string, mimeType: string) => {
+        window.open(fileUrl, '_blank');
+    };
 
   const fileInputClasses = "block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-brand-primary file:text-white hover:file:bg-blue-700 cursor-pointer dark:text-gray-400";
   
-  const orderedDocuments = useMemo(() => {
-    const order = ['Aadhaar Card', 'PAN Card', 'Photo', 'Proof of Address'];
-    return (data.documents || []).sort((a,b) => {
-        const aIndex = order.indexOf(a.documentType);
-        const bIndex = order.indexOf(b.documentType);
-        if (aIndex === -1 && bIndex === -1) return a.documentType.localeCompare(b.documentType);
-        if (aIndex === -1) return 1;
-        if (bIndex === -1) return -1;
-        return aIndex - bIndex;
-    });
-  }, [data.documents]);
-
-  const StatusBadge = ({ status }: { status: UploadedDocument['status'] }) => {
-      if (!status || status === 'Uploaded') return null;
-      
-      const styles = {
-          'Sent for Signature': { icon: <Clock size={12} />, text: 'text-orange-700 dark:text-orange-300', bg: 'bg-orange-100 dark:bg-orange-900/30' },
-          'Signed': { icon: <CheckCircle size={12} />, text: 'text-green-700 dark:text-green-300', bg: 'bg-green-100 dark:bg-green-900/30' },
-      };
-      
-      const style = styles[status];
-      if (!style) return null;
-      
-      return (
-          <div className={`mt-2 inline-flex items-center gap-1.5 py-1 px-2 rounded-md text-xs font-medium ${style.bg} ${style.text}`}>
-              {style.icon} {status}
-          </div>
-      );
-  };
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Input label="PAN Card *" id="panCard" value={data.panCard || ''} onChange={(e) => onChange('panCard', e.target.value)} />
         <Input label="Aadhaar *" id="aadhaar" value={data.aadhaar || ''} onChange={(e) => onChange('aadhaar', e.target.value)} />
@@ -392,181 +224,92 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
                             <input id="photoUpload" name="photoUpload" type="file" className="sr-only" accept="image/*" onChange={(e) => handleFileUpload(e, 'Photo')} />
                         </label>
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">PNG, JPG, GIF up to 10MB</p>
-                </div>
-            </div>
-        </div>
-
-        <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Proof of Address</label>
-            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md dark:border-gray-600">
-                <div className="space-y-1 text-center">
-                     {data.addressProofUrl ? (
-                         addressProofIsImage ? (
-                            <img 
-                                src={data.addressProofUrl} 
-                                alt="Address proof preview" 
-                                className="mx-auto h-24 w-auto object-contain rounded-md" 
-                                onError={() => setAddressProofIsImage(false)}
-                            />
-                         ) : (
-                            <div className="mx-auto flex flex-col items-center justify-center h-24">
-                                <FileText className="h-12 w-12 text-gray-400" />
-                                <span className="mt-2 text-xs text-gray-500 dark:text-gray-400">PDF Document</span>
-                            </div>
-                         )
-                    ) : (
-                        <ImageIcon className="mx-auto h-12 w-12 text-gray-400" />
-                    )}
-                    <div className="flex text-sm text-gray-600 dark:text-gray-400 justify-center">
-                        <label htmlFor="addressProofUpload" className="relative cursor-pointer bg-white dark:bg-gray-800 rounded-md font-medium text-brand-primary hover:text-blue-700 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-brand-primary">
-                            <span>Upload a file</span>
-                            <input id="addressProofUpload" name="addressProofUpload" type="file" className="sr-only" accept="image/*,application/pdf" onChange={(e) => handleFileUpload(e, 'Proof of Address')} />
-                        </label>
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">PNG, JPG, PDF up to 10MB</p>
                 </div>
             </div>
         </div>
       </div>
        
-      {/* --- NEW SECTION: DYNAMIC DOCUMENT UPLOAD --- */}
-      <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">General Documents</h3>
-        <div className="p-4 border-2 border-dashed dark:border-gray-600 rounded-lg space-y-4">
-            {isAddingNewDocType ? (
-                <div className="animate-fade-in">
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">New Document Type Name</label>
-                    <div className="flex items-center gap-2">
-                        <Input 
-                            value={newDocTypeName}
-                            onChange={e => setNewDocTypeName(e.target.value)}
-                            placeholder="e.g., Driving License"
-                            autoFocus
-                        />
-                        <Button variant="success" size="small" onClick={handleAddNewDocType} className="!p-1.5"><Save size={16}/></Button>
-                        <Button variant="secondary" size="small" onClick={() => setIsAddingNewDocType(false)} className="!p-1.5"><X size={16}/></Button>
-                    </div>
-                </div>
-            ) : (
-                 <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Select Document Type</label>
-                    <select
-                        value={selectedDocType}
-                        onChange={e => {
-                            if (e.target.value === 'add_new') {
-                                setIsAddingNewDocType(true);
-                                setSelectedDocType('');
-                            } else {
-                                setSelectedDocType(e.target.value);
-                            }
-                        }}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                    >
-                        <option value="">-- Select a document --</option>
-                        {documentMasters.filter(d => d.active).map(doc => (
-                            <option key={doc.id} value={doc.name}>{doc.name}</option>
-                        ))}
-                        <option value="add_new" className="font-bold text-blue-600 dark:text-blue-400">
-                            + Add New Type...
-                        </option>
-                    </select>
-                </div>
-            )}
-           
-            <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Upload File</label>
-                <input
-                    type="file"
-                    className={fileInputClasses}
-                    onChange={(e) => handleFileUpload(e, selectedDocType)}
-                    disabled={!selectedDocType}
-                    key={selectedDocType} // Re-renders the input when type changes
-                />
-                {!selectedDocType && <p className="text-xs text-gray-500 mt-1">Please select a document type to enable file upload.</p>}
-            </div>
-        </div>
-      </div>
-
-      <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Uploaded Documents</h3>
-        {orderedDocuments.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {orderedDocuments.map((doc) => (
-                <div key={doc.id} className="relative group bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 border dark:border-gray-600/50 text-center flex flex-col justify-between">
-                    <div>
-                        {doc.mimeType.startsWith('image/') ? <ImageIcon className="w-10 h-10 mx-auto text-gray-400" /> : <FileTextIcon className="w-10 h-10 mx-auto text-gray-400" />}
-                        <p className="mt-2 text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">{doc.documentType}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate" title={doc.fileName}>{doc.fileName}</p>
-                        <StatusBadge status={doc.status} />
-                    </div>
-                    <div className="mt-3 flex justify-center gap-2">
-                        <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" download={doc.fileName} className="p-1.5 rounded-md text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-600">
-                            <Download size={16} />
-                        </a>
-                        {doc.status === 'Sent for Signature' && (
-                            <Button size="small" variant="success" onClick={() => handleMarkAsSigned(doc.id)}>
-                                <CheckCircle size={14} /> Mark Signed
-                            </Button>
-                        )}
-                    </div>
-                </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-10 text-gray-500 dark:text-gray-400">
-            <FileTextIcon size={40} className="mx-auto text-gray-300 dark:text-gray-600"/>
-            <p className="mt-2 text-sm font-semibold">No Documents Uploaded</p>
-            <p className="mt-1 text-xs">Upload documents using the options above.</p>
-          </div>
-        )}
-      </div>
-
-      <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-            <ClipboardList /> Policy Document Checklist
-        </h3>
-        {requiredDocumentTree.length > 0 ? (
-            <div className="space-y-4">
-                {requiredDocumentTree.map(({ category, items }) => (
-                    <div key={category.id}>
-                        <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">{category.name}</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {items.map(item => (
-                                <label key={item.id} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md">
-                                    <input
-                                        type="checkbox"
-                                        checked={!!data.documentChecklist?.[item.name]}
-                                        onChange={e => handleChecklistChange(item.name, e.target.checked)}
-                                        className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
-                                    />
-                                    <span className="text-sm text-gray-800 dark:text-gray-200">{item.name}</span>
-                                </label>
-                            ))}
-                            {customChecklistItems.filter(ci => {
-                                const masterItem = policyChecklistMasters.find(pcm => pcm.name === ci.name);
-                                return masterItem && masterItem.parentId === category.id;
-                            }).map(item => (
-                                 <div key={item.name} className="flex items-center justify-between p-2 bg-gray-100 dark:bg-gray-700 rounded-md">
-                                    <label className="flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            checked={!!item.value}
-                                            onChange={e => handleChecklistChange(item.name, e.target.checked)}
-                                            className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary"
-                                        />
-                                        <span className="text-sm text-gray-800 dark:text-gray-200">{item.name}</span>
-                                    </label>
-                                    <Button size="small" variant="danger" className="!p-1" onClick={() => handleDeleteCustomChecklistItem(item.name)}><Trash2 size={12}/></Button>
+      <div className="space-y-6">
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white border-b pb-2">Policy Document Requirements</h3>
+        {Object.keys(groupedDocumentRequirements).length > 0 ? (
+            Object.entries(groupedDocumentRequirements).map(([groupName, requirements]) => (
+                <div key={groupName}>
+                    <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">{groupName} Requirements</h4>
+                    {requirements.length === 0 ? (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 italic">No required documents for this insurance type.</p>
+                    ) : (
+                        <div className="space-y-3">
+                            {requirements.map(req => {
+                            const uploadedFile = (data.documents || []).find(d => d.documentType === req.name);
+                            return (
+                                <div key={req.docId} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                    <div className="flex-1">
+                                        <p className="font-semibold text-gray-800 dark:text-white">
+                                            {req.name}
+                                            {req.isMandatory && <span className="text-red-500 ml-1">*</span>}
+                                        </p>
+                                        {uploadedFile && (
+                                            <div className="mt-2 flex items-center gap-3">
+                                                <div className="relative group cursor-pointer" onClick={() => handlePreviewClick(uploadedFile.fileUrl, uploadedFile.fileName, uploadedFile.mimeType)}>
+                                                    {isImageFile(uploadedFile.mimeType) ? (
+                                                        <>
+                                                            <img 
+                                                                src={uploadedFile.fileUrl} 
+                                                                alt={uploadedFile.fileName}
+                                                                className="w-16 h-16 object-cover rounded-md border hover:opacity-80 transition-opacity"
+                                                            />
+                                                            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black bg-opacity-50 rounded-md">
+                                                                <ZoomIn size={20} className="text-white" />
+                                                            </div>
+                                                        </>
+                                                    ) : (
+                                                        <div className="w-16 h-16 bg-gray-100 dark:bg-gray-600 rounded-md flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors">
+                                                            {getFileIcon(uploadedFile.mimeType)}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="text-sm text-gray-600 dark:text-gray-300">
+                                                    <span className="truncate block max-w-48">{uploadedFile.fileName}</span>
+                                                    <span className="text-xs text-gray-400">{uploadedFile.mimeType}</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex-shrink-0 flex items-center gap-2">
+                                        {uploadedFile ? (
+                                            <>
+                                                <button 
+                                                    onClick={() => handlePreviewClick(uploadedFile.fileUrl, uploadedFile.fileName, uploadedFile.mimeType)}
+                                                    className="p-1.5 rounded-md text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-600" 
+                                                    title="Preview Document"
+                                                >
+                                                    <Eye size={16} />
+                                                </button>
+                                                <a href={uploadedFile.fileUrl} download={uploadedFile.fileName} className="p-1.5 rounded-md text-gray-500 hover:bg-gray-200 dark:text-gray-400 dark:hover:bg-gray-600" title="Download Document">
+                                                    <Download size={16} />
+                                                </a>
+                                                <Button size="small" variant="danger" className="!p-1.5" onClick={() => handleRemoveDocument(req.name)} title="Remove Document">
+                                                    <Trash2 size={14}/>
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <label className="relative cursor-pointer">
+                                                <Button as="span" variant="light" size="small">
+                                                    <UploadCloud size={14}/> Upload
+                                                </Button>
+                                                <input type="file" className="sr-only" onChange={(e) => handleFileUpload(e, req.name)} />
+                                            </label>
+                                        )}
+                                    </div>
                                 </div>
-                            ))}
-                            <CustomChecklistItemAdder category={category} onAdd={handleAddCustomChecklistItem} />
+                            );
+                            })}
                         </div>
-                    </div>
-                ))}
-            </div>
+                    )}
+                </div>
+            ))
         ) : (
-            <p className="text-sm text-gray-500 dark:text-gray-400">Add an active policy in the 'Policies' tab to see the required document checklist.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Add an active policy in the 'Policies' tab to see the required document list.</p>
         )}
       </div>
 
@@ -605,6 +348,8 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
           </div>
           {errors.bankDetailsError && <p className="text-red-600 text-xs mt-2">{errors.bankDetailsError}</p>}
       </div>
+
+
     </div>
   );
 };

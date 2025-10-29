@@ -61,7 +61,7 @@ const FocusItemCard: React.FC<{
     const handleCall = () => {
         const phone = member?.mobile || lead?.phone;
         if (phone) {
-            window.location.href = `tel:${phone}`;
+                      window.location.href = `tel:${phone}`;
         }
     };
 

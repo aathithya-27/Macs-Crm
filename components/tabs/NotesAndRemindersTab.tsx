@@ -1,5 +1,4 @@
 import React, { useMemo, useCallback, useRef, useEffect, useState } from 'react';
-// CORRECTED: Fixed import path and added permission types
 import { Member, VoiceNote, Policy, User, SpecialOccasion, Task, Designation, AppModule, PermissionLevel } from '../../types.ts';
 import { summarizeTranscript, transcribeAudioToEnglish } from '../../services/geminiService.ts';
 import Button from '../ui/Button.tsx';
@@ -14,8 +13,8 @@ interface NotesAndRemindersTabProps {
   onChange: (field: keyof Member, value: any) => void;
   currentUser: User | null;
   designations: Designation[];
-  // CORRECTED: Accept permissions prop
   permissions: { [key in AppModule]?: PermissionLevel };
+  isCurrentUserAdvisor: boolean; // --- MODIFICATION: Added missing prop ---
 }
 
 type Status = 'idle' | 'recording' | 'transcribing' | 'summarizing' | 'error';
@@ -49,7 +48,7 @@ const ToggleSwitch = ({ label, enabled, onChange, disabled }: {label: string, en
 );
 
 
-export const NotesAndRemindersTab: React.FC<NotesAndRemindersTabProps> = ({ data, onSave, addToast, onCreateTask, onChange, currentUser, designations, permissions }) => {
+export const NotesAndRemindersTab: React.FC<NotesAndRemindersTabProps> = ({ data, onSave, addToast, onCreateTask, onChange, currentUser, designations, permissions, isCurrentUserAdvisor }) => {
   const [status, setStatus] = React.useState<Status>('idle');
   const [audioURL, setAudioURL] = React.useState('');
   const [englishTranscript, setEnglishTranscript] = React.useState('');
@@ -62,8 +61,8 @@ export const NotesAndRemindersTab: React.FC<NotesAndRemindersTabProps> = ({ data
   const recognitionRef = React.useRef<any | null>(null);
   const audioChunksRef = React.useRef<Blob[]>([]);
   
-  // CORRECTED: Simplified permission check
   const canModify = permissions?.customers === 'modify';
+  const canCreateTask = (permissions?.taskManagement === 'create' || permissions?.taskManagement === 'modify') && !isCurrentUserAdvisor;
 
   React.useEffect(() => {
     return () => {
@@ -252,7 +251,7 @@ export const NotesAndRemindersTab: React.FC<NotesAndRemindersTabProps> = ({ data
                   {note.actionItems && note.actionItems.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700/50">
                         <h4 className="text-xs uppercase font-bold text-gray-500 dark:text-gray-400 mb-2">Detected Action Items</h4>
-                        <ul className="space-y-2">{note.actionItems.map((item, index) => (<li key={index} className="flex items-center justify-between gap-2 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 p-2 rounded-md"><span>- {item}</span><div className="flex items-center gap-1"><Button size="small" variant="light" onClick={() => handleCreateTaskFromActionItem(note.id, item)}><PlusCircle size={14} /> Create Task</Button><Button size="small" variant="danger" className="!p-2" onClick={() => handleDismissActionItem(note.id, item)}><Trash2 size={14} /></Button></div></li>))}</ul>
+                        <ul className="space-y-2">{note.actionItems.map((item, index) => (<li key={index} className="flex items-center justify-between gap-2 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 p-2 rounded-md"><span>- {item}</span><div className="flex items-center gap-1">{canCreateTask && <Button size="small" variant="light" onClick={() => handleCreateTaskFromActionItem(note.id, item)}><PlusCircle size={14} /> Create Task</Button>}<Button size="small" variant="danger" className="!p-2" onClick={() => handleDismissActionItem(note.id, item)}><Trash2 size={14} /></Button></div></li>))}</ul>
                     </div>
                   )}
                 </div>
@@ -301,4 +300,4 @@ export const NotesAndRemindersTab: React.FC<NotesAndRemindersTabProps> = ({ data
       </div>
     </div>
   );
-};
+};  

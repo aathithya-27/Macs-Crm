@@ -3,10 +3,11 @@
 import { 
     Member, Policy, PolicyType, Lead, User, Route, ProcessStage, EmployeeProfile, Company, 
     FinRootsBranch, Religion, Festival, FestivalDate, AdvisorLocation, CheckIn, 
-    CheckInOutcome, UpsellCategory, Designation, DesignationPermissions, AppModule, PermissionLevel, 
+    CheckInOutcome, UpsellCategory, Designation, RolePermissions, AppModule, PermissionLevel, 
     Gender, MaritalStatus, CustomerType, CustomerTier, ProcessStageMaster, RelationshipType,
     // --- NEW: Import new types ---
-    FinancialYear, DocumentNumbering
+    FinancialYear, DocumentNumbering, Role, // --- ADDED: Import Role ---
+    InsuranceTypeDocumentRule
 } from '../types.ts';
 
 // --- NEW: Mock Data for Financial Years ---
@@ -30,19 +31,43 @@ let documentNumberingData: DocumentNumbering[] = [
 const LS_OPERATING_COMPANIES_KEY = 'finroots-operatingCompanies';
 const LS_USERS_KEY = 'finroots-users';
 
-// --- NEW: MOCK DATA FOR DESIGNATIONS ---
+// --- MODIFIED: MOCK DATA FOR DESIGNATIONS (isAdvisor REMOVED) ---
 let designationsData: Designation[] = [
-    // --- THIS LINE HAS BEEN CORRECTED ---
-    { id: 'des-admin', name: 'Admin', isAdvisor: false, active: true, order: 0 }, // Changed isAdvisor to false
-    { id: 'des-advisor', name: 'Advisor', isAdvisor: true, active: true, order: 1 },
-    { id: 'des-secretary', name: 'Secretary', isAdvisor: false, active: true, order: 2 },
-    { id: 'des-support', name: 'Support', isAdvisor: false, active: true, order: 3 },
+    { id: 'des-admin', name: 'Admin', active: true, order: 0 },
+    { id: 'des-advisor', name: 'Advisor', active: true, order: 1 },
+    { id: 'des-secretary', name: 'Secretary', active: true, order: 2 },
+    { id: 'des-support', name: 'Support', active: true, order: 3 },
+    { id: 'des-security', name: 'Security', active: true, order: 4 }, // Example for a user without a role
 ];
 
+// --- NEW: MOCK DATA FOR ROLES (contains isAdvisor logic) ---
+let rolesData: Role[] = [
+    { id: 'role-admin', name: 'System Administrator', isAdvisor: false, active: true, order: 0 },
+    { id: 'role-advisor', name: 'Sales Advisor', isAdvisor: true, active: true, order: 1 },
+    { id: 'role-secretary', name: 'Office Secretary', isAdvisor: false, active: true, order: 2 },
+    { id: 'role-support', name: 'Support Staff', isAdvisor: false, active: true, order: 3 },
+];
+
+// --- NEW: MOCK DATA FOR DOCUMENT RULES ---
+let insuranceTypeDocumentRulesData: InsuranceTypeDocumentRule[] = [
+    // Life Insurance (Parent) requires PAN and Aadhaar
+    { id: 'rule-1', insuranceTypeId: 'it-life', documentId: 'doc-1', isMandatory: true }, // PAN Card
+    { id: 'rule-2', insuranceTypeId: 'it-life', documentId: 'doc-2', isMandatory: true }, // Aadhaar Card
+    // Term Life (Child) also requires a Bank Statement
+    { id: 'rule-3', insuranceTypeId: 'it-term', documentId: 'doc-5', isMandatory: false }, // Bank Statement (Not Mandatory)
+    // Health Insurance requires Aadhaar
+    { id: 'rule-4', insuranceTypeId: 'it-health', documentId: 'doc-2', isMandatory: true }, // Aadhaar Card
+    // Motor Insurance requires RC book
+    { id: 'rule-5', insuranceTypeId: 'it-motor', documentId: 'doc-4', isMandatory: true }, // Driving License (as a stand-in for RC)
+];
+
+
 // --- MODIFIED: MOCK DATA FOR DESIGNATION PERMISSIONS NOW USES PERMISSIONLEVEL ---
-let designationPermissionsData: DesignationPermissions[] = [
+// --- NOTE: This will later be changed to RolePermissions ---
+// --- MODIFIED: This is now RolePermissionsData and is keyed by roleId ---
+let rolePermissionsData: RolePermissions[] = [
     {
-        designationId: 'des-admin',
+        roleId: 'role-admin',
         permissions: { // Admin has full modify access
             dashboard: 'modify', 'reports & insights': 'modify', profitAndLoss: 'modify', calendar: 'modify', employees: 'modify', 
             pipeline: 'modify', customers: 'modify', taskManagement: 'modify', policies: 'modify', mutualFunds: 'modify', 
@@ -51,7 +76,7 @@ let designationPermissionsData: DesignationPermissions[] = [
         }
     },
     {
-        designationId: 'des-advisor',
+        roleId: 'role-advisor',
         permissions: { // Advisor has core access but is restricted in some areas
             dashboard: 'view', 'reports & insights': 'view', profitAndLoss: 'create', calendar: 'view', employees: 'none',
             pipeline: 'modify', customers: 'modify', taskManagement: 'modify', policies: 'modify', mutualFunds: 'modify',
@@ -60,7 +85,7 @@ let designationPermissionsData: DesignationPermissions[] = [
         }
     },
     {
-        designationId: 'des-secretary',
+        roleId: 'role-secretary',
         permissions: { // Secretary has limited, specific access
             dashboard: 'view', 'reports & insights': 'none', profitAndLoss: 'none', calendar: 'create', employees: 'none',
             pipeline: 'none', customers: 'create', taskManagement: 'create', policies: 'view', mutualFunds: 'none',
@@ -69,16 +94,15 @@ let designationPermissionsData: DesignationPermissions[] = [
         }
     },
     {
-        designationId: 'des-support',
-        permissions: { // Support also has full modify access, as per original file
-            dashboard: 'modify', 'reports & insights': 'modify', profitAndLoss: 'modify', calendar: 'modify', employees: 'modify',
-            pipeline: 'modify', customers: 'modify', taskManagement: 'modify', policies: 'modify', mutualFunds: 'modify',
-            upselling: 'modify', notes: 'modify', actionHub: 'modify', servicesHub: 'modify', location: 'modify',
-            chatbot: 'modify', masterMember: 'modify', advancedReports: 'modify',
+        roleId: 'role-support',
+        permissions: { // Support has specific access rights
+            dashboard: 'view', 'reports & insights': 'view', profitAndLoss: 'none', calendar: 'view', employees: 'view',
+            pipeline: 'view', customers: 'view', taskManagement: 'view', policies: 'view', mutualFunds: 'view',
+            upselling: 'view', notes: 'view', actionHub: 'view', servicesHub: 'view', location: 'none',
+            chatbot: 'view', masterMember: 'none', advancedReports: 'none',
         }
     }
 ];
-
 
 // --- UNIFIED DATA SOURCE FOR BRANCHES ---
 // This is now the single source of truth for all branches in the application.
@@ -115,24 +139,25 @@ const initialCompanies: Company[] = [
     }
 ];
 
-// --- MODIFIED: Users now have a permissions object in their profile ---
+// --- MODIFIED: Users now have a roleId ---
 const initialUsers: User[] = [
     // Finroots Users
     {
         id: 'user-1',
         employeeId: 'admin',
-        name: 'Admin User',
+        name: 'Admin',
         email: 'admin@finroots.com',
-        role: 'Admin', // Kept for potential fallback, but new logic uses designationId
-        designationId: 'des-admin', // NEW
+        role: 'Admin', 
+        designationId: 'des-admin',
+        roleId: 'role-admin', // --- ADDED ---
         company: 'Finroots',
         companyId: 'FIN01',
         initials: 'AU',
-        password: 'admin',
+         password: 'admin',
         profile: { 
             status: 'Active', 
             companyId: 'FIN01',
-            permissions: {} // NEW: Empty object means no overrides, inherits all from Admin designation
+            permissions: {}
         }
     },
     {
@@ -140,16 +165,17 @@ const initialUsers: User[] = [
     employeeId: 'secretary',
     name: 'Secretary User',
     email: 'secretary@finroots.com',
-    role: 'Secretary', // Kept for potential fallback
-    designationId: 'des-secretary', // Links to the Secretary designation
+    role: 'Secretary',
+    designationId: 'des-secretary',
+    roleId: 'role-secretary', // --- ADDED ---
     company: 'Finroots',
     companyId: 'FIN01',
     initials: 'SU',
-    password: 'secretary',
+       password: 'secretary',
     profile: { 
         status: 'Active', 
         companyId: 'FIN01',
-        permissions: {} // NEW: Inherits from Secretary designation
+        permissions: {}
     }
     },
     {
@@ -158,18 +184,19 @@ const initialUsers: User[] = [
         name: 'Rohan Patel',
         email: 'rohan.p@finroots.com',
         role: 'Advisor',
-        designationId: 'des-advisor', // NEW
+        designationId: 'des-advisor',
+        roleId: 'role-advisor', // --- ADDED ---
         company: 'Finroots',
         companyId: 'FIN01',
         initials: 'RP',
-        password: 'password',
+         password: 'password',
         profile: {
             status: 'Active',
             specializations: [],
             companyId: 'FIN01',
             employeeBranchId: 'frb-1', // Erode HQ
             activeCheckInId: null,
-            permissions: {} // NEW: Inherits from Advisor designation
+            permissions: {}
         }
     },
     {
@@ -178,18 +205,19 @@ const initialUsers: User[] = [
         name: 'Priya Singh',
         email: 'priya.s@finroots.com',
         role: 'Advisor',
-        designationId: 'des-advisor', // NEW
+        designationId: 'des-advisor',
+        roleId: 'role-advisor', // --- ADDED ---
         company: 'Finroots',
         companyId: 'FIN01',
         initials: 'PS',
-        password: 'password',
+           password: 'password',
         profile: {
             status: 'Active',
             specializations: ['Life'],
             companyId: 'FIN01',
             employeeBranchId: 'frb-2', // Coimbatore Hub
             activeCheckInId: null,
-            permissions: {} // NEW: Inherits from Advisor designation
+            permissions: {}
         }
     },
     {
@@ -198,19 +226,20 @@ const initialUsers: User[] = [
         name: 'Amit Sharma',
         email: 'amit.s@finroots.com',
         role: 'Advisor',
-        designationId: 'des-advisor', // NEW
+        designationId: 'des-advisor',
+        roleId: 'role-advisor', // --- ADDED ---
         company: 'Finroots',
         companyId: 'FIN01',
         initials: 'AS',
-        password: 'password',
+         password: 'password',
         profile: {
             status: 'Active',
             specializations: ['Health'],
             companyId: 'FIN01',
             employeeBranchId: 'frb-1', // Erode HQ
             activeCheckInId: null,
-            permissions: { // NEW: EXAMPLE of a user-specific override
-                'reports & insights': 'modify' // This user can modify reports, unlike other advisors.
+            permissions: {
+                'reports & insights': 'modify'
             }
         }
     },
@@ -220,15 +249,16 @@ const initialUsers: User[] = [
         name: 'Finroots Support',
         email: 'support@finroots.com',
         role: 'Support',
-        designationId: 'des-support', // NEW
+        designationId: 'des-support',
+        roleId: 'role-support', // --- ADDED ---
         company: 'Finroots',
         companyId: 'FIN01',
         initials: 'FS',
-        password: 'support',
+         password: 'support',
         profile: { 
             status: 'Active', 
             companyId: 'FIN01',
-            permissions: {} // NEW: Inherits from Support designation
+            permissions: {}
         }
     }
 ];
@@ -860,11 +890,10 @@ const cityCoordinates: Record<string, { lat: number; lng: number }> = {
 
 const simulateDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// --- MODIFIED: Login function now accepts financialYearId ---
-export const login = async (company: string, employeeId: string, password_param: string, designationId: string, branchId?: string, financialYearId?: string): Promise<User | null> => {
+// --- MODIFIED: Login function - isAdvisor logic REMOVED ---
+export const login = async (company: string, employeeId: string, password_param: string, roleId: string, branchId?: string, financialYearId?: string): Promise<User | null> => {
     await simulateDelay(200);
 
-    // Basic user authentication
     const user = users.find(u =>
         u.company === company &&
         u.employeeId.toLowerCase() === employeeId.toLowerCase() &&
@@ -875,28 +904,22 @@ export const login = async (company: string, employeeId: string, password_param:
         return null;
     }
 
-    // Designation validation
-    if (user.designationId !== designationId) {
-        return null; // Designation mismatch
+    // --- MODIFIED: The check is now against the user's assigned Role ID ---
+    if (user.roleId !== roleId) {
+        return null; // Role mismatch
     }
 
-    const designation = designationsData.find(d => d.id === user.designationId);
-
-    // --- MODIFICATION START ---
-    // The branch check is now conditional on the user having an assigned branch in their profile.
-    if (designation?.isAdvisor) {
-        // If a branch IS assigned to the user's profile, then it MUST match the selected branch.
-        if (user.profile?.employeeBranchId && user.profile.employeeBranchId !== branchId) {
-            return null; // Branch mismatch for an advisor who has a specific branch assigned.
-        }
-        // If no branch is assigned to the user's profile (user.profile?.employeeBranchId is null or empty),
-        // this check is skipped, and the login can proceed regardless of what branchId was passed (if any).
+    if (user.profile?.employeeBranchId && user.profile.employeeBranchId !== branchId) {
+        return null; // Branch mismatch for any user who has a specific branch assigned.
     }
-    // --- MODIFICATION END ---
 
-    // Financial year validation (if provided)
     if (financialYearId && !financialYearsData.find(fy => fy.id === financialYearId)) {
         return null; // Invalid financial year
+    }
+
+    // A user without a roleId cannot log in.
+    if (!user.roleId) {
+        return null;
     }
 
     return user ? JSON.parse(JSON.stringify(user)) : null;
@@ -941,10 +964,9 @@ export const createEmployee = async (employeeData: Omit<User, 'id' | 'role' | 'i
     const newEmployee: User = {
         ...employeeData,
         id: `user-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-        role: designationsData.find(d => d.id === employeeData.designationId)?.name || 'Employee', // Fallback role name
+        role: designationsData.find(d => d.id === employeeData.designationId)?.name || 'Employee',
         initials,
         password: passwordToStore,
-        // MODIFIED: The profile, including the new permissions object, is spread here.
         profile: { status: employeeData.profile?.status || 'Active', ...employeeData.profile, companyId: employeeData.companyId }
     };
     users.push(newEmployee);
@@ -962,8 +984,6 @@ export const updateEmployee = async (employeeData: User): Promise<User> => {
     let dataToUpdate = { ...employeeData };
     
     const initials = (dataToUpdate.name || '').split(' ').map(n => n[0]).join('').toUpperCase();
-    // MODIFIED: The logic correctly spreads the entire employeeData object, 
-    // which includes the updated profile with its permissions object.
     users[index] = { ...users[index], ...dataToUpdate, initials };
     return JSON.parse(JSON.stringify(users[index]));
 };
@@ -1081,7 +1101,7 @@ export const renewPolicy = async (memberId: string, policyId: string): Promise<M
 
 export const findMemberByMobile = async (mobile: string): Promise<Partial<Member> | null> => {
     await simulateDelay(600);
-    const cleanedMobile = mobile.replace(/[^0-9]/g, '').slice(-10);
+       const cleanedMobile = mobile.replace(/[^0-9]/g, '').slice(-10);
     if (preRegisteredUsers[cleanedMobile]) {
         return {
             ...preRegisteredUsers[cleanedMobile],
@@ -1218,7 +1238,19 @@ export const updateBranch = async (branchData: FinRootsBranch): Promise<FinRoots
     return JSON.parse(JSON.stringify(finrootsBranchesData[index]));
 };
 
-// --- NEW: Designation & Permissions API Functions ---
+// --- NEW: Role API Functions ---
+export const getRoles = async (): Promise<Role[]> => {
+    await simulateDelay(100);
+    return JSON.parse(JSON.stringify(rolesData));
+};
+
+export const updateRoles = async (updatedData: Role[]): Promise<Role[]> => {
+    await simulateDelay(200);
+    rolesData = JSON.parse(JSON.stringify(updatedData));
+    return rolesData;
+};
+
+// --- Designation & Permissions API Functions ---
 export const getDesignations = async (): Promise<Designation[]> => {
     await simulateDelay(100);
     return JSON.parse(JSON.stringify(designationsData));
@@ -1230,18 +1262,18 @@ export const updateDesignations = async (updatedData: Designation[]): Promise<De
     return designationsData;
 };
 
-export const getDesignationPermissions = async (): Promise<DesignationPermissions[]> => {
+export const getRolePermissions = async (): Promise<RolePermissions[]> => {
     await simulateDelay(100);
-    return JSON.parse(JSON.stringify(designationPermissionsData));
+    return JSON.parse(JSON.stringify(rolePermissionsData));
 };
 
-export const updateDesignationPermissions = async (updatedPermissions: DesignationPermissions): Promise<DesignationPermissions> => {
+export const updateRolePermissions = async (updatedPermissions: RolePermissions): Promise<RolePermissions> => {
     await simulateDelay(200);
-    const index = designationPermissionsData.findIndex(p => p.designationId === updatedPermissions.designationId);
+    const index = rolePermissionsData.findIndex(p => p.roleId === updatedPermissions.roleId);
     if (index === -1) {
-        designationPermissionsData.push(updatedPermissions);
+        rolePermissionsData.push(updatedPermissions);
     } else {
-        designationPermissionsData[index] = updatedPermissions;
+        rolePermissionsData[index] = updatedPermissions;
     }
     return JSON.parse(JSON.stringify(updatedPermissions));
 };
@@ -1510,4 +1542,16 @@ export const getActiveCheckIn = async (advisorId: string): Promise<CheckIn | nul
 export const getAdvisorLocationHistory = async (advisorId: string): Promise<{ lat: number; lng: number; timestamp: string }[]> => {
     await simulateDelay(150);
     return JSON.parse(JSON.stringify(advisorLocationHistoryData[advisorId] || []));
+};
+
+// --- NEW: API functions for Insurance Type Document Rules ---
+export const getInsuranceTypeDocumentRules = async (): Promise<InsuranceTypeDocumentRule[]> => {
+    await simulateDelay(100);
+    return JSON.parse(JSON.stringify(insuranceTypeDocumentRulesData));
+};
+
+export const updateInsuranceTypeDocumentRules = async (updatedData: InsuranceTypeDocumentRule[]): Promise<InsuranceTypeDocumentRule[]> => {
+    await simulateDelay(200);
+    insuranceTypeDocumentRulesData = JSON.parse(JSON.stringify(updatedData));
+    return insuranceTypeDocumentRulesData;
 };

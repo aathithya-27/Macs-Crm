@@ -54,11 +54,11 @@ export const ProposalGeneratorModal: React.FC<ProposalGeneratorModalProps> = ({
       const template = templates.find(t => t.id === selectedTemplateId);
       if (template) {
         let content = template.content;
-        content = content.replace(/{clientName}/g, member.name);
+          content = content.replace(/{clientName}/g, member.name);
         content = content.replace(/{advisorName}/g, advisorName);
-        content = content.replace(/{policyType}/g, policy.policyType);
-        content = content.replace(/{sumAssured}/g, policy.coverage.toLocaleString('en-IN'));
-        content = content.replace(/{premium}/g, policy.premium.toLocaleString('en-IN'));
+         content = content.replace(/{policyType}/g, policy.policyType);
+         content = content.replace(/{sumAssured}/g, policy.coverage.toLocaleString('en-IN'));
+         content = content.replace(/{premium}/g, policy.premium.toLocaleString('en-IN'));
         setGeneratedContent(content);
       }
     } else {

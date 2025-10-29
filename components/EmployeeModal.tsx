@@ -1,17 +1,17 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-// MODIFIED: Added Gender
-import { User, EmployeeProfile, EmployeeModalTab, Member, FinRootsBranch, Geography, BankMaster, BusinessVertical, InsuranceTypeMaster, AMC, Designation, DesignationPermissions, Gender, DocumentMaster,AccountType  } from '../types.ts';
+// MODIFIED: Added Role, RolePermissions
+import { User, EmployeeProfile, EmployeeModalTab, Member, FinRootsBranch, Geography, BankMaster, BusinessVertical, InsuranceTypeMaster, AMC, Designation, Gender, DocumentMaster, AccountType, Role } from '../types.ts';
 import Modal from './ui/Modal.tsx';
 import Button from './ui/Button.tsx';
 import Input from './ui/Input.tsx';
-// MODIFIED: Added Lock icon for permissions tab
 import { X, User as UserIcon, MapPin, BookOpen, Edit, Users, FileText as FileTextIcon, Lock } from 'lucide-react';
-// MODIFIED: Imported PermissionsTab
-import { GeneralInfoTab, AddressTab, EducationTab, EmployeeCustomersTab, PermissionsTab } from './tabs/EmployeeProfileTabs.tsx';
+// MODIFIED: We will assume GeneralInfoTab is in this file for now
+import { GeneralInfoTab, AddressTab, EducationTab, EmployeeCustomersTab } from './tabs/EmployeeProfileTabs.tsx';
 import { EmployeeDocumentsTab } from './tabs/EmployeeDocumentsTab.tsx';
 
 // --- Main Modal Component ---
 
+// --- MODIFIED: Props updated ---
 interface EmployeeModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -29,20 +29,17 @@ interface EmployeeModalProps {
     insuranceTypes: InsuranceTypeMaster[];
     amcs: AMC[];
     designations: Designation[];
-    // NEW: Pass down all designation permissions
-    designationPermissions: DesignationPermissions[];
-    genders: Gender[]; // MODIFIED: Added genders prop
-    // --- MODIFICATION START ---
+    roles: Role[]; // --- NEW ---
+    genders: Gender[];
     documentMasters: DocumentMaster[];
     accountTypes: AccountType[];
-    // --- MODIFICATION END ---
 }
 
 export const EmployeeModal: React.FC<EmployeeModalProps> = ({ 
     isOpen, onClose, employee, onSave, addToast, allMembers, users, 
     finrootsBranches, currentUser, geographies, onUpdateGeographies, 
     bankMasters, businessVerticals, insuranceTypes, amcs, designations,
-    designationPermissions, genders, documentMasters,accountTypes // MODIFIED
+    roles, genders, documentMasters, accountTypes
 }) => {
     const [activeTab, setActiveTab] = useState<EmployeeModalTab>(EmployeeModalTab.GeneralInfo);
     const [formData, setFormData] = useState<Partial<User>>({});
@@ -52,7 +49,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
     const getInitialFormData = (emp: User | null): Partial<User> => {
         if (emp) return JSON.parse(JSON.stringify(emp));
 
-        const companyEmployeeIds = users
+                      const companyEmployeeIds = users
             .filter(u => u.companyId === currentUser?.companyId && !isNaN(parseInt(u.employeeId, 10)))
             .map(u => parseInt(u.employeeId, 10));
     
@@ -63,8 +60,8 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
             name: '',
             email: '',
             employeeId: String(nextIdNumber),
-            role: '',
             designationId: '',
+            roleId: null, // --- ADDED ---
             company: currentUser?.company || '',
             companyId: currentUser?.companyId || '',
             profile: {
@@ -79,7 +76,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 businessVerticalIds: [],
                 specializationIds: [],
                 amcIds: [],
-                permissions: {}, // NEW: Initialize permissions object
+                permissions: {},
             }
         };
     };
@@ -104,7 +101,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         setFormData(prev => ({ ...prev, [field]: value }));
     }, []);
 
-    const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+       const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
             const currentUrl = formData.profile?.photoUrl;
@@ -121,6 +118,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         if (!formData.email?.trim() || !/^\S+@\S+\.\S+$/.test(formData.email)) { addToast('A valid email is required.', 'error'); return false; }
         if (!formData.employeeId?.trim()) { addToast('Employee ID is required.', 'error'); return false; }
         if (!formData.designationId) { addToast('A Designation must be selected.', 'error'); return false; }
+        // Note: Role is optional, so no validation needed for formData.roleId
         if (!employee && (!formData.password || formData.password.length < 6)) {
             addToast('A password with at least 6 characters is required for new employees.', 'error');
             return false;
@@ -132,20 +130,11 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
             return false;
         }
         
-        // --- MODIFICATION START ---
-        // This entire validation block has been removed to make branch assignment optional for all roles.
-        // const selectedDesignation = designations.find(d => d.id === formData.designationId);
-        // if (selectedDesignation?.isAdvisor && !profile.employeeBranchId) { 
-        //     addToast('Employee Branch is required for Advisor roles.', 'error'); 
-        //     return false; 
-        // }
-        // --- MODIFICATION END ---
-        
         if (!profile.dateOfBirth) { addToast('Date of Birth is required.', 'error'); return false; }
-        // if (!profile.employeeBranchId) { addToast('Employee Branch is required.', 'error'); return false; }
         if (!profile.businessVerticalIds || profile.businessVerticalIds.length === 0) { addToast('Business Vertical is required.', 'error'); return false; }
         if (!profile.dateOfJoining) { addToast('Date of Joining is required.', 'error'); return false; }
-        if (!profile.fatherMotherName?.trim()) { addToast("Father/Mother's Name is required.", 'error'); return false; }
+        if (!profile.fatherName?.trim()) { addToast("Father's Name is required.", 'error'); return false; }
+        if (!profile.motherName?.trim()) { addToast("Mother's Name is required.", 'error'); return false; }
         if (!profile.gender) { addToast('Gender is required.', 'error'); return false; }
         if (profile.drivingLicenceObtained && !profile.drivingLicenceNo?.trim()) { addToast('Driving Licence Number is required.', 'error'); return false; }
         if (profile.drivingLicenceObtained && !profile.dlExpiryDate) { addToast('Driving Licence Expiry Date is required.', 'error'); return false; }
@@ -184,12 +173,8 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         }
     };
     
-    const selectedDesignation = useMemo(() => designations.find(d => d.id === formData.designationId), [formData.designationId, designations]);
-    const isAdvisorRole = selectedDesignation?.isAdvisor === true;
-    // NEW: Check if the current user is an admin
-    const isAdmin = useMemo(() => designations.find(d => d.id === currentUser?.designationId)?.name === 'Admin', [currentUser, designations]);
+    const isAdvisorRole = useMemo(() => roles.find(r => r.id === formData.roleId)?.isAdvisor === true, [formData.roleId, roles]);
 
-    // MODIFIED: TABS_CONFIG is now a memoized variable that conditionally includes the Permissions tab
     const TABS_CONFIG = useMemo(() => {
         const tabs = [
             { name: EmployeeModalTab.GeneralInfo, icon: <UserIcon size={16}/> },
@@ -198,13 +183,12 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
             { name: EmployeeModalTab.Documents, icon: <FileTextIcon size={16}/> },
         ];
         
-        // NEW: Conditionally add the Permissions tab only for Admins
-        if (isAdmin) {
-            tabs.push({ name: EmployeeModalTab.Permissions, icon: <Lock size={16}/> });
+        if (isAdvisorRole) {
+            tabs.push({ name: EmployeeModalTab.Customers, icon: <Users size={16}/> });
         }
-
+        
         return tabs;
-    }, [isAdvisorRole, isAdmin]);
+    }, [isAdvisorRole]);
     
     return (
         <Modal isOpen={isOpen} onClose={onClose}>
@@ -282,19 +266,10 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                         </nav>
                     </div>
                     <div className="pt-6">
-                        {activeTab === EmployeeModalTab.GeneralInfo && <GeneralInfoTab data={formData} onChange={handleChange} onSave={onSave} finrootsBranches={finrootsBranches} addToast={addToast} bankMasters={bankMasters} businessVerticals={businessVerticals} insuranceTypes={insuranceTypes} amcs={amcs} designations={designations} permissions={{}} genders={genders} accountTypes={accountTypes} />}
-                        {activeTab === EmployeeModalTab.Address && <AddressTab data={formData} onChange={handleChange} geographies={geographies} onUpdateGeographies={onUpdateGeographies} addToast={addToast} />}
+                                               {activeTab === EmployeeModalTab.GeneralInfo && <GeneralInfoTab data={formData} onChange={handleChange} onSave={onSave} finrootsBranches={finrootsBranches} addToast={addToast} bankMasters={bankMasters} businessVerticals={businessVerticals} insuranceTypes={insuranceTypes} amcs={amcs} designations={designations} roles={roles} genders={genders} accountTypes={accountTypes} permissions={{}} />}                        {activeTab === EmployeeModalTab.Address && <AddressTab data={formData} onChange={handleChange} geographies={geographies} onUpdateGeographies={onUpdateGeographies} addToast={addToast} />}
                         {activeTab === EmployeeModalTab.Education && <EducationTab data={formData} onChange={handleChange} />}
                         {activeTab === EmployeeModalTab.Documents && <EmployeeDocumentsTab data={formData} onChange={handleChange} addToast={addToast} documentMasters={documentMasters} />}
-                        {activeTab === EmployeeModalTab.Permissions && isAdmin && formData.profile && (
-                            <PermissionsTab
-                                profile={formData.profile}
-                                designationId={formData.designationId || ''}
-                                onProfileChange={(newProfile) => handleChange('profile', newProfile)}
-                                designationPermissions={designationPermissions}
-                                designations={designations}
-                            />
-                        )}
+                        {activeTab === EmployeeModalTab.Customers && isAdvisorRole && <EmployeeCustomersTab employee={formData as User} allMembers={allMembers} users={users} />}
                     </div>
                 </div>
             </div>

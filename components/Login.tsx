@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Shield, Lock, Sun, Moon, Building, User as UserIcon, GitBranch, Calendar } from 'lucide-react';
+import { Shield, Lock, Sun, Moon, Building, User as UserIcon, GitBranch, Calendar, Award } from 'lucide-react';
 import Button from './ui/Button.tsx';
-import { User as UserType, FinRootsBranch, Company, Designation, FinancialYear } from '../types.ts';
+import { User as UserType, FinRootsBranch, Company, Designation, FinancialYear, Role } from '../types.ts';
 import Input from './ui/Input.tsx';
 import { login, getFinancialYears } from '../services/apiService.ts';
 
@@ -12,12 +12,12 @@ interface LoginProps {
     toggleTheme: () => void;
     allBranches: FinRootsBranch[];
     operatingCompanies: Company[];
-    designations: Designation[];
+    roles: Role[]; // --- MODIFIED: Now takes roles ---
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleTheme, allBranches, operatingCompanies, designations }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleTheme, allBranches, operatingCompanies, roles }) => {
     const [company, setCompany] = useState('');
-    const [designationId, setDesignationId] = useState('');
+    const [roleId, setRoleId] = useState(''); // --- RENAMED from designationId ---
     const [branchId, setBranchId] = useState('');
     const [employeeId, setEmployeeId] = useState('');
     const [password, setPassword] = useState('');
@@ -28,7 +28,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
     const [financialYearId, setFinancialYearId] = useState('');
 
     const companyOptions = useMemo(() => operatingCompanies.filter(c => c.active), [operatingCompanies]);
-    const designationOptions = useMemo(() => designations.filter(d => d.active), [designations]);
+    const roleOptions = useMemo(() => roles.filter(r => r.active), [roles]); // --- MODIFIED ---
 
     const companyBranches = useMemo(() => {
         const selectedCompany = companyOptions.find(c => c.name === company);
@@ -36,14 +36,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
         return allBranches.filter(b => b.companyId === selectedCompany.id && b.active);
     }, [company, allBranches, companyOptions]);
 
-    const isAdvisorRoleSelected = useMemo(() => {
-        const selected = designations.find(d => d.id === designationId);
-        return selected?.isAdvisor === true;
-    }, [designationId, designations]);
-    
     useEffect(() => {
         setBranchId('');
-    }, [company, designationId]);
+    }, [company, roleId]);
     
     useEffect(() => {
         const fetchFYs = async () => {
@@ -59,19 +54,19 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
         if (companyOptions.length > 0 && !company) {
             setCompany(companyOptions[0].name);
         }
-        if (designationOptions.length > 0 && !designationId) {
-            const adminDesignation = designationOptions.find(d => d.name === 'Admin');
-            setDesignationId(adminDesignation ? adminDesignation.id : designationOptions[0].id);
+        if (roleOptions.length > 0 && !roleId) {
+            const adminRole = roleOptions.find(r => r.name === 'System Administrator');
+            setRoleId(adminRole ? adminRole.id : roleOptions[0].id);
         }
-    }, [companyOptions, designationOptions, company, designationId]);
+    }, [companyOptions, roleOptions, company, roleId]);
 
     useEffect(() => {
         const savedData = localStorage.getItem('rememberedUser');
         if (savedData) {
-            const { company, employeeId, designationId: savedDesignationId } = JSON.parse(savedData);
+            const { company, employeeId, roleId: savedRoleId } = JSON.parse(savedData);
             setCompany(company);
             setEmployeeId(employeeId);
-            if (savedDesignationId) setDesignationId(savedDesignationId);
+            if (savedRoleId) setRoleId(savedRoleId);
             setRememberMe(true);
         }
     }, []);
@@ -80,23 +75,24 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
         e.preventDefault();
         setError('');
 
-        if (!company || !designationId || !employeeId || !password || !financialYearId) {
-            setError('Please fill in all fields, including Financial Year.');
+        if (!company || !roleId || !employeeId || !password || !financialYearId) {
+            setError('Please fill in all fields, including Role and Financial Year.');
             return;
         }
 
         try {
-            const user = await login(company, employeeId, password, designationId, branchId, financialYearId);
+            // --- MODIFIED: Passing roleId to login service ---
+            const user = await login(company, employeeId, password, roleId, branchId, financialYearId);
 
             if (user) {
                 if (rememberMe) {
-                    localStorage.setItem('rememberedUser', JSON.stringify({ company, employeeId, designationId }));
+                    localStorage.setItem('rememberedUser', JSON.stringify({ company, employeeId, roleId }));
                 } else {
                     localStorage.removeItem('rememberedUser');
                 }
                 onLogin(user, financialYearId);
             } else {
-                setError('Invalid credentials, or branch/designation/FY mismatch for your user.');
+                setError('Invalid credentials. Please check your details or contact an administrator.');
             }
         } catch (err) {
             setError('An error occurred during login. Please try again.');
@@ -135,6 +131,20 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
 
                 <form onSubmit={handleLogin} className="space-y-4">
                     <div className="relative">
+                        <label htmlFor="company" className="text-sm font-medium text-gray-700 dark:text-gray-300">Company</label>
+                        <Building className="absolute left-3 top-10 h-5 w-5 text-gray-400" />
+                        <select
+                            id="company"
+                            value={company}
+                            onChange={(e) => setCompany(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        >
+                            {companyOptions.map(comp => (
+                                <option key={comp.id} value={comp.name}>{comp.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div className="relative">
                         <label htmlFor="financialYear" className="text-sm font-medium text-gray-700 dark:text-gray-300">Financial Year</label>
                         <Calendar className="absolute left-3 top-10 h-5 w-5 text-gray-400" />
                         <select
@@ -150,40 +160,25 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                             ))}
                         </select>
                     </div>
-
-                    <div className="relative">
-                        <label htmlFor="company" className="text-sm font-medium text-gray-700 dark:text-gray-300">Company</label>
-                        <Building className="absolute left-3 top-10 h-5 w-5 text-gray-400" />
-                        <select
-                            id="company"
-                            value={company}
-                            onChange={(e) => setCompany(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                        >
-                            {companyOptions.map(comp => (
-                                <option key={comp.id} value={comp.name}>{comp.name}</option>
-                            ))}
-                        </select>
-                    </div>
                     
+                    {/* --- MODIFIED: This is now the Role dropdown --- */}
                     <div className="relative">
                         <label htmlFor="role" className="text-sm font-medium text-gray-700 dark:text-gray-300">Role</label>
-                        <UserIcon className="absolute left-3 top-10 h-5 w-5 text-gray-400" />
+                        <Award className="absolute left-3 top-10 h-5 w-5 text-gray-400" />
                         <select
                             id="role"
-                            value={designationId}
-                            onChange={(e) => setDesignationId(e.target.value)}
+                            value={roleId}
+                            onChange={(e) => setRoleId(e.target.value)}
+                            required
                             className="w-full pl-10 pr-4 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                         >
                             <option value="" disabled>Select Role...</option>
-                            {designationOptions.map(des => (
-                                <option key={des.id} value={des.id}>{des.name}</option>
+                            {roleOptions.map(role => (
+                                <option key={role.id} value={role.id}>{role.name}</option>
                             ))}
                         </select>
                     </div>
                     
-                    {/* --- MODIFICATION START --- */}
-                    {/* The `isAdvisorRoleSelected` check has been removed. */}
                     {companyBranches.length > 0 && (
                         <div className="relative animate-fade-in">
                             <label htmlFor="branch" className="text-sm font-medium text-gray-700 dark:text-gray-300">Branch</label>
@@ -201,7 +196,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                             </select>
                         </div>
                     )}
-                    {/* --- MODIFICATION END --- */}
 
                     <Input
                         id="employeeId"

@@ -21,7 +21,7 @@ export interface VoucherSaveData {
     date: string;
     payeeName: string;
     branchId: string;
-    finYearId: string; // NEW: Link to financial year
+    finYearId: string;
     lineItems: VoucherLineItem[];
 }
 
@@ -38,10 +38,10 @@ interface PaymentVoucherModalProps {
     triggerExport: boolean;
     canCreate: boolean;
     canModify: boolean;
-    // --- NEW: Props for FY-based numbering ---
-    activeFinancialYearId: string | null;
-    docNumberingConfig: DocumentNumbering | null;
-    lastVoucherNumber: number;
+    // --- MODIFICATION: Props now refer to the correct FY for NEW vouchers ---
+    activeFinancialYearId: string | null; // This will be the ID of the TRUE current FY for saving
+    docNumberingConfig: DocumentNumbering | null; // This is the config for the TRUE current FY
+    lastVoucherNumber: number; // This is the count for the TRUE current FY
 }
 
 
@@ -219,6 +219,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                 }
 
             } else { // Creating new voucher
+                // --- MODIFICATION: This logic now correctly uses the props for the CURRENT FY ---
                 if (docNumberingConfig) {
                     const nextNumber = docNumberingConfig.startingNumber + lastVoucherNumber;
                     const suffix = docNumberingConfig.suffix || '';
@@ -314,6 +315,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
             alert('Voucher must have at least one line item.');
             return;
         }
+        // --- MODIFICATION: This now correctly uses the activeFinancialYearId passed in for saving ---
         if (!activeFinancialYearId) {
             alert('Cannot save: Active Financial Year not found.');
             return;
@@ -324,7 +326,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
             date,
             payeeName,
             branchId,
-            finYearId: activeFinancialYearId, // Add active FY ID
+            finYearId: activeFinancialYearId,
             lineItems
         };
         onSave(saveData);
@@ -340,13 +342,13 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
         if (voucherRef.current) {
             htmlToImage.toPng(voucherRef.current, { quality: 1, pixelRatio: 2, backgroundColor: '#ffffff' })
                 .then((dataUrl: string) => {
-                    const link = document.createElement('a');
-                    link.download = `PaymentVoucher-${voucherNo.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
-                    link.href = dataUrl;
+                                 const link = document.createElement('a');
+                                 link.download = `PaymentVoucher-${voucherNo.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+                                              link.href = dataUrl;
                     link.click();
                     onClose();
                 }).catch((err: Error) => {
-                    console.error('Voucher export failed:', err)
+                                 console.error('Voucher export failed:', err)
                     onClose();
                 });
         } else {

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-// MODIFIED: Added Gender and MaritalStatus
-import { Member, User, LeadSource, Route, LeadSourceMaster, Geography, CustomerCategory, CustomerSubCategory, CustomerGroup, FinRootsBranch, Religion, CustomerFieldMaster, Designation,AppModule,PermissionLevel, Gender, MaritalStatus } from '../../types.ts';
+import { Member, User, LeadSource, Route, LeadSourceMaster, Geography, CustomerCategory, CustomerSubCategory, CustomerGroup, FinRootsBranch, Religion, CustomerFieldMaster, Designation, AppModule, PermissionLevel, Gender, MaritalStatus, Role } from '../../types.ts'; // MODIFIED: Added Role
 import Input from '../ui/Input.tsx';
 import Button from '../ui/Button.tsx';
 import { ShieldCheck, Loader2, Info, MapPin, Copy, Target, BrainCircuit, Link as LinkIcon, Plus, Trash2, X } from 'lucide-react';
@@ -444,6 +443,7 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ isOpen, onClose, onConfir
 };
 
 
+// --- MODIFIED: Added roles to props interface ---
 interface BasicInfoTabProps {
   data: Partial<Member>;
   onChange: (field: keyof Member, value: any) => void;
@@ -465,10 +465,11 @@ interface BasicInfoTabProps {
   religions: Religion[];
   customerFieldMasters: CustomerFieldMaster[]; 
   onUpdateCustomerFieldMasters: (data: CustomerFieldMaster[]) => void;
-  designations: Designation[]; // NEW PROP
+  designations: Designation[];
   permissions: { [key in AppModule]?: PermissionLevel };
-  genders: Gender[]; // MODIFIED: Added genders prop
-  maritalStatuses: MaritalStatus[]; // MODIFIED: Added maritalStatuses prop
+  genders: Gender[];
+  maritalStatuses: MaritalStatus[];
+  roles: Role[]; // --- NEW ---
 }
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -510,7 +511,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     allMembers, leadSources, geographies, onUpdateGeographies, customerCategories, 
     customerSubCategories, customerGroups, onAddNewReferrer, finrootsBranches, 
     religions, customerFieldMasters, onUpdateCustomerFieldMasters, designations,
-    genders, maritalStatuses // MODIFIED: Destructure new props
+    permissions, genders, maritalStatuses, roles // --- MODIFIED ---
 }) => {
   const selectClasses = "block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
 
@@ -526,17 +527,17 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   const debouncedLng = useDebounce(data.lng, 800);
   const debouncedDigipin = useDebounce(data.digipin, 800);
 
-  // MODIFIED: This now filters based on the 'isAdvisor' flag in designations
+  // --- MODIFIED: This logic now uses Roles ---
   const advisors = useMemo(() => {
-    const advisorDesignationIds = new Set(designations.filter(d => d.isAdvisor).map(d => d.id));
-    return users.filter(u => advisorDesignationIds.has(u.designationId));
-  }, [users, designations]);
+    const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
+    return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
+  }, [users, roles]);
 
   const advisorOptions = useMemo(() => advisors.map(adv => ({ value: adv.id, label: adv.name })), [advisors]);
   const userMap = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users]);
 
   const branchOptions = useMemo(() => finrootsBranches.map(branch => ({ value: branch.id, label: branch.branchName })), [finrootsBranches]);
-  const isAdmin = useMemo(() => designations.find(d => d.id === currentUser?.designationId)?.name === 'Admin', [currentUser, designations]);
+  const canToggleStatus = permissions?.customers === 'modify';
 
   const canDeactivate = useMemo(() => {
     if (!data.policies || data.policies.length === 0) return true;
@@ -583,7 +584,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     const handleCityChange = (newCityName: string) => { onChange('city', newCityName); onChange('area', ''); };
     const handleAreaChange = (newAreaName: string) => onChange('area', newAreaName);
 
-    const handleCreateCountry = (newCountryName: string) => { const newCountry: Geography = { id: `geo-${Date.now()}`, name: newCountryName, type: 'Country', parentId: null, active: true }; onUpdateGeographies([...geographies, newCountry]); handleCountryChange(newCountryName); addToast(`Country "${newCountryName}" created.`, 'success'); };
+       const handleCreateCountry = (newCountryName: string) => { const newCountry: Geography = { id: `geo-${Date.now()}`, name: newCountryName, type: 'Country', parentId: null, active: true }; onUpdateGeographies([...geographies, newCountry]); handleCountryChange(newCountryName); addToast(`Country "${newCountryName}" created.`, 'success'); };
     const handleCreateState = (newStateName: string) => { if (!selectedCountryObject) return addToast("Please select a country first.", "error"); const newState: Geography = { id: `geo-${Date.now()}`, name: newStateName, type: 'State', parentId: selectedCountryObject.id, active: true }; onUpdateGeographies([...geographies, newState]); handleStateChange(newStateName); addToast(`State "${newStateName}" created.`, 'success'); };
     const handleCreateDistrict = (newDistrictName: string) => { if (!selectedStateObject) return addToast("Please select a state first.", "error"); const newDistrict: Geography = { id: `geo-${Date.now()}`, name: newDistrictName, type: 'District', parentId: selectedStateObject.id, active: true }; onUpdateGeographies([...geographies, newDistrict]); handleDistrictChange(newDistrictName); addToast(`District "${newDistrictName}" created.`, 'success'); };
     const handleCreateCity = (newCityName: string) => { if (!selectedDistrictObject) return addToast("Please select a district first.", "error"); const newCity: Geography = { id: `geo-${Date.now()}`, name: newCityName, type: 'City', parentId: selectedDistrictObject.id, active: true }; onUpdateGeographies([...geographies, newCity]); onChange('city', newCityName); addToast(`City "${newCityName}" created.`, 'success'); };
@@ -591,10 +592,10 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
   useEffect(() => {
     if (data.id) return;
-    const namePart = (data.name || '').replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase().padEnd(2, '_');
+       const namePart = (data.name || '').replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase().padEnd(2, '_');
     const addressDigits = (data.address || '').replace(/[^0-9]/g, '');
     const addressPart = addressDigits.slice(0, 2).padEnd(2, '0');
-    const mobilePart = (data.mobile || '').replace(/[^0-9]/g, '').slice(-5).padEnd(5, '_');
+       const mobilePart = (data.mobile || '').replace(/[^0-9]/g, '').slice(-5).padEnd(5, '_');
     const newId = `${namePart}${addressPart}${mobilePart}`;
     if (newId !== data.memberId) { onChange('memberId', newId); }
   }, [data.id, data.name, data.address, data.mobile, data.memberId, onChange]);
@@ -925,7 +926,6 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                         onChange={(e) => onChange('anniversary', e.target.value)} 
                     />
                 </div>
-                {/* --- MODIFICATION START: Replaced hardcoded gender with dynamic dropdown --- */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Gender *</label>
                     <select
@@ -939,9 +939,8 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                             <option key={g.id} value={g.id}>{g.name}</option>
                         ))}
                     </select>
-                    {errors.gender && <p className="text-red-600 text-xs mt-1">{errors.gender}</p>}
+                    {errors.gender && <p className="text-red-600 text-xs mt-1">{errors.gender as string}</p>}
                 </div>
-                {/* --- MODIFICATION END --- */}
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                  <div>
@@ -1027,7 +1026,6 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
         <div className="space-y-4">
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* --- MODIFICATION START: Replaced hardcoded marital status with dynamic dropdown --- */}
                 <div>
                     <label
                         htmlFor="maritalStatus"
@@ -1047,14 +1045,13 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                         ))}
                     </select>
                 </div>
-                {/* --- MODIFICATION END --- */}
                 <div>
                     <SearchableSelect 
                         label="Assigned Advisor(s)" 
                         options={advisorOptions} 
                         value={(data.assignedTo && data.assignedTo[0]) || ''} 
                         onChange={handleMultiAssigneeChange} 
-                        placeholder={!isAdmin ? (users.find(u=>u.id === data.assignedTo?.[0])?.name || 'Unassigned') : 'Select an advisor...'} 
+                        placeholder={!canToggleStatus ? (users.find(u=>u.id === data.assignedTo?.[0])?.name || 'Unassigned') : 'Select an advisor...'} 
                     />
                 </div>
             </div>
@@ -1169,7 +1166,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                     onChange={(e) => handleAddressChange(2, e.target.value)} 
                     placeholder="Landmark" 
                 />
-            </div>
+                 </div>
         </div>
 
         <div className="space-y-6">
@@ -1331,7 +1328,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 enabled={!!data.active} 
                 onChange={handleStatusToggle} 
                 srLabel="Toggle account status" 
-                disabled={!isAdmin}
+                disabled={!canToggleStatus}
             />
         </div>
     </div>

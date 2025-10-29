@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
-// MODIFIED: Import permission-related types
-import { Lead, User, LeadSource, LeadSourceMaster, LeadActivityLog, FinRootsBranch, InsuranceTypeMaster, Member, Designation, AppModule, PermissionLevel } from '../types.ts';
+import { Lead, User, LeadSource, LeadSourceMaster, LeadActivityLog, FinRootsBranch, InsuranceTypeMaster, Member, AppModule, PermissionLevel, Role } from '../types.ts';
 import Modal from './ui/Modal.tsx';
 import Button from './ui/Button.tsx';
 import Input from './ui/Input.tsx';
-import { X, PlusCircle, Zap, Edit2, MessageSquare, Info, History, Plus } from 'lucide-react';
+import { X, PlusCircle, Zap, Edit2, MessageSquare, Info, History } from 'lucide-react';
 import LeadSourceSelector from './LeadSourceSelector.tsx';
 import Tabs from './ui/Tabs.tsx';
 
@@ -127,15 +126,14 @@ interface LeadModalProps {
     insuranceTypes: InsuranceTypeMaster[];
     allMembers: Member[];
     onCreateReferrer: (referrerData: { name: string, mobile: string, email?: string }) => Promise<Member | null>;
-    designations: Designation[]; // NEW PROP
-    // NEW: Accept permissions prop
     permissions: { [key in AppModule]?: PermissionLevel };
+    roles: Role[];
 }
 
 const LeadModal: React.FC<LeadModalProps> = ({ 
     isOpen, onClose, lead, onSave, addToast, currentUser, users, 
     leadSources, finrootsBranches, insuranceTypes, allMembers, 
-    onCreateReferrer, designations, permissions
+    onCreateReferrer, permissions, roles
 }) => {
     const [formData, setFormData] = useState<Partial<Lead>>({});
     const [errors, setErrors] = useState<Partial<Record<keyof Lead, string>>>({});
@@ -145,19 +143,26 @@ const LeadModal: React.FC<LeadModalProps> = ({
     const userMap = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users]);
     const TABS = ['Details', 'Activity Timeline'];
 
-    // NEW: Permission checks for the pipeline module
+    // --- MODIFICATION START: Replaced hard-coded designation check with permission-based logic ---
     const canModify = permissions?.pipeline === 'modify';
     const canCreate = permissions?.pipeline === 'create' || canModify;
     const isReadOnly = !!lead && !canModify;
+    
+    const currentUserRole = useMemo(() => roles.find(r => r.id === currentUser?.roleId), [roles, currentUser]);
+    const canAssignLeads = (canCreate || canModify) && !currentUserRole?.isAdvisor;
+    // --- MODIFICATION END ---
 
     const advisors = useMemo(() => {
-        const advisorDesignationIds = new Set(designations.filter(d => d.isAdvisor).map(d => d.id));
-        return users.filter(u => advisorDesignationIds.has(u.designationId));
-    }, [users, designations]);
+        const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
+        return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
+    }, [users, roles]);
 
     const getInitialFormData = (lead: Lead | null): Partial<Lead> => {
-        const currentUserIsAdvisor = designations.find(d => d.id === currentUser?.designationId)?.isAdvisor;
+        const currentUserRole = roles.find(r => r.id === currentUser?.roleId);
+        const isCurrentUserAdvisor = currentUserRole?.isAdvisor === true;
+        
         if (lead) return JSON.parse(JSON.stringify(lead)); // Deep copy
+        
         return {
             name: '',
             phone: '',
@@ -166,7 +171,7 @@ const LeadModal: React.FC<LeadModalProps> = ({
             status: 'Lead',
             estimatedValue: 0,
             notes: '',
-            assignedTo: currentUserIsAdvisor ? currentUser!.id : '',
+            assignedTo: isCurrentUserAdvisor ? currentUser!.id : '',
             insuranceTypeId: null,
             branchId: '',
             followUpDate: '',
@@ -192,7 +197,7 @@ const LeadModal: React.FC<LeadModalProps> = ({
                 setSelectedParentType(null);
             }
         }
-    }, [lead, isOpen, currentUser, insuranceTypes, designations]);
+    }, [lead, isOpen, currentUser, insuranceTypes, roles]);
 
     const handleChange = (field: keyof Lead, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -270,7 +275,6 @@ const LeadModal: React.FC<LeadModalProps> = ({
     };
 
     const selectClasses = "block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
-    const isAdmin = useMemo(() => designations.find(d => d.id === currentUser?.designationId)?.name === 'Admin', [currentUser, designations]);
 
     return (
         <>
@@ -315,7 +319,7 @@ const LeadModal: React.FC<LeadModalProps> = ({
                                     referrerId={formData.referrerId}
                                     onReferrerSelect={(memberId) => handleChange('referrerId', memberId)}
                                     onAddNewReferrer={canCreate ? () => setIsNewReferrerModalOpen(true) : undefined}
-                                    disabled={isReadOnly} // MODIFIED: Pass disabled prop
+                                    disabled={isReadOnly}
                                 />
                                 {errors.leadSource && <p className="text-red-600 text-xs mt-1">{errors.leadSource as string}</p>}
                             </div>
@@ -379,13 +383,15 @@ const LeadModal: React.FC<LeadModalProps> = ({
                             
                             <div className="md:col-span-2">
                                <label htmlFor="assignedTo" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assigned To *</label>
+                               {/* --- MODIFICATION START: The 'disabled' property now uses the new permission logic --- */}
                                <select 
                                    id="assignedTo" 
                                    value={formData.assignedTo || ''} 
                                    onChange={(e) => handleChange('assignedTo', e.target.value)} 
                                    className={selectClasses}
-                                   disabled={!isAdmin || isReadOnly}
+                                   disabled={!canAssignLeads || isReadOnly}
                                >
+                               {/* --- MODIFICATION END --- */}
                                  <option value="">Unassigned</option>
                                  {advisors.map(adv => <option key={adv.id} value={adv.id}>{adv.name}</option>)}
                                </select>
@@ -413,7 +419,6 @@ const LeadModal: React.FC<LeadModalProps> = ({
 
                 <div className="flex-shrink-0 flex justify-end p-6 pt-4 border-t border-gray-200 dark:border-gray-700 gap-3">
                     <Button onClick={onClose} variant="secondary">Cancel</Button>
-                    {/* MODIFIED: Save button is disabled in read-only mode */}
                     <Button onClick={handleSave} variant="primary" disabled={isReadOnly}>{lead ? 'Save Changes' : 'Create Lead'}</Button>
                 </div>
             </Modal>

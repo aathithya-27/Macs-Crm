@@ -303,9 +303,18 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ isOpen, onClose, filters, onF
         max: filters.valueRange.max === valueBounds.max ? '' : filters.valueRange.max.toString(),
     });
 
-    const generalInsuranceTypes = useMemo(() => 
-        insuranceTypes.filter(it => it.active && it.name !== 'Life Insurance' && it.name !== 'Health Insurance'),
+    // --- MODIFICATION START: Dynamic options for insurance types ---
+    const parentInsuranceTypes = useMemo(() => 
+        insuranceTypes.filter(it => it.active && !it.parentId),
     [insuranceTypes]);
+
+    const generalInsuranceSubTypes = useMemo(() => {
+        const generalParent = parentInsuranceTypes.find(p => p.name === 'General Insurance');
+        if (!generalParent) return [];
+        return insuranceTypes.filter(it => it.active && it.parentId === generalParent.id);
+    }, [insuranceTypes, parentInsuranceTypes]);
+    // --- MODIFICATION END ---
+
 
     useEffect(() => {
         setValueRangeStrings({
@@ -401,6 +410,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ isOpen, onClose, filters, onF
                             leadSources={leadSources}
                         />
                     </div>
+                    {/* --- MODIFICATION START: Dynamic Policy of Interest filter --- */}
                     <div className="space-y-2">
                         <h4 className="font-semibold text-gray-600 dark:text-gray-300">Policy of Interest</h4>
                         <select
@@ -409,23 +419,25 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ isOpen, onClose, filters, onF
                             className="w-full h-10 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-brand-primary bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                         >
                             <option value="">All Types</option>
-                            <option>Health Insurance</option>
-                            <option>Life Insurance</option>
-                            <option>General Insurance</option>
+                            {parentInsuranceTypes.map(type => (
+                                <option key={type.id} value={type.name}>{type.name}</option>
+                            ))}
                         </select>
-                        {filters.policyInterestType === 'General Insurance' && (
+                        {filters.policyInterestType === 'General Insurance' && generalInsuranceSubTypes.length > 0 && (
                             <select
                                 value={filters.policyInterestGeneralType}
                                 onChange={e => onFilterChange(prev => ({...prev, policyInterestGeneralType: e.target.value}))}
                                 className="w-full h-10 px-3 py-2 border mt-2 border-gray-300 rounded-lg focus:outline-none focus:ring-brand-primary bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white animate-fade-in"
                             >
                                 <option value="">All General Types</option>
-                                {generalInsuranceTypes.map(type => (
+                                {generalInsuranceSubTypes.map(type => (
                                     <option key={type.id} value={type.name}>{type.name}</option>
                                 ))}
                             </select>
                         )}
                     </div>
+                    {/* --- MODIFICATION END --- */}
+
                 </div>
 
                 <div className="p-4 border-t dark:border-gray-700 flex justify-between items-center">
@@ -519,18 +531,29 @@ const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadM
                 }
             }
     
-            if (policyInterestType && lead.policyInterestType !== policyInterestType) {
-                return false;
+            // --- MODIFICATION START: Dynamic filtering logic ---
+            if (policyInterestType) {
+                const leadType = insuranceTypes.find(it => it.id === lead.insuranceTypeId);
+                if (!leadType) return false;
+
+                const parentType = leadType.parentId ? insuranceTypes.find(it => it.id === leadType.parentId) : leadType;
+
+                if (parentType?.name !== policyInterestType) {
+                    return false;
+                }
+
+                if (policyInterestType === 'General Insurance' && policyInterestGeneralType) {
+                    if (leadType.name !== policyInterestGeneralType) {
+                        return false;
+                    }
+                }
             }
-    
-            if (policyInterestType === 'General Insurance' && policyInterestGeneralType && lead.policyInterestGeneralType !== policyInterestGeneralType) {
-                return false;
-            }
+            // --- MODIFICATION END ---
 
 
             return true;
         });
-    }, [leads, activeFilters, leadSources, getDescendantIds]);
+    }, [leads, activeFilters, leadSources, getDescendantIds, insuranceTypes]); // Added insuranceTypes dependency
 
     const wonLeadsCount = useMemo(() => leads.filter(l => l.status === 'Won').length, [leads]);
     const totalLeadsForConversion = useMemo(() => leads.filter(l => l.status !== 'Lost').length, [leads]);

@@ -1,13 +1,12 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Task, User, Member, TaskStatusMaster, FinRootsBranch, Lead, TaskMaster, Designation } from '../types.ts'; // MODIFIED
-import { ListTodo, Plus, Edit2, Calendar, User as UserIcon, Briefcase, Table, LayoutGrid, Search, ArrowUp, ArrowDown, Trash2, Users, Building, GitCommit, RefreshCw } from 'lucide-react';
+import { Task, User, Member, TaskStatusMaster, FinRootsBranch, Lead, TaskMaster, Designation, Role, AppModule, PermissionLevel } from '../types.ts';
+import { ListTodo, Plus, Edit2, Calendar, User as UserIcon, Briefcase, Table, LayoutGrid, Search, ArrowUp, ArrowDown, Trash2, Users, Building, GitCommit, RefreshCw, History, MessageSquare } from 'lucide-react';
 import Button from './ui/Button.tsx';
 import Input from './ui/Input.tsx';
 import Modal from './ui/Modal.tsx';
 import SearchableSelect from './ui/SearchableSelect.tsx';
 import MultiSelectDropdown from './ui/MultiSelectDropdown.tsx';
 import Pagination from './ui/Pagination.tsx';
-
 
 interface TaskManagementProps {
     allTasks: Task[];
@@ -24,20 +23,177 @@ interface TaskManagementProps {
     addToast: (message: string, type?: 'success' | 'error') => void;
     currentUser: User | null;
     finrootsBranches: FinRootsBranch[];
-    onReassignTask: (taskId: string, newAdvisorId: string, reassignerId: string) => void;
-    designations: Designation[]; // NEW PROP
+    onReassignTask: (taskId: string, newAdvisorId: string, reassignerId: string, remark?: string) => void;
+    onUpdateTaskWithRemark: (task: Task, remark: string) => void;
+    designations: Designation[];
+    roles: Role[];
+    permissions: { [key in AppModule]?: PermissionLevel };
+}
+
+interface TaskHistoryEntry {
+    timestamp: string;
+    action: 'Created' | 'Status Change' | 'Assigned' | 'Reassigned' | 'Remark Added';
+    details: string;
+    by: string;
+    oldValue?: string;
+    newValue?: string;
 }
 
 const ITEMS_PER_PAGE = 10;
+
+const TaskHistoryModal: React.FC<{
+    task: Task;
+    users: User[];
+    isOpen: boolean;
+    onClose: () => void;
+}> = ({ task, users, isOpen, onClose }) => {
+    const userMap = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users]);
+    
+    const history: TaskHistoryEntry[] = useMemo(() => {
+        const entries: TaskHistoryEntry[] = [];
+        
+        // Creation entry with creator and assignee info
+        if (task.creationDateTime) {
+            // Try to get creator from activity log first, then fallback to originalAssigneeId or currentUser
+            const creationLog = task.activityLog?.find(log => log.action === 'Created');
+            const creatorId = creationLog?.by || task.originalAssigneeId || 'System';
+            // Use originalAssigneeId for the original assignee, not current primaryContactPerson
+            const originalAssigneeName = userMap.get(task.originalAssigneeId || '') || 'Unknown';
+            
+            let details = `Task "${task.taskDescription}" was created`;
+            if (creatorId !== task.originalAssigneeId && task.originalAssigneeId) {
+                details += ` and assigned to ${originalAssigneeName}`;
+            }
+            
+            entries.push({
+                timestamp: task.creationDateTime,
+                action: 'Created',
+                details,
+                by: creatorId
+            });
+        }
+        
+        // Other entries from activity log (excluding creation entries)
+        if (task.activityLog) {
+            task.activityLog.forEach(log => {
+                // Skip duplicate creation entries
+                if (log.action === 'Created') return;
+                
+                entries.push({
+                    timestamp: log.timestamp,
+                    action: log.action as any,
+                    details: log.details,
+                    by: log.by
+                });
+            });
+        }
+        
+        // Sort by timestamp
+        return entries.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    }, [task, userMap]);
+    
+    return (
+        <Modal isOpen={isOpen} onClose={onClose}>
+            <div className="p-6">
+                <h2 className="text-xl font-bold text-brand-dark dark:text-white flex items-center gap-2">
+                    <History size={20} />
+                    Task History
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">"{task.taskDescription}"</p>
+            </div>
+            <div className="p-6 overflow-y-auto flex-grow max-h-96">
+                {history.length === 0 ? (
+                    <p className="text-gray-500 dark:text-gray-400 text-center py-8">No history available</p>
+                ) : (
+                    <div className="space-y-4">
+                        {history.map((entry, index) => (
+                            <div key={index} className="border-l-2 border-blue-200 dark:border-blue-800 pl-4 pb-4">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-sm font-semibold text-gray-800 dark:text-white">
+                                        {entry.action}
+                                    </span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                        {new Date(entry.timestamp).toLocaleString()}
+                                    </span>
+                                </div>
+                                <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">
+                                    {entry.details}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                    By: {userMap.get(entry.by) || entry.by}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+            <div className="flex justify-end p-6 border-t border-gray-200 dark:border-gray-700">
+                <Button variant="secondary" onClick={onClose}>Close</Button>
+            </div>
+        </Modal>
+    );
+};
+
+const CompletionRemarkModal: React.FC<{
+    task: Task;
+    newStatus: string;
+    statusName: string;
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: (remark: string) => void;
+}> = ({ task, newStatus, statusName, isOpen, onClose, onConfirm }) => {
+    const [remark, setRemark] = React.useState('');
+    
+    const handleConfirm = () => {
+        if (!remark.trim()) {
+            return;
+        }
+        onConfirm(remark.trim());
+        setRemark('');
+    };
+    
+    return (
+        <Modal isOpen={isOpen} onClose={onClose}>
+            <div className="p-6">
+                <h2 className="text-xl font-bold text-brand-dark dark:text-white flex items-center gap-2">
+                    <MessageSquare size={20} />
+                    Task Completion Remark
+                </h2>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Moving task to "{statusName}" status
+                </p>
+            </div>
+            <div className="p-6 space-y-4">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                    Please provide a remark explaining why this task is being marked as "{statusName}":
+                </p>
+                <textarea
+                    value={remark}
+                    onChange={(e) => setRemark(e.target.value)}
+                    placeholder="Enter your remark here..."
+                    className="w-full h-24 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    autoFocus
+                />
+            </div>
+            <div className="flex justify-end p-6 gap-3 border-t border-gray-200 dark:border-gray-700">
+                <Button variant="secondary" onClick={onClose}>Cancel</Button>
+                <Button variant="primary" onClick={handleConfirm} disabled={!remark.trim()}>
+                    Confirm & Update Status
+                </Button>
+            </div>
+        </Modal>
+    );
+};
 
 const ReassignTaskModal: React.FC<{
     task: Task;
     advisors: User[];
     isOpen: boolean;
     onClose: () => void;
-    onConfirm: (newAdvisorId: string) => void;
+    onConfirm: (newAdvisorId: string, remark: string) => void;
 }> = ({ task, advisors, isOpen, onClose, onConfirm }) => {
     const [selectedAdvisor, setSelectedAdvisor] = useState<string>('');
+    const [remark, setRemark] = useState<string>('');
 
     const advisorOptions = useMemo(() => {
         const sortedAdvisors = [...advisors].sort((a, b) => {
@@ -55,8 +211,8 @@ const ReassignTaskModal: React.FC<{
     }, [advisors, task]);
 
     const handleConfirm = () => {
-        if (selectedAdvisor) {
-            onConfirm(selectedAdvisor);
+        if (selectedAdvisor && remark.trim()) {
+            onConfirm(selectedAdvisor, remark.trim());
         }
     };
 
@@ -77,10 +233,19 @@ const ReassignTaskModal: React.FC<{
                     onChange={setSelectedAdvisor}
                     placeholder="Select new assignee..."
                 />
+                <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reason for Reassignment *</label>
+                    <textarea
+                        value={remark}
+                        onChange={(e) => setRemark(e.target.value)}
+                        placeholder="Please provide a reason for reassigning this task..."
+                        className="w-full h-20 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                    />
+                </div>
             </div>
             <div className="flex justify-end p-6 gap-3 border-t border-gray-200 dark:border-gray-700">
                 <Button variant="secondary" onClick={onClose}>Cancel</Button>
-                <Button variant="primary" onClick={handleConfirm} disabled={!selectedAdvisor}>Confirm Reassignment</Button>
+                <Button variant="primary" onClick={handleConfirm} disabled={!selectedAdvisor || !remark.trim()}>Confirm Reassignment</Button>
             </div>
         </Modal>
     );
@@ -97,45 +262,65 @@ const TaskCard: React.FC<{
     onOpenTask: (taskId: string) => void;
     onOpenModal: (task: Task) => void;
     onReassign: (task: Task) => void;
+    onShowHistory: (task: Task) => void;
     currentUser: User | null;
     activeView: 'all' | 'customer' | 'personal';
-    designations: Designation[]; // NEW PROP
-}> = ({ task, userMap, memberMap, leadMap, taskStatusMasters, onUpdateTask, onDeleteTask, onOpenTask, onOpenModal, onReassign, currentUser, activeView, designations }) => {
+    roles: Role[];
+    canModify: boolean;
+    onUpdateTaskWithRemark?: (task: Task, remark: string) => void;
+}> = ({ task, userMap, memberMap, leadMap, taskStatusMasters, onUpdateTask, onDeleteTask, onOpenTask, onOpenModal, onReassign, onShowHistory, currentUser, activeView, roles, canModify, onUpdateTaskWithRemark }) => {
 
-    const userDesignation = useMemo(() => designations.find(d => d.id === currentUser?.designationId), [currentUser, designations]);
-    const isUserAdmin = userDesignation?.name === 'Admin';
-    const isUserAdvisor = userDesignation?.isAdvisor === true;
+    const userRole = useMemo(() => roles.find(r => r.id === currentUser?.roleId), [currentUser, roles]);
+    const isUserAdvisor = userRole?.isAdvisor === true;
 
     const isAssignedToCurrentUser = task.primaryContactPerson === currentUser?.id;
+    
+    const isJustCreated = task.statusId === 'ts-created';
+    const showBlurred = isUserAdvisor && isAssignedToCurrentUser && isJustCreated;
 
-    const isAssigned = task.statusId === 'ts-6';
-    const isViewed = task.statusId === 'ts-5';
-    const isInProgress = task.statusId === 'ts-2';
-    const isCompleted = task.statusId === 'ts-3';
+    const currentStatusInfo = useMemo(() => taskStatusMasters.find(s => s.id === task.statusId), [taskStatusMasters, task.statusId]);
+    const isEndState = currentStatusInfo?.isEndState === true;
 
-    const canReassign = (isUserAdmin || isAssignedToCurrentUser) && !isCompleted;
+    const isOverdue = !isEndState && new Date(task.expectedCompletionDateTime) < new Date();
 
-    const showBlurred = isUserAdvisor && isAssignedToCurrentUser && isAssigned;
-
-    const isOverdue = !isCompleted && new Date(task.expectedCompletionDateTime) < new Date();
-
-    const handleStartProgress = () => {
-        onUpdateTask({ ...task, statusId: 'ts-2', isCompleted: false });
+    const statusName = isJustCreated ? 'Task Created' : (currentStatusInfo?.name || 'Unknown');
+    
+    const [completionModal, setCompletionModal] = React.useState<{isOpen: boolean; newStatus: string; statusName: string} | null>(null);
+    
+    const handleStatusChange = (newStatusId: string) => {
+        const newStatusInfo = taskStatusMasters.find(s => s.id === newStatusId);
+        const isNowEndState = newStatusInfo?.isEndState;
+        
+        if (isNowEndState) {
+            setCompletionModal({
+                isOpen: true,
+                newStatus: newStatusId,
+                statusName: newStatusInfo?.name || 'Unknown'
+            });
+        } else {
+            onUpdateTask({ ...task, statusId: newStatusId, isCompleted: !!isNowEndState });
+        }
     };
-
-    const handleMarkCompleted = () => {
-        onUpdateTask({ ...task, statusId: 'ts-3', isCompleted: true });
+    
+    const handleCompletionConfirm = (remark: string) => {
+        if (completionModal) {
+            const updatedTask = { 
+                ...task, 
+                statusId: completionModal.newStatus, 
+                isCompleted: true 
+            };
+            
+            if (onUpdateTaskWithRemark) {
+                onUpdateTaskWithRemark(updatedTask, remark);
+            } else {
+                // Fallback: use regular onUpdateTask if onUpdateTaskWithRemark is not available
+                onUpdateTask(updatedTask);
+            }
+        }
+        setCompletionModal(null);
     };
-
-    const statusName = taskStatusMasters.find(s => s.id === task.statusId)?.name || 'Unknown';
-    const statusColor = {
-        'ts-6': 'text-gray-500 dark:text-gray-400', // Assigned
-        'ts-1': 'text-gray-500 dark:text-gray-400', // Pending
-        'ts-5': 'text-blue-500 dark:text-blue-400', // Viewed
-        'ts-2': 'text-yellow-500 dark:text-yellow-400', // In Progress
-        'ts-3': 'text-green-500 dark:text-green-400', // Completed
-        'ts-4': 'text-red-500 dark:text-red-400', // Cancelled
-    }[task.statusId || 'ts-1'];
+    
+    const statusColor = task.isCompleted ? 'text-green-500 dark:text-green-400' : 'text-yellow-500 dark:text-yellow-400';
 
     const clientName = task.memberId ? memberMap.get(task.memberId) : leadMap.get(task.leadId || '');
     const clientType = task.memberId ? 'Customer' : 'Lead';
@@ -152,7 +337,6 @@ const TaskCard: React.FC<{
 
     const originalAssigneeName = task.originalAssigneeId ? userMap.get(task.originalAssigneeId) : null;
 
-
     return (
         <div className="relative">
             {showBlurred && (
@@ -160,32 +344,34 @@ const TaskCard: React.FC<{
                     <Button variant="primary" onClick={() => onOpenTask(task.id)}>
                         Open Task
                     </Button>
-                    <p className="text-xs mt-2 text-gray-600 dark:text-gray-300">This task is new.</p>
+                    <p className="text-xs mt-2 text-gray-600 dark:text-gray-300">This is a new task assignment.</p>
                 </div>
             )}
             <div className={`bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm dark:border-gray-700 flex flex-col gap-3 transition-all ${cardBorderClass} ${showBlurred ? 'blur-sm' : ''}`}>
                 <div className="flex justify-between items-start">
                     <p className="font-semibold text-gray-800 dark:text-white flex-1 pr-2">{task.taskDescription}</p>
                     <div className="flex items-center gap-1">
-                        {canReassign && (
-                            <Button variant="light" size="small" className="!p-1.5 h-7 w-7" onClick={() => onReassign(task)} title="Reassign Task">
+                        <Button variant="light" size="small" className="!p-1.5 h-7 w-7" onClick={() => onShowHistory(task)} title="View History">
+                            <History size={14}/>
+                        </Button>
+                        {canModify && (
+                            <Button variant="light" size="small" className="!p-1.5 h-7 w-7" onClick={() => onOpenModal(task)}>
+                                <Edit2 size={14}/>
+                            </Button>
+                        )}
+                        {(isUserAdvisor || canModify) && !isEndState && (
+                             <Button variant="light" size="small" className="!p-1.5 h-7 w-7" onClick={() => onReassign(task)} title="Reassign Task">
                                 <GitCommit size={14} />
                             </Button>
                         )}
-                        {isUserAdmin && (
-                            <>
-                                <Button variant="light" size="small" className="!p-1.5 h-7 w-7" onClick={() => onOpenModal(task)}>
-                                    <Edit2 size={14}/>
-                                </Button>
-                                <Button variant="danger" size="small" className="!p-1.5 h-7 w-7" onClick={() => onDeleteTask(task.id)}>
-                                    <Trash2 size={14}/>
-                                </Button>
-                            </>
+                        {canModify && (
+                            <Button variant="danger" size="small" className="!p-1.5 h-7 w-7" onClick={() => onDeleteTask(task.id)} title="Delete Task">
+                                <Trash2 size={14}/>
+                            </Button>
                         )}
                     </div>
                 </div>
-                 <p className="text-xs font-mono text-gray-400 dark:text-gray-500">ID: {task.id}</p>
-
+                <p className="text-xs font-mono text-gray-400 dark:text-gray-500">ID: {task.id}</p>
                 <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-gray-500 dark:text-gray-400">
                     <div className="flex items-center gap-1.5" title="Due Date">
                         <Calendar size={12} />
@@ -204,20 +390,37 @@ const TaskCard: React.FC<{
                     </div>
                     {clientName && <div className="flex items-center gap-1.5" title={`Related ${clientType}`}><Briefcase size={12} /><span>{clientName}</span></div>}
                 </div>
-
                 <div className="pt-3 border-t dark:border-gray-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
                     <div>
                         <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Status</label>
-                        <p className={`font-semibold text-sm ${statusColor}`}>{statusName}</p>
+                        {isAssignedToCurrentUser && !isEndState && !isJustCreated ? (
+                            <select
+                                value={task.statusId || ''}
+                                onChange={(e) => handleStatusChange(e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                className={`font-semibold text-sm rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700/50 focus:ring-blue-600 focus:border-blue-600 py-1 ${statusColor}`}
+                            >
+                                {currentStatusInfo && currentStatusInfo.active && <option key={currentStatusInfo.id} value={currentStatusInfo.id}>{currentStatusInfo.name}</option>}
+                                {taskStatusMasters.filter(s => s.active && s.id !== task.statusId).map(s => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                            </select>
+                        ) : (
+                            <p className={`font-semibold text-sm ${statusColor}`}>{statusName}</p>
+                        )}
                     </div>
-                    {isUserAdvisor && isAssignedToCurrentUser && (
-                        <div className="flex-shrink-0">
-                            {isViewed && <Button size="small" variant="secondary" onClick={handleStartProgress}>Start Progress</Button>}
-                            {isInProgress && <Button size="small" variant="success" onClick={handleMarkCompleted}>Mark as Completed</Button>}
-                        </div>
-                    )}
                 </div>
             </div>
+            {completionModal && (
+                <CompletionRemarkModal
+                    task={task}
+                    newStatus={completionModal.newStatus}
+                    statusName={completionModal.statusName}
+                    isOpen={completionModal.isOpen}
+                    onClose={() => setCompletionModal(null)}
+                    onConfirm={handleCompletionConfirm}
+                />
+            )}
         </div>
     );
 };
@@ -233,11 +436,13 @@ const TaskTable: React.FC<{
     onOpenModal: (task: Task) => void;
     onDeleteTask: (taskId: string) => void;
     onReassign: (task: Task) => void;
+    onShowHistory: (task: Task) => void;
     currentUser: User | null;
     onSort: (key: string) => void;
     sortConfig: { key: string; direction: 'asc' | 'desc' };
     activeView: 'all' | 'customer' | 'personal';
-}> = ({ tasks, userMap, memberMap, leadMap, branchMap, users, taskStatusMasters, onOpenModal, onDeleteTask, onReassign, currentUser, onSort, sortConfig, activeView }) => {
+    canModify: boolean;
+}> = ({ tasks, userMap, memberMap, leadMap, branchMap, users, taskStatusMasters, onOpenModal, onDeleteTask, onReassign, onShowHistory, currentUser, onSort, sortConfig, activeView, canModify }) => {
 
     const SortableHeader = ({ sortKey, label }: { sortKey: string, label: string }) => (
         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
@@ -274,16 +479,18 @@ const TaskTable: React.FC<{
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {tasks.map((task, index) => {
-                    const isCompleted = task.statusId === 'ts-3';
-                    const isOverdue = !isCompleted && new Date(task.expectedCompletionDateTime) < new Date();
+                    const currentStatusInfo = taskStatusMasters.find(s => s.id === task.statusId);
+                    const isEndState = currentStatusInfo?.isEndState === true;
+                    const isOverdue = !isEndState && new Date(task.expectedCompletionDateTime) < new Date();
                     const employee = users.find(u => u.id === task.primaryContactPerson);
                     const branchName = employee?.profile?.employeeBranchId ? branchMap.get(employee.profile.employeeBranchId) : 'N/A';
                     const clientName = task.memberId ? memberMap.get(task.memberId) : (task.leadId ? leadMap.get(task.leadId) : 'Personal Task');
                     const alternates = (task.alternateContactPersons || []).map(id => userMap.get(id)).filter(Boolean).join(', ');
                     const title = alternates ? `Alternate: ${alternates}` : undefined;
-                    const canReassign = (currentUser?.designationId === 'des-admin' || task.primaryContactPerson === currentUser?.id) && !isCompleted;
+                    const canReassign = (canModify || task.primaryContactPerson === currentUser?.id) && !isEndState;
                     const isCustomerTask = !!task.memberId || !!task.leadId;
                     const originalAssigneeName = task.originalAssigneeId ? userMap.get(task.originalAssigneeId) : null;
+                    const statusName = task.statusId === 'ts-created' ? 'Task Created' : (currentStatusInfo?.name || 'Unknown');
 
                     return (
                         <tr key={task.id}>
@@ -316,19 +523,24 @@ const TaskTable: React.FC<{
                             <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{new Date(task.expectedCompletionDateTime).toLocaleDateString()}</td>
                             <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
                                 <div className="flex items-center gap-2">
-                                    <span>{taskStatusMasters.find(s => s.id === task.statusId)?.name || 'Unknown'}</span>
+                                    <span>{statusName}</span>
                                     {isOverdue && <span className="px-1.5 py-0.5 text-white bg-red-500 rounded-full text-[10px] font-bold">OVERDUE</span>}
                                 </div>
                             </td>
                             <td className="px-4 py-3">
                                 <div className="flex items-center gap-2">
+                                    <Button size="small" variant="light" onClick={() => onShowHistory(task)} title="View History">
+                                        <History size={14} />
+                                    </Button>
                                     {canReassign && (
                                         <Button size="small" variant="secondary" onClick={() => onReassign(task)} title="Reassign Task">
                                             <GitCommit size={14} /> Reassign
                                         </Button>
                                     )}
-                                    <Button size="small" variant="light" onClick={() => onOpenModal(task)}><Edit2 size={14}/> Edit</Button>
-                                    {currentUser?.designationId === 'des-admin' && (
+                                    {canModify && (
+                                        <Button size="small" variant="light" onClick={() => onOpenModal(task)}><Edit2 size={14}/> Edit</Button>
+                                    )}
+                                    {canModify && (
                                         <Button size="small" variant="danger" className="!p-1.5 h-7 w-7" onClick={() => onDeleteTask(task.id)}>
                                             <Trash2 size={14} />
                                         </Button>
@@ -348,12 +560,14 @@ const TaskTable: React.FC<{
 export const TaskManagement: React.FC<TaskManagementProps> = ({
     allTasks, onUpdateTask, onDeleteTask, onCreateTask, onCreateBulkTask, onOpenTask,
     users, members, leads, taskStatusMasters, taskMasters, addToast, currentUser, 
-    finrootsBranches, onReassignTask, designations
+    finrootsBranches, onReassignTask, onUpdateTaskWithRemark, designations, roles, permissions
 }) => {
     const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Partial<Task> | null>(null);
     const [reassignTask, setReassignTask] = useState<Task | null>(null);
+    const [historyTask, setHistoryTask] = useState<Task | null>(null);
+
 
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -362,7 +576,8 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
     const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'expectedCompletionDateTime', direction: 'asc' });
     const [currentPage, setCurrentPage] = useState(1);
 
-    const [assignmentType, setAssignmentType] = useState<'individual' | 'allAdvisors' | 'byBranch'>('individual');
+    const [assignmentType, setAssignmentType] = useState<'individual' | 'allAdvisors'>('individual');
+    const [selectedBranch, setSelectedBranch] = useState<string>('');
     const [selectedBranches, setSelectedBranches] = useState<string[]>([]);
     const [selectedBranchAdvisors, setSelectedBranchAdvisors] = useState<string[]>([]);
     const [activeView, setActiveView] = useState<'all' | 'customer' | 'personal'>('all');
@@ -370,13 +585,17 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
     const userMap = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users]);
     const memberMap = useMemo(() => new Map(members.map(m => [m.id, m.name])), [members]);
     const leadMap = useMemo(() => new Map(leads.map(l => [l.id, l.name])), [leads]);
-    // MODIFIED: Use designation to find advisors
+    
     const advisors = useMemo(() => {
-        const advisorDesignationIds = new Set(designations.filter(d => d.isAdvisor).map(d => d.id));
-        return users.filter(u => advisorDesignationIds.has(u.designationId));
-    }, [users, designations]);
+        const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
+        return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
+    }, [users, roles]);
+
     const branchMap = useMemo(() => new Map(finrootsBranches.map(b => [b.id, b.branchName])), [finrootsBranches]);
-    const isAdmin = useMemo(() => designations.find(d => d.id === currentUser?.designationId)?.name === 'Admin', [currentUser, designations]);
+    
+    const isCurrentUserAdvisor = useMemo(() => roles.find(r => r.id === currentUser?.roleId)?.isAdvisor === true, [currentUser, roles]);
+    const canCreate = (permissions?.taskManagement === 'create' || permissions?.taskManagement === 'modify') && !isCurrentUserAdvisor;
+    const canModify = permissions?.taskManagement === 'modify';
 
     const advisorsForFilter = useMemo(() => {
         if (branchFilter === 'all') {
@@ -384,6 +603,13 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
         }
         return advisors.filter(adv => adv.profile?.employeeBranchId === branchFilter);
     }, [advisors, branchFilter]);
+    
+    const advisorsForAssignment = useMemo(() => {
+        if (!selectedBranch) {
+            return advisors;
+        }
+        return advisors.filter(adv => adv.profile?.employeeBranchId === selectedBranch);
+    }, [advisors, selectedBranch]);
     
     const manualTaskMaster = useMemo(() => taskMasters.find(tm => tm.name.toLowerCase() === 'manual' && tm.active), [taskMasters]);
     const autoTaskMaster = useMemo(() => taskMasters.find(tm => tm.name.toLowerCase() === 'auto' && tm.active), [taskMasters]);
@@ -395,11 +621,22 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
     useEffect(() => {
         setSelectedBranchAdvisors([]);
     }, [selectedBranches]);
+    
+    useEffect(() => {
+        if (editingTask && !editingTask.id && assignmentType === 'individual') {
+            setEditingTask(prev => prev ? { ...prev, primaryContactPerson: undefined } : null);
+        }
+    }, [selectedBranch, assignmentType]);
 
 
     const filteredAndSortedTasks = useMemo(() => {
         let tasks: Task[] = [];
-        if (isAdmin) {
+        
+        // Advisors only see their own tasks, regardless of permissions
+        // Non-advisors with modify/view permissions can see all tasks
+        if (isCurrentUserAdvisor) {
+            tasks = allTasks.filter(task => task.primaryContactPerson === currentUser?.id);
+        } else if (permissions?.taskManagement === 'modify' || permissions?.taskManagement === 'view') {
             tasks = [...allTasks];
         } else {
             tasks = allTasks.filter(task => task.primaryContactPerson === currentUser?.id);
@@ -432,8 +669,10 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                     bValue = userMap.get(b.primaryContactPerson || '') || 'Z';
                     break;
                 case 'status':
-                    aValue = taskStatusMasters.find(s => s.id === a.statusId)?.name || 'Z';
-                    bValue = taskStatusMasters.find(s => s.id === b.statusId)?.name || 'Z';
+                    const aStatusName = a.statusId === 'ts-created' ? 'Task Created' : taskStatusMasters.find(s => s.id === a.statusId)?.name || 'Z';
+                    const bStatusName = b.statusId === 'ts-created' ? 'Task Created' : taskStatusMasters.find(s => s.id === b.statusId)?.name || 'Z';
+                    aValue = aStatusName;
+                    bValue = bStatusName;
                     break;
                 case 'branch':
                     const aAdvisor = users.find(u => u.id === a.primaryContactPerson);
@@ -456,7 +695,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
         });
 
         return tasks;
-    }, [allTasks, currentUser, searchQuery, statusFilter, advisorFilter, branchFilter, sortConfig, users, userMap, taskStatusMasters, branchMap, activeView, isAdmin]);
+    }, [allTasks, currentUser, isCurrentUserAdvisor, searchQuery, statusFilter, advisorFilter, branchFilter, sortConfig, users, userMap, taskStatusMasters, branchMap, activeView]);
 
     const totalPages = Math.ceil(filteredAndSortedTasks.length / ITEMS_PER_PAGE);
     const currentTasks = useMemo(() => {
@@ -472,23 +711,25 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
         }
         
         if (task) {
-            onOpenTask(task.id);
+            if (task.statusId === 'ts-created' && task.primaryContactPerson === currentUser?.id) {
+                onOpenTask(task.id);
+            }
         }
         
         const defaultTaskType = manualTaskMaster ? 'Manual' : (autoTaskMaster ? 'Auto' : 'Manual');
-        const currentUserIsAdvisor = designations.find(d => d.id === currentUser?.designationId)?.isAdvisor;
 
         setEditingTask(task ? { ...task } : {
             triggeringPoint: 'Manual', 
             taskDescription: '', 
             expectedCompletionDateTime: new Date().toISOString().split('T')[0],
-            isCompleted: false, 
+            isCompleted: false,
             taskType: defaultTaskType,
             taskTime: '09:00',
-            primaryContactPerson: currentUserIsAdvisor ? currentUser!.id : undefined,
+            primaryContactPerson: !canModify ? currentUser!.id : undefined,
         });
 
         setAssignmentType('individual');
+        setSelectedBranch('');
         setSelectedBranches([]);
         setSelectedBranchAdvisors([]);
         setIsModalOpen(true);
@@ -510,12 +751,12 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
             return;
         }
 
-        if (assignmentType === 'byBranch' && selectedBranchAdvisors.length === 0) {
-            addToast('Please select at least one employee from the chosen branch(es).', 'error');
+        if (assignmentType === 'allAdvisors' && selectedBranchAdvisors.length === 0) {
+            addToast('Please select at least one employee for assignment.', 'error');
             return;
         }
 
-        if (!isAdmin && !editingTask.memberId && !editingTask.leadId) {
+        if (isCurrentUserAdvisor && !editingTask.memberId && !editingTask.leadId) {
             addToast('Please select a customer or lead for the task.', 'error');
             return;
         }
@@ -532,7 +773,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
         } else {
             const { id, ...createData } = taskToSave;
 
-            if (!isAdmin) {
+            if (isCurrentUserAdvisor) {
                 onCreateTask(createData as Omit<Task, 'id'>);
                 addToast('Task created successfully.', 'success');
             } else {
@@ -540,20 +781,11 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                 if (assignmentType === 'individual') {
                     onCreateTask(createData as Omit<Task, 'id'>);
                 } else if (assignmentType === 'allAdvisors') {
-                    const targetAdvisorIds = advisors.map(a => a.id);
-                    if (targetAdvisorIds.length > 0) {
-                        onCreateBulkTask(createData as Omit<Task, 'id'>, targetAdvisorIds);
-                        successMessage = `Task assigned to ${targetAdvisorIds.length} employees.`;
-                    } else {
-                        addToast('No employees with an advisor designation found for bulk assignment.', 'error');
-                        return;
-                    }
-                } else if (assignmentType === 'byBranch') {
                     if (selectedBranchAdvisors.length > 0) {
                         onCreateBulkTask(createData as Omit<Task, 'id'>, selectedBranchAdvisors);
                         successMessage = `Task assigned to ${selectedBranchAdvisors.length} employee(s).`;
                     } else {
-                        addToast('No employees selected from the branch(es).', 'error');
+                        addToast('No employees selected for assignment.', 'error');
                         return;
                     }
                 }
@@ -571,7 +803,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
         }));
     };
 
-    const advisorOptions = useMemo(() => advisors.map(adv => ({ value: adv.id, label: adv.name })), [advisors]);
+    const advisorOptions = useMemo(() => advisorsForAssignment.map(adv => ({ value: adv.id, label: adv.name })), [advisorsForAssignment]);
 
     const advisorsInSelectedBranches = useMemo(() => {
         if (selectedBranches.length === 0) return [];
@@ -619,6 +851,8 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
     };
 
 
+
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -626,7 +860,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                     <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Task Management</h1>
                     <p className="text-gray-500 dark:text-gray-400 mt-1">View and manage all operational tasks.</p>
                 </div>
-                 {isAdmin && (
+                 {canCreate && (
                     <Button onClick={() => handleOpenModal(null)} variant="success">
                         <Plus size={16} /> Create New Task
                     </Button>
@@ -661,10 +895,11 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                             className="w-full h-10 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-brand-primary bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                         >
                             <option value="all">All Statuses</option>
-                            {taskStatusMasters.map(status => <option key={status.id} value={status.id}>{status.name}</option>)}
+                            <option value="ts-created">Task Created</option>
+                            {taskStatusMasters.filter(status => status.active).map(status => <option key={status.id} value={status.id}>{status.name}</option>)}
                         </select>
                     </div>
-                     {isAdmin && (
+                     {(permissions?.taskManagement === 'modify' || permissions?.taskManagement === 'view') && (
                         <>
                              <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Branch</label>
@@ -692,7 +927,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                     )}
                 </div>
                  <div className="flex justify-end">
-                     {isAdmin && (
+                     {(permissions?.taskManagement === 'modify' || permissions?.taskManagement === 'view') && (
                         <div className="flex items-center gap-1 bg-gray-200 dark:bg-gray-900 p-1 rounded-lg">
                             <button onClick={() => setViewMode('card')} className={`p-2 rounded-md transition-colors ${viewMode === 'card' ? 'bg-white text-brand-primary dark:bg-gray-700' : 'text-gray-500 hover:bg-white/50 dark:text-gray-400 dark:hover:bg-gray-800'}`} aria-label="Card View"><LayoutGrid size={16}/></button>
                             <button onClick={() => setViewMode('table')} className={`p-2 rounded-md transition-colors ${viewMode === 'table' ? 'bg-white text-brand-primary dark:bg-gray-700' : 'text-gray-500 hover:bg-white/50 dark:text-gray-400 dark:hover:bg-gray-800'}`} aria-label="Table View"><Table size={16}/></button>
@@ -701,9 +936,9 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                 </div>
             </div>
 
-            {viewMode === 'table' && isAdmin ? (
+            {viewMode === 'table' && (permissions?.taskManagement === 'modify' || permissions?.taskManagement === 'view') ? (
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700">
-                    <TaskTable tasks={currentTasks} userMap={userMap} memberMap={memberMap} leadMap={leadMap} branchMap={branchMap} users={users} taskStatusMasters={taskStatusMasters} onOpenModal={handleOpenModal} onDeleteTask={onDeleteTask} currentUser={currentUser} onSort={handleSort} sortConfig={sortConfig} onReassign={setReassignTask} activeView={activeView} />
+                    <TaskTable tasks={currentTasks} userMap={userMap} memberMap={memberMap} leadMap={leadMap} branchMap={branchMap} users={users} taskStatusMasters={taskStatusMasters} onOpenModal={handleOpenModal} onDeleteTask={onDeleteTask} currentUser={currentUser} onSort={handleSort} sortConfig={sortConfig} onReassign={setReassignTask} onShowHistory={setHistoryTask} activeView={activeView} canModify={canModify} />
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -720,9 +955,12 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                             onOpenTask={onOpenTask}
                             onOpenModal={handleOpenModal}
                             onReassign={setReassignTask}
+                            onShowHistory={setHistoryTask}
                             currentUser={currentUser}
                             activeView={activeView}
-                            designations={designations}
+                            roles={roles}
+                            canModify={canModify}
+                            onUpdateTaskWithRemark={onUpdateTaskWithRemark}
                         />
                     ))}
                 </div>
@@ -756,30 +994,40 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                             label="Task Description *"
                             value={editingTask.taskDescription || ''}
                             onChange={(e) => setEditingTask({...editingTask, taskDescription: e.target.value})}
+                            disabled={editingTask.id ? !canModify : !canCreate}
                         />
-                        {isAdmin && !editingTask.id && (
+                        {canCreate && !editingTask.id && (
                             <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
                                  <div>
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assignment Type</label>
                                     <div className="flex items-center gap-2 p-1 bg-gray-200 dark:bg-gray-900/50 rounded-lg">
                                         <button type="button" onClick={() => setAssignmentType('individual')} className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-sm font-semibold rounded-md transition-colors ${assignmentType === 'individual' ? 'bg-white text-gray-800 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-600 hover:bg-white/70 dark:text-gray-400 dark:hover:bg-gray-600'}`}><UserIcon size={14}/> Individual</button>
                                         <button type="button" onClick={() => setAssignmentType('allAdvisors')} className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-sm font-semibold rounded-md transition-colors ${assignmentType === 'allAdvisors' ? 'bg-white text-gray-800 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-600 hover:bg-white/70 dark:text-gray-400 dark:hover:bg-gray-600'}`}><Users size={14}/> All Advisors</button>
-                                        <button type="button" onClick={() => setAssignmentType('byBranch')} className={`flex-1 flex items-center justify-center gap-2 py-1.5 text-sm font-semibold rounded-md transition-colors ${assignmentType === 'byBranch' ? 'bg-white text-gray-800 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-600 hover:bg-white/70 dark:text-gray-400 dark:hover:bg-gray-600'}`}><Building size={14}/> By Branch</button>
                                     </div>
                                 </div>
                             </div>
                         )}
                         {assignmentType === 'individual' && (
-                             <SearchableSelect
-                                label="Assigned To (Primary) *"
-                                options={advisorOptions}
-                                value={editingTask.primaryContactPerson || ''}
-                                onChange={(value) => setEditingTask({...editingTask, primaryContactPerson: value})}
-                                placeholder="Select Employee..."
-                                disabled={!isAdmin}
-                            />
+                            <>
+                                <SearchableSelect
+                                    label="Select Branch"
+                                    options={finrootsBranches.map(b => ({ value: b.id, label: b.branchName }))}
+                                    value={selectedBranch}
+                                    onChange={setSelectedBranch}
+                                    placeholder="Select branch to filter employees..."
+                                    disabled={editingTask.id ? !canModify : !canCreate}
+                                />
+                                <SearchableSelect
+                                    label="Assigned To (Primary) *"
+                                    options={advisorOptions}
+                                    value={editingTask.primaryContactPerson || ''}
+                                    onChange={(value) => setEditingTask({...editingTask, primaryContactPerson: value})}
+                                    placeholder={selectedBranch ? "Select Employee..." : "Select branch first..."}
+                                    disabled={editingTask.id ? !canModify : (!canCreate || !selectedBranch)}
+                                />
+                            </>
                         )}
-                        {assignmentType === 'byBranch' && (
+                        {assignmentType === 'allAdvisors' && (
                             <>
                                 <MultiSelectDropdown
                                     label="Select Branches"
@@ -797,7 +1045,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                                 )}
                             </>
                         )}
-                        {isAdmin && assignmentType === 'individual' && (
+                        {canModify && assignmentType === 'individual' && (
                            <MultiSelectDropdown
                                 label="Alternate Employees"
                                 options={advisorOptions.filter(opt => opt.value !== editingTask.primaryContactPerson)}
@@ -806,21 +1054,22 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                             />
                         )}
                         <SearchableSelect
-                            label={`Related Customer / Lead ${!isAdmin ? '*' : '(Optional)'}`}
+                            label={`Related Customer / Lead ${isCurrentUserAdvisor ? '*' : '(Optional)'}`}
                             options={clientOptions}
                             value={selectedClientValue}
                             onChange={handleClientChange}
                             placeholder="None (Personal Task)"
+                            disabled={editingTask.id ? !canModify : !canCreate}
                         />
                         {(manualTaskMaster || autoTaskMaster) && (
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mode</label>
                                 <div className="flex items-center gap-2 p-1 bg-gray-200 dark:bg-gray-900/50 rounded-lg">
                                     {manualTaskMaster && (
-                                        <button type="button" onClick={() => setEditingTask({...editingTask, taskType: 'Manual'})} className={`flex-1 py-1.5 text-sm font-semibold rounded-md transition-colors ${editingTask.taskType === 'Manual' ? 'bg-white text-gray-800 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-600 hover:bg-white/70 dark:text-gray-400 dark:hover:bg-gray-600'}`}>Manual</button>
+                                        <button type="button" onClick={() => (editingTask.id ? !canModify : !canCreate) ? null : setEditingTask({...editingTask, taskType: 'Manual'})} className={`flex-1 py-1.5 text-sm font-semibold rounded-md transition-colors ${editingTask.taskType === 'Manual' ? 'bg-white text-gray-800 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-600 hover:bg-white/70 dark:text-gray-400 dark:hover:bg-gray-600'}`} disabled={editingTask.id ? !canModify : !canCreate}>Manual</button>
                                     )}
                                     {autoTaskMaster && (
-                                        <button type="button" onClick={() => setEditingTask({...editingTask, taskType: 'Auto'})} className={`flex-1 py-1.5 text-sm font-semibold rounded-md transition-colors ${editingTask.taskType === 'Auto' ? 'bg-white text-gray-800 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-600 hover:bg-white/70 dark:text-gray-400 dark:hover:bg-gray-600'}`}>Auto</button>
+                                        <button type="button" onClick={() => (editingTask.id ? !canModify : !canCreate) ? null : setEditingTask({...editingTask, taskType: 'Auto'})} className={`flex-1 py-1.5 text-sm font-semibold rounded-md transition-colors ${editingTask.taskType === 'Auto' ? 'bg-white text-gray-800 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-600 hover:bg-white/70 dark:text-gray-400 dark:hover:bg-gray-600'}`} disabled={editingTask.id ? !canModify : !canCreate}>Auto</button>
                                     )}
                                 </div>
                             </div>
@@ -830,6 +1079,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                             type="date"
                             value={editingTask.expectedCompletionDateTime?.split('T')[0] || ''}
                             onChange={(e) => setEditingTask({...editingTask, expectedCompletionDateTime: e.target.value})}
+                            disabled={editingTask.id ? !canModify : !canCreate}
                         />
                         {editingTask.taskType === 'Auto' && (
                              <Input
@@ -837,16 +1087,13 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                                 type="time"
                                 value={editingTask.taskTime || ''}
                                 onChange={(e) => setEditingTask({...editingTask, taskTime: e.target.value})}
+                                disabled={editingTask.id ? !canModify : !canCreate}
                             />
                         )}
-                        <div className="flex items-center gap-2">
-                             <input type="checkbox" id="isShared" checked={editingTask.isShared} onChange={e => setEditingTask({...editingTask, isShared: e.target.checked})} />
-                             <label htmlFor="isShared" className="text-sm font-medium text-gray-700 dark:text-gray-300">Share this task</label>
-                        </div>
                     </div>
                     <div className="flex justify-end p-6 gap-3 border-t border-gray-200 dark:border-gray-700">
                         <Button variant="secondary" onClick={handleCloseModal}>Cancel</Button>
-                        <Button variant="primary" onClick={handleSaveTask}>Save Task</Button>
+                        {(canCreate || canModify) && <Button variant="primary" onClick={handleSaveTask}>{editingTask.id ? 'Update Task' : 'Create Task'}</Button>}
                     </div>
                  </Modal>
              )}
@@ -856,12 +1103,21 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                     advisors={advisors}
                     isOpen={!!reassignTask}
                     onClose={() => setReassignTask(null)}
-                    onConfirm={(newAdvisorId) => {
-                        onReassignTask(reassignTask.id, newAdvisorId, currentUser!.id);
+                    onConfirm={(newAdvisorId, remark) => {
+                        onReassignTask(reassignTask.id, newAdvisorId, currentUser!.id, remark);
                         setReassignTask(null);
                     }}
                 />
             )}
+            {historyTask && (
+                <TaskHistoryModal
+                    task={historyTask}
+                    users={users}
+                    isOpen={!!historyTask}
+                    onClose={() => setHistoryTask(null)}
+                />
+            )}
+
         </div>
     );
 };
