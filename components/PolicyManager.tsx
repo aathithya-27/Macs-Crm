@@ -4,6 +4,7 @@ import { Member, Policy, ModalTab, User, FinRootsBranch, InsuranceTypeMaster, De
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, eachWeekOfInterval, eachMonthOfInterval, parseISO, Interval, isValid, differenceInMonths } from 'date-fns';
+import Pagination from './ui/Pagination.tsx';
 
 // Correctly extends jsPDF to include autoTable functionality
 interface jsPDFWithAutoTable extends jsPDF {
@@ -109,40 +110,6 @@ const MultiSelectDropdown: React.FC<{
                     </ul>
                 </div>
             )}
-        </div>
-    );
-};
-
-const Pagination: React.FC<{
-    currentPage: number;
-    totalPages: number;
-    onPageChange: (page: number) => void;
-    itemsPerPage: number;
-    totalItems: number;
-}> = ({ currentPage, totalPages, onPageChange, itemsPerPage, totalItems }) => {
-    if (totalPages <= 1) return null;
-    const startItem = (currentPage - 1) * itemsPerPage + 1;
-    const endItem = Math.min(currentPage * itemsPerPage, totalItems);
-
-    return (
-        <div className="flex items-center justify-between border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 sm:px-6 rounded-b-lg">
-            <div className="flex-1 flex justify-between sm:hidden">
-                <Button variant="light" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1}>Previous</Button>
-                <Button variant="light" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages}>Next</Button>
-            </div>
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                <div>
-                    <p className="text-sm text-gray-700 dark:text-gray-300">
-                        Showing <span className="font-medium">{startItem}</span> to <span className="font-medium">{endItem}</span> of <span className="font-medium">{totalItems}</span> results
-                    </p>
-                </div>
-                <div>
-                    <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                         <Button variant="light" onClick={() => onPageChange(currentPage - 1)} disabled={currentPage === 1} className="rounded-r-none">Previous</Button>
-                         <Button variant="light" onClick={() => onPageChange(currentPage + 1)} disabled={currentPage === totalPages} className="rounded-l-none">Next</Button>
-                    </nav>
-                </div>
-            </div>
         </div>
     );
 };
@@ -625,9 +592,11 @@ const allPolicies = useMemo(() => {
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    {currentPolicies.map((policy, index) => (
+                    {currentPolicies.map((policy, index) => {
+                      const serialNumber = (currentPage - 1) * ITEMS_PER_PAGE + index + 1;
+                      return (
                       <tr key={policy.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700 dark:text-gray-200">{index + 1 + (currentPage - 1) * ITEMS_PER_PAGE}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700 dark:text-gray-200">{serialNumber}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">{policy.memberName}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{policy.policyTypeName}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{userMap.get(policy.advisorId || '') || 'N/A'}</td>
@@ -654,7 +623,7 @@ const allPolicies = useMemo(() => {
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    )})}
                   </tbody>
                 </table>
               ) : (
