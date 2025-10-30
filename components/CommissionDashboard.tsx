@@ -1,10 +1,11 @@
 
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Member, ModalTab, Policy } from '../types.ts';
 import Button from './ui/Button.tsx';
 import { IndianRupee, Percent, CheckCircle, Clock, XCircle, FileText } from 'lucide-react';
 import { ViewIcon } from './ui/Icons.tsx';
+import Pagination from './ui/Pagination.tsx';
 
 interface CommissionDashboardProps {
   members: Member[];
@@ -12,8 +13,15 @@ interface CommissionDashboardProps {
   onUpdateCommissionStatus: (memberId: string, policyId: string, status: Policy['commission']['status']) => void;
 }
 
+const ITEMS_PER_PAGE = 10;
+
 const CommissionDashboard: React.FC<CommissionDashboardProps> = ({ members, onViewMember, onUpdateCommissionStatus }) => {
   const [statusFilter, setStatusFilter] = useState('All Statuses');
+  const [currentPage, setCurrentPage] = useState(1);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter]);
 
   const allCommissions = useMemo(() => {
     return members.flatMap(member =>
@@ -38,6 +46,12 @@ const CommissionDashboard: React.FC<CommissionDashboardProps> = ({ members, onVi
     if (statusFilter === 'All Statuses') return allCommissions;
     return allCommissions.filter(c => c.status === statusFilter);
   }, [allCommissions, statusFilter]);
+
+  const totalPages = Math.ceil(filteredCommissions.length / ITEMS_PER_PAGE);
+  const currentCommissions = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredCommissions.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [currentPage, filteredCommissions]);
 
   const summary = useMemo(() => {
     return allCommissions.reduce(
@@ -118,6 +132,7 @@ const CommissionDashboard: React.FC<CommissionDashboardProps> = ({ members, onVi
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
               <thead className="bg-gray-50 dark:bg-gray-700">
                 <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">S.No</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Customer</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Policy Type</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Premium</th>
@@ -127,8 +142,11 @@ const CommissionDashboard: React.FC<CommissionDashboardProps> = ({ members, onVi
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredCommissions.map(c => (
+                {currentCommissions.map((c, index) => {
+                  const serialNumber = (currentPage - 1) * ITEMS_PER_PAGE + index + 1;
+                  return (
                   <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{serialNumber}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{c.memberName}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{c.policyType}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(c.policyPremium)}</td>
@@ -154,13 +172,22 @@ const CommissionDashboard: React.FC<CommissionDashboardProps> = ({ members, onVi
                       </Button>
                     </td>
                   </tr>
-                ))}
+                )})}
               </tbody>
             </table>
           ) : (
             <div className="border-t border-gray-200 dark:border-gray-700"><EmptyState /></div>
           )}
         </div>
+        {filteredCommissions.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            itemsPerPage={ITEMS_PER_PAGE}
+            totalItems={filteredCommissions.length}
+          />
+        )}
       </div>
     </div>
   );
