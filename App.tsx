@@ -1226,10 +1226,10 @@ const initialManualCommissions: ManualCommission[] = [
 
 // --- NEW: MOCK DATA FOR MUTUAL FUNDS ---
 const initialAmcs: AMC[] = [
-    { id: 'amc-1', name: 'HDFC AMC', active: true, order: 0 },
-    { id: 'amc-2', name: 'SBI Mutual Fund', active: true, order: 1 },
-    { id: 'amc-3', name: 'ICICI Prudential AMC', active: true, order: 2 },
-    { id: 'amc-4', name: 'Axis Mutual Fund', active: true, order: 3 },
+    { id: 'amc-1', name: 'HDFC AMC', verticalId: 'bv-2', active: true, order: 0 },
+    { id: 'amc-2', name: 'SBI Mutual Fund', verticalId: 'bv-2', active: true, order: 1 },
+    { id: 'amc-3', name: 'ICICI Prudential AMC', verticalId: 'bv-2', active: true, order: 2 },
+    { id: 'amc-4', name: 'Axis Mutual Fund', verticalId: 'bv-2', active: true, order: 3 },
 ];
 
 const initialMutualFundSchemes: MutualFundScheme[] = [

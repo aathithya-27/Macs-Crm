@@ -227,7 +227,7 @@ const Modal: React.FC<{
                 onClose();
             }
 
-            if (event.key === 'Tab') {
+            if (event.key === 'Tab' && firstElement && lastElement) {
                 if (event.shiftKey) {
                     if (document.activeElement === firstElement) {
                         lastElement.focus();
@@ -242,7 +242,11 @@ const Modal: React.FC<{
             }
         };
         
-        setTimeout(() => firstElement?.focus(), 100);
+        const focusTimeout = setTimeout(() => {
+            if (firstElement && modalNode) {
+                firstElement.focus();
+            }
+        }, 100);
 
         document.addEventListener('keydown', handleKeyDown);
         return () => {
@@ -3427,7 +3431,18 @@ const GenericMasterManager: React.FC<{
                         </h3>
                         <div className="mt-2">
                             <p className="text-sm text-gray-500 dark:text-gray-400">
-                                This item is currently used by <strong>{dependentItems.length} record(s)</strong> and cannot be {itemToAction?.action === 'delete' ? 'deleted' : 'deactivated'}. Please remove its usage before proceeding.
+                                {itemToAction?.action === 'delete'
+                                    ? (
+                                        <>
+                                            This item is currently used by <strong>{dependentItems.length} record(s)</strong> and cannot be deleted. Please remove its usage before proceeding.
+                                        </>
+                                    )
+                                    : (
+                                        <>
+                                            This item is currently used by <strong>{dependentItems.length} record(s)</strong>. Deactivating it may cause data inconsistencies.
+                                        </>
+                                    )
+                                }
                             </p>
                             <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
                                 Used by: {dependentItems.slice(0, 3).map(m => m.name).join(', ')}{dependentItems.length > 3 ? ', and others.' : '.'}
@@ -5474,7 +5489,44 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
             case 'role': return <RoleManager items={roles} onUpdate={onUpdateRoles} addToast={addToast} users={users} {...permissionProps} />;
             case 'rolePermissions': return <RolePermissionsManager roles={roles} rolePermissions={rolePermissions} onUpdate={onUpdateRolePermissions} addToast={addToast} {...permissionProps} />;
             case 'policyConfiguration': return <PolicyConfigurationManager {...props} {...permissionProps} />;
-            case 'businessVerticals': return <GenericMasterManager key="businessVerticals" title="Manage Business Vertical" items={businessVerticals} onUpdate={onUpdateBusinessVerticals} addToast={addToast} noun="Business Vertical" reorderable={true} codeColumnDisplay="hidden" dependencyCheck={(id) => props.insuranceTypes.filter(it => it.verticalId === id).map(it => ({ name: it.name, type: 'field' }))} showAddButton={false} {...permissionProps} />;
+            case 'businessVerticals': return <GenericMasterManager 
+    key="businessVerticals" 
+    title="Manage Business Vertical" 
+    items={businessVerticals} 
+    onUpdate={onUpdateBusinessVerticals} 
+    addToast={addToast} 
+    noun="Business Vertical" 
+    reorderable={true} 
+    codeColumnDisplay="hidden" 
+    dependencyCheck={(id) => {
+        const dependents = [];
+        const vertical = props.businessVerticals.find(bv => bv.id === id);
+
+        if (!vertical) return [];
+
+        // If the vertical is "Insurance", check for linked insurance types
+        if (vertical.name.toLowerCase().includes('insurance')) {
+            const linkedInsuranceTypes = props.insuranceTypes
+                .filter(it => it.verticalId === id)
+                .map(it => ({ name: `Insurance Type: ${it.name}`, type: 'field' as const }));
+            dependents.push(...linkedInsuranceTypes);
+        }
+
+        // --- FIX: If the vertical is "Mutual Funds", check for any members with MF holdings ---
+        if (vertical.name.toLowerCase().includes('mutual funds')) {
+            const membersWithMF = props.allMembers.filter(m => m.mutualFundHoldings && m.mutualFundHoldings.length > 0);
+            if (membersWithMF.length > 0) {
+                // --- FIX: Map over ALL found members and add them to the dependents array. ---
+                const mfDependents = membersWithMF.map(m => ({ name: `Customer: ${m.name}`, type: 'member' as const }));
+                dependents.push(...mfDependents);
+            }
+        }
+        
+        return dependents;
+    }} 
+    showAddButton={false} 
+    {...permissionProps} 
+/>;
             case 'leadSources': return <LeadSourceManager items={props.leadSources} onUpdate={props.onUpdateLeadSources} addToast={props.addToast} {...permissionProps} />;
             case 'schemesAndMappings': return <SchemesAndMappingsManager {...props} {...permissionProps} />;
             
