@@ -353,6 +353,21 @@ const LeadModal: React.FC<LeadModalProps> = ({
                                 {errors.estimatedValue && <p className="text-red-600 text-xs mt-1">{errors.estimatedValue}</p>}
                             </div>
 
+                            <div>
+                                <label htmlFor="assignedTo" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assigned To *</label>
+                                <select 
+                                    id="assignedTo" 
+                                    value={formData.assignedTo || ''} 
+                                    onChange={(e) => handleChange('assignedTo', e.target.value)} 
+                                    className={selectClasses}
+                                    disabled={!canAssignLeads || isReadOnly}
+                                >
+                                    <option value="">Unassigned</option>
+                                    {advisors.map(adv => <option key={adv.id} value={adv.id}>{adv.name}</option>)}
+                                </select>
+                                {errors.assignedTo && <p className="text-red-600 text-xs mt-1">{errors.assignedTo}</p>}
+                            </div>
+
                              <div className="md:col-span-2">
                                 <label htmlFor="policyInterestType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Policy of Interest *</label>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -383,39 +398,6 @@ const LeadModal: React.FC<LeadModalProps> = ({
                                     )}
                                 </div>
                                 {errors.insuranceTypeId && <p className="text-red-600 text-xs mt-1">{errors.insuranceTypeId as string}</p>}
-                            </div>
-                            
-                            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div>
-                                    <label htmlFor="assignedTo" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assigned To *</label>
-                                    <select 
-                                        id="assignedTo" 
-                                        value={formData.assignedTo || ''} 
-                                        onChange={(e) => handleChange('assignedTo', e.target.value)} 
-                                        className={selectClasses}
-                                        disabled={!canAssignLeads || isReadOnly}
-                                    >
-                                        <option value="">Unassigned</option>
-                                        {advisors.map(adv => <option key={adv.id} value={adv.id}>{adv.name}</option>)}
-                                    </select>
-                                    {errors.assignedTo && <p className="text-red-600 text-xs mt-1">{errors.assignedTo}</p>}
-                                </div>
-                                {/* --- NEW: Dynamic Status Dropdown --- */}
-                                <div>
-                                    <label htmlFor="status" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
-                                    <select 
-                                        id="status" 
-                                        value={formData.status || ''} 
-                                        onChange={(e) => handleChange('status', e.target.value)} 
-                                        className={selectClasses}
-                                        disabled={isReadOnly}
-                                    >
-                                        {leadStageMasters.filter(s => s.active).sort((a,b) => a.order - b.order).map(stage => <option key={stage.id} value={stage.name}>{stage.name}</option>)}
-                                        <option value="Won">Won</option>
-                                        <option value="Lost">Lost</option>
-                                    </select>
-                                </div>
-                                {/* --- END NEW --- */}
                             </div>
 
                             <div className="md:col-span-2">
