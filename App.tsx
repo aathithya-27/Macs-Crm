@@ -2487,10 +2487,8 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                 }
                 return [...prev, newOpportunity];
             });
-            addToast(`New upsell opportunity found for ${member.name}!`, 'success');
             return newOpportunity.suggestions;
         } else {
-            addToast(`No new specific upsell opportunities found for ${member.name} at this time.`, 'success');
             return null;
         }
     }, [addToast]);

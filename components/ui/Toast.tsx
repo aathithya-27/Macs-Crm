@@ -21,27 +21,8 @@ const Toast: React.FC<ToastProps> = ({ toast, onRemove }) => {
     return () => clearTimeout(timer);
   }, [toast.id, onRemove]);
 
-  const handleClose = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    // Force hide immediately
-    setIsVisible(false);
-    
-    // Try multiple removal methods
-    try {
-      onRemove(toast.id);
-    } catch (error) {
-      console.error('Toast removal failed:', error);
-    }
-    
-    // Force remove from DOM after short delay
-    setTimeout(() => {
-      const toastElement = e.currentTarget.closest('[data-toast-id="' + toast.id + '"]');
-      if (toastElement) {
-        toastElement.remove();
-      }
-    }, 100);
+  const handleClose = () => {
+    remove();
   };
 
   if (!isVisible) return null;
@@ -56,7 +37,7 @@ const Toast: React.FC<ToastProps> = ({ toast, onRemove }) => {
   `;
   
   return (
-    <div className={containerClasses} data-toast-id={toast.id}>
+    <div className={containerClasses}>
       <div className="inline-flex items-center justify-center flex-shrink-0 w-8 h-8">
         {icon}
       </div>

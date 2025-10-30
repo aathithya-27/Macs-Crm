@@ -360,7 +360,6 @@ export const enrichDigipinLocation = async (
 
     } catch (error) {
         console.error("Gemini API error in enrichDigipinLocation:", error);
-        if (addToast) addToast("AI enrichment failed, using fallback.", "error");
         return fallback_enrichDigipinLocation(lat, lng);
     }
 };
@@ -1628,7 +1627,6 @@ Your JSON array output:
 
     } catch (error) {
         console.error("Gemini API error in generateUpsellOpportunities:", error);
-        if(addToast) addToast("Gemini failed to generate upsell ideas.", "error");
         return [];
     }
 };
@@ -1704,7 +1702,6 @@ If no clear opportunity is found, return an object with an empty "suggestions" s
 
     } catch (error) {
         console.error("Gemini API error in generateUpsellOpportunityForMember:", error);
-        if(addToast) addToast("Gemini failed to generate upsell idea.", "error");
         return null;
     }
 };
@@ -1774,7 +1771,6 @@ If no clear opportunity is found, return an object with an empty "suggestions" s
 
     } catch (error) {
         console.error("Gemini API error in generateUpsellOpportunityForLead:", error);
-        if(addToast) addToast("Gemini failed to generate lead opportunity.", "error");
         return null;
     }
 };
@@ -1872,11 +1868,6 @@ Your response MUST be a valid JSON object. Do not include any other text or expl
 
     } catch (error) {
         console.error("Gemini API error in generateUpsellSuggestion:", error);
-        if (addToast) {
-            setTimeout(() => {
-                addToast("AI suggestion failed, using fallback.", "error");
-            }, 100);
-        }
         return { suggestion: "Health Insurance Top-up", pitch: "Based on your existing plan, a top-up would significantly increase your coverage for critical illnesses at a minimal cost." };
     }
 };
