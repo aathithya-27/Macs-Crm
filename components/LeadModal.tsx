@@ -344,7 +344,7 @@ const LeadModal: React.FC<LeadModalProps> = ({
                             </div>
                             
                             <div>
-                                <Input label="Follow-up Date *" id="followUpDate" type="date" value={formData.followUpDate || ''} onChange={(e) => handleChange('followUpDate', e.target.value)} disabled={isReadOnly} />
+                                <Input label="Follow-up Date *" id="followUpDate" type="date" value={formData.followUpDate && formData.followUpDate !== '1' ? formData.followUpDate : ''} onChange={(e) => handleChange('followUpDate', e.target.value)} disabled={isReadOnly} />
                                 {errors.followUpDate && <p className="text-red-600 text-xs mt-1">{errors.followUpDate}</p>}
                             </div>
 
