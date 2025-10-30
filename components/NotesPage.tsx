@@ -34,6 +34,8 @@ const NoteCard = ({ note, memberName, memberId, highlights = [], onCreateTaskFro
     
     const highlightText = (text: string, highlights: string[]) => {
       if (!highlights || highlights.length === 0) return text;
+     
+      
       const regex = new RegExp(`(${highlights.join('|')})`, 'gi');
       const parts = text.split(regex);
       return (
@@ -61,7 +63,9 @@ const NoteCard = ({ note, memberName, memberId, highlights = [], onCreateTaskFro
         const blob = new Blob([summary], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-          a.href = url;
+                  
+                   
+                   a.href = url;
         a.download = filename.replace(/\.[^/.]+$/, ".txt");
         document.body.appendChild(a);
         a.click();
@@ -273,6 +277,9 @@ const NotesPage: React.FC<NotesPageProps> = ({
                     reader.onloadend = async () => {
                         const base64Audio = (reader.result as string).split(',')[1];
                         const transcript = await transcribeAudioToEnglish(base64Audio, options.mimeType, addToast);
+                       
+                       
+                        
                         if (!transcript || transcript.toLowerCase().includes('error')) throw new Error(transcript || "Transcription failed.");
                         
                         const previousSummaries = selectedClient.voiceNotes?.map(n => n.summary) || [];
@@ -699,7 +706,10 @@ const NotesPage: React.FC<NotesPageProps> = ({
                     <div className="flex items-center gap-3 mb-4">
                        <button onClick={() => setSearchMode('ai')} className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-full transition-colors ${searchMode === 'ai' ? 'bg-brand-primary text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'}`}><BrainCircuit size={14}/> AI Search</button>
                        <button onClick={() => setSearchMode('advanced')} className={`flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-full transition-colors ${searchMode === 'advanced' ? 'bg-brand-primary text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'}`}><Settings2 size={14}/> Advanced</button>
+                   
                     </div>
+                    
+                     
                      {(() => {
                         const userRole = roles.find(r => r.id === currentUser?.roleId);
                         return (permissions?.customers === 'create' || permissions?.customers === 'modify') && !userRole?.isAdvisor;

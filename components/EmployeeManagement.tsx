@@ -43,7 +43,8 @@ const EditLeaveReasonModal: React.FC<{
                 <Input
                     label="Reason"
                     value={reason}
-                                       onChange={(e) => setReason(e.target.value)}
+                    onChange={(e) => setReason(e.target.value)}
+                    
                     placeholder="Enter reason..."
                     autoFocus
                 />
@@ -106,7 +107,9 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
         filteredEmployees = filteredEmployees.filter(emp => emp.profile?.employeeBranchId && branchFilter.includes(emp.profile.employeeBranchId));
     }
     
+      
        const getTodaysStatus = (userId: string) => {
+        
         const today = new Date().toISOString().split('T')[0];
         const records = attendance[userId];
         if (!records || records.length === 0) return 'Z'; // Not Marked
@@ -261,7 +264,9 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                   {currentEmployees.map((employee, index) => {
+                   
                     const today = new Date().toISOString().split('T')[0];
+                    
                     const todaysRecord = attendance[employee.id]?.slice().reverse().find(rec => rec.timestamp.startsWith(today));
 
                     return (

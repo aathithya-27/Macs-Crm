@@ -68,7 +68,8 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({
 
     if (userRole?.isAdvisor) {
       let filtered = members.filter(member => 
-        member.assignedTo?.includes(currentUser!.id) || member.createdBy === currentUser!.id
+               member.assignedTo?.includes(currentUser!.id) || member.createdBy === currentUser!.id
+      
       );
       if (advisorViewMode === 'created') {
         filtered = filtered.filter(member => member.createdBy === currentUser!.id);
@@ -113,8 +114,9 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({
 
   const handleSort = useCallback((key: string) => {
     setSortConfig(prevConfig => ({
-        key: 'createdAt',
+               key: 'createdAt',
         direction: prevConfig.direction === 'asc' ? 'desc' : 'asc'
+    
     }));
   }, []);
 

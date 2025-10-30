@@ -191,6 +191,9 @@ const FilterPanel: React.FC<{
     };
 
     const handleValueChange = (field: 'min' | 'max', value: string) => {
+       
+        
+        
         const numValue = parseInt(value);
         onFilterChange(prev => ({...prev, premiumRange: { ...prev.premiumRange, [field]: isNaN(numValue) ? 0 : numValue }}));
     };
@@ -622,9 +625,9 @@ const allPolicies = useMemo(() => {
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                    {currentPolicies.map(policy => (
+                    {currentPolicies.map((policy, index) => (
                       <tr key={policy.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700 dark:text-gray-200">{policy.pk}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700 dark:text-gray-200">{index + 1 + (currentPage - 1) * ITEMS_PER_PAGE}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">{policy.memberName}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{policy.policyTypeName}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{userMap.get(policy.advisorId || '') || 'N/A'}</td>
