@@ -586,6 +586,17 @@ export interface ProcessStageMaster {
 }
 // --- MODIFICATION END ---
 
+// --- NEW: Lead Stage Types ---
+export type LeadStatus = string;
+
+export interface LeadStageMaster {
+  id: string;
+  name: string;
+  order: number;
+  active: boolean;
+}
+// --- END NEW ---
+
 
 export interface ProcessLog {
     stage: ProcessStage;
@@ -607,7 +618,8 @@ export interface Lead {
     email?: string;
     phone: string;
     leadSource?: LeadSource;
-    status: 'Lead' | 'Contacted' | 'Meeting Scheduled' | 'Proposal Sent' | 'Won' | 'Lost';
+    // --- MODIFICATION: Changed from hardcoded union to new LeadStatus type ---
+    status: LeadStatus;
     estimatedValue: number;
     assignedTo: string;
     createdAt: string;
@@ -629,6 +641,7 @@ export interface Lead {
     createdBy?: string;
 }
 
+/** @deprecated Use LeadStageMaster instead. */
 export type PipelineStatus = 'Lead' | 'Contacted' | 'Meeting Scheduled' | 'Proposal Sent';
 
 

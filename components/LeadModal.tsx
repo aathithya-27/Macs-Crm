@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Lead, User, LeadSource, LeadSourceMaster, LeadActivityLog, FinRootsBranch, InsuranceTypeMaster, Member, AppModule, PermissionLevel, Role } from '../types.ts';
+import { Lead, User, LeadSource, LeadSourceMaster, LeadActivityLog, FinRootsBranch, InsuranceTypeMaster, Member, AppModule, PermissionLevel, Role, LeadStageMaster } from '../types.ts';
 import Modal from './ui/Modal.tsx';
 import Button from './ui/Button.tsx';
 import Input from './ui/Input.tsx';
@@ -62,6 +62,9 @@ const ActivityTimeline: React.FC<{ lead: Lead; userMap: Map<string, string> }> =
                                         <time dateTime={log.timestamp}>
                                             {new Date(log.timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                                         </time>
+                                        <div className="text-xs text-gray-400 dark:text-gray-500">
+                                            {new Date(log.timestamp).toLocaleTimeString()}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -128,12 +131,13 @@ interface LeadModalProps {
     onCreateReferrer: (referrerData: { name: string, mobile: string, email?: string }) => Promise<Member | null>;
     permissions: { [key in AppModule]?: PermissionLevel };
     roles: Role[];
+    leadStageMasters: LeadStageMaster[]; // --- NEW ---
 }
 
 const LeadModal: React.FC<LeadModalProps> = ({ 
     isOpen, onClose, lead, onSave, addToast, currentUser, users, 
     leadSources, finrootsBranches, insuranceTypes, allMembers, 
-    onCreateReferrer, permissions, roles
+    onCreateReferrer, permissions, roles, leadStageMasters
 }) => {
     const [formData, setFormData] = useState<Partial<Lead>>({});
     const [errors, setErrors] = useState<Partial<Record<keyof Lead, string>>>({});
@@ -143,14 +147,12 @@ const LeadModal: React.FC<LeadModalProps> = ({
     const userMap = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users]);
     const TABS = ['Details', 'Activity Timeline'];
 
-    // --- MODIFICATION START: Replaced hard-coded designation check with permission-based logic ---
     const canModify = permissions?.pipeline === 'modify';
     const canCreate = permissions?.pipeline === 'create' || canModify;
     const isReadOnly = !!lead && !canModify;
     
     const currentUserRole = useMemo(() => roles.find(r => r.id === currentUser?.roleId), [roles, currentUser]);
     const canAssignLeads = (canCreate || canModify) && !currentUserRole?.isAdvisor;
-    // --- MODIFICATION END ---
 
     const advisors = useMemo(() => {
         const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
@@ -163,12 +165,14 @@ const LeadModal: React.FC<LeadModalProps> = ({
         
         if (lead) return JSON.parse(JSON.stringify(lead)); // Deep copy
         
+        const firstStage = leadStageMasters.filter(s => s.active).sort((a,b) => a.order - b.order)[0];
+
         return {
             name: '',
             phone: '',
             email: '',
             leadSource: { sourceId: null, detail: '' },
-            status: 'Lead',
+            status: firstStage ? firstStage.name : 'Lead', // --- MODIFICATION ---
             estimatedValue: 0,
             notes: '',
             assignedTo: isCurrentUserAdvisor ? currentUser!.id : '',
@@ -197,7 +201,7 @@ const LeadModal: React.FC<LeadModalProps> = ({
                 setSelectedParentType(null);
             }
         }
-    }, [lead, isOpen, currentUser, insuranceTypes, roles]);
+    }, [lead, isOpen, currentUser, insuranceTypes, roles, leadStageMasters]); // --- MODIFICATION: Added leadStageMasters ---
 
     const handleChange = (field: keyof Lead, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -381,21 +385,37 @@ const LeadModal: React.FC<LeadModalProps> = ({
                                 {errors.insuranceTypeId && <p className="text-red-600 text-xs mt-1">{errors.insuranceTypeId as string}</p>}
                             </div>
                             
-                            <div className="md:col-span-2">
-                               <label htmlFor="assignedTo" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assigned To *</label>
-                               {/* --- MODIFICATION START: The 'disabled' property now uses the new permission logic --- */}
-                               <select 
-                                   id="assignedTo" 
-                                   value={formData.assignedTo || ''} 
-                                   onChange={(e) => handleChange('assignedTo', e.target.value)} 
-                                   className={selectClasses}
-                                   disabled={!canAssignLeads || isReadOnly}
-                               >
-                               {/* --- MODIFICATION END --- */}
-                                 <option value="">Unassigned</option>
-                                 {advisors.map(adv => <option key={adv.id} value={adv.id}>{adv.name}</option>)}
-                               </select>
-                               {errors.assignedTo && <p className="text-red-600 text-xs mt-1">{errors.assignedTo}</p>}
+                            <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                    <label htmlFor="assignedTo" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assigned To *</label>
+                                    <select 
+                                        id="assignedTo" 
+                                        value={formData.assignedTo || ''} 
+                                        onChange={(e) => handleChange('assignedTo', e.target.value)} 
+                                        className={selectClasses}
+                                        disabled={!canAssignLeads || isReadOnly}
+                                    >
+                                        <option value="">Unassigned</option>
+                                        {advisors.map(adv => <option key={adv.id} value={adv.id}>{adv.name}</option>)}
+                                    </select>
+                                    {errors.assignedTo && <p className="text-red-600 text-xs mt-1">{errors.assignedTo}</p>}
+                                </div>
+                                {/* --- NEW: Dynamic Status Dropdown --- */}
+                                <div>
+                                    <label htmlFor="status" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+                                    <select 
+                                        id="status" 
+                                        value={formData.status || ''} 
+                                        onChange={(e) => handleChange('status', e.target.value)} 
+                                        className={selectClasses}
+                                        disabled={isReadOnly}
+                                    >
+                                        {leadStageMasters.filter(s => s.active).sort((a,b) => a.order - b.order).map(stage => <option key={stage.id} value={stage.name}>{stage.name}</option>)}
+                                        <option value="Won">Won</option>
+                                        <option value="Lost">Lost</option>
+                                    </select>
+                                </div>
+                                {/* --- END NEW --- */}
                             </div>
 
                             <div className="md:col-span-2">

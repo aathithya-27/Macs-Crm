@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-// MODIFIED: Import permission types
-import { Lead, PipelineStatus, User, LeadSource, LeadSourceMaster, FinRootsBranch, PolicyType, InsuranceTypeMaster, AppModule, PermissionLevel } from '../types.ts';
+// MODIFIED: Import permission types and new Lead Stage types
+import { Lead, LeadStatus, LeadStageMaster, User, LeadSource, LeadSourceMaster, FinRootsBranch, PolicyType, InsuranceTypeMaster, AppModule, PermissionLevel, Role } from '../types.ts';
 import Button from './ui/Button.tsx';
 import { Plus, IndianRupee, Briefcase, Check, X, MoreVertical, ArrowRight, UserPlus, XCircle, Trash2, Clock, CheckCircle, SlidersHorizontal, Lightbulb, Loader2 } from 'lucide-react';
 import MultiSelectDropdown from './ui/MultiSelectDropdown.tsx';
@@ -19,11 +19,10 @@ interface SalesPipelineProps {
     finrootsBranches: FinRootsBranch[];
     insuranceTypes: InsuranceTypeMaster[];
     addToast: (message: string, type?: 'success' | 'error') => void;
-    // NEW: Accept permissions prop
     permissions: { [key in AppModule]?: PermissionLevel };
+    roles: Role[]; // Added for consistency, though not directly used here
+    leadStageMasters: LeadStageMaster[]; // --- NEW ---
 }
-
-const KANBAN_COLUMNS: PipelineStatus[] = ['Lead', 'Contacted', 'Meeting Scheduled', 'Proposal Sent'];
 
 const KanbanCard: React.FC<{
     lead: Lead;
@@ -35,9 +34,9 @@ const KanbanCard: React.FC<{
     onDeleteLead: (leadId: string) => void;
     onFindOpportunity: (lead: Lead) => void;
     isFindingOpportunity: boolean;
-    // NEW: Pass canModify permission down
     canModify: boolean;
-}> = ({ lead, assignee, onUpdateLead, onConvertLead, onOpenLeadModal, leadSources, onDeleteLead, onFindOpportunity, isFindingOpportunity, canModify }) => {
+    activeStageNames: string[]; // --- NEW PROP ---
+}> = ({ lead, assignee, onUpdateLead, onConvertLead, onOpenLeadModal, leadSources, onDeleteLead, onFindOpportunity, isFindingOpportunity, canModify, activeStageNames }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
 
@@ -58,7 +57,6 @@ const KanbanCard: React.FC<{
     }, []);
 
     const onDragStart = (e: React.DragEvent<HTMLDivElement>) => {
-        // MODIFIED: Only allow drag if user has modify permission
         if (!canModify) {
             e.preventDefault();
             return;
@@ -71,7 +69,7 @@ const KanbanCard: React.FC<{
         e.currentTarget.style.opacity = '1';
     };
 
-    const handleStatusChange = (newStatus: Lead['status']) => {
+    const handleStatusChange = (newStatus: LeadStatus) => {
         if (newStatus === 'Won') {
             onConvertLead(lead);
         } else {
@@ -123,12 +121,12 @@ const KanbanCard: React.FC<{
         };
     };
 
-    const possibleStatuses: Lead['status'][] = ['Lead', 'Contacted', 'Meeting Scheduled', 'Proposal Sent', 'Won', 'Lost'];
+    const possibleStatuses: LeadStatus[] = [...activeStageNames, 'Won', 'Lost'];
     const displaySource = getDisplaySource(lead.leadSource);
 
     return (
         <div 
-            draggable={canModify} // MODIFIED: Draggable is now permission-based
+            draggable={canModify}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
             onClick={() => onOpenLeadModal(lead)}
@@ -146,7 +144,6 @@ const KanbanCard: React.FC<{
                             {assignee.initials}
                         </div>
                     )}
-                    {/* MODIFIED: Menu is hidden if user cannot modify */}
                     {canModify && (
                         <div className="relative md:hidden" ref={menuRef}>
                             <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(prev => !prev); }} className="p-1 text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white">
@@ -217,11 +214,11 @@ const KanbanCard: React.FC<{
 };
 
 const KanbanColumn: React.FC<{
-    status: PipelineStatus;
+    status: LeadStatus;
     leads: Lead[];
     userMap: Map<string, User>;
     onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
-    onDrop: ((e: React.DragEvent<HTMLDivElement>, status: PipelineStatus) => void) | undefined; // MODIFIED: onDrop is now optional
+    onDrop: ((e: React.DragEvent<HTMLDivElement>, status: LeadStatus) => void) | undefined;
     onUpdateLead: (lead: Lead) => void;
     onConvertLead: (lead: Lead) => void;
     onOpenLeadModal: (lead: Lead | null) => void;
@@ -229,9 +226,9 @@ const KanbanColumn: React.FC<{
     onDeleteLead: (leadId: string) => void;
     onFindOpportunity: (lead: Lead) => void;
     isFindingOpportunityFor: string | null;
-    // NEW: Pass canModify permission down
     canModify: boolean;
-}> = ({ status, leads, userMap, onDragOver, onDrop, onUpdateLead, onConvertLead, onOpenLeadModal, leadSources, onDeleteLead, onFindOpportunity, isFindingOpportunityFor, canModify }) => {
+    activeStageNames: string[];
+}> = ({ status, leads, userMap, onDragOver, onDrop, onUpdateLead, onConvertLead, onOpenLeadModal, leadSources, onDeleteLead, onFindOpportunity, isFindingOpportunityFor, canModify, activeStageNames }) => {
     
     const totalValue = leads.reduce((sum, lead) => sum + lead.estimatedValue, 0);
 
@@ -239,7 +236,7 @@ const KanbanColumn: React.FC<{
         <div 
             className="w-full md:w-80 flex-shrink-0 bg-gray-200 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-3 h-full flex flex-col"
             onDragOver={onDragOver}
-            onDrop={(e) => onDrop && onDrop(e, status)} // MODIFIED: Conditionally call onDrop
+            onDrop={(e) => onDrop && onDrop(e, status)}
         >
             <h3 className="font-semibold text-gray-700 dark:text-gray-200 px-2 flex justify-between items-center">
                 <span>{status}</span>
@@ -249,7 +246,7 @@ const KanbanColumn: React.FC<{
                 Value: {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(totalValue)}
             </p>
             <div className="space-y-3 overflow-y-auto flex-1 pr-1">
-                {leads.map(lead => <KanbanCard key={lead.id} lead={lead} assignee={userMap.get(lead.assignedTo)} onUpdateLead={onUpdateLead} onConvertLead={onConvertLead} onOpenLeadModal={onOpenLeadModal} leadSources={leadSources} onDeleteLead={onDeleteLead} onFindOpportunity={onFindOpportunity} isFindingOpportunity={isFindingOpportunityFor === lead.id} canModify={canModify} />)}
+                {leads.map(lead => <KanbanCard key={lead.id} lead={lead} assignee={userMap.get(lead.assignedTo)} onUpdateLead={onUpdateLead} onConvertLead={onConvertLead} onOpenLeadModal={onOpenLeadModal} leadSources={leadSources} onDeleteLead={onDeleteLead} onFindOpportunity={onFindOpportunity} isFindingOpportunity={isFindingOpportunityFor === lead.id} canModify={canModify} activeStageNames={activeStageNames} />)}
             </div>
         </div>
     );
@@ -260,7 +257,7 @@ const DropZone: React.FC<{
     icon: React.ReactNode;
     color: string;
     onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
-    onDrop: ((e: React.DragEvent<HTMLDivElement>) => void) | undefined; // MODIFIED: onDrop is now optional
+    onDrop: ((e: React.DragEvent<HTMLDivElement>) => void) | undefined;
 }> = ({ label, icon, color, onDragOver, onDrop }) => (
     <div
         onDragOver={onDragOver}
@@ -303,7 +300,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ isOpen, onClose, filters, onF
         max: filters.valueRange.max === valueBounds.max ? '' : filters.valueRange.max.toString(),
     });
 
-    // --- MODIFICATION START: Dynamic options for insurance types ---
     const parentInsuranceTypes = useMemo(() => 
         insuranceTypes.filter(it => it.active && !it.parentId),
     [insuranceTypes]);
@@ -313,7 +309,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ isOpen, onClose, filters, onF
         if (!generalParent) return [];
         return insuranceTypes.filter(it => it.active && it.parentId === generalParent.id);
     }, [insuranceTypes, parentInsuranceTypes]);
-    // --- MODIFICATION END ---
 
 
     useEffect(() => {
@@ -410,7 +405,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ isOpen, onClose, filters, onF
                             leadSources={leadSources}
                         />
                     </div>
-                    {/* --- MODIFICATION START: Dynamic Policy of Interest filter --- */}
                     <div className="space-y-2">
                         <h4 className="font-semibold text-gray-600 dark:text-gray-300">Policy of Interest</h4>
                         <select
@@ -436,7 +430,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ isOpen, onClose, filters, onF
                             </select>
                         )}
                     </div>
-                    {/* --- MODIFICATION END --- */}
 
                 </div>
 
@@ -449,14 +442,19 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ isOpen, onClose, filters, onF
     );
 };
 
-const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadModal, onUpdateLead, onConvertLead, leadSources, onDeleteLead, finrootsBranches, insuranceTypes, addToast, permissions }) => {
+const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadModal, onUpdateLead, onConvertLead, leadSources, onDeleteLead, finrootsBranches, insuranceTypes, addToast, permissions, leadStageMasters, roles }) => {
     const userMap = useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
     const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
     const [isFindingOpportunityFor, setIsFindingOpportunityFor] = useState<string | null>(null);
 
-    // NEW: Permission checks for the pipeline module
     const canCreate = permissions?.pipeline === 'create' || permissions?.pipeline === 'modify';
     const canModify = permissions?.pipeline === 'modify';
+
+    const kanbanColumns = useMemo(() => 
+        leadStageMasters.filter(stage => stage.active).sort((a, b) => a.order - b.order), 
+    [leadStageMasters]);
+
+    const activeStageNames = useMemo(() => kanbanColumns.map(s => s.name), [kanbanColumns]);
 
     const getDescendantIds = useCallback((parentId: string, allSources: LeadSourceMaster[]): string[] => {
         const children = allSources.filter(s => s.parentId === parentId);
@@ -531,7 +529,6 @@ const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadM
                 }
             }
     
-            // --- MODIFICATION START: Dynamic filtering logic ---
             if (policyInterestType) {
                 const leadType = insuranceTypes.find(it => it.id === lead.insuranceTypeId);
                 if (!leadType) return false;
@@ -548,12 +545,10 @@ const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadM
                     }
                 }
             }
-            // --- MODIFICATION END ---
-
 
             return true;
         });
-    }, [leads, activeFilters, leadSources, getDescendantIds, insuranceTypes]); // Added insuranceTypes dependency
+    }, [leads, activeFilters, leadSources, getDescendantIds, insuranceTypes]);
 
     const wonLeadsCount = useMemo(() => leads.filter(l => l.status === 'Won').length, [leads]);
     const totalLeadsForConversion = useMemo(() => leads.filter(l => l.status !== 'Lost').length, [leads]);
@@ -563,14 +558,18 @@ const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadM
     const leadsByStatus = useMemo(() => {
         const sortedLeads = [...filteredLeads].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         
-        const initial: Record<PipelineStatus, Lead[]> = { 'Lead': [], 'Contacted': [], 'Meeting Scheduled': [], 'Proposal Sent': [], };
+        const initial: Record<LeadStatus, Lead[]> = {};
+        activeStageNames.forEach(name => {
+            initial[name] = [];
+        });
+
         return sortedLeads
-            .filter(lead => KANBAN_COLUMNS.includes(lead.status as PipelineStatus))
+            .filter(lead => activeStageNames.includes(lead.status as LeadStatus))
             .reduce((acc, lead) => {
-                acc[lead.status as PipelineStatus].push(lead);
+                acc[lead.status as LeadStatus].push(lead);
                 return acc;
             }, initial);
-    }, [filteredLeads]);
+    }, [filteredLeads, activeStageNames]);
 
     const handleFindOpportunity = useCallback(async (lead: Lead) => {
         setIsFindingOpportunityFor(lead.id);
@@ -594,7 +593,7 @@ const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadM
     }, [onUpdateLead, addToast]);
 
     const onDragOver = (e: React.DragEvent<HTMLDivElement>) => { e.preventDefault(); };
-    const onDrop = (e: React.DragEvent<HTMLDivElement>, newStatus: PipelineStatus) => { const leadId = e.dataTransfer.getData('leadId'); const lead = leads.find(l => l.id === leadId); if (lead && lead.status !== newStatus) { onUpdateLead({ ...lead, status: newStatus }); } };
+    const onDrop = (e: React.DragEvent<HTMLDivElement>, newStatus: LeadStatus) => { const leadId = e.dataTransfer.getData('leadId'); const lead = leads.find(l => l.id === leadId); if (lead && lead.status !== newStatus) { onUpdateLead({ ...lead, status: newStatus }); } };
     const onDropToWon = (e: React.DragEvent<HTMLDivElement>) => { const leadId = e.dataTransfer.getData('leadId'); const lead = leads.find(l => l.id === leadId); if (lead) { onConvertLead(lead); } };
     const onDropToLost = (e: React.DragEvent<HTMLDivElement>) => { const leadId = e.dataTransfer.getData('leadId'); const lead = leads.find(l => l.id === leadId); if (lead) { onUpdateLead({ ...lead, status: 'Lost' }); } };
     
@@ -640,7 +639,6 @@ const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadM
                     <Button onClick={() => setIsFilterPanelOpen(true)} variant="light">
                         <SlidersHorizontal size={16} /> Filter {activeFilterCount > 0 && <span className="bg-brand-primary text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">{activeFilterCount}</span>}
                     </Button>
-                    {/* MODIFIED: "Create" button is now controlled by permissions */}
                     {canCreate && (
                         <Button onClick={() => onOpenLeadModal(null)} variant="success">
                             <Plus size={16} /> Create New Lead
@@ -675,17 +673,18 @@ const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadM
             />
 
             <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-20rem)] min-h-[700px]">
-                {KANBAN_COLUMNS.map(status => (
+                {kanbanColumns.map(stage => (
                     <KanbanColumn
-                        key={status} status={status} leads={leadsByStatus[status] || []} userMap={userMap}
+                        key={stage.id} status={stage.name} leads={leadsByStatus[stage.name] || []} userMap={userMap}
                         onDragOver={onDragOver} 
-                        onDrop={canModify ? onDrop : undefined} // MODIFIED: onDrop is disabled if user can't modify
+                        onDrop={canModify ? onDrop : undefined}
                         onUpdateLead={onUpdateLead}
                         onConvertLead={onConvertLead} onOpenLeadModal={onOpenLeadModal}
                         leadSources={leadSources} onDeleteLead={onDeleteLead}
                         onFindOpportunity={handleFindOpportunity}
                         isFindingOpportunityFor={isFindingOpportunityFor}
-                        canModify={canModify} // NEW: Pass canModify down to the card
+                        canModify={canModify}
+                        activeStageNames={activeStageNames}
                     />
                 ))}
                 <div className="w-80 flex-shrink-0 flex flex-col gap-4">
@@ -695,7 +694,7 @@ const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadM
                             icon={<CheckCircle size={24} />} 
                             color="border-green-500 bg-green-50 text-green-600 dark:bg-green-900/30 dark:text-green-300" 
                             onDragOver={onDragOver} 
-                            onDrop={canModify ? onDropToWon : undefined} // MODIFIED: onDrop is disabled if user can't modify
+                            onDrop={canModify ? onDropToWon : undefined}
                         />
                     </div>
                     <div className="h-1/2">
@@ -704,7 +703,7 @@ const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadM
                             icon={<XCircle size={24} />} 
                             color="border-red-500 bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-300" 
                             onDragOver={onDragOver} 
-                            onDrop={canModify ? onDropToLost : undefined} // MODIFIED: onDrop is disabled if user can't modify
+                            onDrop={canModify ? onDropToLost : undefined}
                         />
                     </div>
                 </div>

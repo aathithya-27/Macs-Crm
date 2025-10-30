@@ -7,7 +7,8 @@ import {
     Gender, MaritalStatus, CustomerType, CustomerTier, ProcessStageMaster, RelationshipType,
     // --- NEW: Import new types ---
     FinancialYear, DocumentNumbering, Role, // --- ADDED: Import Role ---
-    InsuranceTypeDocumentRule
+    InsuranceTypeDocumentRule,
+    LeadStageMaster // --- ADDED ---
 } from '../types.ts';
 
 // --- NEW: Mock Data for Financial Years ---
@@ -419,6 +420,15 @@ let processStageMastersData: ProcessStageMaster[] = [
     { id: 'ps-mf-5', name: 'Portfolio Review', isMutualFund: true, order: 4, active: true },
 ];
 // --- MODIFICATION END ---
+
+// --- NEW: MOCK DATA FOR LEAD STAGE MASTER ---
+let leadStageMastersData: LeadStageMaster[] = [
+    { id: 'ls-stage-1', name: 'Lead', order: 0, active: true },
+    { id: 'ls-stage-2', name: 'Contacted', order: 1, active: true },
+    { id: 'ls-stage-3', name: 'Meeting Scheduled', order: 2, active: true },
+    { id: 'ls-stage-4', name: 'Proposal Sent', order: 3, active: true },
+];
+// --- END NEW ---
 
 
 // Premium Calculation Logic
@@ -1304,6 +1314,19 @@ export const updateProcessStageMasters = async (updatedData: ProcessStageMaster[
     return processStageMastersData;
 };
 // --- MODIFICATION END ---
+
+// --- NEW: API functions for LeadStageMaster ---
+export const getLeadStageMasters = async (): Promise<LeadStageMaster[]> => {
+    await simulateDelay(100);
+    return JSON.parse(JSON.stringify(leadStageMastersData));
+};
+
+export const updateLeadStageMasters = async (updatedData: LeadStageMaster[]): Promise<LeadStageMaster[]> => {
+    await simulateDelay(200);
+    leadStageMastersData = JSON.parse(JSON.stringify(updatedData));
+    return leadStageMastersData;
+};
+// --- END NEW ---
 
 
 // --- REFACTORED & NEW: Religion & Festival API Functions ---

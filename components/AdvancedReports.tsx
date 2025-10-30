@@ -1,7 +1,5 @@
-// --- START OF FILE AdvancedReports.tsx ---
-
 import React, { useState, useMemo, useEffect } from 'react';
-import { Member, Policy, User, Task, Lead, FinRootsBranch, SchemeMaster, Company, Expense, ManualIncome, CustomerTier, AttendanceState, BusinessVertical, TaskStatusMaster, ExpenseCategoryLevel1, ExpenseCategoryLevel2, ExpenseCategoryLevel3, IncomeCategoryLevel1, IncomeCategoryLevel2, CustomerFieldMaster, InsuranceFieldMaster, InsuranceTypeMaster, ManualCommission, Designation, Role } from '../types.ts'; // MODIFIED: Added Role
+import { Member, Policy, User, Task, Lead, FinRootsBranch, SchemeMaster, Company, Expense, ManualIncome, CustomerTier, AttendanceState, BusinessVertical, TaskStatusMaster, ExpenseCategoryLevel1, ExpenseCategoryLevel2, ExpenseCategoryLevel3, IncomeCategoryLevel1, IncomeCategoryLevel2, CustomerFieldMaster, InsuranceFieldMaster, InsuranceTypeMaster, ManualCommission, Designation, Role, LeadStageMaster } from '../types.ts';
 import { Download, FileX, BarChart3, Info, PieChart as PieChartIcon, BarChartHorizontal } from 'lucide-react';
 import Button from './ui/Button.tsx';
 import Input from './ui/Input.tsx';
@@ -18,7 +16,6 @@ interface jsPDFWithAutoTable extends jsPDF {
     autoTable: (options: any) => jsPDFWithAutoTable;
 }
 
-// --- MODIFIED: Added roles to props interface ---
 interface AdvancedReportsProps {
     members: Member[];
     users: User[];
@@ -44,7 +41,8 @@ interface AdvancedReportsProps {
     insuranceFields: InsuranceFieldMaster[];
     insuranceTypes: InsuranceTypeMaster[];
     designations: Designation[];
-    roles: Role[]; // --- NEW ---
+    roles: Role[];
+    leadStageMasters: LeadStageMaster[]; // --- NEW ---
 }
 
 // --- Type Definitions for Reporting ---
@@ -100,7 +98,8 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         manualIncomes, manualCommissions, currentUser, customerTiers, attendance, businessVerticals, 
         taskStatusMasters, expenseCategoriesLevel1, expenseCategoriesLevel2, 
         expenseCategoriesLevel3, incomeCategoriesLevel1, incomeCategoriesLevel2, 
-         customerFieldMasters, insuranceFields, insuranceTypes, designations, roles
+         customerFieldMasters, insuranceFields, insuranceTypes, designations, roles,
+         leadStageMasters
     } = props;
 
     // --- State Management ---
@@ -120,7 +119,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     const [viewMode, setViewMode] = useState<ViewMode>('table');
 
 
-    // --- MODIFIED: This logic now uses Roles ---
     const advisorOptions = useMemo(() => {
         const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
         const advisors = users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));

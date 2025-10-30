@@ -28,15 +28,16 @@ import {
     Gender, MaritalStatus, CustomerType,
     ProcessStageMaster,AccountType,Role,RolePermissions,
     FinancialYear, DocumentNumbering,PermissionLevel,
-    InsuranceTypeDocumentRule
+    InsuranceTypeDocumentRule,LeadStageMaster,Lead
 } from '../types.ts';
-import { Database, Briefcase,Layers,Handshake,Link2 ,HandCoins,UserPlus ,Sparkles ,HeartHandshake ,Globe2,Landmark ,Venus ,Heart , Users, GitBranch, MapPin, Link as LinkIcon, FileText as FileTextIcon, Gift, CheckSquare, Settings, Plus, Save, Edit2, Trash2, X, Building, Search, AlertTriangle, ChevronRight, ListTodo, SlidersHorizontal, ArrowUp, ArrowDown, CornerDownRight, GripVertical, ChevronDown, Lock, Award, IndianRupee, Calendar as CalendarIcon, Check, TrendingUp, UserCog, Route as RouteIcon } from 'lucide-react';
+import { Database,Workflow, Briefcase,Layers,Handshake,Link2 ,HandCoins,UserPlus ,Sparkles ,HeartHandshake ,Globe2,Landmark ,Venus ,Heart , Users, GitBranch, MapPin, Link as LinkIcon, FileText as FileTextIcon, Gift, CheckSquare, Settings, Plus, Save, Edit2, Trash2, X, Building, Search, AlertTriangle, ChevronRight, ListTodo, SlidersHorizontal, ArrowUp, ArrowDown, CornerDownRight, GripVertical, ChevronDown, Lock, Award, IndianRupee, Calendar as CalendarIcon, Check, TrendingUp, UserCog, Route as RouteIcon } from 'lucide-react';
 
 // --- MOVED PROPS INTERFACE TO TOP LEVEL ---
 // --- MODIFIED: Added Roles and renamed permission props ---
 interface MasterDataProps {
     addToast: (message: string, type?: 'success' | 'error') => void;
     allMembers: Member[];
+    allLeads: Lead[];
     users: User[];
     businessVerticals: BusinessVertical[];
     onUpdateBusinessVerticals: (data: BusinessVertical[]) => void;
@@ -134,6 +135,8 @@ interface MasterDataProps {
     documentNumbering: DocumentNumbering[];
     onUpdateDocumentNumbering: (data: DocumentNumbering[]) => void;
     activeFinancialYearId: string | null;
+    leadStageMasters: LeadStageMaster[];
+    onUpdateLeadStageMasters: (data: LeadStageMaster[]) => void;
 }
 // --- MOVED SHARED CONSTANTS TO TOP LEVEL ---
 const selectClasses = "block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800";
@@ -5340,7 +5343,7 @@ const GeographyManager: React.FC<{geographies: Geography[];onUpdateGeographies: 
 export const MasterData: React.FC<MasterDataProps> = (props) => {
     // --- MODIFIED: Destructure new and renamed props ---
     const { 
-        addToast, allMembers, users, businessVerticals, onUpdateBusinessVerticals,
+        addToast, allMembers,allLeads, users, businessVerticals, onUpdateBusinessVerticals,
         leadSources, onUpdateLeadSources, schemes, onUpdateSchemes, agencies, onUpdateAgencies,
         finrootsBranches, onUpdateFinrootsBranches, finrootsCompanyInfo, onUpdateFinRootsCompanyInfo,
         geographies, onUpdateGeographies, relationshipTypes, onUpdateRelationshipTypes,
@@ -5459,6 +5462,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
         { id: 'financialYear', label: 'Financial Year', icon: <CalendarIcon size={18}/> },
         { id: 'religionsAndFestivals', label: 'Religions & Festivals', icon: <Sparkles  size={18}/> },
         { id: 'leadSources', label: 'Lead/Referral', icon: <Users size={18}/> },
+        { id: 'leadStageMaster', label: 'Lead Stage Master', icon: <Workflow size={18}/> },
         { id: 'relationshipTypes', label: 'Relationship', icon: <HeartHandshake  size={18}/> },
         { id: 'geography', label: 'Geography', icon: <Globe2  size={18}/> },
         { id: 'documentMasters', label: 'Document Master', icon: <FileTextIcon size={18}/> },
@@ -5529,7 +5533,24 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
 />;
             case 'leadSources': return <LeadSourceManager items={props.leadSources} onUpdate={props.onUpdateLeadSources} addToast={props.addToast} {...permissionProps} />;
             case 'schemesAndMappings': return <SchemesAndMappingsManager {...props} {...permissionProps} />;
-            
+            case 'leadStageMaster': return <GenericMasterManager
+                key="leadStageMaster"
+                title="Manage Lead Pipeline Stages"
+                items={props.leadStageMasters}
+                onUpdate={props.onUpdateLeadStageMasters}
+                addToast={props.addToast}
+                noun="Lead Stage"
+                reorderable={true}
+                codeColumnDisplay="hidden"
+                dependencyCheck={(id) => {
+                    const stage = props.leadStageMasters.find(s => s.id === id);
+                    if (!stage) return [];
+                    return props.allLeads
+                        .filter(lead => lead.status === stage.name)
+                        .map(lead => ({ name: `Lead: ${lead.name}`, type: 'task' })); // Using 'task' type for icon consistency
+                }}
+                {...permissionProps}
+            />;
             case 'mutualFunds':
                 const mfCategories: { value: string; label: string }[] = ['Equity', 'Debt', 'Hybrid', 'Solution Oriented', 'Other'].map(c => ({ value: c, label: c }));
                 return (
