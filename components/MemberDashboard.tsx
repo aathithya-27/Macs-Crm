@@ -335,6 +335,8 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({
               onSort={handleSort}
               designations={designations}
               permissions={permissions}
+              currentPage={currentPage}
+              itemsPerPage={ITEMS_PER_PAGE}
             />
         )}
       </div>

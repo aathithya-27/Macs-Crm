@@ -20,12 +20,15 @@ interface MemberTableProps {
   onSort: (key: string) => void;
   designations: Designation[];
   permissions: { [key in AppModule]?: PermissionLevel };
+  currentPage?: number;
+  itemsPerPage?: number;
 }
 
 const MemberTable: React.FC<MemberTableProps> = ({ 
     members, allMembers, currentUser, users, onEdit, onDelete, 
     onToggleStatus, onGenerateReview, finrootsBranches, 
-    sortConfig, onSort, designations, permissions
+    sortConfig, onSort, designations, permissions,
+    currentPage = 1, itemsPerPage = 10
 }) => {
 
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
@@ -126,16 +129,18 @@ const MemberTable: React.FC<MemberTableProps> = ({
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
-          {members.map((member) => {
+          {members.map((member, index) => {
             const hasMultipleNumbers = !!member.mobile2;
             const branchName = member.branchId ? branchMap.get(member.branchId) : 'N/A';
 
             const parentSpoc = member.spocId ? allMembers.find(m => m.sno === member.spocId) : null;
             const displayFamilyName = parentSpoc ? parentSpoc.familyName : member.familyName;
 
+            const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
+            
             return (
             <tr key={member.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-opacity ${!member.active ? 'opacity-60 hover:opacity-100' : ''}`}>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{member.sno}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{serialNumber}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
                 <div className="flex items-center gap-2">
                     <span className="font-medium text-gray-900 dark:text-white">{member.name}</span>
@@ -221,19 +226,21 @@ const MemberTable: React.FC<MemberTableProps> = ({
 
       {/* Mobile Card View */}
       <div className="md:hidden p-4 space-y-4">
-        {members.map((member) => {
+        {members.map((member, index) => {
           const hasMultipleNumbers = !!member.mobile2;
           const branchName = member.branchId ? branchMap.get(member.branchId) : 'N/A';
 
           const parentSpoc = member.spocId ? allMembers.find(m => m.sno === member.spocId) : null;
           const displayFamilyName = parentSpoc ? parentSpoc.familyName : member.familyName;
 
+          const serialNumber = (currentPage - 1) * itemsPerPage + index + 1;
+          
           return (
           <div key={member.id} className={`bg-white p-4 rounded-lg shadow-md border border-gray-200 dark:bg-gray-800 dark:border-gray-700 transition-opacity ${!member.active ? 'opacity-60' : ''}`}>
             <div className="flex justify-between items-start">
               <div>
                 <p className="font-bold text-brand-dark dark:text-white">{member.name}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">ID: {member.sno} &bull; {member.city}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">ID: {serialNumber} &bull; {member.city}</p>
                 {(member.spocId) && (
                     <div className="mt-1 text-xs text-gray-400" title={displayFamilyName ? `Family: ${displayFamilyName}` : `Linked to SPOC: ${memberSnoToNameMap.get(member.spocId!)}`}>
                         {displayFamilyName ? `Family: ${displayFamilyName}` : `SPOC: ${memberSnoToNameMap.get(member.spocId!)}`}
