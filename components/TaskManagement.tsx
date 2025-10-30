@@ -442,7 +442,8 @@ const TaskTable: React.FC<{
     sortConfig: { key: string; direction: 'asc' | 'desc' };
     activeView: 'all' | 'customer' | 'personal';
     canModify: boolean;
-}> = ({ tasks, userMap, memberMap, leadMap, branchMap, users, taskStatusMasters, onOpenModal, onDeleteTask, onReassign, onShowHistory, currentUser, onSort, sortConfig, activeView, canModify }) => {
+    currentPage: number;
+}> = ({ tasks, userMap, memberMap, leadMap, branchMap, users, taskStatusMasters, onOpenModal, onDeleteTask, onReassign, onShowHistory, currentUser, onSort, sortConfig, activeView, canModify, currentPage }) => {
 
     const SortableHeader = ({ sortKey, label }: { sortKey: string, label: string }) => (
         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
@@ -494,7 +495,7 @@ const TaskTable: React.FC<{
 
                     return (
                         <tr key={task.id}>
-                             <td className="px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200">{index + 1}</td>
+                             <td className="px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-200">{index + 1 + (currentPage - 1) * ITEMS_PER_PAGE}</td>
                              <td className="px-4 py-3 text-sm font-mono text-gray-500 dark:text-gray-400">{task.id}</td>
                              {activeView === 'all' && (
                                 <td className="px-4 py-3 text-sm">
@@ -505,7 +506,8 @@ const TaskTable: React.FC<{
                                     )}
                                 </td>
                              )}
-                            <td className="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-200">{task.taskDescription}</td>
+                                                      
+                                                       <td className="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-200">{task.taskDescription}</td>
                             <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
                                  <div className="flex items-center gap-1" title={title}>
                                     {userMap.get(task.primaryContactPerson || '') || 'N/A'}
@@ -675,6 +677,9 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                     bValue = bStatusName;
                     break;
                 case 'branch':
+                   
+                    
+                    
                     const aAdvisor = users.find(u => u.id === a.primaryContactPerson);
                     const bAdvisor = users.find(u => u.id === b.primaryContactPerson);
                     aValue = branchMap.get(aAdvisor?.profile?.employeeBranchId || '') || 'Z';
@@ -685,6 +690,9 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                     bValue = b.memberId || b.leadId ? 'Customer' : 'Personal';
                     break;
                 default:
+                   
+                    
+                    
                     aValue = a[key as keyof Task] ? new Date(a[key as keyof Task] as string).getTime() : 0;
                     bValue = b[key as keyof Task] ? new Date(b[key as keyof Task] as string).getTime() : 0;
             }
@@ -695,6 +703,9 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
         });
 
         return tasks;
+   
+    
+    
     }, [allTasks, currentUser, isCurrentUserAdvisor, searchQuery, statusFilter, advisorFilter, branchFilter, sortConfig, users, userMap, taskStatusMasters, branchMap, activeView]);
 
     const totalPages = Math.ceil(filteredAndSortedTasks.length / ITEMS_PER_PAGE);
@@ -938,7 +949,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
 
             {viewMode === 'table' && (permissions?.taskManagement === 'modify' || permissions?.taskManagement === 'view') ? (
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700">
-                    <TaskTable tasks={currentTasks} userMap={userMap} memberMap={memberMap} leadMap={leadMap} branchMap={branchMap} users={users} taskStatusMasters={taskStatusMasters} onOpenModal={handleOpenModal} onDeleteTask={onDeleteTask} currentUser={currentUser} onSort={handleSort} sortConfig={sortConfig} onReassign={setReassignTask} onShowHistory={setHistoryTask} activeView={activeView} canModify={canModify} />
+                    <TaskTable tasks={currentTasks} userMap={userMap} memberMap={memberMap} leadMap={leadMap} branchMap={branchMap} users={users} taskStatusMasters={taskStatusMasters} onOpenModal={handleOpenModal} onDeleteTask={onDeleteTask} currentUser={currentUser} onSort={handleSort} sortConfig={sortConfig} onReassign={setReassignTask} onShowHistory={setHistoryTask} activeView={activeView} canModify={canModify} currentPage={currentPage} />
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
