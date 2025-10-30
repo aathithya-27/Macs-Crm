@@ -175,8 +175,10 @@ const UpsellingDashboard: React.FC<UpsellingDashboardProps> = ({ members, upsell
             const result = await generateUpsellSuggestion(member, upsellCategories, addToast);
             setSuggestionResult(result);
         } catch (error) {
-            addToast('Failed to get AI suggestion.', 'error');
-            console.error(error);
+            console.error('Upsell suggestion error:', error);
+            setTimeout(() => {
+                addToast('Failed to get AI suggestion.', 'error');
+            }, 100);
         } finally {
             setIsLoadingSuggestion(false);
         }

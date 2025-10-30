@@ -9,39 +9,42 @@ interface ToastProps {
 }
 
 const Toast: React.FC<ToastProps> = ({ toast, onRemove }) => {
-  const [isExiting, setIsExiting] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isVisible, setIsVisible] = useState(true);
 
-  // Function to handle closing and removal, used by both the timer and the close button
-  const handleClose = () => {
-    // Prevent the function from running multiple times
-    if (isExiting) return;
-
-    // If an auto-dismiss timer is running, clear it
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
-    
-    // Trigger the exit animation
-    setIsExiting(true);
-
-    // After the exit animation completes, call the parent to remove the toast from the state
-    setTimeout(() => {
-      onRemove(toast.id);
-    }, 400); // Animation is 300ms, giving a small buffer
+  const remove = () => {
+    setIsVisible(false);
+    onRemove(toast.id);
   };
 
-  // Set up the auto-dismiss timer when the component mounts
   useEffect(() => {
-    timerRef.current = setTimeout(handleClose, 5000);
+    const timer = setTimeout(remove, 3000);
+    return () => clearTimeout(timer);
+  }, [toast.id, onRemove]);
 
-    // Clean up the timer if the component unmounts for any other reason
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
+  const handleClose = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Force hide immediately
+    setIsVisible(false);
+    
+    // Try multiple removal methods
+    try {
+      onRemove(toast.id);
+    } catch (error) {
+      console.error('Toast removal failed:', error);
+    }
+    
+    // Force remove from DOM after short delay
+    setTimeout(() => {
+      const toastElement = e.currentTarget.closest('[data-toast-id="' + toast.id + '"]');
+      if (toastElement) {
+        toastElement.remove();
       }
-    };
-  }, []); // Empty dependency array ensures this effect runs only once on mount
+    }, 100);
+  };
+
+  if (!isVisible) return null;
 
   const isSuccess = toast.type === 'success';
   const icon = isSuccess ? <CheckCircle className="text-green-500" /> : <XCircle className="text-red-500" />;
@@ -49,13 +52,11 @@ const Toast: React.FC<ToastProps> = ({ toast, onRemove }) => {
   const containerClasses = `
     flex items-center w-full max-w-xs p-4 text-gray-500 bg-white rounded-lg shadow-lg
     ring-1 ring-black ring-opacity-5
-    transform transition-all duration-300 ease-in-out
     dark:bg-gray-800 dark:text-gray-400 dark:ring-white/10
-    ${isExiting ? 'opacity-0 translate-y-2' : 'animate-fade-in' }
   `;
   
   return (
-    <div className={containerClasses}>
+    <div className={containerClasses} data-toast-id={toast.id}>
       <div className="inline-flex items-center justify-center flex-shrink-0 w-8 h-8">
         {icon}
       </div>
@@ -79,9 +80,28 @@ interface ToastContainerProps {
 }
 
 const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, onRemove }) => {
+  const MAX_TOASTS = 3;
+  
+  useEffect(() => {
+    if (toasts.length > MAX_TOASTS) {
+      const oldestToasts = toasts.slice(0, toasts.length - MAX_TOASTS);
+      oldestToasts.forEach(toast => onRemove(toast.id));
+    }
+  }, [toasts, onRemove]);
+
+  useEffect(() => {
+    const cleanup = setTimeout(() => {
+      if (toasts.length > 0) {
+        toasts.forEach(toast => onRemove(toast.id));
+      }
+    }, 30000);
+    
+    return () => clearTimeout(cleanup);
+  }, []);
+
   return (
     <div className="fixed top-5 right-5 z-[2000] w-full max-w-xs space-y-4">
-      {toasts.map((toast) => (
+      {toasts.slice(-MAX_TOASTS).map((toast) => (
         <Toast key={toast.id} toast={toast} onRemove={onRemove} />
       ))}
     </div>

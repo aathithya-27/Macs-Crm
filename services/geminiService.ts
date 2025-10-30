@@ -524,7 +524,7 @@ JSON array of matching IDs:
         if (Array.isArray(result) && result.every(item => typeof item === 'string')) {
             return result;
         } else {
-            console.error("AI response was not a valid array of strings:", result);
+                      console.error("AI response was not a valid array of strings:", result);
             return [];
         }
 
@@ -707,7 +707,7 @@ JSON array of optimally ordered customer IDs:
             }
         }
         
-        console.error("AI response for routing was not a valid array of all customer IDs:", result);
+         console.error("AI response for routing was not a valid array of all customer IDs:", result);
         if(addToast) addToast("Gemini routing failed, using fallback.", "error");
         return [];
 
@@ -787,7 +787,7 @@ JSON array of matching customer IDs on the route:
         if (Array.isArray(result) && result.every(item => typeof item === 'string')) {
             return result;
         } else {
-            console.error("AI response was not a valid array of strings:", result);
+                 console.error("AI response was not a valid array of strings:", result);
             if(addToast) addToast("Gemini path finding failed, using fallback.", "error");
             return [];
         }
@@ -1872,7 +1872,11 @@ Your response MUST be a valid JSON object. Do not include any other text or expl
 
     } catch (error) {
         console.error("Gemini API error in generateUpsellSuggestion:", error);
-        if (addToast) addToast("AI suggestion failed, using fallback.", "error");
+        if (addToast) {
+            setTimeout(() => {
+                addToast("AI suggestion failed, using fallback.", "error");
+            }, 100);
+        }
         return { suggestion: "Health Insurance Top-up", pitch: "Based on your existing plan, a top-up would significantly increase your coverage for critical illnesses at a minimal cost." };
     }
 };
