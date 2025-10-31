@@ -9,10 +9,10 @@ import {
   LineElement,
   Title,
   Tooltip as ChartJsTooltip, 
-  Legend as ChartJsLegend,
+  Legend as ChartJsLegend, 
   Filler,
 } from 'chart.js';
-import { Line as ChartJsLine } from 'react-chartjs-2'; 
+import { Line as ChartJsLine } from 'react-chartjs-2';
 
 ChartJS.register(
   CategoryScale,
@@ -21,7 +21,7 @@ ChartJS.register(
   LineElement,
   Title,
   ChartJsTooltip, 
-  ChartJsLegend,  
+  ChartJsLegend,
   Filler
 );
 import MemberDashboard from './components/MemberDashboard.tsx';
@@ -821,6 +821,7 @@ const StaffPerformance: React.FC<{
     const [attendanceMenuFor, setAttendanceMenuFor] = useState<string | null>(null);
     const [editingEmployeeForReason, setEditingEmployeeForReason] = useState<User | null>(null);
     const [isReasonModalOpen, setIsReasonModalOpen] = useState(false);
+    const [reasonText, setReasonText] = useState('');
     
     const designationMap = useMemo(() => new Map(designations.map(d => [d.id, d.name])), [designations]);
     const roleMap = useMemo(() => new Map(roles.map(r => [r.id, r])), [roles]);
@@ -861,14 +862,20 @@ const StaffPerformance: React.FC<{
             setAttendanceMenuFor(null);
         } else { // Absent
             setEditingEmployeeForReason(employee);
+            const today = new Date().toISOString().split('T')[0];
+            const todaysRecord = attendance[employee.id]?.slice().reverse().find(rec => rec.timestamp.startsWith(today));
+            setReasonText(todaysRecord?.reason || '');
             setIsReasonModalOpen(true);
             setAttendanceMenuFor(null);
         }
     };
     
-    const handleSaveReason = (newReason: string) => {
+    const handleSaveReason = () => {
         if (editingEmployeeForReason) {
-            onUpdateAttendance(editingEmployeeForReason.id, 'Absent', newReason);
+            onUpdateAttendance(editingEmployeeForReason.id, 'Absent', reasonText);
+            setIsReasonModalOpen(false);
+            setEditingEmployeeForReason(null);
+            setReasonText('');
         }
     };
 
@@ -944,7 +951,11 @@ const StaffPerformance: React.FC<{
                 </table>
               </div>
               
-              <Modal isOpen={isReasonModalOpen} onClose={() => setIsReasonModalOpen(false)}>
+              <Modal isOpen={isReasonModalOpen} onClose={() => {
+                setIsReasonModalOpen(false);
+                setEditingEmployeeForReason(null);
+                setReasonText('');
+              }}>
                 <div className="p-6">
                     <h2 className="text-xl font-bold text-gray-800 dark:text-white">Reason for Absence</h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">For {editingEmployeeForReason?.name}</p>
@@ -952,18 +963,19 @@ const StaffPerformance: React.FC<{
                 <div className="p-6">
                     <Input
                         label="Reason"
-                        defaultValue={todaysRecordForModal?.reason || ''}
-                        onChange={(e) => {
-                            if (editingEmployeeForReason) {
-                                handleSaveReason(e.target.value);
-                            }
-                        }}
+                        value={reasonText}
+                        onChange={(e) => setReasonText(e.target.value)}
                         placeholder="Enter reason..."
                         autoFocus
                     />
                 </div>
                 <div className="flex justify-end p-6 gap-3 border-t border-gray-200 dark:border-gray-700">
-                    <Button variant="primary" onClick={() => setIsReasonModalOpen(false)}>Close</Button>
+                    <Button variant="secondary" onClick={() => {
+                        setIsReasonModalOpen(false);
+                        setEditingEmployeeForReason(null);
+                        setReasonText('');
+                    }}>Cancel</Button>
+                    <Button variant="primary" onClick={handleSaveReason}>Save</Button>
                 </div>
               </Modal>
         </div>
