@@ -1,9 +1,11 @@
 import React, { useMemo, useCallback, useRef, useEffect, useState } from 'react';
-import { Member, VoiceNote, Policy, User, SpecialOccasion, Task, Designation, AppModule, PermissionLevel } from '../../types.ts';
+import { Member, VoiceNote, Policy, User, SpecialOccasion, Task, Designation, AppModule, PermissionLevel, OccasionTypeMaster } from '../../types.ts';
 import { summarizeTranscript, transcribeAudioToEnglish } from '../../services/geminiService.ts';
 import Button from '../ui/Button.tsx';
 import { Mic, StopCircle, Loader2, Tag, Languages, Calendar, FileText, XCircle, RefreshCw, PlusCircle, Trash2 } from 'lucide-react';
 import Input from '../ui/Input.tsx';
+import SearchableSelect from '../ui/SearchableSelect.tsx'; 
+import { updateOccasionTypeMasters } from '../../services/apiService.ts'; 
 
 interface NotesAndRemindersTabProps {
   data: Partial<Member>;
@@ -14,7 +16,9 @@ interface NotesAndRemindersTabProps {
   currentUser: User | null;
   designations: Designation[];
   permissions: { [key in AppModule]?: PermissionLevel };
-  isCurrentUserAdvisor: boolean; // --- MODIFICATION: Added missing prop ---
+  isCurrentUserAdvisor: boolean;
+  occasionTypeMasters: OccasionTypeMaster[]; 
+  onUpdateOccasionTypeMasters: (data: OccasionTypeMaster[]) => void; 
 }
 
 type Status = 'idle' | 'recording' | 'transcribing' | 'summarizing' | 'error';
@@ -48,13 +52,16 @@ const ToggleSwitch = ({ label, enabled, onChange, disabled }: {label: string, en
 );
 
 
-export const NotesAndRemindersTab: React.FC<NotesAndRemindersTabProps> = ({ data, onSave, addToast, onCreateTask, onChange, currentUser, designations, permissions, isCurrentUserAdvisor }) => {
+export const NotesAndRemindersTab: React.FC<NotesAndRemindersTabProps> = ({ 
+    data, onSave, addToast, onCreateTask, onChange, currentUser, designations, permissions, isCurrentUserAdvisor,
+    occasionTypeMasters, onUpdateOccasionTypeMasters 
+}) => {
   const [status, setStatus] = React.useState<Status>('idle');
   const [audioURL, setAudioURL] = React.useState('');
   const [englishTranscript, setEnglishTranscript] = React.useState('');
   const [liveTranscript, setLiveTranscript] = React.useState('');
   
-  const [newOccasionName, setNewOccasionName] = useState('');
+  const [newOccasionTypeId, setNewOccasionTypeId] = useState<string | null>(null);
   const [newOccasionDate, setNewOccasionDate] = useState('');
 
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
@@ -64,6 +71,15 @@ export const NotesAndRemindersTab: React.FC<NotesAndRemindersTabProps> = ({ data
   const canModify = permissions?.customers === 'modify';
   const canCreateTask = (permissions?.taskManagement === 'create' || permissions?.taskManagement === 'modify') && !isCurrentUserAdvisor;
 
+  // --- NEW: Memoize options for the searchable select ---
+  const occasionOptions = useMemo(() => {
+    return occasionTypeMasters.filter(o => o.active).map(o => ({ value: o.id, label: o.name }));
+  }, [occasionTypeMasters]);
+
+  const occasionNameMap = useMemo(() => {
+    return new Map(occasionTypeMasters.map(o => [o.id, o.name]));
+  }, [occasionTypeMasters]);
+  
   React.useEffect(() => {
     return () => {
       if (audioURL) URL.revokeObjectURL(audioURL);
@@ -178,19 +194,42 @@ export const NotesAndRemindersTab: React.FC<NotesAndRemindersTabProps> = ({ data
   };
 
   const handleAddOccasion = () => {
-    if (!newOccasionName.trim() || !newOccasionDate) {
-        addToast('Please provide both a name and a date for the occasion.', 'error');
+    if (!newOccasionTypeId || !newOccasionDate) {
+        addToast('Please select an occasion type and a date.', 'error');
         return;
     }
     const newOccasion: SpecialOccasion = {
         id: `occ-${Date.now()}`,
-        name: newOccasionName.trim(),
+        occasionTypeId: newOccasionTypeId,
         date: newOccasionDate,
     };
     onChange('otherSpecialOccasions', [...(data.otherSpecialOccasions || []), newOccasion]);
-    setNewOccasionName('');
+    setNewOccasionTypeId(null);
     setNewOccasionDate('');
   };
+
+  const handleCreateOccasionType = async (name: string): Promise<string | null> => {
+    try {
+        const newOccasionType: OccasionTypeMaster = {
+            id: `occ-type-${Date.now()}`,
+            name,
+            active: true,
+            order: occasionTypeMasters.length,
+        };
+        const updatedList = [...occasionTypeMasters, newOccasionType];
+        await updateOccasionTypeMasters(updatedList);
+        onUpdateOccasionTypeMasters(updatedList); // Update parent state
+        addToast(`New occasion type "${name}" created.`, 'success');
+        
+        setNewOccasionTypeId(newOccasionType.id); 
+        
+        return newOccasionType.id;
+    } catch (e) {
+        addToast('Failed to create new occasion type.', 'error');
+        return null;
+    }
+  };
+
 
   const handleDeleteOccasion = (id: string) => {
     onChange('otherSpecialOccasions', (data.otherSpecialOccasions || []).filter(occ => occ.id !== id));
@@ -213,7 +252,7 @@ export const NotesAndRemindersTab: React.FC<NotesAndRemindersTabProps> = ({ data
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
       {/* Voice Notes Section */}
       <div className="space-y-4">
         {canModify && (
@@ -275,11 +314,11 @@ export const NotesAndRemindersTab: React.FC<NotesAndRemindersTabProps> = ({ data
 
           <div className="md:col-span-2 mt-4">
              <h4 className="text-md font-medium text-gray-900 dark:text-white mb-2">Other Special Occasions</h4>
-             <div className="space-y-2">
+             <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
                 {(data.otherSpecialOccasions || []).map(occ => (
                     <div key={occ.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md">
                         <div>
-                            <p className="font-medium text-gray-800 dark:text-gray-200">{occ.name}</p>
+                            <p className="font-medium text-gray-800 dark:text-gray-200">{occasionNameMap.get(occ.occasionTypeId) || 'Unknown Occasion'}</p>
                             <p className="text-xs text-gray-500 dark:text-gray-400">{new Date(occ.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                         </div>
                         <Button variant="danger" size="small" className="!p-2" onClick={() => handleDeleteOccasion(occ.id)} disabled={!canModify}>
@@ -289,7 +328,18 @@ export const NotesAndRemindersTab: React.FC<NotesAndRemindersTabProps> = ({ data
                 ))}
              </div>
              <div className="flex items-end gap-2 mt-3 pt-3 border-t dark:border-gray-600">
-                <Input placeholder="Occasion Name" value={newOccasionName} onChange={(e) => setNewOccasionName(e.target.value)} disabled={!canModify} />
+                <div className="flex-1">
+                  <SearchableSelect
+                      label=""
+                      options={occasionOptions}
+                      value={newOccasionTypeId}
+                      onChange={setNewOccasionTypeId}
+                      placeholder="Select or create occasion..."
+                      onCreate={handleCreateOccasionType}
+                      disabled={!canModify}
+                      maxHeight="200px"
+                  />
+                </div>
                 <Input type="date" value={newOccasionDate} onChange={(e) => setNewOccasionDate(e.target.value)} disabled={!canModify} />
                 <Button variant="secondary" onClick={handleAddOccasion} className="flex-shrink-0" disabled={!canModify}>
                     <PlusCircle size={16}/> Add
@@ -300,4 +350,4 @@ export const NotesAndRemindersTab: React.FC<NotesAndRemindersTabProps> = ({ data
       </div>
     </div>
   );
-};  
+};

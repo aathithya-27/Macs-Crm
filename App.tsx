@@ -9,11 +9,10 @@ import {
   LineElement,
   Title,
   Tooltip as ChartJsTooltip, 
-  Legend as ChartJsLegend, 
+  Legend as ChartJsLegend,    
   Filler,
 } from 'chart.js';
-import { Line as ChartJsLine } from 'react-chartjs-2';
-
+import { Line as ChartJsLine } from 'react-chartjs-2'; 
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -21,7 +20,7 @@ ChartJS.register(
   LineElement,
   Title,
   ChartJsTooltip, 
-  ChartJsLegend,
+  ChartJsLegend,  
   Filler
 );
 import MemberDashboard from './components/MemberDashboard.tsx';
@@ -89,7 +88,8 @@ import {
     FinancialYear, DocumentNumbering, ManualReceipt,
     Role, RolePermissions, // NEW IMPORTS
     InsuranceTypeDocumentRule, // --- ADDED ---
-    LeadStageMaster // --- ADDED ---
+    LeadStageMaster, // --- ADDED ---
+    OccasionTypeMaster // --- NEW: IMPORT OccasionTypeMaster ---
 } from './types.ts';
 // --- MODIFIED: Added Role-related service imports ---
 import { 
@@ -104,7 +104,8 @@ import {
     getFinancialYears, updateFinancialYears, getDocumentNumbering, updateDocumentNumbering,
     getRoles, updateRoles, // NEW IMPORTS
     getInsuranceTypeDocumentRules, updateInsuranceTypeDocumentRules, // --- ADDED ---
-    getLeadStageMasters, updateLeadStageMasters // --- ADDED ---
+    getLeadStageMasters, updateLeadStageMasters, // --- ADDED ---
+    getOccasionTypeMasters, updateOccasionTypeMasters // --- NEW: IMPORT OccasionTypeMaster functions ---
 } from './services/apiService.ts';
 import { getPolicySuggestions, generateAnnualReview, generateUpsellOpportunityForMember, generateTodaysFocus } from './services/geminiService.ts';
 import { indianStates } from './constants.tsx';
@@ -1000,7 +1001,7 @@ const ReportsAndInsights: React.FC<{
     permissions: { [key in AppModule]?: PermissionLevel };
 }> = ({ members, users, tasks, attendance, onUpdateAttendance, addToast, allLeads, currentUser, leadSources, schemes, insuranceTypes, onOpenAttendanceReport, designations, roles, permissions }) => {
     type ReportTab = 'staff' | 'schemes' | 'trends' | 'leadAnalytics';
-    const [activeReportTab, setActiveReportTab] = useState<ReportTab>('schemes');
+    const [activeReportTab, setActiveReportTab] = useState<ReportTab>('staff');
     const canViewStaffPerformance = useMemo(() => {
         const employeesPermission = permissions?.employees;
         const reportsPermission = permissions['reports & insights'];
@@ -1035,6 +1036,7 @@ const ReportsAndInsights: React.FC<{
 };
 
 
+// --- MODIFICATION START: Updated initialAutomationRules to use string for type ---
 const initialAutomationRules: AutomationRule[] = [
     {
         id: 1,
@@ -1083,14 +1085,15 @@ const initialAutomationRules: AutomationRule[] = [
     },
     {
         id: 6,
-        type: 'Special Occasion Messages',
+        type: 'Housewarming', // This is now a dynamic type
         timing: { value: 0, unit: 'days', relation: 'before' },
         enabled: true,
-        template: 'Hi {name}, thinking of you on this special day: {occasionName}! Wishing you all the best.',
+        template: 'Hi {name}, thinking of you on this special day: your Housewarming! Wishing you all the best.',
         channels: ['whatsapp'],
         icon: <Star className="text-yellow-500" />
     },
 ];
+// --- MODIFICATION END ---
 
 // MODIFIED: This array is now removed, as its data is managed by processStageMasters
 // const initialProcessFlow: ProcessStage[] = [ ... ];
@@ -1559,6 +1562,7 @@ const App: React.FC = () => {
     const [documentNumbering, setDocumentNumbering] = useState<DocumentNumbering[]>([]);
     const [manualReceipts, setManualReceipts] = useState<ManualReceipt[]>([]);
     const [leadStageMasters, setLeadStageMasters] = useState<LeadStageMaster[]>([]); // --- NEW ---
+    const [occasionTypeMasters, setOccasionTypeMasters] = useState<OccasionTypeMaster[]>([]); // --- NEW ---
 
 
     // --- Multi-tenancy Filtered Data ---
@@ -1716,6 +1720,7 @@ const App: React.FC = () => {
     const handleUpdateGenders = useCallback((newData: Gender[]) => setGenders([...newData]), []);
     const handleUpdateMaritalStatuses = useCallback((newData: MaritalStatus[]) => setMaritalStatuses([...newData]), []);
     const handleUpdateCustomerTypes = useCallback((newData: CustomerType[]) => setCustomerTypes([...newData]), []);
+    const handleUpdateOccasionTypeMasters = useCallback((newData: OccasionTypeMaster[]) => setOccasionTypeMasters([...newData]), []); // --- NEW ---
     
     const handleUpdateProcessStageMasters = useCallback(async (newData: ProcessStageMaster[]) => {
         try {
@@ -1996,7 +2001,8 @@ const App: React.FC = () => {
                     processStagesData,
                     financialYearsData, documentNumberingData,
                     insuranceTypeDocumentRulesData, // --- ADDED ---
-                    leadStageMastersData // --- ADDED ---
+                    leadStageMastersData, // --- ADDED ---
+                    occasionTypeMastersData // --- NEW ---
                 ] = await Promise.all([
                     getMembers(),
                     getLeads(),
@@ -2020,7 +2026,8 @@ const App: React.FC = () => {
                     getFinancialYears(),
                     getDocumentNumbering(),
                     getInsuranceTypeDocumentRules(), // --- ADDED ---
-                    getLeadStageMasters() // --- ADDED ---
+                    getLeadStageMasters(), // --- ADDED ---
+                    getOccasionTypeMasters() // --- NEW ---
                 ]);
                 setAllMembers(membersData);
                 setAllLeads(leadsData);
@@ -2049,6 +2056,7 @@ const App: React.FC = () => {
                 setDocumentNumbering(documentNumberingData);
                 setInsuranceTypeDocumentRules(insuranceTypeDocumentRulesData); // --- ADDED ---
                 setLeadStageMasters(leadStageMastersData); // --- ADDED ---
+                setOccasionTypeMasters(occasionTypeMastersData); // --- NEW ---
 
             } catch (error) {
                 console.error("Failed to load initial data:", error);
@@ -2081,6 +2089,7 @@ const App: React.FC = () => {
         }
     }, [currentUser, roles]);
 
+    // --- MODIFICATION: Notification generation now uses the master occasion list ---
     useEffect(() => {
         const generateNotifications = () => {
             const today = new Date();
@@ -2095,6 +2104,8 @@ const App: React.FC = () => {
                 const diffTime = date1.getTime() - date2.getTime();
                 return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
             };
+            
+            const occasionMap = new Map(occasionTypeMasters.map(o => [o.id, o.name]));
 
             companyMembers.forEach(member => {
                 if (member.automatedGreetingsEnabled !== false) {
@@ -2113,25 +2124,39 @@ const App: React.FC = () => {
                     const nextBirthday = getNextOccurrence(member.dob);
                     if (nextBirthday && nextBirthday <= upcomingLimit) {
                         const diffDays = dayDifference(nextBirthday, today);
-                        const message = diffDays === 0
-                            ? `Happy Birthday to ${member.name} today! Wishing you a wonderful year ahead.`
-                            : `Birthday for ${member.name} in ${diffDays} day${diffDays > 1 ? 's' : ''}.`;
+                        const rule = automationRules.find(r => r.type === 'Birthday Messages' && r.enabled);
+                        const message = rule 
+                            ? rule.template.replace('{name}', member.name)
+                            : (diffDays === 0
+                                ? `Happy Birthday to ${member.name} today! Wishing you a wonderful year ahead.`
+                                : `Birthday for ${member.name} in ${diffDays} day${diffDays > 1 ? 's' : ''}.`);
                         newNotifications.push({ id: `bday-${member.id}-${idCounter++}`, type: 'Birthday', date: nextBirthday.toISOString(), message, member: { id: member.id, name: member.name, mobile: member.mobile }, source: 'auto' });
                     }
+                    
                     const nextAnniversary = getNextOccurrence(member.anniversary);
                     if (nextAnniversary && nextAnniversary <= upcomingLimit) {
                         const diffDays = dayDifference(nextAnniversary, today);
-                        const message = diffDays === 0
-                            ? `Happy Anniversary to ${member.name} today! May this special day bring you joy.`
-                            : `Anniversary for ${member.name} in ${diffDays} day${diffDays > 1 ? 's' : ''}.`;
+                        const rule = automationRules.find(r => r.type === 'Anniversary Messages' && r.enabled);
+                        const message = rule
+                            ? rule.template.replace('{name}', member.name)
+                            : (diffDays === 0
+                                ? `Happy Anniversary to ${member.name} today! May this special day bring you joy.`
+                                : `Anniversary for ${member.name} in ${diffDays} day${diffDays > 1 ? 's' : ''}.`);
                         newNotifications.push({ id: `anniv-${member.id}-${idCounter++}`, type: 'Anniversary', date: nextAnniversary.toISOString(), message, member: { id: member.id, name: member.name, mobile: member.mobile }, source: 'auto' });
                     }
+
                     (member.otherSpecialOccasions || []).forEach(occasion => {
                          const nextOccasionDate = getNextOccurrence(occasion.date);
+                         const occasionName = occasionMap.get(occasion.occasionTypeId) || 'Special Occasion';
                          if (nextOccasionDate && nextOccasionDate <= upcomingLimit) {
                              const diffDays = dayDifference(nextOccasionDate, today);
-                              const message = diffDays === 0 ? `Today is a special day for ${member.name}: ${occasion.name}!` : `Upcoming special day for ${member.name}: ${occasion.name} in ${diffDays} day${diffDays > 1 ? 's' : ''}.`;
-                             newNotifications.push({ id: `special-${member.id}-${occasion.id}-${idCounter++}`, type: 'Special Occasion', occasionName: occasion.name, date: nextOccasionDate.toISOString(), message, member: { id: member.id, name: member.name, mobile: member.mobile }, source: 'auto' });
+                             const rule = automationRules.find(r => r.type === occasionName && r.enabled);
+                             const message = rule
+                                ? rule.template.replace('{name}', member.name)
+                                : (diffDays === 0 
+                                     ? `Today is a special day for ${member.name}: ${occasionName}!` 
+                                     : `Upcoming special day for ${member.name}: ${occasionName} in ${diffDays} day${diffDays > 1 ? 's' : ''}.`);
+                             newNotifications.push({ id: `special-${member.id}-${occasion.id}-${idCounter++}`, type: 'Special Occasion', occasionName: occasionName, date: nextOccasionDate.toISOString(), message, member: { id: member.id, name: member.name, mobile: member.mobile }, source: 'auto' });
                          }
                     });
 
@@ -2180,10 +2205,11 @@ const App: React.FC = () => {
             setNotifications(newNotifications);
         };
 
-        if (companyMembers.length > 0 && festivals.length > 0) {
+        if (companyMembers.length > 0 && festivals.length > 0 && occasionTypeMasters.length > 0) {
             generateNotifications();
         }
-    }, [companyMembers, customMessages, festivals, festivalDates, religions]);
+    }, [companyMembers, customMessages, festivals, festivalDates, religions, occasionTypeMasters, automationRules]);
+    // --- END MODIFICATION ---
 
     const undismissedNotifications = useMemo(() => notifications.filter(n => !n.dismissed && !dismissedItems[n.id]), [notifications, dismissedItems]);
 
@@ -3089,12 +3115,13 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
 
     const handleAddAutomationRule = useCallback((newRuleData: Omit<AutomationRule, 'id' | 'icon'>) => {
         const getIcon = (type: AutomationRule['type']) => {
+            // Check for standard types first
             switch(type) {
                 case 'Birthday Messages': return <GiftIcon className="text-pink-500" />;
                 case 'Anniversary Messages': return <Calendar className="text-purple-500" />;
                 case 'Policy Renewal Messages': return <Bell className="text-blue-500" />;
-                case 'Special Occasion Messages': return <Star className="text-yellow-500" />;
-                default: return <Zap className="text-gray-500" />;
+                // For dynamic occasion types, use a default icon
+                default: return <Star className="text-yellow-500" />;
             }
         };
 
@@ -3106,6 +3133,7 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
         setAutomationRules(prev => [...prev, newRule]);
         addToast('New automation rule added successfully!', 'success');
     }, [automationRules, addToast]);
+
 
     const handleCreateReferrer = useCallback(async (referrerData: { name: string; mobile: string; email?: string }): Promise<Member | null> => {
         try {
@@ -3242,8 +3270,8 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                                 <Route path="/profile" element={currentUser?.roleId && roles.find(r => r.id === currentUser.roleId)?.name.toLowerCase().includes('admin') ? <AdminProfile {...{ user: currentUser, users: companyUsers, allMembers: companyMembers, onOpenEmployeeModal: () => handleOpenEmployeeModal(null), onUpdateProfile: handleSaveEmployee, addToast, designations, permissions: currentUserPermissions, roles }} /> : <ProfilePage {...{ user: currentUser, onUpdateProfile: handleSaveEmployee, onUpdatePassword: handleUpdatePassword, addToast, allMembers: companyMembers, users: companyUsers, geographies, onUpdateGeographies: handleUpdateGeographies, bankMasters, designations, permissions: currentUserPermissions, genders, accountTypes, roles }} />} />
                                 <Route path="/employees" element={<EmployeeManagement {...{ users: companyUsers, allMembers: companyMembers, onOpenEmployeeModal: handleOpenEmployeeModal, onToggleStatus: async (userId) => { const user = allUsers.find(u => u.id === userId); if(user) { const newStatus = user.profile?.status === 'Active' ? 'Inactive' : 'Active'; await handleSaveEmployee({...user, profile: {...user.profile, status: newStatus} as EmployeeProfile}); addToast("Employee status updated.", "success"); }}, attendance, onUpdateAttendance: handleUpdateAttendanceByAdmin, finrootsBranches: companyBranches, addToast, designations, permissions: currentUserPermissions, roles }} />} />
                                 <Route path="/servicesHub" element={<ServicesHub addToast={addToast} allMembers={companyMembers} onViewMember={handleOpenMemberModal} onUpdateCommissionStatus={handleUpdateCommissionStatus} currentUser={currentUser} designations={designations} />} />
-                                <Route path="/actionHub" element={<ActionAutomationHub {...{ notifications: hubNotifications, onRenewPolicy: handleRenewPolicy, activityLog: hubActivityLog, addToast, onNotificationSent: () => {}, appointments: hubAppointments, tasks: hubTasks, onDismissItem: handleDismissItem, savedGreetingUrl: null, setSavedGreetingUrl: () => {}, upsellOpportunities, onDismissOpportunity: (id) => setUpsellOpportunities(prev => prev.filter(o => o.id !== id)), members: companyMembers, onScheduleMessage: (msg) => { setCustomMessages(prev => [...prev, {...msg, id: `cm-${Date.now()}`}]); addToast('Custom message scheduled!', 'success'); }, onClearAll: handleClearActionHubNotifications, onScheduleAppointment: (appt) => { const member = companyMembers.find(m => m.id === appt.memberId); if(member) { setAppointments(prev => [...prev, { ...appt, id: `appt-${Date.now()}`, memberName: member.name }]); addToast('Appointment scheduled!', 'success'); } }, rules: automationRules, onUpdateRule: (rule) => setAutomationRules(prev => prev.map(r => r.id === rule.id ? rule : r)), onAddRule: handleAddAutomationRule, docTemplates, onUpdateTemplates: setDocTemplates, currentUser, users: companyUsers, onViewMember: onViewMember, permissions: currentUserPermissions }} />} />
-                                <Route path="/masterMember/" element={<MasterData {...{addToast, allMembers: companyMembers,allLeads: companyLeads, users: companyUsers, customerFieldMasters, onUpdateCustomerFieldMasters: handleUpdateCustomerFieldMasters, businessVerticals, onUpdateBusinessVerticals: handleUpdateBusinessVerticals, leadSources, onUpdateLeadSources: handleUpdateLeadSources, schemes, onUpdateSchemes: handleUpdateSchemes, agencies, onUpdateAgencies: handleUpdateAgencies, operatingCompanies, onUpdateOperatingCompanies: handleUpdateOperatingCompany, finrootsBranches: allBranches, onUpdateFinrootsBranches: handleUpdateFinrootsBranches, finrootsCompanyInfo, onUpdateFinRootsCompanyInfo: setFinrootsCompanyInfo, geographies, onUpdateGeographies: handleUpdateGeographies, relationshipTypes, onUpdateRelationshipTypes: handleUpdateRelationshipTypes, documentMasters, onUpdateDocumentMasters: handleUpdateDocumentMasters, insuranceTypeDocumentRules, onUpdateInsuranceTypeDocumentRules: handleUpdateInsuranceTypeDocumentRules, giftMasters, onUpdateGiftMasters: handleUpdateGiftMasters, customerTiers, onUpdateCustomerTiers: handleUpdateCustomerTiers, taskStatuses: taskStatusMasters, onUpdateTaskStatuses: handleUpdateTaskStatusMasters, customerCategories, onUpdateCustomerCategories: handleUpdateCustomerCategories, bankMasters, onUpdateBankMasters: handleUpdateBankMasters, customerSubCategories, onUpdateCustomerSubCategories: handleUpdateCustomerSubCategories, customerGroups, onUpdateCustomerGroups: handleUpdateCustomerGroups, taskMasters, onUpdateTaskMasters: handleUpdateTaskMasters, insuranceTypes, onUpdateInsuranceTypes: handleUpdateInsuranceTypes, insuranceFields, onUpdateInsuranceFields: handleUpdateInsuranceFields, routes, onUpdateRoutes: handleUpdateRoutes, designations, onUpdateDesignations: handleUpdateDesignations, currentUser, customerTierCalculationMethod, onUpdateCustomerTierCalculationMethod: handleUpdateAllMemberTiers, expenseCategoriesLevel1, onUpdateExpenseCategoriesLevel1: handleUpdateExpenseCategoriesLevel1, expenseCategoriesLevel2, onUpdateExpenseCategoriesLevel2: handleUpdateExpenseCategoriesLevel2, expenseCategoriesLevel3, onUpdateExpenseCategoriesLevel3: handleUpdateExpenseCategoriesLevel3, incomeCategoriesLevel1, onUpdateIncomeCategoriesLevel1: handleUpdateIncomeCategoriesLevel1, incomeCategoriesLevel2, onUpdateIncomeCategoriesLevel2: handleUpdateIncomeCategoriesLevel2, religions, onUpdateReligions: handleUpdateReligions, festivals, onUpdateFestivals: handleUpdateFestivals, festivalDates, onUpdateFestivalDates: handleUpdateFestivalDates, amcs, onUpdateAmcs: handleUpdateAmcs, mutualFundSchemes, onUpdateMutualFundSchemes: handleUpdateMutualFundSchemes, mutualFundFields, onUpdateMutualFundFields: handleUpdateMutualFundFields, rolePermissions, onUpdateRolePermissions: handleUpdateRolePermissions, genders, onUpdateGenders: handleUpdateGenders, maritalStatuses, onUpdateMaritalStatuses: handleUpdateMaritalStatuses, customerTypes, onUpdateCustomerTypes: handleUpdateCustomerTypes, processStageMasters, onUpdateProcessStageMasters: handleUpdateProcessStageMasters,accountTypes:accountTypes,onUpdateAccountTypes:handleUpdateAccountTypes, financialYears, onUpdateFinancialYears: handleUpdateFinancialYears, documentNumbering, onUpdateDocumentNumbering: handleUpdateDocumentNumbering, activeFinancialYearId, roles, onUpdateRoles: handleUpdateRoles, leadStageMasters, onUpdateLeadStageMasters:handleUpdateLeadStageMasters }} />} />
+                                <Route path="/actionHub" element={<ActionAutomationHub {...{ notifications: hubNotifications, onRenewPolicy: handleRenewPolicy, activityLog: hubActivityLog, addToast, onNotificationSent: () => {}, appointments: hubAppointments, tasks: hubTasks, onDismissItem: handleDismissItem, savedGreetingUrl: null, setSavedGreetingUrl: () => {}, upsellOpportunities, onDismissOpportunity: (id) => setUpsellOpportunities(prev => prev.filter(o => o.id !== id)), members: companyMembers, onScheduleMessage: (msg) => { setCustomMessages(prev => [...prev, {...msg, id: `cm-${Date.now()}`}]); addToast('Custom message scheduled!', 'success'); }, onClearAll: handleClearActionHubNotifications, onScheduleAppointment: (appt) => { const member = companyMembers.find(m => m.id === appt.memberId); if(member) { setAppointments(prev => [...prev, { ...appt, id: `appt-${Date.now()}`, memberName: member.name }]); addToast('Appointment scheduled!', 'success'); } }, rules: automationRules, onUpdateRule: (rule) => setAutomationRules(prev => prev.map(r => r.id === rule.id ? rule : r)), onAddRule: handleAddAutomationRule, docTemplates, onUpdateTemplates: setDocTemplates, currentUser, users: companyUsers, onViewMember: onViewMember, permissions: currentUserPermissions, occasionTypeMasters, onUpdateOccasionTypeMasters: handleUpdateOccasionTypeMasters }} />} />
+                                <Route path="/masterMember/" element={<MasterData {...{addToast, allMembers: companyMembers,allLeads: companyLeads, users: companyUsers, customerFieldMasters, onUpdateCustomerFieldMasters: handleUpdateCustomerFieldMasters, businessVerticals, onUpdateBusinessVerticals: handleUpdateBusinessVerticals, leadSources, onUpdateLeadSources: handleUpdateLeadSources, schemes, onUpdateSchemes: handleUpdateSchemes, agencies, onUpdateAgencies: handleUpdateAgencies, operatingCompanies, onUpdateOperatingCompanies: handleUpdateOperatingCompany, finrootsBranches: allBranches, onUpdateFinrootsBranches: handleUpdateFinrootsBranches, finrootsCompanyInfo, onUpdateFinRootsCompanyInfo: setFinrootsCompanyInfo, geographies, onUpdateGeographies: handleUpdateGeographies, relationshipTypes, onUpdateRelationshipTypes: handleUpdateRelationshipTypes, documentMasters, onUpdateDocumentMasters: handleUpdateDocumentMasters, insuranceTypeDocumentRules, onUpdateInsuranceTypeDocumentRules: handleUpdateInsuranceTypeDocumentRules, giftMasters, onUpdateGiftMasters: handleUpdateGiftMasters, customerTiers, onUpdateCustomerTiers: handleUpdateCustomerTiers, taskStatuses: taskStatusMasters, onUpdateTaskStatuses: handleUpdateTaskStatusMasters, customerCategories, onUpdateCustomerCategories: handleUpdateCustomerCategories, bankMasters, onUpdateBankMasters: handleUpdateBankMasters, customerSubCategories, onUpdateCustomerSubCategories: handleUpdateCustomerSubCategories, customerGroups, onUpdateCustomerGroups: handleUpdateCustomerGroups, taskMasters, onUpdateTaskMasters: handleUpdateTaskMasters, insuranceTypes, onUpdateInsuranceTypes: handleUpdateInsuranceTypes, insuranceFields, onUpdateInsuranceFields: handleUpdateInsuranceFields, routes, onUpdateRoutes: handleUpdateRoutes, designations, onUpdateDesignations: handleUpdateDesignations, currentUser, customerTierCalculationMethod, onUpdateCustomerTierCalculationMethod: handleUpdateAllMemberTiers, expenseCategoriesLevel1, onUpdateExpenseCategoriesLevel1: handleUpdateExpenseCategoriesLevel1, expenseCategoriesLevel2, onUpdateExpenseCategoriesLevel2: handleUpdateExpenseCategoriesLevel2, expenseCategoriesLevel3, onUpdateExpenseCategoriesLevel3: handleUpdateExpenseCategoriesLevel3, incomeCategoriesLevel1, onUpdateIncomeCategoriesLevel1: handleUpdateIncomeCategoriesLevel1, incomeCategoriesLevel2, onUpdateIncomeCategoriesLevel2: handleUpdateIncomeCategoriesLevel2, religions, onUpdateReligions: handleUpdateReligions, festivals, onUpdateFestivals: handleUpdateFestivals, festivalDates, onUpdateFestivalDates: handleUpdateFestivalDates, amcs, onUpdateAmcs: handleUpdateAmcs, mutualFundSchemes, onUpdateMutualFundSchemes: handleUpdateMutualFundSchemes, mutualFundFields, onUpdateMutualFundFields: handleUpdateMutualFundFields, rolePermissions, onUpdateRolePermissions: handleUpdateRolePermissions, genders, onUpdateGenders: handleUpdateGenders, maritalStatuses, onUpdateMaritalStatuses: handleUpdateMaritalStatuses, customerTypes, onUpdateCustomerTypes: handleUpdateCustomerTypes, processStageMasters, onUpdateProcessStageMasters: handleUpdateProcessStageMasters,accountTypes:accountTypes,onUpdateAccountTypes:handleUpdateAccountTypes, financialYears, onUpdateFinancialYears: handleUpdateFinancialYears, documentNumbering, onUpdateDocumentNumbering: handleUpdateDocumentNumbering, activeFinancialYearId, roles, onUpdateRoles: handleUpdateRoles, leadStageMasters, onUpdateLeadStageMasters:handleUpdateLeadStageMasters, occasionTypeMasters, onUpdateOccasionTypeMasters: handleUpdateOccasionTypeMasters }} />} />
                                 <Route path="/reports-insights" element={<ReportsAndInsights members={companyMembers} users={companyUsers} tasks={allTasks} attendance={attendance} onUpdateAttendance={handleUpdateAttendanceByAdmin} addToast={addToast} allLeads={companyLeads} currentUser={currentUser} leadSources={leadSources} schemes={schemes} insuranceTypes={insuranceTypes} onOpenAttendanceReport={() => setIsAttendanceReportModalOpen(true)} designations={designations} roles={roles} permissions={currentUserPermissions} />} />
                                 <Route path="/taskManagement" element={<TaskManagement allTasks={allTasks} permissions={currentUserPermissions} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} onCreateTask={handleCreateTask} onCreateBulkTask={handleCreateBulkTask} onOpenTask={handleOpenTask} users={companyUsers} members={companyMembers} leads={companyLeads} taskStatusMasters={taskStatusMasters} taskMasters={taskMasters} addToast={addToast} currentUser={currentUser} finrootsBranches={companyBranches} onReassignTask={handleReassignTask} onUpdateTaskWithRemark={handleUpdateTask} designations={designations} roles={roles} />} />
                                 
@@ -3360,6 +3388,8 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                             maritalStatuses={maritalStatuses}
                             accountTypes={accountTypes}
                             roles={roles}
+                            occasionTypeMasters={occasionTypeMasters}
+                            onUpdateOccasionTypeMasters={handleUpdateOccasionTypeMasters}
                         />
                     )}
                      {isEmployeeModalOpen && (

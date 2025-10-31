@@ -8,7 +8,8 @@ import {
     // --- NEW: Import new types ---
     FinancialYear, DocumentNumbering, Role, // --- ADDED: Import Role ---
     InsuranceTypeDocumentRule,
-    LeadStageMaster // --- ADDED ---
+    LeadStageMaster, // --- ADDED ---
+    OccasionTypeMaster // --- NEW: IMPORT OccasionTypeMaster ---
 } from '../types.ts';
 
 // --- NEW: Mock Data for Financial Years ---
@@ -430,6 +431,15 @@ let leadStageMastersData: LeadStageMaster[] = [
 ];
 // --- END NEW ---
 
+// --- NEW: MOCK DATA FOR OCCASION TYPE MASTER ---
+let occasionTypeMastersData: OccasionTypeMaster[] = [
+    { id: 'occ-type-1', name: 'Housewarming', active: true, order: 0 },
+    { id: 'occ-type-2', name: 'New Car Purchase', active: true, order: 1 },
+    { id: 'occ-type-3', name: 'Work Anniversary', active: true, order: 2 },
+    { id: 'occ-type-4', name: 'Child\'s Graduation', active: true, order: 3 },
+];
+// --- END NEW ---
+
 
 // Premium Calculation Logic
 export const calculatePremium = (policyType: PolicyType, coverage: number): number => {
@@ -504,6 +514,9 @@ let members: Member[] = [
       panCard: 'ABCDE1234F',
       aadhaar: '1234 5678 9012',
       anniversary: '2010-04-20',
+      otherSpecialOccasions: [
+          { id: 'occ-1', occasionTypeId: 'occ-type-1', date: '2024-05-15' }
+      ],
       policies: [{
           id: 'POL001',
           policyType: 'Life Insurance',
@@ -1424,6 +1437,19 @@ export const getCustomerTiers = async (): Promise<CustomerTier[]> => {
     await simulateDelay(50);
     return JSON.parse(JSON.stringify(initialCustomerTiers));
 };
+
+// --- NEW: API functions for OccasionTypeMaster ---
+export const getOccasionTypeMasters = async (): Promise<OccasionTypeMaster[]> => {
+    await simulateDelay(100);
+    return JSON.parse(JSON.stringify(occasionTypeMastersData));
+};
+
+export const updateOccasionTypeMasters = async (updatedData: OccasionTypeMaster[]): Promise<OccasionTypeMaster[]> => {
+    await simulateDelay(200);
+    occasionTypeMastersData = JSON.parse(JSON.stringify(updatedData));
+    return occasionTypeMastersData;
+};
+// --- END NEW ---
 
 
 // --- NEW: Location Tracking API Functions ---

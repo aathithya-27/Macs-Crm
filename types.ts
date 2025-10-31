@@ -440,11 +440,13 @@ export interface CoveredMember {
     isGoodHealth?: boolean;
 }
 
+// --- MODIFICATION START: Updated SpecialOccasion to use an ID ---
 export interface SpecialOccasion {
     id: string;
-    name: string;
+    occasionTypeId: string;
     date: string;
 }
+// --- MODIFICATION END ---
 
 export interface DigipinDetails {
     summary?: string;
@@ -799,15 +801,18 @@ export type AttendanceState = Record<string, AttendanceRecord[]>;
 
 // --- Automation & Configuration ---
 
+// --- MODIFICATION START: AutomationRule type is now more flexible ---
 export interface AutomationRule {
     id: number;
-    type: 'Birthday Messages' | 'Anniversary Messages' | 'Policy Renewal Messages' | 'Special Occasion Messages';
+    type: string; // Was a hardcoded union, now a string to allow dynamic occasion types
     timing: { value: number; unit: 'days' | 'weeks'; relation: 'before'; };
     enabled: boolean;
     template: string;
     channels: ('whatsapp' | 'sms' | 'email' | 'call')[];
     icon?: React.ReactElement;
 }
+// --- MODIFICATION END ---
+
 
 export interface CustomScheduledMessage {
     id: string;
@@ -1095,6 +1100,15 @@ export interface TaskMaster { id: string; name: string; active?: boolean; order?
 // --- MODIFICATION START ---
 export interface AccountType { id: string; name: string; active?: boolean; order?: number; }
 // --- MODIFICATION END ---
+
+// --- NEW: Added OccasionTypeMaster for dynamic occasions ---
+export interface OccasionTypeMaster { 
+    id: string; 
+    name: string; 
+    active?: boolean; 
+    order?: number; 
+}
+// --- END NEW ---
 
 /** @deprecated Replaced by InsuranceTypeDocumentRule */
 // export interface PolicyChecklistMaster { 

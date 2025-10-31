@@ -7,11 +7,13 @@ import {
 import Button from './ui/Button.tsx';
 import { 
     Member, ActivityLog, Appointment, Task, UpsellOpportunity, CustomScheduledMessage, AutomationRule, DocTemplate, 
-    User as UserType, Notification, ModalTab, AppModule, PermissionLevel 
+    User as UserType, Notification, ModalTab, AppModule, PermissionLevel, OccasionTypeMaster
 } from '../types.ts';
 import Input from './ui/Input.tsx';
 import DocumentHub from './DocumentHub.tsx';
 import Modal from './ui/Modal.tsx';
+import SearchableSelect from './ui/SearchableSelect.tsx';
+import { updateOccasionTypeMasters } from '../services/apiService.ts'; // --- FIX: Corrected import path ---
 
 // Helper components & functions from original files, slightly adapted
 const handleSendMessage = (type: 'sms' | 'whatsapp', mobile: string, message: string) => {
@@ -204,6 +206,7 @@ const ChannelTag: React.FC<{ channel: 'whatsapp' | 'sms' | 'email' | 'call' | st
     return <span className={`px-2 py-1 text-xs font-medium rounded ${style}`}>{channel}</span>;
 };
 
+// --- MODIFICATION: Add OccasionTypeMaster to props ---
 interface ActionAutomationHubProps {
     notifications: Notification[];
     onRenewPolicy: (memberId: string, policyId: string) => Promise<boolean>;
@@ -230,19 +233,57 @@ interface ActionAutomationHubProps {
     users: UserType[];
     onViewMember: (member: Member, initialTab?: ModalTab) => void;
     permissions: { [key in AppModule]?: PermissionLevel };
+    occasionTypeMasters: OccasionTypeMaster[]; // --- NEW ---
+    onUpdateOccasionTypeMasters: (data: OccasionTypeMaster[]) => void; // --- NEW ---
 }
 
+// --- MODIFICATION: Add OccasionTypeMaster and existing rules to props for validation ---
 const AddRuleModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
     onAddRule: (rule: Omit<AutomationRule, 'id' | 'icon'>) => void;
     addToast: (message: string, type?: 'success' | 'error') => void;
-}> = ({ isOpen, onClose, onAddRule, addToast }) => {
-    const [type, setType] = useState<AutomationRule['type']>('Birthday Messages');
+    occasionTypeMasters: OccasionTypeMaster[];
+    onUpdateOccasionTypeMasters: (data: OccasionTypeMaster[]) => void;
+    rules: AutomationRule[];
+}> = ({ isOpen, onClose, onAddRule, addToast, occasionTypeMasters, onUpdateOccasionTypeMasters, rules }) => {
+    const [type, setType] = useState<string>('Birthday Messages');
     const [timingValue, setTimingValue] = useState(7);
     const [timingUnit, setTimingUnit] = useState<'days' | 'weeks'>('days');
     const [template, setTemplate] = useState('');
     const [channels, setChannels] = useState<('whatsapp' | 'sms' | 'email' | 'call')[]>([]);
+
+    const ruleTypeOptions = useMemo(() => {
+        const standard = [
+            { value: 'Birthday Messages', label: 'Birthday Messages' },
+            { value: 'Anniversary Messages', label: 'Anniversary Messages' },
+            { value: 'Policy Renewal Messages', label: 'Policy Renewal Messages' },
+        ];
+        const occasions = occasionTypeMasters
+            .filter(o => o.active)
+            .map(o => ({ value: o.name, label: o.name }));
+        
+        return [...standard, ...occasions];
+    }, [occasionTypeMasters]);
+
+    const handleCreateOccasionType = async (name: string): Promise<string | null> => {
+        try {
+            const newOccasionType: OccasionTypeMaster = {
+                id: `occ-type-${Date.now()}`,
+                name,
+                active: true,
+                order: occasionTypeMasters.length,
+            };
+            const updatedList = [...occasionTypeMasters, newOccasionType];
+            await updateOccasionTypeMasters(updatedList);
+            onUpdateOccasionTypeMasters(updatedList);
+            addToast(`New occasion type "${name}" created.`, 'success');
+            return newOccasionType.name; // Return the name to be set
+        } catch (e) {
+            addToast('Failed to create new occasion type.', 'error');
+            return null;
+        }
+    };
 
     const handleChannelChange = (channel: 'whatsapp' | 'sms' | 'email' | 'call') => {
         setChannels(prev => 
@@ -253,6 +294,13 @@ const AddRuleModal: React.FC<{
     };
 
     const handleSave = () => {
+        // --- MODIFICATION: Add duplicate check ---
+        const ruleExists = rules.some(rule => rule.type.toLowerCase() === type.toLowerCase());
+        if (ruleExists) {
+            addToast(`A rule for "${type}" already exists. Please edit the existing rule.`, 'error');
+            return;
+        }
+
         if (!template.trim()) {
             addToast('Template message cannot be empty.', 'error');
             return;
@@ -282,13 +330,20 @@ const AddRuleModal: React.FC<{
             <div className="p-6 overflow-y-auto flex-grow space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Rule Type</label>
-                        <select value={type} onChange={e => setType(e.target.value as AutomationRule['type'])} className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                            <option>Birthday Messages</option>
-                            <option>Anniversary Messages</option>
-                            <option>Policy Renewal Messages</option>
-                            <option>Special Occasion Messages</option>
-                        </select>
+                        <SearchableSelect
+                            label="Rule Type"
+                            options={ruleTypeOptions}
+                            value={type}
+                            onChange={setType}
+                            onCreate={async (name) => {
+                                const newTypeName = await handleCreateOccasionType(name);
+                                if (newTypeName) {
+                                    setType(newTypeName); // Auto-select the newly created type
+                                }
+                                return newTypeName;
+                            }}
+                            placeholder="Select or create a rule type..."
+                        />
                     </div>
                      <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Trigger Timing</label>
@@ -299,7 +354,7 @@ const AddRuleModal: React.FC<{
                                 onChange={e => setTimingValue(parseInt(e.target.value) || 0)}
                                 className="w-24 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                             />
-                            <select value={timingUnit} onChange={e => setTimingUnit(e.target.value as any)} className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                            <select value={timingUnit} onChange={(e) => setTimingUnit(e.target.value as any)} className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                                 <option value="days">Days</option>
                                 <option value="weeks">Weeks</option>
                             </select>
@@ -373,7 +428,8 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
     notifications, onRenewPolicy, activityLog, addToast, onNotificationSent, appointments, tasks,
     onDismissItem, savedGreetingUrl, setSavedGreetingUrl, upsellOpportunities, onDismissOpportunity, members,
     onScheduleMessage, onClearAll, onScheduleAppointment, rules, onUpdateRule, onAddRule,
-    docTemplates, onUpdateTemplates, currentUser, users, onViewMember, permissions
+    docTemplates, onUpdateTemplates, currentUser, users, onViewMember, permissions,
+    occasionTypeMasters, onUpdateOccasionTypeMasters // Destructure new props
 }) => {
     const [activeHubTab, setActiveHubTab] = useState<ActionHubTab>('actions');
 
@@ -475,20 +531,27 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
     );
 
     const renderNotificationCard = (n: Notification) => {
-        const isWish = n.type.includes('Birthday') || n.type.includes('Anniversary');
+        const isWish = n.type.includes('Birthday') || n.type.includes('Anniversary') || n.type === 'Special Occasion';
         const isRenewal = n.type.includes('Renewal');
         const isCustom = n.source === 'custom';
-        const icon = isCustom ? <Send className="text-teal-500" /> : isWish ? (n.type.includes('Birthday') ? <Gift className="text-pink-500" /> : <MessageSquare className="text-purple-500" />) : isRenewal ? <Shield className="text-blue-500" /> : n.type === 'Special Occasion' ? <Star className="text-yellow-500" /> : <Bell className="text-gray-500"/>;
+        
+        let icon = <Bell className="text-gray-500"/>;
+        if (isCustom) icon = <Send className="text-teal-500" />;
+        else if (n.type.includes('Birthday')) icon = <Gift className="text-pink-500" />;
+        else if (n.type.includes('Anniversary')) icon = <MessageSquare className="text-purple-500" />;
+        else if (isRenewal) icon = <Shield className="text-blue-500" />;
+        else if (n.type === 'Special Occasion') icon = <Star className="text-yellow-500" />;
+
         return (
             <div key={n.id} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fade-in">
                 <div className="flex items-center gap-4">{icon}<div>
                     <p className="font-semibold text-gray-800 dark:text-white">{n.member.name}</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">{isRenewal ? `Policy Renewal: ${n.policy?.policyType}` : n.type}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{isRenewal ? `Policy Renewal: ${n.policy?.policyType}` : n.occasionName || n.type}</p>
                     <p className="text-xs text-gray-500 dark:text-gray-400 font-medium mt-1"><CalendarIcon className="inline w-3 h-3 mr-1" />{new Date(n.date).toLocaleString('en-GB', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</p>
                 </div></div>
                 <div className="w-full md:w-auto flex-shrink-0 flex items-start justify-end gap-2 flex-wrap">
                     <div className="flex items-center gap-2 flex-wrap">
-                        {(isWish || isCustom || n.type === 'Special Occasion') ? (<Button variant="success" size="small" onClick={() => handleSendGenericMessage(n.member.mobile, n.message, n.id)}><WhatsAppIcon size={14} /> Send Wish</Button>)
+                        {(isWish || isCustom) ? (<Button variant="success" size="small" onClick={() => handleSendGenericMessage(n.member.mobile, n.message, n.id)}><WhatsAppIcon size={14} /> Send Wish</Button>)
                         : isRenewal && n.policy ? (<>
                             <Button variant="light" size="small" onClick={() => { handleSendMessage('sms', n.member.mobile, n.message); handleAction(n.id); }}><MessageSquare size={14} /> SMS</Button>
                             <Button variant="success" size="small" onClick={() => { handleSendMessage('whatsapp', n.member.mobile, n.message); handleAction(n.id); }}><WhatsAppIcon size={14} /> WhatsApp</Button>
@@ -664,7 +727,15 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
                 </div>
             </div>}
             
-            <AddRuleModal isOpen={isAddRuleModalOpen} onClose={() => setIsAddRuleModalOpen(false)} onAddRule={onAddRule} addToast={addToast} />
+            <AddRuleModal 
+                isOpen={isAddRuleModalOpen} 
+                onClose={() => setIsAddRuleModalOpen(false)} 
+                onAddRule={onAddRule} 
+                addToast={addToast} 
+                occasionTypeMasters={occasionTypeMasters} 
+                onUpdateOccasionTypeMasters={onUpdateOccasionTypeMasters}
+                rules={rules}
+            />
         </div>
     );
 };

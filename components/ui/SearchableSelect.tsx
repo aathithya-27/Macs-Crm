@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { createPortal } from 'react-dom';
 import { ChevronDown, PlusCircle, X } from 'lucide-react';
 import Input from './Input.tsx'; // Placeholder, adjust import path if necessary
 
@@ -18,6 +17,7 @@ interface SearchableSelectProps {
   filterPlaceholder?: string;
   disabled?: boolean;
   isMulti?: boolean;
+  maxHeight?: string;
 }
 
 const DropdownMenu = ({
@@ -29,9 +29,9 @@ const DropdownMenu = ({
   onCreate,
   showCreateOption,
   selectedValue,
-  targetRect,
   onClose,
   triggerRef,
+  maxHeight,
 }: {
   options: Option[];
   filter: string;
@@ -41,22 +41,11 @@ const DropdownMenu = ({
   onCreate: () => void;
   showCreateOption: boolean;
   selectedValue: string | string[];
-  targetRect: DOMRect | null;
   onClose: () => void;
   triggerRef: React.RefObject<HTMLButtonElement>;
+  maxHeight?: string;
 }) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [position, setPosition] = useState({ top: 0, left: 0, width: 0 });
-
-  useEffect(() => {
-    if (targetRect) {
-      setPosition({
-        top: targetRect.bottom + window.scrollY + 4,
-        left: targetRect.left + window.scrollX,
-        width: targetRect.width,
-      });
-    }
-  }, [targetRect]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -83,19 +72,13 @@ const DropdownMenu = ({
     };
   }, [onClose, triggerRef]); // Dependency array ensures effect re-runs if onClose/triggerRef changes
 
-  if (!targetRect) return null;
-  
-  const styles = {
-    top: `${position.top}px`,
-    left: `${position.left}px`,
-    width: `${position.width}px`,
-  };
 
-  return createPortal(
+
+  return (
     <div 
       ref={dropdownRef}
-      style={styles}
-      className="absolute z-[9999] bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700 max-h-72 flex flex-col"
+      style={{maxHeight: maxHeight || '18rem'}}
+      className="absolute top-full left-0 right-0 z-50 bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700 flex flex-col mt-1"
     >
       <div className="p-2 flex-shrink-0">
         <Input
@@ -132,33 +115,20 @@ const DropdownMenu = ({
           {options.length === 0 && !showCreateOption && <li className="px-4 py-2 text-sm text-gray-500">No options found.</li>}
         </ul>
       </div>
-    </div>,
-    document.body
+    </div>
   );
 };
 
 const SearchableSelect: React.FC<SearchableSelectProps> = ({
-  label, options, value, onChange, onCreate, placeholder, filterPlaceholder, disabled = false, isMulti = false,
+  label, options, value, onChange, onCreate, placeholder, filterPlaceholder, disabled = false, isMulti = false, maxHeight,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [filter, setFilter] = useState('');
-  const [buttonRect, setButtonRect] = useState<DOMRect | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
   const selectedValues = useMemo(() => Array.isArray(value) ? value : (value ? [value] : []), [value]);
 
-  useEffect(() => {
-    const updateRect = () => buttonRef.current && setButtonRect(buttonRef.current.getBoundingClientRect());
-    if (isOpen) {
-      updateRect();
-      window.addEventListener('scroll', updateRect, true);
-      window.addEventListener('resize', updateRect);
-      return () => {
-        window.removeEventListener('scroll', updateRect, true);
-        window.removeEventListener('resize', updateRect);
-      };
-    }
-  }, [isOpen]);
+
   
   const filteredOptions = options.filter(opt =>
     opt.label.toLowerCase().includes(filter.toLowerCase()) &&
@@ -236,9 +206,9 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
           onCreate={handleCreate}
           showCreateOption={!!showCreateOption}
           selectedValue={value}
-          targetRect={buttonRect}
           onClose={() => setIsOpen(false)}
           triggerRef={buttonRef}
+          maxHeight={maxHeight}
         />
       )}
     </div>

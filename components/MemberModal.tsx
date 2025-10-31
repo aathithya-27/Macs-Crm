@@ -8,7 +8,8 @@ import {
     MutualFundScheme, MutualFundHolding, MutualFundTransaction, MutualFundFieldMaster, Designation,
     AppModule, PermissionLevel,
     Gender, MaritalStatus, ProcessStageMaster, AccountType, Role, RolePermissions,
-    InsuranceTypeDocumentRule
+    InsuranceTypeDocumentRule,
+    OccasionTypeMaster // --- NEW: Import OccasionTypeMaster ---
 } from '../types.ts';
 import Modal from './ui/Modal.tsx';
 import Button from './ui/Button.tsx';
@@ -252,6 +253,7 @@ const FamilyTreeTab: React.FC<{
                                 value={(newDependent as any).relationship || ''}
                                 onChange={e => setNewDependent(p => ({...p, relationship: e.target.value}))}
                                 className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                style={{ maxHeight: '200px', overflowY: 'auto' }}
                             >
                                 <option value="">Select...</option>
                                 {relationshipTypes.filter(rt => rt.active).map(rt => (
@@ -265,6 +267,7 @@ const FamilyTreeTab: React.FC<{
                                 value={newDependent.gender || ''}
                                 onChange={(e) => setNewDependent(p => ({...p, gender: e.target.value}))}
                                 className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                style={{ maxHeight: '200px', overflowY: 'auto' }}
                             >
                                 <option value="">-- Select Gender --</option>
                                 {genders.filter(g => g.active).map(g => (
@@ -563,6 +566,7 @@ const NewReferrerModal: React.FC<{
     );
 };
 
+// --- MODIFICATION: Add new props to the interface ---
 interface MemberModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -584,8 +588,7 @@ interface MemberModalProps {
   schemes: SchemeMaster[];
   companies: Company[];
   documentMasters: DocumentMaster[];
-  // schemeDocumentMappings: SchemeDocumentMapping[]; // --- REMOVED ---
-  insuranceTypeDocumentRules: InsuranceTypeDocumentRule[]; // --- ADDED ---
+  insuranceTypeDocumentRules: InsuranceTypeDocumentRule[];
   relationshipTypes: RelationshipType[];
   leadSources: LeadSourceMaster[];
   geographies: Geography[];
@@ -597,8 +600,6 @@ interface MemberModalProps {
   allTasks: Task[];
   taskStatusMasters: TaskStatusMaster[];
   taskMasters: TaskMaster[];
-  // policyChecklistMasters: PolicyChecklistMaster[]; // --- REMOVED ---
-  // onUpdatePolicyChecklistMasters: (data: PolicyChecklistMaster[]) => void; // --- REMOVED ---
   insuranceTypes: InsuranceTypeMaster[];
   insuranceFields: InsuranceFieldMaster[];
   onUpdateInsuranceFields: (data: InsuranceFieldMaster[]) => void;
@@ -617,6 +618,8 @@ interface MemberModalProps {
   maritalStatuses: MaritalStatus[];
   accountTypes: AccountType[];
   roles: Role[];
+  occasionTypeMasters: OccasionTypeMaster[];
+  onUpdateOccasionTypeMasters: (data: OccasionTypeMaster[]) => void;
 }
 
 export const MemberModal: React.FC<MemberModalProps> = ({
@@ -628,7 +631,8 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     insuranceTypes, insuranceFields, onUpdateInsuranceFields, customerFieldMasters, onUpdateCustomerFieldMasters, 
     onCreateReferrer, finrootsBranches, religions, onAddDocumentMaster, amcs, 
     mutualFundSchemes, mutualFundFields, designations, permissions,
-    genders, maritalStatuses, accountTypes, roles
+    genders, maritalStatuses, accountTypes, roles,
+    occasionTypeMasters, onUpdateOccasionTypeMasters // Destructure new props
 }) => {
   const [activeTab, setActiveTab] = useState<ModalTab | string>(ModalTab.BasicInfo);
   const [formData, setFormData] = useState<Partial<Member>>({});
@@ -1189,6 +1193,8 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                         designations={designations}
                         permissions={permissions}
                         isCurrentUserAdvisor={isCurrentUserAdvisor}
+                        occasionTypeMasters={occasionTypeMasters}
+                        onUpdateOccasionTypeMasters={onUpdateOccasionTypeMasters}
                     />}
                 {activeTab === ModalTab.Family && 
                     <FamilyTreeTab 
