@@ -1,6 +1,29 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, AreaChart, Area } from 'recharts';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip as ChartJsTooltip, 
+  Legend as ChartJsLegend,
+  Filler,
+} from 'chart.js';
+import { Line as ChartJsLine } from 'react-chartjs-2'; 
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  ChartJsTooltip, 
+  ChartJsLegend,  
+  Filler
+);
 import MemberDashboard from './components/MemberDashboard.tsx';
 import { MemberModal } from './components/MemberModal.tsx';
 import AnnualReviewModal from './components/AnnualReviewModal.tsx';
@@ -345,7 +368,7 @@ const SchemeConversionReports: React.FC<{
         let current = insuranceTypeMap.get(typeId);
         if (!current) return null;
         while (current.parentId && insuranceTypeMap.has(current.parentId)) {
-            current = insuranceTypeMap.get(current.parentId);
+            current = insuranceTypeMap.get(current.parentId)!;
         }
         return current;
     }, [insuranceTypeMap]);
@@ -403,6 +426,7 @@ const SchemeConversionReports: React.FC<{
                 <StatCard title="Policy Types" value={schemeAnalysis.typeDistribution.length} icon={<Donut size={20} />} />
             </div>
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                {/* --- FIX IS HERE: Reverted to original names --- */}
                 <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700"><h4 className="font-semibold text-center mb-4 text-gray-800 dark:text-white">Policy Type Distribution</h4><ResponsiveContainer width="100%" height={250}><PieChart><Pie data={schemeAnalysis.typeDistribution} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} label>{schemeAnalysis.typeDistribution.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}</Pie><Tooltip content={<CustomTooltip />} /><Legend /></PieChart></ResponsiveContainer></div>
                 <div className="lg:col-span-3 bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700">
                     <div className="flex justify-between items-center mb-4">
@@ -413,6 +437,7 @@ const SchemeConversionReports: React.FC<{
                         </div>
                     </div>
                      {topSchemesView === 'chart' ? (
+                        // --- AND FIX IS HERE: Reverted to original name ---
                         <ResponsiveContainer width="100%" height={250}><BarChart data={schemeAnalysis.topByPremium} layout="vertical" margin={{ top: 5, right: 30, left: 100, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" tick={{ fill: tickColor, fontSize: 12 }} /><YAxis dataKey="name" type="category" tick={{ fill: tickColor, fontSize: 12 }} width={100} /><Tooltip content={<CustomTooltip />} formatter={(value: number) => `₹${value.toLocaleString('en-IN')}`}/><Bar dataKey="premium" name="Total Premium" fill="#3B82F6" radius={[0, 4, 4, 0]} /></BarChart></ResponsiveContainer>
                      ) : (
                          <div className="overflow-x-auto max-h-[250px]">
@@ -445,27 +470,154 @@ const SchemeConversionReports: React.FC<{
 
 
 const BusinessTrendsReports: React.FC<{ members: Member[] }> = ({ members }) => {
-    const abcData = useMemo(() => { const schemePremiums = new Map<string, number>(); members.forEach(m => m.policies.forEach(p => { const name = p.schemeName || 'Unspecified'; schemePremiums.set(name, (schemePremiums.get(name) || 0) + p.premium); })); const totalPremium = Array.from(schemePremiums.values()).reduce((sum, p) => sum + p, 0); const sortedSchemes = Array.from(schemePremiums.entries()).map(([name, premium]) => ({ name, premium, percentage: totalPremium > 0 ? (premium / totalPremium) * 100 : 0 })).sort((a, b) => b.premium - a.premium); const categories: {A: any[], B: any[], C: any[]} = { A: [], B: [], C: [] }; let cumulativePercentage = 0; sortedSchemes.forEach(scheme => { cumulativePercentage += scheme.percentage; if (cumulativePercentage <= 80) categories.A.push(scheme); else if (cumulativePercentage <= 95) categories.B.push(scheme); else categories.C.push(scheme); }); return categories; }, [members]);
+    // Top-level guard clause to prevent crashes from invalid props.
+    if (!Array.isArray(members)) {
+        return (
+            <div className="flex items-center justify-center h-full text-center text-red-500 border-2 border-dashed border-red-400 rounded-lg p-8">
+                <div>
+                    <h3 className="text-xl font-semibold">Could Not Load Business Trends</h3>
+                    <p className="mt-2 text-sm">A data error occurred. The 'members' data required for this report is invalid or missing.</p>
+                </div>
+            </div>
+        );
+    }
 
-    const pnlData = useMemo(() => {
-        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-        const data = Array(6).fill(0).map((_, i) => { const d = new Date(); d.setMonth(d.getMonth() - (5 - i)); return { name: `${months[d.getMonth()]} '${String(d.getFullYear()).slice(2)}'`, revenue: 0, profit: 0 } });
-        members.forEach(m => m.policies.forEach(p => {
-            data[5].revenue += p.premium;
-            if (p.commission && p.commission.status === 'Paid') {
-                data[5].profit += p.commission.amount;
-            }
-        }));
-        for (let i = 4; i >= 0; i--) { data[i].revenue = Math.round(data[i+1].revenue * (0.8 + Math.random() * 0.2)); data[i].profit = Math.round(data[i].revenue * (0.1 + Math.random() * 0.05)); }
-        return data;
+    const abcData = useMemo(() => {
+        const schemePremiums = new Map<string, number>();
+        // Robustly filter the members array to prevent crashes.
+        members
+            .filter(m => m && Array.isArray(m.policies))
+            .forEach(m => {
+                m.policies.forEach(p => {
+                    if (p) {
+                        const name = p.schemeName || 'Unspecified';
+                        schemePremiums.set(name, (schemePremiums.get(name) || 0) + (p.premium || 0));
+                    }
+                });
+            });
+
+        const totalPremium = Array.from(schemePremiums.values()).reduce((sum, p) => sum + p, 0);
+        const sortedSchemes = Array.from(schemePremiums.entries()).map(([name, premium]) => ({ name, premium, percentage: totalPremium > 0 ? (premium / totalPremium) * 100 : 0 })).sort((a, b) => b.premium - a.premium);
+        const categories: {A: any[], B: any[], C: any[]} = { A: [], B: [], C: [] };
+        let cumulativePercentage = 0;
+        sortedSchemes.forEach(scheme => {
+            cumulativePercentage += scheme.percentage;
+            if (cumulativePercentage <= 80) categories.A.push(scheme);
+            else if (cumulativePercentage <= 95) categories.B.push(scheme);
+            else categories.C.push(scheme);
+        });
+        return categories;
     }, [members]);
 
-    const theme = document.documentElement.classList.contains('dark') ? 'dark' : 'light'; const tickColor = theme === 'dark' ? '#9CA3AF' : '#6B7280';
+    // This logic formats the data specifically for Chart.js
+    const chartJsData = useMemo(() => {
+        const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const dataPoints = Array.from({ length: 6 }, (_, i) => {
+            const d = new Date();
+            d.setMonth(d.getMonth() - (5 - i));
+            return { name: `${months[d.getMonth()]} '${String(d.getFullYear()).slice(2)}'`, revenue: 0, profit: 0 };
+        });
+
+        let currentMonthRevenue = 0;
+        let currentMonthProfit = 0;
+        
+        members
+            .filter(m => m && Array.isArray(m.policies))
+            .forEach(m => {
+                m.policies.forEach(p => {
+                    if (p) {
+                        currentMonthRevenue += (p.premium || 0);
+                        if (p.commission && p.commission.status === 'Paid') {
+                            currentMonthProfit += (p.commission.amount || 0);
+                        }
+                    }
+                });
+            });
+
+        if (dataPoints[5]) {
+            dataPoints[5].revenue = isFinite(currentMonthRevenue) ? currentMonthRevenue : 0;
+            dataPoints[5].profit = isFinite(currentMonthProfit) ? currentMonthProfit : 0;
+        }
+
+        for (let i = 4; i >= 0; i--) {
+            if (dataPoints[i] && dataPoints[i + 1]) {
+                const nextMonthRevenue = dataPoints[i + 1].revenue;
+                const simulatedRevenue = Math.round(nextMonthRevenue * (0.8 + Math.random() * 0.2));
+                dataPoints[i].revenue = isFinite(simulatedRevenue) ? simulatedRevenue : 0;
+                const simulatedProfit = Math.round(dataPoints[i].revenue * (0.1 + Math.random() * 0.05));
+                dataPoints[i].profit = isFinite(simulatedProfit) ? simulatedProfit : 0;
+            }
+        }
+        
+        return {
+            labels: dataPoints.map(d => d.name),
+            datasets: [
+                {
+                    label: 'Revenue',
+                    data: dataPoints.map(d => d.revenue),
+                    borderColor: '#8884d8',
+                    backgroundColor: 'rgba(136, 132, 216, 0.5)',
+                    fill: true,
+                    tension: 0.4,
+                },
+                {
+                    label: 'Profit',
+                    data: dataPoints.map(d => d.profit),
+                    borderColor: '#82ca9d',
+                    backgroundColor: 'rgba(130, 202, 157, 0.5)',
+                    fill: true,
+                    tension: 0.4,
+                },
+            ],
+        };
+    }, [members]);
+
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'top' as const,
+                labels: { color: isDarkMode ? '#cbd5e1' : '#475569' }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context: any) {
+                        let label = context.dataset.label || '';
+                        if (label) { label += ': '; }
+                        if (context.parsed.y !== null) {
+                            label += new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(context.parsed.y);
+                        }
+                        return label;
+                    }
+                }
+            }
+        },
+        scales: {
+            x: {
+                ticks: { color: isDarkMode ? '#94a3b8' : '#64748b' },
+                grid: { color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }
+            },
+            y: {
+                ticks: { color: isDarkMode ? '#94a3b8' : '#64748b' },
+                grid: { color: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }
+            }
+        }
+    };
 
     return (
         <div className="space-y-8 animate-fade-in">
              <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Business Trend Analysis</h3>
-            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700"><h4 className="font-semibold mb-4 text-gray-800 dark:text-white">Profit & Loss Trend</h4><ResponsiveContainer width="100%" height={300}><AreaChart data={pnlData}><CartesianGrid strokeDasharray="3 3" /><XAxis dataKey="name" tick={{ fill: tickColor, fontSize: 12 }} /><YAxis tick={{ fill: tickColor, fontSize: 12 }} /><Tooltip content={<CustomTooltip />} /><Legend /><Area type="monotone" dataKey="revenue" stackId="1" stroke="#8884d8" fill="#8884d8" name="Revenue"/><Area type="monotone" dataKey="profit" stackId="1" stroke="#82ca9d" fill="#82ca9d" name="Profit"/></AreaChart></ResponsiveContainer></div>
+            
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700">
+                <h4 className="font-semibold mb-4 text-gray-800 dark:text-white">Profit & Loss Trend</h4>
+                {/* The new, stable chart from react-chartjs-2 */}
+                 <div style={{ height: '300px' }}>
+                    <ChartJsLine options={chartOptions} data={chartJsData} />
+                </div>
+            </div>
+
             <div>
                 <h3 className="text-xl font-semibold mb-4 text-gray-800 dark:text-white">ABC Analysis (by Premium)</h3>
                 <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700 overflow-x-auto">
@@ -506,7 +658,6 @@ const BusinessTrendsReports: React.FC<{ members: Member[] }> = ({ members }) => 
         </div>
     );
 };
-
 
 const LeadAnalyticsReports: React.FC<{ members: Member[]; leadSources: LeadSourceMaster[] }> = ({ members, leadSources }) => {
     const leadSourceAnalysis = useMemo(() => {
