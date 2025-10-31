@@ -763,57 +763,46 @@ export const MemberModal: React.FC<MemberModalProps> = ({
         }
     }
 
-    // --- NEW VALIDATION LOGIC FOR MANDATORY DOCUMENTS ---
+    // --- MODIFIED VALIDATION LOGIC FOR MANDATORY DOCUMENTS ---
     const activePolicies = (formData.policies || []).filter(p => p.status === 'Active');
     if (activePolicies.length > 0) {
         const insuranceTypeMap = new Map(insuranceTypes.map(it => [it.id, it]));
-        const missingMandatoryDocs: string[] = [];
+        const allMandatoryDocNames = new Set<string>();
 
         activePolicies.forEach(policy => {
             if (!policy.insuranceTypeId) return;
 
-            const requiredDocIds = new Set<string>();
+            // Find all mandatory document names for this policy's type hierarchy
             let currentTypeId: string | null = policy.insuranceTypeId;
-
-            // Gather all rules up the hierarchy
             while (currentTypeId) {
-                insuranceTypeDocumentRules.forEach(rule => {
-                    if (rule.insuranceTypeId === currentTypeId) {
-                        requiredDocIds.add(rule.documentId);
+                const rulesForType = insuranceTypeDocumentRules.filter(rule => rule.insuranceTypeId === currentTypeId && rule.isMandatory);
+                rulesForType.forEach(rule => {
+                    const docMaster = documentMasters.find(dm => dm.id === rule.documentId);
+                    if (docMaster) {
+                        allMandatoryDocNames.add(docMaster.name);
                     }
                 });
                 currentTypeId = insuranceTypeMap.get(currentTypeId)?.parentId || null;
             }
-
-            requiredDocIds.forEach(docId => {
-                let isMandatory = false;
-                let hierarchyTypeId: string | null = policy.insuranceTypeId;
-                 while (hierarchyTypeId) {
-                    const rule = insuranceTypeDocumentRules.find(r => r.insuranceTypeId === hierarchyTypeId && r.documentId === docId);
-                    if (rule?.isMandatory) {
-                        isMandatory = true;
-                        break;
-                    }
-                    hierarchyTypeId = insuranceTypeMap.get(hierarchyTypeId)?.parentId || null;
-                }
-
-                if (isMandatory) {
-                    const docMaster = documentMasters.find(dm => dm.id === docId);
-                    if (docMaster) {
-                        const isUploaded = (formData.documents || []).some(d => d.documentType === docMaster.name);
-                        if (!isUploaded) {
-                            missingMandatoryDocs.push(docMaster.name);
-                        }
-                    }
-                }
-            });
         });
 
-        if (missingMandatoryDocs.length > 0) {
-            newErrors.documentsError = `The following mandatory documents are missing: ${[...new Set(missingMandatoryDocs)].join(', ')}. Please upload them in the Documents tab.`;
+        // ONLY if there are mandatory documents required by the policies, check if they are uploaded.
+        if (allMandatoryDocNames.size > 0) {
+            const uploadedDocTypes = new Set((formData.documents || []).map(d => d.documentType));
+            const missingMandatoryDocs: string[] = [];
+            
+            allMandatoryDocNames.forEach(docName => {
+                if (!uploadedDocTypes.has(docName)) {
+                    missingMandatoryDocs.push(docName);
+                }
+            });
+
+            if (missingMandatoryDocs.length > 0) {
+                newErrors.documentsError = `The following mandatory documents are missing: ${missingMandatoryDocs.join(', ')}. Please upload them in the Documents tab.`;
+            }
         }
     }
-    // --- END NEW VALIDATION LOGIC ---
+    // --- END MODIFIED VALIDATION LOGIC ---
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
