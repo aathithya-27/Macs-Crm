@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Member, Policy, User, Task, Lead, FinRootsBranch, SchemeMaster, Company, Expense, ManualIncome, CustomerTier, AttendanceState, BusinessVertical, TaskStatusMaster, ExpenseCategoryLevel1, ExpenseCategoryLevel2, ExpenseCategoryLevel3, IncomeCategoryLevel1, IncomeCategoryLevel2, CustomerFieldMaster, InsuranceFieldMaster, InsuranceTypeMaster, ManualCommission, Designation, Role, LeadStageMaster } from '../types.ts';
+import { Member, Policy, User, Task, Lead, FinRootsBranch, SchemeMaster, Company, Expense, ManualIncome, CustomerTier, AttendanceState, BusinessVertical, TaskStatusMaster, ExpenseCategoryLevel1, ExpenseCategoryLevel2, ExpenseCategoryLevel3, IncomeCategoryLevel1, IncomeCategoryLevel2, CustomerFieldMaster, InsuranceFieldMaster, InsuranceTypeMaster, ManualCommission, Designation, Role, LeadStageMaster, Gender, MaritalStatus } from '../types.ts';
 import { Download, FileX, BarChart3, Info, PieChart as PieChartIcon, BarChartHorizontal } from 'lucide-react';
 import Button from './ui/Button.tsx';
 import Input from './ui/Input.tsx';
@@ -43,6 +43,8 @@ interface AdvancedReportsProps {
     designations: Designation[];
     roles: Role[];
     leadStageMasters: LeadStageMaster[]; // --- NEW ---
+    genders: Gender[];
+    maritalStatuses: MaritalStatus[];
 }
 
 // --- Type Definitions for Reporting ---
@@ -99,7 +101,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         taskStatusMasters, expenseCategoriesLevel1, expenseCategoriesLevel2, 
         expenseCategoriesLevel3, incomeCategoriesLevel1, incomeCategoriesLevel2, 
          customerFieldMasters, insuranceFields, insuranceTypes, designations, roles,
-         leadStageMasters
+         leadStageMasters, genders, maritalStatuses
     } = props;
 
     // --- State Management ---
@@ -391,10 +393,18 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         if (showAllCustomerFields) {
             base.push(
                 { key: 'dob', label: 'DOB', render: r => r.dob ? format(parseISO(r.dob), 'dd/MM/yyyy') : 'N/A' },
-                { key: 'gender', label: 'Gender' }, { key: 'email', label: 'Email' }, { key: 'address', label: 'Address' },
+                { key: 'gender', label: 'Gender', render: (r: Member) => {
+                    const gender = genders.find(g => g.id === r.gender);
+                    return gender ? gender.name : (r.gender || 'N/A');
+                }}, 
+                { key: 'email', label: 'Email' }, { key: 'address', label: 'Address' },
                 { key: 'state', label: 'State' }, { key: 'district', label: 'District' }, { key: 'pincode', label: 'Pincode' },
                 { key: 'panCard', label: 'PAN' }, { key: 'aadhaar', label: 'Aadhaar' },
-                { key: 'maritalStatus', label: 'Marital Status' }, { key: 'anniversary', label: 'Anniversary' }
+                { key: 'maritalStatus', label: 'Marital Status', render: (r: Member) => {
+                    const maritalStatus = maritalStatuses.find(ms => ms.id === r.maritalStatus);
+                    return maritalStatus ? maritalStatus.name : (r.maritalStatus || 'N/A');
+                }}, 
+                { key: 'anniversary', label: 'Anniversary' }
             );
             customerFieldMasters.filter(f => f.active).forEach(field => {
                 base.push({
@@ -412,7 +422,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             });
         }
         return base;
-    }, [showAllCustomerFields, customerFieldMasters, users, branches]);
+    }, [showAllCustomerFields, customerFieldMasters, users, branches, genders, maritalStatuses]);
     
     const policyInfoColumns = useMemo(() => {
         const insuranceTypeMap = new Map(insuranceTypes.map(it => [it.id, it.name]));
