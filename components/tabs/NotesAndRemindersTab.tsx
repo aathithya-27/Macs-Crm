@@ -252,7 +252,7 @@ export const NotesAndRemindersTab: React.FC<NotesAndRemindersTabProps> = ({
   }
 
   return (
-    <div className="space-y-8 max-h-[calc(100vh-200px)] overflow-y-auto pr-2">
+    <div className="space-y-8">
       {/* Voice Notes Section */}
       <div className="space-y-4">
         {canModify && (
@@ -277,7 +277,7 @@ export const NotesAndRemindersTab: React.FC<NotesAndRemindersTabProps> = ({
 
         <div>
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Saved Notes</h3>
-          <div className="space-y-4 max-h-96 overflow-y-auto pr-2 -mr-2">
+          <div className="space-y-4">
             {(!data.voiceNotes || data.voiceNotes.length === 0) ? (
               <div className="text-center py-10 text-gray-500 dark:text-gray-400"><FileText size={40} className="mx-auto text-gray-300 dark:text-gray-600"/><p className="mt-2 text-sm font-semibold">No Voice Notes</p><p className="mt-1 text-xs">Record a new note to get started.</p></div>
             ) : 
@@ -314,7 +314,7 @@ export const NotesAndRemindersTab: React.FC<NotesAndRemindersTabProps> = ({
 
           <div className="md:col-span-2 mt-4">
              <h4 className="text-md font-medium text-gray-900 dark:text-white mb-2">Other Special Occasions</h4>
-             <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+             <div className="space-y-2">
                 {(data.otherSpecialOccasions || []).map(occ => (
                     <div key={occ.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md">
                         <div>
