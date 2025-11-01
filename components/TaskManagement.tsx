@@ -1162,14 +1162,23 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                             </div>
                         )}
                         {editingTask.taskType === 'Auto' && (
-                            <Input
-                                label="Task Creation Date *"
-                                type="date"
-                                value={editingTask.scheduledCreationDateTime?.split('T')[0] || ''}
-                                onChange={(e) => setEditingTask({...editingTask, scheduledCreationDateTime: e.target.value})}
-                                min={new Date().toISOString().split('T')[0]} // Prevent selecting past dates
-                                disabled={editingTask.id ? !canModify : !canCreate}
-                            />
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <Input
+                                    label="Task Creation Date *"
+                                    type="date"
+                                    value={editingTask.scheduledCreationDateTime?.split('T')[0] || ''}
+                                    onChange={(e) => setEditingTask({...editingTask, scheduledCreationDateTime: e.target.value})}
+                                    min={new Date().toISOString().split('T')[0]} // Prevent selecting past dates
+                                    disabled={editingTask.id ? !canModify : !canCreate}
+                                />
+                                <Input
+                                    label="Task Time"
+                                    type="time"
+                                    value={editingTask.taskTime || ''}
+                                    onChange={(e) => setEditingTask({...editingTask, taskTime: e.target.value})}
+                                    disabled={editingTask.id ? !canModify : !canCreate}
+                                />
+                            </div>
                         )}
                         <Input
                             label="Due Date *"
@@ -1179,15 +1188,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                             min={editingTask.taskType === 'Auto' ? editingTask.scheduledCreationDateTime?.split('T')[0] : undefined}
                             disabled={editingTask.id ? !canModify : !canCreate}
                         />
-                        {editingTask.taskType === 'Auto' && (
-                             <Input
-                                label="Task Time"
-                                type="time"
-                                value={editingTask.taskTime || ''}
-                                onChange={(e) => setEditingTask({...editingTask, taskTime: e.target.value})}
-                                disabled={editingTask.id ? !canModify : !canCreate}
-                            />
-                        )}
+
                     </div>
                     <div className="flex justify-end p-6 gap-3 border-t border-gray-200 dark:border-gray-700">
                         <Button variant="secondary" onClick={handleCloseModal}>Cancel</Button>
