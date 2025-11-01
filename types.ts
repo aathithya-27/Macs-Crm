@@ -730,6 +730,7 @@ export interface Task {
   active?: boolean;
   activityLog?: TaskActivityLog[];
   originalAssigneeId?: string;
+  scheduledCreationDateTime?: string; // NEW: For scheduling 'Auto' tasks
 }
 
 export interface Notification {

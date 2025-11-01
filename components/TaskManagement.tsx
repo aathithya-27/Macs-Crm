@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { Task, User, Member, TaskStatusMaster, FinRootsBranch, Lead, TaskMaster, Designation, Role, AppModule, PermissionLevel } from '../types.ts';
-import { ListTodo, Plus, Edit2, Calendar, User as UserIcon, Briefcase, Table, LayoutGrid, Search, ArrowUp, ArrowDown, Trash2, Users, Building, GitCommit, RefreshCw, History, MessageSquare } from 'lucide-react';
+import { ListTodo, Plus, Edit2, Calendar, User as UserIcon, Briefcase, Table, LayoutGrid, Search, ArrowUp, ArrowDown, Trash2, Users, Building, GitCommit, RefreshCw, History, MessageSquare, Clock } from 'lucide-react';
 import Button from './ui/Button.tsx';
 import Input from './ui/Input.tsx';
 import Modal from './ui/Modal.tsx';
@@ -276,14 +276,20 @@ const TaskCard: React.FC<{
     const isAssignedToCurrentUser = task.primaryContactPerson === currentUser?.id;
     
     const isJustCreated = task.statusId === 'ts-created';
-    const showBlurred = isUserAdvisor && isAssignedToCurrentUser && isJustCreated;
+    
+    // NEW: Check if the task is scheduled for the future
+    const isScheduledForFuture = task.taskType === 'Auto' && task.scheduledCreationDateTime && new Date(task.scheduledCreationDateTime) > new Date();
+    
+    const showBlurred = isUserAdvisor && isAssignedToCurrentUser && isJustCreated && !isScheduledForFuture;
 
     const currentStatusInfo = useMemo(() => taskStatusMasters.find(s => s.id === task.statusId), [taskStatusMasters, task.statusId]);
     const isEndState = currentStatusInfo?.isEndState === true;
 
-    const isOverdue = !isEndState && new Date(task.expectedCompletionDateTime) < new Date();
+    const isOverdue = !isEndState && !isScheduledForFuture && new Date(task.expectedCompletionDateTime) < new Date();
 
-    const statusName = isJustCreated ? 'Task Created' : (currentStatusInfo?.name || 'Unknown');
+    const statusName = isScheduledForFuture 
+        ? 'Scheduled' 
+        : (isJustCreated ? 'Task Created' : (currentStatusInfo?.name || 'Unknown'));
     
     const [completionModal, setCompletionModal] = React.useState<{isOpen: boolean; newStatus: string; statusName: string} | null>(null);
     
@@ -320,7 +326,7 @@ const TaskCard: React.FC<{
         setCompletionModal(null);
     };
     
-    const statusColor = task.isCompleted ? 'text-green-500 dark:text-green-400' : 'text-yellow-500 dark:text-yellow-400';
+    const statusColor = isScheduledForFuture ? 'text-cyan-500 dark:text-cyan-400' : (task.isCompleted ? 'text-green-500 dark:text-green-400' : 'text-yellow-500 dark:text-yellow-400');
 
     const clientName = task.memberId ? memberMap.get(task.memberId) : leadMap.get(task.leadId || '');
     const clientType = task.memberId ? 'Customer' : 'Lead';
@@ -359,7 +365,7 @@ const TaskCard: React.FC<{
                                 <Edit2 size={14}/>
                             </Button>
                         )}
-                        {(isUserAdvisor || canModify) && !isEndState && (
+                        {(isUserAdvisor || canModify) && !isEndState && !isScheduledForFuture && (
                              <Button variant="light" size="small" className="!p-1.5 h-7 w-7" onClick={() => onReassign(task)} title="Reassign Task">
                                 <GitCommit size={14} />
                             </Button>
@@ -393,7 +399,7 @@ const TaskCard: React.FC<{
                 <div className="pt-3 border-t dark:border-gray-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
                     <div>
                         <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Status</label>
-                        {isAssignedToCurrentUser && !isEndState && !isJustCreated ? (
+                        {isAssignedToCurrentUser && !isEndState && !isJustCreated && !isScheduledForFuture ? (
                             <select
                                 value={task.statusId || ''}
                                 onChange={(e) => handleStatusChange(e.target.value)}
@@ -406,7 +412,10 @@ const TaskCard: React.FC<{
                                 ))}
                             </select>
                         ) : (
-                            <p className={`font-semibold text-sm ${statusColor}`}>{statusName}</p>
+                             <p className={`font-semibold text-sm flex items-center gap-1.5 ${statusColor}`}>
+                                {isScheduledForFuture && <Clock size={12}/>}
+                                {statusName}
+                            </p>
                         )}
                     </div>
                 </div>
@@ -482,16 +491,17 @@ const TaskTable: React.FC<{
                 {tasks.map((task, index) => {
                     const currentStatusInfo = taskStatusMasters.find(s => s.id === task.statusId);
                     const isEndState = currentStatusInfo?.isEndState === true;
-                    const isOverdue = !isEndState && new Date(task.expectedCompletionDateTime) < new Date();
+                    const isScheduledForFuture = task.taskType === 'Auto' && task.scheduledCreationDateTime && new Date(task.scheduledCreationDateTime) > new Date();
+                    const isOverdue = !isEndState && !isScheduledForFuture && new Date(task.expectedCompletionDateTime) < new Date();
                     const employee = users.find(u => u.id === task.primaryContactPerson);
                     const branchName = employee?.profile?.employeeBranchId ? branchMap.get(employee.profile.employeeBranchId) : 'N/A';
                     const clientName = task.memberId ? memberMap.get(task.memberId) : (task.leadId ? leadMap.get(task.leadId) : 'Personal Task');
                     const alternates = (task.alternateContactPersons || []).map(id => userMap.get(id)).filter(Boolean).join(', ');
                     const title = alternates ? `Alternate: ${alternates}` : undefined;
-                    const canReassign = (canModify || task.primaryContactPerson === currentUser?.id) && !isEndState;
+                    const canReassign = (canModify || task.primaryContactPerson === currentUser?.id) && !isEndState && !isScheduledForFuture;
                     const isCustomerTask = !!task.memberId || !!task.leadId;
                     const originalAssigneeName = task.originalAssigneeId ? userMap.get(task.originalAssigneeId) : null;
-                    const statusName = task.statusId === 'ts-created' ? 'Task Created' : (currentStatusInfo?.name || 'Unknown');
+                    const statusName = isScheduledForFuture ? 'Scheduled' : (task.statusId === 'ts-created' ? 'Task Created' : (currentStatusInfo?.name || 'Unknown'));
 
                     return (
                         <tr key={task.id}>
@@ -525,6 +535,7 @@ const TaskTable: React.FC<{
                             <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{new Date(task.expectedCompletionDateTime).toLocaleDateString()}</td>
                             <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
                                 <div className="flex items-center gap-2">
+                                    {isScheduledForFuture && <Clock size={12} className="text-cyan-500"/>}
                                     <span>{statusName}</span>
                                     {isOverdue && <span className="px-1.5 py-0.5 text-white bg-red-500 rounded-full text-[10px] font-bold">OVERDUE</span>}
                                 </div>
@@ -634,15 +645,38 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
     const filteredAndSortedTasks = useMemo(() => {
         let tasks: Task[] = [];
         
-        // Advisors only see their own tasks, regardless of permissions
-        // Non-advisors with modify/view permissions can see all tasks
+        const now = new Date();
+
+        // Base filtering based on user role and permissions
         if (isCurrentUserAdvisor) {
+            // Advisors see tasks assigned to them
             tasks = allTasks.filter(task => task.primaryContactPerson === currentUser?.id);
         } else if (permissions?.taskManagement === 'modify' || permissions?.taskManagement === 'view') {
+            // Admins/Managers see all tasks
             tasks = [...allTasks];
         } else {
+            // Default: Users see tasks assigned to them
             tasks = allTasks.filter(task => task.primaryContactPerson === currentUser?.id);
         }
+        
+        // --- NEW VISIBILITY LOGIC ---
+        tasks = tasks.filter(task => {
+            const isScheduled = task.taskType === 'Auto' && task.scheduledCreationDateTime;
+            if (!isScheduled) {
+                return true; // If not a scheduled task, it's always visible
+            }
+            
+            const isTriggered = new Date(task.scheduledCreationDateTime!) <= now;
+            
+            // If the task is assigned to the current user but hasn't triggered yet, hide it.
+            if (task.primaryContactPerson === currentUser?.id && !isTriggered) {
+                return false;
+            }
+            
+            // Otherwise (creator, admin, or triggered task), it's visible.
+            return true;
+        });
+
 
         if (activeView === 'customer') {
             tasks = tasks.filter(task => task.memberId || task.leadId);
@@ -671,8 +705,11 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                     bValue = userMap.get(b.primaryContactPerson || '') || 'Z';
                     break;
                 case 'status':
-                    const aStatusName = a.statusId === 'ts-created' ? 'Task Created' : taskStatusMasters.find(s => s.id === a.statusId)?.name || 'Z';
-                    const bStatusName = b.statusId === 'ts-created' ? 'Task Created' : taskStatusMasters.find(s => s.id === b.statusId)?.name || 'Z';
+                    const aIsScheduled = a.taskType === 'Auto' && a.scheduledCreationDateTime && new Date(a.scheduledCreationDateTime) > now;
+                    const bIsScheduled = b.taskType === 'Auto' && b.scheduledCreationDateTime && new Date(b.scheduledCreationDateTime) > now;
+
+                    const aStatusName = aIsScheduled ? 'Scheduled' : (a.statusId === 'ts-created' ? 'Task Created' : taskStatusMasters.find(s => s.id === a.statusId)?.name || 'Z');
+                    const bStatusName = bIsScheduled ? 'Scheduled' : (b.statusId === 'ts-created' ? 'Task Created' : taskStatusMasters.find(s => s.id === b.statusId)?.name || 'Z');
                     aValue = aStatusName;
                     bValue = bStatusName;
                     break;
@@ -706,7 +743,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
    
     
     
-    }, [allTasks, currentUser, isCurrentUserAdvisor, searchQuery, statusFilter, advisorFilter, branchFilter, sortConfig, users, userMap, taskStatusMasters, branchMap, activeView]);
+    }, [allTasks, currentUser, isCurrentUserAdvisor, permissions, searchQuery, statusFilter, advisorFilter, branchFilter, sortConfig, users, userMap, taskStatusMasters, branchMap, activeView]);
 
     const totalPages = Math.ceil(filteredAndSortedTasks.length / ITEMS_PER_PAGE);
     const currentTasks = useMemo(() => {
@@ -723,16 +760,22 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
         
         if (task) {
             if (task.statusId === 'ts-created' && task.primaryContactPerson === currentUser?.id) {
-                onOpenTask(task.id);
+                // Check if it's not a future-scheduled task before auto-opening it
+                const isScheduledForFuture = task.taskType === 'Auto' && task.scheduledCreationDateTime && new Date(task.scheduledCreationDateTime) > new Date();
+                if (!isScheduledForFuture) {
+                    onOpenTask(task.id);
+                }
             }
         }
         
         const defaultTaskType = manualTaskMaster ? 'Manual' : (autoTaskMaster ? 'Auto' : 'Manual');
+        const todayStr = new Date().toISOString().split('T')[0];
 
         setEditingTask(task ? { ...task } : {
             triggeringPoint: 'Manual', 
             taskDescription: '', 
-            expectedCompletionDateTime: new Date().toISOString().split('T')[0],
+            expectedCompletionDateTime: todayStr,
+            scheduledCreationDateTime: todayStr, // Default to today
             isCompleted: false,
             taskType: defaultTaskType,
             taskTime: '09:00',
@@ -772,11 +815,37 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
             return;
         }
 
+        // --- NEW VALIDATION & LOGIC FOR AUTO TASKS ---
+        let scheduledDateTime: string | undefined = undefined;
+        if (editingTask.taskType === 'Auto') {
+            const creationDateStr = editingTask.scheduledCreationDateTime?.split('T')[0];
+            if (!creationDateStr) {
+                addToast('Task Creation Date is required for Auto tasks.', 'error');
+                return;
+            }
+            
+            const dueDateStr = editingTask.expectedCompletionDateTime?.split('T')[0];
+            if (dueDateStr && dueDateStr < creationDateStr) {
+                 addToast('Due Date cannot be before the Task Creation Date.', 'error');
+                 return;
+            }
+            
+            const time = editingTask.taskTime || '00:00';
+            scheduledDateTime = `${creationDateStr}T${time}:00`;
+        }
+
         const taskToSave = {
             ...editingTask,
             expectedCompletionDateTime: editingTask.expectedCompletionDateTime || new Date().toISOString(),
             taskType: editingTask.taskType || 'Manual',
+            scheduledCreationDateTime: scheduledDateTime, // Set the combined date-time string
         };
+        
+        // For Manual tasks, clear the scheduled date
+        if (taskToSave.taskType === 'Manual') {
+            taskToSave.scheduledCreationDateTime = undefined;
+        }
+
 
         if (editingTask.id) {
             onUpdateTask(taskToSave as Task);
@@ -1085,11 +1154,22 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                                 </div>
                             </div>
                         )}
+                        {editingTask.taskType === 'Auto' && (
+                            <Input
+                                label="Task Creation Date *"
+                                type="date"
+                                value={editingTask.scheduledCreationDateTime?.split('T')[0] || ''}
+                                onChange={(e) => setEditingTask({...editingTask, scheduledCreationDateTime: e.target.value})}
+                                min={new Date().toISOString().split('T')[0]} // Prevent selecting past dates
+                                disabled={editingTask.id ? !canModify : !canCreate}
+                            />
+                        )}
                         <Input
                             label="Due Date *"
                             type="date"
                             value={editingTask.expectedCompletionDateTime?.split('T')[0] || ''}
                             onChange={(e) => setEditingTask({...editingTask, expectedCompletionDateTime: e.target.value})}
+                            min={editingTask.taskType === 'Auto' ? editingTask.scheduledCreationDateTime?.split('T')[0] : undefined}
                             disabled={editingTask.id ? !canModify : !canCreate}
                         />
                         {editingTask.taskType === 'Auto' && (
