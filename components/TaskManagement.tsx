@@ -686,7 +686,13 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
 
         tasks = tasks.filter(task => {
             const searchMatch = !searchQuery || task.taskDescription.toLowerCase().includes(searchQuery.toLowerCase());
-            const statusMatch = statusFilter === 'all' || task.statusId === statusFilter;
+            
+            // Handle scheduled status filter
+            const isScheduledForFuture = task.taskType === 'Auto' && task.scheduledCreationDateTime && new Date(task.scheduledCreationDateTime) > now;
+            const statusMatch = statusFilter === 'all' || 
+                (statusFilter === 'scheduled' && isScheduledForFuture) ||
+                (statusFilter !== 'scheduled' && task.statusId === statusFilter);
+            
             const advisorMatch = advisorFilter === 'all' || task.primaryContactPerson === advisorFilter;
             const employeeForBranch = users.find(u => u.id === task.primaryContactPerson);
             const branchId = employeeForBranch?.profile?.employeeBranchId;
@@ -975,6 +981,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                             className="w-full h-10 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-brand-primary bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                         >
                             <option value="all">All Statuses</option>
+                            <option value="scheduled">Scheduled</option>
                             <option value="ts-created">Task Created</option>
                             {taskStatusMasters.filter(status => status.active).map(status => <option key={status.id} value={status.id}>{status.name}</option>)}
                         </select>
