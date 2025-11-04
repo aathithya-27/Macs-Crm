@@ -196,7 +196,7 @@ const ReassignTaskModal: React.FC<{
             if (aIsAlternate && !bIsAlternate) return -1;
             if (!aIsAlternate && bIsAlternate) return 1;
             return a.name.localeCompare(b.name);
-        }).filter(adv => adv.id !== task.primaryContactPerson);
+        }).filter(adv => adv.id !== task.primaryContactPerson && adv.profile?.status === 'Active');
 
         return sortedAdvisors.map(adv => ({
             value: adv.id,
@@ -604,7 +604,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
     
     const advisors = useMemo(() => {
         const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
-        return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
+        return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId) && u.profile?.status === 'Active');
     }, [users, roles]);
 
     const branchMap = useMemo(() => new Map(finrootsBranches.map(b => [b.id, b.branchName])), [finrootsBranches]);
@@ -614,11 +614,14 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
     const canModify = permissions?.taskManagement === 'modify';
 
     const advisorsForFilter = useMemo(() => {
+        const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
+        const allAdvisors = users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
+        
         if (branchFilter === 'all') {
-            return advisors;
+            return allAdvisors;
         }
-        return advisors.filter(adv => adv.profile?.employeeBranchId === branchFilter);
-    }, [advisors, branchFilter]);
+        return allAdvisors.filter(adv => adv.profile?.employeeBranchId === branchFilter);
+    }, [users, roles, branchFilter]);
     
     const advisorsForAssignment = useMemo(() => {
         if (!selectedBranch) {
