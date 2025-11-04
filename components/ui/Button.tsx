@@ -5,7 +5,7 @@ import React from 'react';
 type ButtonOwnProps<E extends React.ElementType> = {
   children: React.ReactNode;
   variant?: 'primary' | 'secondary' | 'danger' | 'success' | 'grey' | 'light' | 'ghost'; // Added 'ghost'
-  size?: 'default' | 'small';
+  size?: 'default' | 'small' | 'medium';
   as?: E; // This will be the tag, e.g., 'button', 'a', 'span'
   disabled?: boolean; // Explicitly add disabled prop
 }

@@ -1,5 +1,4 @@
 import React, { useState, useMemo } from 'react';
-// --- MODIFICATION: Added Role to import ---
 import { Member, UpsellCategory, InsuranceTypeMaster, User, FinRootsBranch, Role } from '../types';
 import { generateUpsellSuggestion } from '../services/geminiService';
 import { CheckCircle, XCircle, Sparkles, Loader2, Search } from 'lucide-react';
@@ -15,7 +14,6 @@ interface UpsellingDashboardProps {
     addToast: (message: string, type?: 'success' | 'error') => void;
     users: User[];
     branches: FinRootsBranch[];
-    // --- MODIFICATION: Added roles prop ---
     roles: Role[];
 }
 
@@ -75,7 +73,6 @@ const UpsellingDashboard: React.FC<UpsellingDashboardProps> = ({ members, upsell
     const [selectedBranch, setSelectedBranch] = useState<string>('all');
     const [selectedProductFilter, setSelectedProductFilter] = useState<string>('all');
 
-    // --- MODIFICATION: Correctly identify advisors based on their role's `isAdvisor` flag ---
     const advisors = useMemo(() => {
         const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
         return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
@@ -227,12 +224,14 @@ const UpsellingDashboard: React.FC<UpsellingDashboardProps> = ({ members, upsell
                             />
                         </div>
                     </div>
+                     {/* --- MODIFICATION BEGINS --- */}
                      <SearchableSelect
                         label="Filter by Advisor"
-                        options={[{ value: 'all', label: 'All Advisors' }, ...advisors.map(a => ({ value: a.id, label: a.name }))]}
+                        options={[{ value: 'all', label: 'All Advisors' }, ...advisors.map(a => ({ value: a.id, label: a.profile?.status === 'Inactive' ? `${a.name} 🔴` : a.name }))]}
                         value={selectedAdvisor}
                         onChange={setSelectedAdvisor}
                     />
+                     {/* --- MODIFICATION ENDS --- */}
                      <SearchableSelect
                         label="Filter by Branch"
                         options={[{ value: 'all', label: 'All Branches' }, ...branches.map(b => ({ value: b.id, label: b.branchName }))]}

@@ -99,9 +99,9 @@ const DropdownMenu = ({
               <PlusCircle size={14}/> Create "{filter.trim()}"
             </li>
           )}
-          {options.map(option => (
+          {options.map((option, index) => (
             <li
-              key={option.value}
+              key={`${option.value}-${index}`}
               onClick={() => onSelect(option.value)}
               className={`px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer ${
                 (Array.isArray(selectedValue) ? selectedValue.includes(option.value) : selectedValue === option.value) 

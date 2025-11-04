@@ -118,9 +118,9 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user, users, allMembers, on
                                 {recentEmployees.map(emp => (
                                     <li key={emp.id} className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-700/50 rounded-md">
                                         <img src={emp.profile?.photoUrl || `https://i.pravatar.cc/150?u=${emp.id}`} alt={emp.name} className="w-8 h-8 rounded-full object-cover" />
-                                        <div>
-                                            <p className="font-medium text-sm text-gray-800 dark:text-gray-200">{emp.name}</p>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400">{designationMap.get(emp.designationId) || emp.role}</p>
+                                        <div className="flex items-center gap-2">
+                                        <p className="font-medium text-sm text-gray-800 dark:text-gray-200">{emp.name}</p>
+                                        {emp.profile?.status === 'Inactive' && <span className="w-2 h-2 bg-red-500 rounded-full" title="Inactive Employee"></span>}
                                         </div>
                                     </li>
                                 ))}

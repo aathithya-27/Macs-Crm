@@ -1,15 +1,14 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { 
-    Member, ModalTab, User, Route, ProcessStage, ProcessLog, Policy, BankDetails, SchemeMaster, 
-    Company, DocumentMaster, /* SchemeDocumentMapping, */ RelationshipType, LeadSourceMaster, Geography, 
+import React, { useMemo, useCallback, useState, useRef, useEffect } from 'react';
+import { Member, ModalTab, User, Route, ProcessStage, ProcessLog, Policy, BankDetails, SchemeMaster, 
+    Company, DocumentMaster, RelationshipType, LeadSourceMaster, Geography, 
     BankMaster, CustomerCategory, CustomerSubCategory, CustomerGroup, FamilyMemberNode, Task, 
-    TaskStatusMaster, TaskMaster, /* PolicyChecklistMaster, */ InsuranceTypeMaster, InsuranceFieldMaster, 
+    TaskStatusMaster, TaskMaster, InsuranceTypeMaster, InsuranceFieldMaster, 
     BusinessVertical, CoveredMember, FinRootsBranch, Religion, CustomerFieldMaster, AMC, 
     MutualFundScheme, MutualFundHolding, MutualFundTransaction, MutualFundFieldMaster, Designation,
     AppModule, PermissionLevel,
     Gender, MaritalStatus, ProcessStageMaster, AccountType, Role, RolePermissions,
     InsuranceTypeDocumentRule,
-    OccasionTypeMaster // --- NEW: Import OccasionTypeMaster ---
+    OccasionTypeMaster 
 } from '../types.ts';
 import Modal from './ui/Modal.tsx';
 import Button from './ui/Button.tsx';
@@ -313,7 +312,7 @@ const FamilyTreeTab: React.FC<{
             )}
             
             <ul className="space-y-4">
-                <TreeNode node={familyTree} isRoot />
+                <TreeNode node={familyTree!} isRoot />
             </ul>
         </div>
     );
@@ -328,7 +327,7 @@ const TasksTab: React.FC<{
     onCreateTask: (task: Omit<Task, 'id'>) => void;
     addToast: (message: string, type?: 'success' | 'error') => void;
     permissions: { [key in AppModule]?: PermissionLevel };
-    isCurrentUserAdvisor: boolean; // NEW PROP
+    isCurrentUserAdvisor: boolean; 
 }> = ({ member, tasks, taskStatusMasters, taskMasters, users, onCreateTask, addToast, permissions, isCurrentUserAdvisor }) => {
     const [isCreating, setIsCreating] = useState(false);
     
@@ -566,7 +565,6 @@ const NewReferrerModal: React.FC<{
     );
 };
 
-// --- MODIFICATION: Add new props to the interface ---
 interface MemberModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -632,7 +630,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     onCreateReferrer, finrootsBranches, religions, onAddDocumentMaster, amcs, 
     mutualFundSchemes, mutualFundFields, designations, permissions,
     genders, maritalStatuses, accountTypes, roles,
-    occasionTypeMasters, onUpdateOccasionTypeMasters // Destructure new props
+    occasionTypeMasters, onUpdateOccasionTypeMasters
 }) => {
   const [activeTab, setActiveTab] = useState<ModalTab | string>(ModalTab.BasicInfo);
   const [formData, setFormData] = useState<Partial<Member>>({});
@@ -650,24 +648,25 @@ export const MemberModal: React.FC<MemberModalProps> = ({
   const canModify = permissions?.customers === 'modify';
   const isReadOnly = !!member && !canModify;
 
-  const userMap = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users]);
-  // MODIFICATION: Added roleMap
+  // --- MODIFICATION BEGINS ---
   const roleMap = useMemo(() => new Map(roles.map(r => [r.id, r.name])), [roles]);
 
-  const isCurrentUserAdvisor = useMemo(() => roles.find(r => r.id === currentUser?.roleId)?.isAdvisor === true, [currentUser, roles]);
-
-  // MODIFICATION: Changed logic to display role name instead of user name
-  const creatorRoleName = useMemo(() => {
+  const creatorInfo = useMemo(() => {
     if (formData.createdBy) {
         const creatorUser = users.find(u => u.id === formData.createdBy);
-        if (creatorUser && creatorUser.roleId) {
-            return roleMap.get(creatorUser.roleId) || 'Unknown Role';
+        if (creatorUser) {
+            return {
+                name: creatorUser.name,
+                role: creatorUser.roleId ? roleMap.get(creatorUser.roleId) || 'Unknown Role' : 'Unknown Role',
+                isInactive: creatorUser.profile?.status === 'Inactive'
+            };
         }
-        // Fallback to user name if role or user not found
-        return userMap.get(formData.createdBy) || 'Unknown User';
     }
     return null;
-  }, [formData.createdBy, users, userMap, roleMap]); // Updated dependencies
+  }, [formData.createdBy, users, roleMap]); 
+  // --- MODIFICATION ENDS ---
+
+  const isCurrentUserAdvisor = useMemo(() => roles.find(r => r.id === currentUser?.roleId)?.isAdvisor === true, [currentUser, roles]);
 
   const getInitialFormData = (member: Member | null): Partial<Member> => {
     if (member) return JSON.parse(JSON.stringify(member));
@@ -767,7 +766,6 @@ export const MemberModal: React.FC<MemberModalProps> = ({
         }
     }
 
-    // --- MODIFIED VALIDATION LOGIC FOR MANDATORY DOCUMENTS ---
     const activePolicies = (formData.policies || []).filter(p => p.status === 'Active');
     if (activePolicies.length > 0) {
         const insuranceTypeMap = new Map(insuranceTypes.map(it => [it.id, it]));
@@ -776,7 +774,6 @@ export const MemberModal: React.FC<MemberModalProps> = ({
         activePolicies.forEach(policy => {
             if (!policy.insuranceTypeId) return;
 
-            // Find all mandatory document names for this policy's type hierarchy
             let currentTypeId: string | null = policy.insuranceTypeId;
             while (currentTypeId) {
                 const rulesForType = insuranceTypeDocumentRules.filter(rule => rule.insuranceTypeId === currentTypeId && rule.isMandatory);
@@ -790,7 +787,6 @@ export const MemberModal: React.FC<MemberModalProps> = ({
             }
         });
 
-        // ONLY if there are mandatory documents required by the policies, check if they are uploaded.
         if (allMandatoryDocNames.size > 0) {
             const uploadedDocTypes = new Set((formData.documents || []).map(d => d.documentType));
             const missingMandatoryDocs: string[] = [];
@@ -806,7 +802,6 @@ export const MemberModal: React.FC<MemberModalProps> = ({
             }
         }
     }
-    // --- END MODIFIED VALIDATION LOGIC ---
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -820,7 +815,6 @@ export const MemberModal: React.FC<MemberModalProps> = ({
         }
     } else {
         addToast('Please correct the validation errors.', 'error');
-        // If the error is a document error, switch to the documents tab
         if (errors.documentsError || 'documentsError' in errors) {
             setActiveTab(ModalTab.Documents);
         }
@@ -1224,16 +1218,18 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     />}
             </div>
         </div>
-
+        {/* --- MODIFICATION BEGINS --- */}
         <div className="flex-shrink-0 flex justify-between items-center p-6 pt-4 border-t border-gray-200 dark:border-gray-700 gap-3">
             <div>
-                {/* MODIFICATION: Changed creatorName to creatorRoleName */}
-                {creatorRoleName && (
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                        Created by: <span className="font-semibold">{creatorRoleName}</span>
-                    </p>
+                {creatorInfo && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                        <span>Created by:</span>
+                        <span className="font-semibold text-gray-700 dark:text-gray-200">{creatorInfo.name} ({creatorInfo.role})</span>
+                        {creatorInfo.isInactive && <span className="w-2 h-2 bg-red-500 rounded-full" title="Inactive Employee"></span>}
+                    </div>
                 )}
             </div>
+        {/* --- MODIFICATION ENDS --- */}
             <div className="flex gap-3">
                 <Button 
                     onClick={onClose} 

@@ -913,7 +913,7 @@ const cityCoordinates: Record<string, { lat: number; lng: number }> = {
 
 const simulateDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// --- MODIFIED: Login function - isAdvisor logic REMOVED ---
+// --- MODIFICATION BEGINS ---
 export const login = async (company: string, employeeId: string, password_param: string, roleId: string, branchId?: string, financialYearId?: string): Promise<User | null> => {
     await simulateDelay(200);
 
@@ -927,7 +927,11 @@ export const login = async (company: string, employeeId: string, password_param:
         return null;
     }
 
-    // --- MODIFIED: The check is now against the user's assigned Role ID ---
+    // New check for active status. Throws a specific error for the UI to catch.
+    if (user.profile?.status !== 'Active') {
+        throw new Error('INACTIVE_ACCOUNT');
+    }
+
     if (user.roleId !== roleId) {
         return null; // Role mismatch
     }
@@ -940,13 +944,13 @@ export const login = async (company: string, employeeId: string, password_param:
         return null; // Invalid financial year
     }
 
-    // A user without a roleId cannot log in.
     if (!user.roleId) {
         return null;
     }
 
     return user ? JSON.parse(JSON.stringify(user)) : null;
 };
+// --- MODIFICATION ENDS ---
 
 // --- NEW: API functions for Financial Year and Document Numbering ---
 export const getFinancialYears = async (): Promise<FinancialYear[]> => {

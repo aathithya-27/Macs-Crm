@@ -52,12 +52,9 @@ const TaskHistoryModal: React.FC<{
     const history: TaskHistoryEntry[] = useMemo(() => {
         const entries: TaskHistoryEntry[] = [];
         
-        // Creation entry with creator and assignee info
         if (task.creationDateTime) {
-            // Try to get creator from activity log first, then fallback to originalAssigneeId or currentUser
             const creationLog = task.activityLog?.find(log => log.action === 'Created');
             const creatorId = creationLog?.by || task.originalAssigneeId || 'System';
-            // Use originalAssigneeId for the original assignee, not current primaryContactPerson
             const originalAssigneeName = userMap.get(task.originalAssigneeId || '') || 'Unknown';
             
             let details = `Task "${task.taskDescription}" was created`;
@@ -73,10 +70,8 @@ const TaskHistoryModal: React.FC<{
             });
         }
         
-        // Other entries from activity log (excluding creation entries)
         if (task.activityLog) {
             task.activityLog.forEach(log => {
-                // Skip duplicate creation entries
                 if (log.action === 'Created') return;
                 
                 entries.push({
@@ -88,7 +83,6 @@ const TaskHistoryModal: React.FC<{
             });
         }
         
-        // Sort by timestamp
         return entries.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     }, [task, userMap]);
     
@@ -253,7 +247,7 @@ const ReassignTaskModal: React.FC<{
 
 const TaskCard: React.FC<{
     task: Task;
-    userMap: Map<string, string>;
+    users: User[]; // --- MODIFICATION: Pass full users array ---
     memberMap: Map<string, string>;
     leadMap: Map<string, string>;
     taskStatusMasters: TaskStatusMaster[];
@@ -268,7 +262,7 @@ const TaskCard: React.FC<{
     roles: Role[];
     canModify: boolean;
     onUpdateTaskWithRemark?: (task: Task, remark: string) => void;
-}> = ({ task, userMap, memberMap, leadMap, taskStatusMasters, onUpdateTask, onDeleteTask, onOpenTask, onOpenModal, onReassign, onShowHistory, currentUser, activeView, roles, canModify, onUpdateTaskWithRemark }) => {
+}> = ({ task, users, memberMap, leadMap, taskStatusMasters, onUpdateTask, onDeleteTask, onOpenTask, onOpenModal, onReassign, onShowHistory, currentUser, activeView, roles, canModify, onUpdateTaskWithRemark }) => {
 
     const userRole = useMemo(() => roles.find(r => r.id === currentUser?.roleId), [currentUser, roles]);
     const isUserAdvisor = userRole?.isAdvisor === true;
@@ -277,7 +271,6 @@ const TaskCard: React.FC<{
     
     const isJustCreated = task.statusId === 'ts-created';
     
-    // NEW: Check if the task is scheduled for the future
     const isScheduledForFuture = task.taskType === 'Auto' && task.scheduledCreationDateTime && new Date(task.scheduledCreationDateTime) > new Date();
     
     const showBlurred = isUserAdvisor && isAssignedToCurrentUser && isJustCreated && !isScheduledForFuture;
@@ -319,7 +312,6 @@ const TaskCard: React.FC<{
             if (onUpdateTaskWithRemark) {
                 onUpdateTaskWithRemark(updatedTask, remark);
             } else {
-                // Fallback: use regular onUpdateTask if onUpdateTaskWithRemark is not available
                 onUpdateTask(updatedTask);
             }
         }
@@ -330,18 +322,20 @@ const TaskCard: React.FC<{
 
     const clientName = task.memberId ? memberMap.get(task.memberId) : leadMap.get(task.leadId || '');
     const clientType = task.memberId ? 'Customer' : 'Lead';
-    const alternates = (task.alternateContactPersons || [])
-        .map(id => userMap.get(id))
-        .filter(Boolean)
-        .join(', ');
+    
+    // --- MODIFICATION BEGINS ---
+    const primaryAssignee = useMemo(() => users.find(u => u.id === task.primaryContactPerson), [users, task.primaryContactPerson]);
+    const originalAssignee = useMemo(() => users.find(u => u.id === task.originalAssigneeId), [users, task.originalAssigneeId]);
+    const alternateAssignees = useMemo(() => 
+        (task.alternateContactPersons || []).map(id => users.find(u => u.id === id)).filter(Boolean) as User[],
+    [users, task.alternateContactPersons]);
+    // --- MODIFICATION ENDS ---
 
     const isCustomerTask = !!task.memberId || !!task.leadId;
 
     const cardBorderClass = activeView === 'all'
         ? (isCustomerTask ? 'border-l-4 border-blue-400 dark:border-blue-600' : 'border-l-4 border-purple-400 dark:border-purple-600')
         : 'border';
-
-    const originalAssigneeName = task.originalAssigneeId ? userMap.get(task.originalAssigneeId) : null;
 
     return (
         <div className="relative">
@@ -372,7 +366,7 @@ const TaskCard: React.FC<{
                         )}
                         {canModify && (
                             <Button variant="danger" size="small" className="!p-1.5 h-7 w-7" onClick={() => onDeleteTask(task.id)} title="Delete Task">
-                                <Trash2 size={14}/>
+                                <Trash2 size={14} />
                             </Button>
                         )}
                     </div>
@@ -384,16 +378,21 @@ const TaskCard: React.FC<{
                         <span>{new Date(task.expectedCompletionDateTime).toLocaleDateString()}</span>
                         {isOverdue && <span className="px-1.5 py-0.5 text-white bg-red-500 rounded-full text-[10px] font-bold">OVERDUE</span>}
                     </div>
-                    <div className="flex items-center gap-1.5" title={`Primary: ${userMap.get(task.primaryContactPerson || '') || 'N/A'}${alternates ? ` | Alternates: ${alternates}`: ''}`}>
+                    {/* --- MODIFICATION BEGINS --- */}
+                    <div className="flex items-center gap-1.5" title={`Primary: ${primaryAssignee?.name || 'N/A'}${alternateAssignees.length > 0 ? ` | Alternates: ${alternateAssignees.map(a => a.name).join(', ')}`: ''}`}>
                         <UserIcon size={12} />
-                        <span>{userMap.get(task.primaryContactPerson || '') || 'N/A'}</span>
-                        {originalAssigneeName && (
-                            <span title={`Originally assigned to ${originalAssigneeName}`}>
+                        <div className="flex items-center gap-1">
+                            <span>{primaryAssignee?.name || 'N/A'}</span>
+                            {primaryAssignee?.profile?.status === 'Inactive' && <span className="w-1.5 h-1.5 bg-red-500 rounded-full" title="Inactive"></span>}
+                        </div>
+                        {originalAssignee && (
+                            <span title={`Originally assigned to ${originalAssignee.name}`}>
                                 <RefreshCw size={12} className="text-blue-500" />
                             </span>
                         )}
-                        {alternates && <span className="text-xs text-gray-400" title={alternates}>(+{task.alternateContactPersons?.length})</span>}
+                        {alternateAssignees.length > 0 && <span className="text-xs text-gray-400" title={alternateAssignees.map(a=>a.name).join(', ')}>(+{alternateAssignees.length})</span>}
                     </div>
+                    {/* --- MODIFICATION ENDS --- */}
                     {clientName && <div className="flex items-center gap-1.5" title={`Related ${clientType}`}><Briefcase size={12} /><span>{clientName}</span></div>}
                 </div>
                 <div className="pt-3 border-t dark:border-gray-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
@@ -436,11 +435,10 @@ const TaskCard: React.FC<{
 
 const TaskTable: React.FC<{
     tasks: Task[];
-    userMap: Map<string, string>;
+    users: User[]; // --- MODIFICATION: Pass full users array ---
     memberMap: Map<string, string>;
     leadMap: Map<string, string>;
     branchMap: Map<string, string>;
-    users: User[];
     taskStatusMasters: TaskStatusMaster[];
     onOpenModal: (task: Task) => void;
     onDeleteTask: (taskId: string) => void;
@@ -452,7 +450,7 @@ const TaskTable: React.FC<{
     activeView: 'all' | 'customer' | 'personal';
     canModify: boolean;
     currentPage: number;
-}> = ({ tasks, userMap, memberMap, leadMap, branchMap, users, taskStatusMasters, onOpenModal, onDeleteTask, onReassign, onShowHistory, currentUser, onSort, sortConfig, activeView, canModify, currentPage }) => {
+}> = ({ tasks, users, memberMap, leadMap, branchMap, taskStatusMasters, onOpenModal, onDeleteTask, onReassign, onShowHistory, currentUser, onSort, sortConfig, activeView, canModify, currentPage }) => {
 
     const SortableHeader = ({ sortKey, label }: { sortKey: string, label: string }) => (
         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">
@@ -496,11 +494,11 @@ const TaskTable: React.FC<{
                     const employee = users.find(u => u.id === task.primaryContactPerson);
                     const branchName = employee?.profile?.employeeBranchId ? branchMap.get(employee.profile.employeeBranchId) : 'N/A';
                     const clientName = task.memberId ? memberMap.get(task.memberId) : (task.leadId ? leadMap.get(task.leadId) : 'Personal Task');
-                    const alternates = (task.alternateContactPersons || []).map(id => userMap.get(id)).filter(Boolean).join(', ');
+                    const alternates = (task.alternateContactPersons || []).map(id => users.find(u=>u.id === id)?.name).filter(Boolean).join(', ');
                     const title = alternates ? `Alternate: ${alternates}` : undefined;
                     const canReassign = (canModify || task.primaryContactPerson === currentUser?.id) && !isEndState && !isScheduledForFuture;
                     const isCustomerTask = !!task.memberId || !!task.leadId;
-                    const originalAssigneeName = task.originalAssigneeId ? userMap.get(task.originalAssigneeId) : null;
+                    const originalAssignee = users.find(u => u.id === task.originalAssigneeId);
                     const statusName = isScheduledForFuture ? 'Scheduled' : (task.statusId === 'ts-created' ? 'Task Created' : (currentStatusInfo?.name || 'Unknown'));
 
                     return (
@@ -517,17 +515,22 @@ const TaskTable: React.FC<{
                                 </td>
                              )}
                                                       
-                                                       <td className="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-200">{task.taskDescription}</td>
+                            <td className="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-200">{task.taskDescription}</td>
                             <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+                                {/* --- MODIFICATION BEGINS --- */}
                                  <div className="flex items-center gap-1" title={title}>
-                                    {userMap.get(task.primaryContactPerson || '') || 'N/A'}
-                                    {originalAssigneeName && (
-                                        <span title={`Originally assigned to ${originalAssigneeName}`}>
+                                    <div className="flex items-center gap-1">
+                                        <span>{employee?.name || 'N/A'}</span>
+                                        {employee?.profile?.status === 'Inactive' && <span className="w-1.5 h-1.5 bg-red-500 rounded-full" title="Inactive"></span>}
+                                    </div>
+                                    {originalAssignee && (
+                                        <span title={`Originally assigned to ${originalAssignee.name}`}>
                                             <RefreshCw size={12} className="text-blue-500" />
                                         </span>
                                     )}
                                     {alternates && <span className="text-xs text-gray-400"> (+{task.alternateContactPersons?.length})</span>}
                                 </div>
+                                {/* --- MODIFICATION ENDS --- */}
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{branchName}</td>
                             <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{clientName}</td>
@@ -647,33 +650,26 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
         
         const now = new Date();
 
-        // Base filtering based on user role and permissions
         if (isCurrentUserAdvisor) {
-            // Advisors see tasks assigned to them
             tasks = allTasks.filter(task => task.primaryContactPerson === currentUser?.id);
         } else if (permissions?.taskManagement === 'modify' || permissions?.taskManagement === 'view') {
-            // Admins/Managers see all tasks
             tasks = [...allTasks];
         } else {
-            // Default: Users see tasks assigned to them
             tasks = allTasks.filter(task => task.primaryContactPerson === currentUser?.id);
         }
         
-        // --- NEW VISIBILITY LOGIC ---
         tasks = tasks.filter(task => {
             const isScheduled = task.taskType === 'Auto' && task.scheduledCreationDateTime;
             if (!isScheduled) {
-                return true; // If not a scheduled task, it's always visible
+                return true; 
             }
             
             const isTriggered = new Date(task.scheduledCreationDateTime!) <= now;
             
-            // If the task is assigned to the current user but hasn't triggered yet, hide it.
             if (task.primaryContactPerson === currentUser?.id && !isTriggered) {
                 return false;
             }
             
-            // Otherwise (creator, admin, or triggered task), it's visible.
             return true;
         });
 
@@ -687,7 +683,6 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
         tasks = tasks.filter(task => {
             const searchMatch = !searchQuery || task.taskDescription.toLowerCase().includes(searchQuery.toLowerCase());
             
-            // Handle scheduled status filter
             const isScheduledForFuture = task.taskType === 'Auto' && task.scheduledCreationDateTime && new Date(task.scheduledCreationDateTime) > now;
             const statusMatch = statusFilter === 'all' || 
                 (statusFilter === 'scheduled' && isScheduledForFuture) ||
@@ -707,8 +702,8 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
 
             switch(key) {
                 case 'assignedTo':
-                    aValue = userMap.get(a.primaryContactPerson || '') || 'Z';
-                    bValue = userMap.get(b.primaryContactPerson || '') || 'Z';
+                    aValue = users.find(u=>u.id === a.primaryContactPerson)?.name || 'Z';
+                    bValue = users.find(u=>u.id === b.primaryContactPerson)?.name || 'Z';
                     break;
                 case 'status':
                     const aIsScheduled = a.taskType === 'Auto' && a.scheduledCreationDateTime && new Date(a.scheduledCreationDateTime) > now;
@@ -720,9 +715,6 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                     bValue = bStatusName;
                     break;
                 case 'branch':
-                   
-                    
-                    
                     const aAdvisor = users.find(u => u.id === a.primaryContactPerson);
                     const bAdvisor = users.find(u => u.id === b.primaryContactPerson);
                     aValue = branchMap.get(aAdvisor?.profile?.employeeBranchId || '') || 'Z';
@@ -733,9 +725,6 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                     bValue = b.memberId || b.leadId ? 'Customer' : 'Personal';
                     break;
                 default:
-                   
-                    
-                    
                     aValue = a[key as keyof Task] ? new Date(a[key as keyof Task] as string).getTime() : 0;
                     bValue = b[key as keyof Task] ? new Date(b[key as keyof Task] as string).getTime() : 0;
             }
@@ -747,9 +736,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
 
         return tasks;
    
-    
-    
-    }, [allTasks, currentUser, isCurrentUserAdvisor, permissions, searchQuery, statusFilter, advisorFilter, branchFilter, sortConfig, users, userMap, taskStatusMasters, branchMap, activeView]);
+    }, [allTasks, currentUser, isCurrentUserAdvisor, permissions, searchQuery, statusFilter, advisorFilter, branchFilter, sortConfig, users, taskStatusMasters, branchMap, activeView]);
 
     const totalPages = Math.ceil(filteredAndSortedTasks.length / ITEMS_PER_PAGE);
     const currentTasks = useMemo(() => {
@@ -766,7 +753,6 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
         
         if (task) {
             if (task.statusId === 'ts-created' && task.primaryContactPerson === currentUser?.id) {
-                // Check if it's not a future-scheduled task before auto-opening it
                 const isScheduledForFuture = task.taskType === 'Auto' && task.scheduledCreationDateTime && new Date(task.scheduledCreationDateTime) > new Date();
                 if (!isScheduledForFuture) {
                     onOpenTask(task.id);
@@ -781,7 +767,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
             triggeringPoint: 'Manual', 
             taskDescription: '', 
             expectedCompletionDateTime: todayStr,
-            scheduledCreationDateTime: todayStr, // Default to today
+            scheduledCreationDateTime: todayStr,
             isCompleted: false,
             taskType: defaultTaskType,
             taskTime: '09:00',
@@ -821,7 +807,6 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
             return;
         }
 
-        // --- NEW VALIDATION & LOGIC FOR AUTO TASKS ---
         let scheduledDateTime: string | undefined = undefined;
         if (editingTask.taskType === 'Auto') {
             const creationDateStr = editingTask.scheduledCreationDateTime?.split('T')[0];
@@ -844,10 +829,9 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
             ...editingTask,
             expectedCompletionDateTime: editingTask.expectedCompletionDateTime || new Date().toISOString(),
             taskType: editingTask.taskType || 'Manual',
-            scheduledCreationDateTime: scheduledDateTime, // Set the combined date-time string
+            scheduledCreationDateTime: scheduledDateTime,
         };
         
-        // For Manual tasks, clear the scheduled date
         if (taskToSave.taskType === 'Manual') {
             taskToSave.scheduledCreationDateTime = undefined;
         }
@@ -888,15 +872,25 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
             direction: prevConfig.key === key && prevConfig.direction === 'asc' ? 'desc' : 'asc'
         }));
     };
-
-    const advisorOptions = useMemo(() => advisorsForAssignment.map(adv => ({ value: adv.id, label: adv.name })), [advisorsForAssignment]);
+    
+    // --- MODIFICATION BEGINS ---
+    const advisorOptions = useMemo(() => 
+        advisorsForAssignment.map(adv => ({ 
+            value: adv.id, 
+            label: adv.profile?.status === 'Inactive' ? `${adv.name} 🔴` : adv.name 
+        })), 
+    [advisorsForAssignment]);
 
     const advisorsInSelectedBranches = useMemo(() => {
         if (selectedBranches.length === 0) return [];
         return advisors
             .filter(a => a.profile?.employeeBranchId && selectedBranches.includes(a.profile.employeeBranchId))
-            .map(adv => ({ value: adv.id, label: adv.name }));
+            .map(adv => ({ 
+                value: adv.id, 
+                label: adv.profile?.status === 'Inactive' ? `${adv.name} 🔴` : adv.name 
+            }));
     }, [advisors, selectedBranches]);
+    // --- MODIFICATION ENDS ---
 
     const clientOptions = useMemo(() => {
         const memberOpts = members.map(mem => ({ value: `member:${mem.id}`, label: `${mem.name} (Customer)` }));
@@ -935,9 +929,6 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
             }
         }
     };
-
-
-
 
     return (
         <div className="space-y-6">
@@ -999,17 +990,23 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                                     {finrootsBranches.map(branch => <option key={branch.id} value={branch.id}>{branch.branchName}</option>)}
                                 </select>
                             </div>
+                            {/* --- MODIFICATION BEGINS --- */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Employee</label>
-                                <select
+                                <SearchableSelect
+                                    label="Employee"
+                                    options={[
+                                        { value: 'all', label: 'All Employees' },
+                                        ...advisorsForFilter.map(adv => ({ 
+                                            value: adv.id, 
+                                            label: adv.profile?.status === 'Inactive' ? `${adv.name} 🔴` : adv.name 
+                                        }))
+                                    ]}
                                     value={advisorFilter}
-                                    onChange={(e) => setAdvisorFilter(e.target.value)}
-                                    className="w-full h-10 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-brand-primary bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                >
-                                    <option value="all">All Employees</option>
-                                    {advisorsForFilter.map(adv => <option key={adv.id} value={adv.id}>{adv.name}</option>)}
-                                </select>
+                                    onChange={setAdvisorFilter}
+                                    placeholder="Select an Employee..."
+                                />
                             </div>
+                            {/* --- MODIFICATION ENDS --- */}
                         </>
                     )}
                 </div>
@@ -1025,7 +1022,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
 
             {viewMode === 'table' && (permissions?.taskManagement === 'modify' || permissions?.taskManagement === 'view') ? (
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700">
-                    <TaskTable tasks={currentTasks} userMap={userMap} memberMap={memberMap} leadMap={leadMap} branchMap={branchMap} users={users} taskStatusMasters={taskStatusMasters} onOpenModal={handleOpenModal} onDeleteTask={onDeleteTask} currentUser={currentUser} onSort={handleSort} sortConfig={sortConfig} onReassign={setReassignTask} onShowHistory={setHistoryTask} activeView={activeView} canModify={canModify} currentPage={currentPage} />
+                    <TaskTable tasks={currentTasks} users={users} memberMap={memberMap} leadMap={leadMap} branchMap={branchMap} taskStatusMasters={taskStatusMasters} onOpenModal={handleOpenModal} onDeleteTask={onDeleteTask} currentUser={currentUser} onSort={handleSort} sortConfig={sortConfig} onReassign={setReassignTask} onShowHistory={setHistoryTask} activeView={activeView} canModify={canModify} currentPage={currentPage} />
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -1033,7 +1030,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                         <TaskCard
                             key={task.id}
                             task={task}
-                            userMap={userMap}
+                            users={users}
                             memberMap={memberMap}
                             leadMap={leadMap}
                             taskStatusMasters={taskStatusMasters}

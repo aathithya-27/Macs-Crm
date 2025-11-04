@@ -12,12 +12,12 @@ interface LoginProps {
     toggleTheme: () => void;
     allBranches: FinRootsBranch[];
     operatingCompanies: Company[];
-    roles: Role[]; // --- MODIFIED: Now takes roles ---
+    roles: Role[];
 }
 
 const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleTheme, allBranches, operatingCompanies, roles }) => {
     const [company, setCompany] = useState('');
-    const [roleId, setRoleId] = useState(''); // --- RENAMED from designationId ---
+    const [roleId, setRoleId] = useState('');
     const [branchId, setBranchId] = useState('');
     const [employeeId, setEmployeeId] = useState('');
     const [password, setPassword] = useState('');
@@ -28,7 +28,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
     const [financialYearId, setFinancialYearId] = useState('');
 
     const companyOptions = useMemo(() => operatingCompanies.filter(c => c.active), [operatingCompanies]);
-    const roleOptions = useMemo(() => roles.filter(r => r.active), [roles]); // --- MODIFIED ---
+    const roleOptions = useMemo(() => roles.filter(r => r.active), [roles]);
 
     const companyBranches = useMemo(() => {
         const selectedCompany = companyOptions.find(c => c.name === company);
@@ -80,8 +80,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
             return;
         }
 
+        // --- MODIFICATION BEGINS ---
         try {
-            // --- MODIFIED: Passing roleId to login service ---
             const user = await login(company, employeeId, password, roleId, branchId, financialYearId);
 
             if (user) {
@@ -95,8 +95,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                 setError('Invalid credentials. Please check your details or contact an administrator.');
             }
         } catch (err) {
-            setError('An error occurred during login. Please try again.');
+            if ((err as Error).message === 'INACTIVE_ACCOUNT') {
+                setError('Your account is inactive. Please contact your administrator for assistance.');
+            } else {
+                setError('An error occurred during login. Please try again.');
+            }
         }
+        // --- MODIFICATION ENDS ---
     };
 
     return (
@@ -161,7 +166,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                         </select>
                     </div>
                     
-                    {/* --- MODIFIED: This is now the Role dropdown --- */}
                     <div className="relative">
                         <label htmlFor="role" className="text-sm font-medium text-gray-700 dark:text-gray-300">Role</label>
                         <Award className="absolute left-3 top-10 h-5 w-5 text-gray-400" />

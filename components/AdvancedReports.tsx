@@ -42,7 +42,7 @@ interface AdvancedReportsProps {
     insuranceTypes: InsuranceTypeMaster[];
     designations: Designation[];
     roles: Role[];
-    leadStageMasters: LeadStageMaster[]; // --- NEW ---
+    leadStageMasters: LeadStageMaster[];
     genders: Gender[];
     maritalStatuses: MaritalStatus[];
 }
@@ -119,6 +119,10 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     const [showAllPolicyFields, setShowAllPolicyFields] = useState(false);
     const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
     const [viewMode, setViewMode] = useState<ViewMode>('table');
+    // --- MODIFICATION BEGINS ---
+    const [assignedToFilter, setAssignedToFilter] = useState('all');
+    const [createdByFilter, setCreatedByFilter] = useState('all');
+    // --- MODIFICATION ENDS ---
 
 
     const advisorOptions = useMemo(() => {
@@ -126,6 +130,16 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         const advisors = users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
         return [{ value: 'all', label: 'All Advisors' }, ...advisors.map(u => ({ value: u.id, label: u.name }))];
     }, [users, roles]);
+
+    // --- MODIFICATION BEGINS ---
+    const employeeOptions = useMemo(() => [
+        { value: 'all', label: 'All Employees' },
+        ...users.map(u => ({
+            value: u.id,
+            label: u.profile?.status === 'Inactive' ? `${u.name} 🔴` : u.name
+        }))
+    ], [users]);
+    // --- MODIFICATION ENDS ---
 
     const branchOptions = useMemo(() => [{ value: 'all', label: 'All Branches' }, ...branches.map(b => ({ value: b.branchId, label: b.branchName }))], [branches]);
     const policyTypeOptions = useMemo(() => [{ value: 'all', label: 'All Policy Types' }, ...insuranceTypes.filter(it => !it.parentId && it.active).map(it => ({ value: it.id, label: it.name }))], [insuranceTypes]);
@@ -208,12 +222,19 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         }
 
         switch (reportType) {
+            // --- MODIFICATION BEGINS ---
             case 'customerDetail':
                 return members.filter(m => {
                     const createdDate = m.createdAt ? parseISO(m.createdAt) : null;
                     if (!createdDate || !isValid(createdDate)) return false;
-                    return (createdDate >= start && createdDate <= end) && advisorMatch(m) && branchMatch(m) && customerMatch(m);
+                    
+                    const dateMatch = createdDate >= start && createdDate <= end;
+                    const assignedToMatch = assignedToFilter === 'all' || (m.assignedTo && m.assignedTo.includes(assignedToFilter));
+                    const createdByMatch = createdByFilter === 'all' || m.createdBy === createdByFilter;
+
+                    return dateMatch && assignedToMatch && createdByMatch && branchMatch(m) && customerMatch(m);
                 });
+            // --- MODIFICATION ENDS ---
 
             case 'policies':
                 const allPolicies = members.flatMap(m => m.policies.map(p => ({ ...p, member: m })));
@@ -292,7 +313,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             default:
                 return [];
         }
-    }, [reportType, startDate, endDate, advisorFilter, branchFilter, policyTypeFilter, subTypeFilter, companyFilter, schemeFilter, selectedCustomerIds, members, leads, tasks, expenses, manualIncomes, manualCommissions, attendance, users, branches, schemes, insuranceTypes]);
+    }, [reportType, startDate, endDate, advisorFilter, branchFilter, policyTypeFilter, subTypeFilter, companyFilter, schemeFilter, selectedCustomerIds, members, leads, tasks, expenses, manualIncomes, manualCommissions, attendance, users, branches, schemes, insuranceTypes, assignedToFilter, createdByFilter]);
     
     const aggregatedReportData = useMemo(() => {
         if (reportType !== 'comparativeBusiness' && reportType !== 'businessVertical') return [];
@@ -776,7 +797,17 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                     <Input label="End Date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
                     
                     <SearchableSelect label="Filter by Branch" options={branchOptions} value={branchFilter} onChange={setBranchFilter} />
-                    <SearchableSelect label="Filter by Advisor" options={advisorOptions} value={advisorFilter} onChange={setAdvisorFilter} />
+                    
+                    {/* --- MODIFICATION BEGINS --- */}
+                    {reportType === 'customerDetail' ? (
+                        <>
+                            <SearchableSelect label="Assigned To" options={employeeOptions} value={assignedToFilter} onChange={setAssignedToFilter} />
+                            <SearchableSelect label="Created By" options={employeeOptions} value={createdByFilter} onChange={setCreatedByFilter} />
+                        </>
+                    ) : (
+                        <SearchableSelect label="Filter by Advisor" options={advisorOptions} value={advisorFilter} onChange={setAdvisorFilter} />
+                    )}
+                    {/* --- MODIFICATION ENDS --- */}
                     
                     {reportType === 'policies' && (
                         <>

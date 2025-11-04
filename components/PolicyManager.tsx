@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef, forwardRef } from 'react';
 import { Search, Calendar, AlertTriangle, CheckCircle, Clock, FileText, X, SlidersHorizontal, ArrowUp, ArrowDown } from 'lucide-react';
-import { Member, Policy, ModalTab, User, FinRootsBranch, InsuranceTypeMaster, Designation, AppModule, PermissionLevel, Role } from '../types.ts'; // MODIFIED: Added Role
+import { Member, Policy, ModalTab, User, FinRootsBranch, InsuranceTypeMaster, Designation, AppModule, PermissionLevel, Role } from '../types.ts';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, eachWeekOfInterval, eachMonthOfInterval, parseISO, Interval, isValid, differenceInMonths } from 'date-fns';
@@ -115,7 +115,6 @@ const MultiSelectDropdown: React.FC<{
 };
 
 
-// --- MODIFIED: Added roles to props interface ---
 interface PolicyManagerProps {
   members: Member[];
   onRenewPolicy: (memberId: string, policyId: string) => Promise<boolean>;
@@ -158,14 +157,18 @@ const FilterPanel: React.FC<{
     };
 
     const handleValueChange = (field: 'min' | 'max', value: string) => {
-       
-        
-        
         const numValue = parseInt(value);
         onFilterChange(prev => ({...prev, premiumRange: { ...prev.premiumRange, [field]: isNaN(numValue) ? 0 : numValue }}));
     };
     
     const parentTypes = useMemo(() => insuranceTypes.filter(it => !it.parentId && it.active), [insuranceTypes]);
+
+    // --- MODIFICATION BEGINS ---
+    const advisorOptions = useMemo(() => advisors.map(a => ({
+        value: a.id,
+        label: a.profile?.status === 'Inactive' ? `${a.name} 🔴` : a.name
+    })), [advisors]);
+    // --- MODIFICATION ENDS ---
 
     return (
         <>
@@ -223,7 +226,9 @@ const FilterPanel: React.FC<{
                             <Input label="Max Premium" type="number" value={filters.premiumRange.max || ''} onChange={(e) => handleValueChange('max', e.target.value)} placeholder={`${valueBounds.max.toLocaleString('en-IN')}`} />
                         </div>
                     </div>
-                     <MultiSelectDropdown label="Filter by Advisor" options={advisors.map(a => ({ value: a.id, label: a.name }))} selectedValues={filters.advisors} onChange={selected => onFilterChange(prev => ({...prev, advisors: selected}))} />
+                    {/* --- MODIFICATION BEGINS --- */}
+                     <MultiSelectDropdown label="Filter by Advisor" options={advisorOptions} selectedValues={filters.advisors} onChange={selected => onFilterChange(prev => ({...prev, advisors: selected}))} />
+                     {/* --- MODIFICATION ENDS --- */}
                      <MultiSelectDropdown label="Filter by Branch" options={branches.map(b => ({ value: b.id, label: b.branchName }))} selectedValues={filters.branches} onChange={selected => onFilterChange(prev => ({...prev, branches: selected}))} />
                 </div>
                 <div className="p-4 border-t dark:border-gray-700 flex justify-between items-center">
@@ -514,11 +519,12 @@ const allPolicies = useMemo(() => {
     setRenewalStatusFilter(prev => prev === filter ? 'All' : filter);
   };
 
-  // --- MODIFIED: This logic now uses Roles ---
+  // --- MODIFICATION BEGINS ---
   const advisorsForFilter = useMemo(() => {
       const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
       return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
   }, [users, roles]);
+  // --- MODIFICATION ENDS ---
 
   return (
     <div className="space-y-6">
@@ -594,12 +600,22 @@ const allPolicies = useMemo(() => {
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {currentPolicies.map((policy, index) => {
                       const serialNumber = (currentPage - 1) * ITEMS_PER_PAGE + index + 1;
+                      // --- MODIFICATION BEGINS ---
+                      const primaryAdvisor = users.find(u => u.id === policy.advisorId);
+                      // --- MODIFICATION ENDS ---
                       return (
                       <tr key={policy.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700 dark:text-gray-200">{serialNumber}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900 dark:text-white">{policy.memberName}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{policy.policyTypeName}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{userMap.get(policy.advisorId || '') || 'N/A'}</td>
+                        {/* --- MODIFICATION BEGINS --- */}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                            <div className="flex items-center gap-2">
+                                {primaryAdvisor?.name || 'N/A'}
+                                {primaryAdvisor?.profile?.status === 'Inactive' && <span className="w-2 h-2 bg-red-500 rounded-full" title="Inactive Employee"></span>}
+                            </div>
+                        </td>
+                        {/* --- MODIFICATION ENDS --- */}
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{branchMap.get(policy.branchId || '') || 'N/A'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(policy.premium)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{policy.policyTerm ? `${policy.policyTerm} ${policy.policyTermUnit}` : 'N/A'}</td>

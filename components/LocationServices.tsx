@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
-import { Member, User, AdvisorLocation, CheckIn, CheckInOutcome, Designation, Role } from '../types.ts'; // MODIFIED: Added Role
+import { Member, User, AdvisorLocation, CheckIn, CheckInOutcome, Designation, Role } from '../types.ts';
 import { getOptimalRoute, findClientsOnRoute, suggestSmartTrip } from '../services/geminiService.ts';
 import { indianStates } from '../constants.tsx';
 import { GoogleMap, useJsApiLoader, DirectionsService, DirectionsRenderer, Polyline } from '@react-google-maps/api';
@@ -74,7 +74,6 @@ const mapStyles = [
 
 const mapLibraries: ('marker' | 'places' | 'routes')[] = ['marker', 'places', 'routes'];
 
-// --- MODIFIED: Added roles to props interface ---
 interface LocationServicesProps {
   members: Member[];
   addToast: (message: string, type?: 'success' | 'error') => void;
@@ -89,7 +88,7 @@ interface LocationServicesProps {
   onCheckOut: (checkInId: string, notes: string, outcome: CheckInOutcome, nextActionDate?: string) => Promise<void>;
   onGetActiveCheckIn: (advisorId: string) => Promise<CheckIn | null>;
   designations: Designation[];
-  roles: Role[]; // --- NEW ---
+  roles: Role[];
 }
 
 const MapErrorDisplay = ({ error }: { error: Error }) => (
@@ -120,7 +119,7 @@ const formatDuration = (seconds: number) => {
 const LocationServices: React.FC<LocationServicesProps> = ({ 
     members, addToast, currentUser, allUsers, onUpdateAdvisorLocation, 
     onCreateCheckIn, advisorLocations, checkIns, onFetchAdvisorTrail, 
-    activeCheckIn, onCheckOut, onGetActiveCheckIn, designations, roles // --- MODIFIED ---
+    activeCheckIn, onCheckOut, onGetActiveCheckIn, designations, roles
 }) => {
   const [map, setMap] = useState<any | null>(null);
   const markersRef = useRef<Record<string, any>>({});
@@ -128,11 +127,10 @@ const LocationServices: React.FC<LocationServicesProps> = ({
   const watchIdRef = useRef<number | null>(null);
   const animationFrameRef = useRef<Record<string, number>>({});
 
-  // Role-based permissions
   const currentUserRole = useMemo(() => roles.find(r => r.id === currentUser?.roleId), [currentUser, roles]);
   const canViewTracker = useMemo(() => {
     return currentUserRole?.canViewLocationTracker === true || 
-           (currentUserRole && !currentUserRole.isAdvisor); // Non-advisors can view tracker
+           (currentUserRole && !currentUserRole.isAdvisor);
   }, [currentUserRole]);
   const isAdvisor = currentUserRole?.isAdvisor === true;
 
@@ -746,13 +744,14 @@ const LocationServices: React.FC<LocationServicesProps> = ({
       return () => clearInterval(timer);
   }, [activeCheckIn]);
 
-  // Only show advisors in the tracker
+  // --- MODIFICATION BEGINS ---
   const employeesForTracker = useMemo(() => {
     return allUsers.filter(u => {
       const userRole = roles.find(r => r.id === u.roleId);
       return userRole?.isAdvisor === true;
     });
   }, [allUsers, roles]);
+  // --- MODIFICATION ENDS ---
 
 
   const PlannerCustomerCard = ({ customer }: { customer: CustomerWithDistance }) => {
@@ -911,13 +910,13 @@ const LocationServices: React.FC<LocationServicesProps> = ({
                                </div>
                                <p className="font-mono text-xl font-bold text-green-600 dark:text-green-300 bg-white dark:bg-gray-800 px-3 py-1 rounded-md shadow-sm">{formatDuration(meetingDuration)}</p>
                             </div>
-                           <Button variant="danger" size="default" className="w-full mt-4" onClick={() => setIsCheckOutModalOpen(true)}>
+                           <Button variant="danger" size="medium" className="w-full mt-4" onClick={() => setIsCheckOutModalOpen(true)}>
                                 <LogOut size={16} />
                                 Check-out & Log Details
                             </Button>
                         </div>
                     ) : (
-                         <Button variant="primary" size="default" className="w-full" onClick={handleInitiateCheckIn} disabled={!userLocation}>
+                         <Button variant="primary" size="medium" className="w-full" onClick={handleInitiateCheckIn} disabled={!userLocation}>
                             <CheckCircle size={20} />
                             Check-in with Customer
                         </Button>
@@ -1244,7 +1243,12 @@ const LocationServices: React.FC<LocationServicesProps> = ({
                                 <button key={employee.id} onClick={() => handleSelectAdvisorForTrail(employee)} className={`w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors ${isSelected ? 'bg-blue-100 dark:bg-blue-900/50' : 'hover:bg-gray-100 dark:hover:bg-gray-700/50'}`}>
                                     <div className={`w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-offset-2 dark:ring-offset-gray-800 ${isActiveMeeting ? 'bg-yellow-400 ring-yellow-300' : location ? 'bg-green-500 ring-green-400' : 'bg-gray-400 ring-gray-300'}`}></div>
                                     <div className="flex-1">
-                                        <p className="font-semibold text-gray-800 dark:text-white">{employee.name}</p>
+                                        {/* --- MODIFICATION BEGINS --- */}
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-semibold text-gray-800 dark:text-white">{employee.name}</p>
+                                            {employee.profile?.status === 'Inactive' && <span className="w-2 h-2 bg-red-500 rounded-full" title="Inactive Employee"></span>}
+                                        </div>
+                                        {/* --- MODIFICATION ENDS --- */}
                                         <p className="text-xs text-gray-500 dark:text-gray-400">
                                             {isEmployeeAdvisor ? (
                                                 isActiveMeeting ? `In a meeting` : location ? `Last seen at ${new Date(location.timestamp).toLocaleTimeString()}` : 'Offline'

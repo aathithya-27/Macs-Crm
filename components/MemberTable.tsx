@@ -1,11 +1,9 @@
 import React, { useMemo, useCallback, useState, useRef, useEffect } from 'react';
-// MODIFIED: Removed ProcessStage from imports
 import { Member, ModalTab, User, FinRootsBranch, Designation, AppModule, PermissionLevel } from '../types.ts';
 import { Edit, Users, Mic, Phone, FileSignature, UserCheck, ArrowUp, ArrowDown, ChevronDown } from 'lucide-react';
 import { ViewIcon } from './ui/Icons.tsx';
 import ToggleSwitch from './ui/ToggleSwitch.tsx';
 
-// MODIFIED: Removed 'processFlow' from props
 interface MemberTableProps {
   members: Member[];
   allMembers: Member[];
@@ -48,7 +46,7 @@ const MemberTable: React.FC<MemberTableProps> = ({
     };
   }, []);
 
-  const userMap = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users]);
+  const userMap = useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
   const memberSnoToNameMap = useMemo(() => new Map(allMembers.map(m => [m.sno, m.name])), [allMembers]);
   const branchMap = useMemo(() => new Map(finrootsBranches.map(b => [b.id, b.branchName])), [finrootsBranches]);
   const canToggleStatus = permissions?.customers === 'modify';
@@ -152,7 +150,22 @@ const MemberTable: React.FC<MemberTableProps> = ({
                     </div>
                 )}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{member.assignedTo?.map(id => userMap.get(id)).filter(Boolean).join(', ') || 'Unassigned'}</td>
+              {/* --- MODIFICATION BEGINS --- */}
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                <div className="flex flex-col">
+                    {(member.assignedTo || []).map(id => {
+                        const user = userMap.get(id);
+                        return (
+                            <div key={id} className="flex items-center gap-2">
+                                <span>{user?.name || 'Unassigned'}</span>
+                                {user?.profile?.status === 'Inactive' && <span className="w-2 h-2 bg-red-500 rounded-full" title="Inactive Employee"></span>}
+                            </div>
+                        );
+                    })}
+                    {(member.assignedTo || []).length === 0 && 'Unassigned'}
+                </div>
+              </td>
+              {/* --- MODIFICATION ENDS --- */}
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{branchName}</td>
               <td className="px-6 py-4 whitespace-nowrap">
                   <MemberTypeBadge memberType={member.memberType} />
@@ -289,7 +302,7 @@ const MemberTable: React.FC<MemberTableProps> = ({
                 </div>
                 <div>
                     <p className="text-gray-500 dark:text-gray-400 font-medium">Assigned To</p>
-                    <p className="text-brand-text dark:text-gray-300">{member.assignedTo?.map(id => userMap.get(id)).filter(Boolean).join(', ') || 'Unassigned'}</p>
+                    <p className="text-brand-text dark:text-gray-300">{member.assignedTo?.map(id => userMap.get(id)?.name).filter(Boolean).join(', ') || 'Unassigned'}</p>
                 </div>
                  <div className="col-span-2">
                     <p className="text-gray-500 dark:text-gray-400 font-medium">Mobile</p>

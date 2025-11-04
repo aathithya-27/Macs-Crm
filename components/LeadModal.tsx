@@ -156,7 +156,7 @@ const LeadModal: React.FC<LeadModalProps> = ({
 
     const advisors = useMemo(() => {
         const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
-        return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
+         return users.filter(u => u.profile?.status === 'Active' && u.roleId && advisorRoleIds.has(u.roleId));
     }, [users, roles]);
 
     const getInitialFormData = (lead: Lead | null): Partial<Lead> => {
@@ -356,7 +356,7 @@ const LeadModal: React.FC<LeadModalProps> = ({
                             <div>
                                 <label htmlFor="assignedTo" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Assigned To *</label>
                                 <select 
-                                    id="assignedTo" 
+                                        id="assignedTo" 
                                     value={formData.assignedTo || ''} 
                                     onChange={(e) => handleChange('assignedTo', e.target.value)} 
                                     className={selectClasses}

@@ -1,5 +1,4 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-// MODIFIED: Import permission types and new Lead Stage types
 import { Lead, LeadStatus, LeadStageMaster, User, LeadSource, LeadSourceMaster, FinRootsBranch, PolicyType, InsuranceTypeMaster, AppModule, PermissionLevel, Role } from '../types.ts';
 import Button from './ui/Button.tsx';
 import { Plus, IndianRupee, Briefcase, Check, X, MoreVertical, ArrowRight, UserPlus, XCircle, Trash2, Clock, CheckCircle, SlidersHorizontal, Lightbulb, Loader2 } from 'lucide-react';
@@ -20,8 +19,8 @@ interface SalesPipelineProps {
     insuranceTypes: InsuranceTypeMaster[];
     addToast: (message: string, type?: 'success' | 'error') => void;
     permissions: { [key in AppModule]?: PermissionLevel };
-    roles: Role[]; // Added for consistency, though not directly used here
-    leadStageMasters: LeadStageMaster[]; // --- NEW ---
+    roles: Role[];
+    leadStageMasters: LeadStageMaster[];
 }
 
 const KanbanCard: React.FC<{
@@ -35,7 +34,7 @@ const KanbanCard: React.FC<{
     onFindOpportunity: (lead: Lead) => void;
     isFindingOpportunity: boolean;
     canModify: boolean;
-    activeStageNames: string[]; // --- NEW PROP ---
+    activeStageNames: string[];
 }> = ({ lead, assignee, onUpdateLead, onConvertLead, onOpenLeadModal, leadSources, onDeleteLead, onFindOpportunity, isFindingOpportunity, canModify, activeStageNames }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -352,6 +351,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ isOpen, onClose, filters, onF
         onFilterChange(prev => ({ ...prev, leadSource: newSource }));
     };
 
+    const advisorOptions = useMemo(() => advisors.map(a => ({
+        value: a.id,
+        label: a.profile?.status === 'Inactive' ? `${a.name} 🔴` : a.name
+    })), [advisors]);
+
     return (
         <>
             <div className={`fixed inset-0 bg-black bg-opacity-50 z-30 transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={onClose} />
@@ -395,7 +399,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ isOpen, onClose, filters, onF
                         </div>
                     </div>
 
-                    <MultiSelectDropdown label="Filter by Advisor" options={advisors.map(a => ({ value: a.id, label: a.name }))} selectedValues={filters.advisors} onChange={selected => onFilterChange(prev => ({...prev, advisors: selected}))} />
+                    <MultiSelectDropdown label="Filter by Advisor" options={advisorOptions} selectedValues={filters.advisors} onChange={selected => onFilterChange(prev => ({...prev, advisors: selected}))} />
                     <MultiSelectDropdown label="Filter by Branch" options={branchOptions} selectedValues={filters.branches} onChange={selected => onFilterChange(prev => ({...prev, branches: selected}))} />
                     
                     <div className="space-y-2">
@@ -628,6 +632,11 @@ const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadM
         </div>
     );
     
+    const advisorsForFilter = useMemo(() => {
+        const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
+        return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
+    }, [users, roles]);
+
     return (
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -664,7 +673,7 @@ const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadM
                 onFilterChange={setTempFilters}
                 onApply={applyFilters}
                 onClear={clearFilters}
-                advisors={users.filter(u => u.role === 'Advisor')}
+                advisors={advisorsForFilter}
                 branches={finrootsBranches}
                 branchOptions={branchOptionsForFilter}
                 valueBounds={valueBounds}

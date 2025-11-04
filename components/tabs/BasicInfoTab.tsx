@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Member, User, LeadSource, Route, LeadSourceMaster, Geography, CustomerCategory, CustomerSubCategory, CustomerGroup, FinRootsBranch, Religion, CustomerFieldMaster, Designation, AppModule, PermissionLevel, Gender, MaritalStatus, Role } from '../../types.ts'; // MODIFIED: Added Role
+import { Member, User, LeadSource, Route, LeadSourceMaster, Geography, CustomerCategory, CustomerSubCategory, CustomerGroup, FinRootsBranch, Religion, CustomerFieldMaster, Designation, AppModule, PermissionLevel, Gender, MaritalStatus, Role } from '../../types.ts';
 import Input from '../ui/Input.tsx';
 import Button from '../ui/Button.tsx';
 import { ShieldCheck, Loader2, Info, MapPin, Copy, Target, BrainCircuit, Link as LinkIcon, Plus, Trash2, X } from 'lucide-react';
@@ -443,7 +443,6 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({ isOpen, onClose, onConfir
 };
 
 
-// --- MODIFIED: Added roles to props interface ---
 interface BasicInfoTabProps {
   data: Partial<Member>;
   onChange: (field: keyof Member, value: any) => void;
@@ -469,7 +468,7 @@ interface BasicInfoTabProps {
   permissions: { [key in AppModule]?: PermissionLevel };
   genders: Gender[];
   maritalStatuses: MaritalStatus[];
-  roles: Role[]; // --- NEW ---
+  roles: Role[];
 }
 
 function useDebounce<T>(value: T, delay: number): T {
@@ -511,7 +510,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     allMembers, leadSources, geographies, onUpdateGeographies, customerCategories, 
     customerSubCategories, customerGroups, onAddNewReferrer, finrootsBranches, 
     religions, customerFieldMasters, onUpdateCustomerFieldMasters, designations,
-    permissions, genders, maritalStatuses, roles // --- MODIFIED ---
+    permissions, genders, maritalStatuses, roles
 }) => {
   const selectClasses = "block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
 
@@ -527,13 +526,16 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   const debouncedLng = useDebounce(data.lng, 800);
   const debouncedDigipin = useDebounce(data.digipin, 800);
 
-  // --- MODIFIED: This logic now uses Roles ---
+  // --- MODIFICATION BEGINS ---
   const advisors = useMemo(() => {
     const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
-    return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
+    return users.filter(u => u.profile?.status === 'Active' && u.roleId && advisorRoleIds.has(u.roleId));
   }, [users, roles]);
 
-  const advisorOptions = useMemo(() => advisors.map(adv => ({ value: adv.id, label: adv.name })), [advisors]);
+  const advisorOptions = useMemo(() => advisors.map(adv => ({ 
+      value: adv.id, 
+      label: adv.name 
+    })), [advisors]);
   const userMap = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users]);
 
   const branchOptions = useMemo(() => finrootsBranches.map(branch => ({ value: branch.id, label: branch.branchName })), [finrootsBranches]);
@@ -550,7 +552,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     const spocs = [{ id: data.id, name: data.name, mobile: data.mobile }];
     if (hasFamilyPolicy) {
         const coveredMembers = (data.policies || []).filter(p => p.policyHolderType === 'Family').flatMap(p => p.coveredMembers || []);
-        coveredMembers.forEach(cm => { if (!spocs.some(s => s.name === cm.name)) { spocs.push({ id: `cm-${cm.id}`, name: cm.name, mobile: cm.mobile }); } });
+        coveredMembers.forEach(cm => { if (!spocs.some(s => s.name === cm.name)) { spocs.push({ id: `cm-${cm.id}`, name: cm.name, mobile: cm.mobile || undefined }); } });
     }
     return spocs;
   }, [data, hasFamilyPolicy]);

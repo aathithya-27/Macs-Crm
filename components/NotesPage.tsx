@@ -25,17 +25,17 @@ type NoteGroup = {
         note: VoiceNote;
         highlights: string[];
         memberId: string;
+        creator?: User; // --- MODIFICATION: Added creator ---
     }[];
 };
 
 const ITEMS_PER_PAGE = 10;
 
-const NoteCard = ({ note, memberName, memberId, highlights = [], onCreateTaskFromActionItem, onDismissActionItem }: { note: VoiceNote, memberName: string, memberId: string, highlights: string[], onCreateTaskFromActionItem: (memberId: string, memberName: string, noteId: string, actionItemText: string) => void, onDismissActionItem: (memberId: string, noteId: string, actionItemText: string) => void }) => {
+const NoteCard = ({ note, memberName, memberId, highlights = [], onCreateTaskFromActionItem, onDismissActionItem, creator }: { note: VoiceNote, memberName: string, memberId: string, highlights: string[], onCreateTaskFromActionItem: (memberId: string, memberName: string, noteId: string, actionItemText: string) => void, onDismissActionItem: (memberId: string, noteId: string, actionItemText: string) => void, creator?: User }) => {
     
     const highlightText = (text: string, highlights: string[]) => {
       if (!highlights || highlights.length === 0) return text;
      
-      
       const regex = new RegExp(`(${highlights.join('|')})`, 'gi');
       const parts = text.split(regex);
       return (
@@ -49,7 +49,7 @@ const NoteCard = ({ note, memberName, memberId, highlights = [], onCreateTaskFro
       );
     };
 
-    const downloadAudio = (audioUrl: string, filename: string) => {
+    const downloadAudio = (audioUrl: string | undefined, filename: string) => {
         if(!audioUrl) return;
         const a = document.createElement('a');
         a.href = audioUrl;
@@ -63,9 +63,8 @@ const NoteCard = ({ note, memberName, memberId, highlights = [], onCreateTaskFro
         const blob = new Blob([summary], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
-                  
                    
-                   a.href = url;
+        a.href = url;
         a.download = filename.replace(/\.[^/.]+$/, ".txt");
         document.body.appendChild(a);
         a.click();
@@ -116,14 +115,25 @@ const NoteCard = ({ note, memberName, memberId, highlights = [], onCreateTaskFro
                 </div>
             )}
 
-            <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700/50 flex flex-wrap gap-2">
-                <Button size="small" variant="light" onClick={() => downloadAudio(note.audioUrl, note.filename)} disabled={!note.audioUrl}>
-                    <Download size={14} /> Audio
-                </Button>
-                <Button size="small" variant="light" onClick={() => downloadTranscript(note.summary || note.transcript_snippet, note.filename)}>
-                    <FileText size={14} /> Summary
-                </Button>
+            {/* --- MODIFICATION BEGINS --- */}
+            <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700/50 flex flex-wrap justify-between items-center gap-2">
+                <div className="flex gap-2">
+                    <Button size="small" variant="light" onClick={() => downloadAudio(note.audioUrl, note.filename)} disabled={!note.audioUrl}>
+                        <Download size={14} /> Audio
+                    </Button>
+                    <Button size="small" variant="light" onClick={() => downloadTranscript(note.summary || note.transcript_snippet, note.filename)}>
+                        <FileText size={14} /> Summary
+                    </Button>
+                </div>
+                {creator && (
+                    <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1.5">
+                        <span>Created by:</span>
+                        <span className="font-semibold text-gray-700 dark:text-gray-300">{creator.name}</span>
+                        {creator.profile?.status === 'Inactive' && <span className="w-2 h-2 bg-red-500 rounded-full" title="Inactive Employee"></span>}
+                    </div>
+                )}
             </div>
+            {/* --- MODIFICATION ENDS --- */}
         </div>
     );
 };
@@ -149,7 +159,6 @@ const NotesPage: React.FC<NotesPageProps> = ({
     members, leads, onSaveMember, onSaveLeadNote, onCreateTask, addToast, 
     currentUser, users, finrootsBranches, designations, permissions, roles
 }) => {
-    // --- State for Note Creator ---
     const [creatorMode, setCreatorMode] = useState<CreatorMode>('voice');
     const [scribeStatus, setScribeStatus] = useState<ScribeStatus>('idle');
     const [liveTranscript, setLiveTranscript] = useState('');
@@ -161,7 +170,6 @@ const NotesPage: React.FC<NotesPageProps> = ({
     const recognitionRef = useRef<any | null>(null);
     const audioChunksRef = useRef<Blob[]>([]);
 
-    // --- State for Search & Display ---
     const [searchMode, setSearchMode] = useState<SearchMode>('ai');
     const [adminViewMode, setAdminViewMode] = useState<AdminViewMode>('date');
     const [aiSearchQuery, setAiSearchQuery] = useState('');
@@ -277,8 +285,6 @@ const NotesPage: React.FC<NotesPageProps> = ({
                     reader.onloadend = async () => {
                         const base64Audio = (reader.result as string).split(',')[1];
                         const transcript = await transcribeAudioToEnglish(base64Audio, options.mimeType, addToast);
-                       
-                       
                         
                         if (!transcript || transcript.toLowerCase().includes('error')) throw new Error(transcript || "Transcription failed.");
                         
@@ -364,7 +370,9 @@ const NotesPage: React.FC<NotesPageProps> = ({
         resetCreatorState();
     };
 
+    // --- MODIFICATION BEGINS ---
     const allNotesWithContext = useMemo(() => {
+        const userLookup = new Map(users.map(u => [u.id, u]));
         const memberNotes = members.flatMap(member => 
             (member.voiceNotes || []).map(note => ({
                 note,
@@ -372,6 +380,7 @@ const NotesPage: React.FC<NotesPageProps> = ({
                 memberName: member.name,
                 memberId: member.id,
                 member: member,
+                creator: userLookup.get(note.createdBy || ''),
             }))
         );
         const leadNotes = (leads || []).flatMap(lead => 
@@ -381,11 +390,13 @@ const NotesPage: React.FC<NotesPageProps> = ({
                 memberName: lead.name,
                 memberId: lead.id,
                 member: lead as any,
+                creator: userLookup.get(note.createdBy || ''),
             }))
         );
         return [...memberNotes, ...leadNotes]
             .sort((a, b) => new Date(b.note.recording_date).getTime() - new Date(a.note.recording_date).getTime());
-    }, [members, leads]);
+    }, [members, leads, users]);
+    // --- MODIFICATION ENDS ---
     
     const visibleNotesForUser = useMemo(() => {
         if (!currentUser) return [];
@@ -445,6 +456,7 @@ const NotesPage: React.FC<NotesPageProps> = ({
         if (e.key === 'Enter') handleSearch();
     };
     
+    // --- MODIFICATION BEGINS ---
     const noteTakers = useMemo(() => {
         const userRole = roles.find(r => r.id === currentUser?.roleId);
         const hasManagementPermission = (permissions?.customers === 'create' || permissions?.customers === 'modify') && !userRole?.isAdvisor;
@@ -453,6 +465,7 @@ const NotesPage: React.FC<NotesPageProps> = ({
         const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
         return users.filter(user => user.roleId && advisorRoleIds.has(user.roleId));
     }, [users, currentUser, roles, permissions]);
+    // --- MODIFICATION ENDS ---
 
     useEffect(() => {
         setCurrentPage(1);
@@ -484,15 +497,7 @@ const NotesPage: React.FC<NotesPageProps> = ({
         const userRole = roles.find(r => r.id === currentUser?.roleId);
         const hasFilterPermission = (permissions?.customers === 'create' || permissions?.customers === 'modify') && !userRole?.isAdvisor;
         if (hasFilterPermission && advisorFilter !== 'all') {
-            return notesToDisplay.filter(item => {
-                const client = item.member as Member | Lead;
-                if ('assignedTo' in client && Array.isArray(client.assignedTo)) {
-                    return client.assignedTo.includes(advisorFilter);
-                } else if ('assignedTo' in client) {
-                    return client.assignedTo === advisorFilter;
-                }
-                return false;
-            });
+            return notesToDisplay.filter(item => item.note.createdBy === advisorFilter);
         }
 
         return notesToDisplay;
@@ -505,11 +510,11 @@ const NotesPage: React.FC<NotesPageProps> = ({
             type GroupedNotes = Record<string, NoteGroup>;
             const initialValue: GroupedNotes = {};
             
-            return displayedNotes.reduce((acc: GroupedNotes, { note, memberName, memberId, highlights }) => {
+            return displayedNotes.reduce((acc: GroupedNotes, { note, memberName, memberId, highlights, creator }) => {
                 if (!acc[memberId]) {
                     acc[memberId] = { memberName, notes: [] };
                 }
-                acc[memberId].notes.push({ note, highlights, memberId });
+                acc[memberId].notes.push({ note, highlights, memberId, creator });
                 return acc;
             }, initialValue);
         }
@@ -550,7 +555,7 @@ const NotesPage: React.FC<NotesPageProps> = ({
             expectedCompletionDateTime: new Date().toISOString(),
             memberId: clientId,
             taskType: 'Manual',
-            isCompleted: false, // --- MODIFICATION: Added missing property ---
+            isCompleted: false,
         });
         handleDismissActionItem(clientId, noteId, actionItemText);
     }, [onCreateTask, handleDismissActionItem]);
@@ -717,10 +722,12 @@ const NotesPage: React.FC<NotesPageProps> = ({
                         <div className="my-4 p-2 bg-gray-100 dark:bg-gray-900 rounded-lg flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <label htmlFor="advisor-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Filter by Employee:</label>
+                                {/* --- MODIFICATION BEGINS --- */}
                                 <select id="advisor-filter" value={advisorFilter} onChange={(e) => setAdvisorFilter(e.target.value)} className="block w-full md:w-auto px-3 py-1 border border-gray-300 rounded-lg shadow-sm text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                                     <option value="all">All Employees</option>
-                                    {noteTakers.map(user => <option key={user.id} value={user.id}>{user.name}</option>)}
+                                    {noteTakers.map(user => <option key={user.id} value={user.id}>{user.name} {user.profile?.status === 'Inactive' ? '🔴' : ''}</option>)}
                                 </select>
+                                {/* --- MODIFICATION ENDS --- */}
                             </div>
                             <div className="flex items-center gap-1 bg-gray-200 dark:bg-gray-800 p-1 rounded-md">
                                 <button onClick={() => setAdminViewMode('date')} className={`p-1.5 rounded-md ${adminViewMode === 'date' ? 'bg-white dark:bg-gray-700' : ''}`}><List size={16}/></button>
@@ -775,8 +782,8 @@ const NotesPage: React.FC<NotesPageProps> = ({
                                 <div key={memberId}>
                                     <h3 className="text-xl font-semibold text-gray-800 dark:text-white pb-2 mb-4 border-b-2 border-brand-primary">{group.memberName}</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {group.notes.map(({ note, highlights, memberId }: any) => (
-                                            <NoteCard key={note.id} note={note} memberName={group.memberName} memberId={memberId} highlights={highlights} onCreateTaskFromActionItem={handleCreateTaskFromActionItem} onDismissActionItem={handleDismissActionItem} />
+                                        {group.notes.map(({ note, highlights, memberId, creator }: any) => (
+                                            <NoteCard key={note.id} note={note} memberName={group.memberName} memberId={memberId} highlights={highlights} onCreateTaskFromActionItem={handleCreateTaskFromActionItem} onDismissActionItem={handleDismissActionItem} creator={creator} />
                                         ))}
                                     </div>
                                 </div>
@@ -784,8 +791,8 @@ const NotesPage: React.FC<NotesPageProps> = ({
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-                            {(currentNotes as any[]).map(({ note, memberName, memberId, highlights }) => (
-                                <NoteCard key={note.id} note={note} memberName={memberName} memberId={memberId} highlights={highlights} onCreateTaskFromActionItem={handleCreateTaskFromActionItem} onDismissActionItem={handleDismissActionItem} />
+                            {(currentNotes as any[]).map(({ note, memberName, memberId, highlights, creator }) => (
+                                <NoteCard key={note.id} note={note} memberName={memberName} memberId={memberId} highlights={highlights} onCreateTaskFromActionItem={handleCreateTaskFromActionItem} onDismissActionItem={handleDismissActionItem} creator={creator} />
                             ))}
                         </div>
                     )

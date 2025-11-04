@@ -142,11 +142,14 @@ const AttendanceReportModal: React.FC<{
     const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
     const [selectedAdvisor, setSelectedAdvisor] = useState('all');
 
-    // MODIFIED: Logic now based on Role
+    // --- MODIFICATION BEGINS ---
+    // MODIFIED: Logic now based on Role and INCLUDES inactive employees
     const advisors = useMemo(() => {
         const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
+        // Filter for active status is removed to include all employees
         return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
     }, [users, roles]);
+    // --- MODIFICATION ENDS ---
     
     useEffect(() => {
         if (!isOpen) return;
@@ -190,16 +193,19 @@ const AttendanceReportModal: React.FC<{
 
 
     const reportData = useMemo(() => {
-        let flattenedData: (AttendanceRecord & { userId: string, userName: string })[] = [];
+        // --- MODIFICATION BEGINS ---
+        let flattenedData: (AttendanceRecord & { userId: string, userName: string, userStatus: 'Active' | 'Inactive' })[] = [];
         
         for (const userId in attendance) {
             const user = advisors.find(u => u.id === userId);
             if (user) {
                 attendance[userId].forEach(record => {
-                    flattenedData.push({ ...record, userId, userName: user.name });
+                    // Also push the user's status to use for the red dot indicator
+                    flattenedData.push({ ...record, userId, userName: user.name, userStatus: user.profile?.status || 'Inactive' });
                 });
             }
         }
+        // --- MODIFICATION ENDS ---
 
         const start = new Date(startDate);
         start.setHours(0, 0, 0, 0);
@@ -235,12 +241,14 @@ const AttendanceReportModal: React.FC<{
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                         <Input label="Start Date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
                         <Input label="End Date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                        {/* --- MODIFICATION BEGINS --- */}
                         <SearchableSelect
                             label="Filter by Employee"
-                            options={[{value: 'all', label: 'All Employees'}, ...advisors.map(a => ({ value: a.id, label: a.name }))]}
+                            options={[{ value: 'all', label: 'All Employees' }, ...advisors.map(a => ({ value: a.id, label: a.profile?.status === 'Inactive' ? `${a.name} 🔴` : a.name }))]}
                             value={selectedAdvisor}
                             onChange={setSelectedAdvisor}
                         />
+                        {/* --- MODIFICATION ENDS --- */}
                         <div className="flex items-center gap-2">
                             <Button variant="light" size="small" onClick={() => setDateRange(0)}>Today</Button>
                             <Button variant="light" size="small" onClick={() => setDateRange(7)}>7 Days</Button>
@@ -264,7 +272,14 @@ const AttendanceReportModal: React.FC<{
                                 {reportData.map((record, index) => (
                                     <tr key={index}>
                                         <td className="px-4 py-3 whitespace-nowrap">{new Date(record.timestamp).toLocaleDateString()}</td>
-                                        <td className="px-4 py-3 font-medium text-gray-800 dark:text-white">{record.userName}</td>
+                                        {/* --- MODIFICATION BEGINS --- */}
+                                        <td className="px-4 py-3 font-medium text-gray-800 dark:text-white">
+                                            <div className="flex items-center gap-2">
+                                                {record.userName}
+                                                {record.userStatus === 'Inactive' && <span className="w-2 h-2 bg-red-500 rounded-full" title="Inactive Employee"></span>}
+                                            </div>
+                                        </td>
+                                        {/* --- MODIFICATION ENDS --- */}
                                         <td className="px-4 py-3">
                                             <span className={`px-2 py-1 text-xs font-semibold rounded-full ${record.status === 'Present' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>
                                                 {record.status}
@@ -286,7 +301,6 @@ const AttendanceReportModal: React.FC<{
         </Modal>
     );
 };
-
 
 const generateLeadActivityLog = (oldLead: Partial<Lead>, newLead: Partial<Lead>, userId: string): LeadActivityLog[] => {
     const logs: LeadActivityLog[] = [];
@@ -911,7 +925,10 @@ const StaffPerformance: React.FC<{
                             return (
                             <tr key={emp.id}>
                                 <td className="px-4 py-2 font-medium text-gray-900 dark:text-white">
-                                    {emp.name}
+                                    <div className="flex items-center gap-2">
+                                        {emp.name}
+                                        {emp.profile?.status === 'Inactive' && <span className="w-2 h-2 bg-red-500 rounded-full" title="Inactive Employee"></span>}
+                                    </div>
                                     <p className="text-xs text-gray-500">{designationMap.get(emp.designationId) || 'N/A'}</p>
                                 </td>
                                 <td className="px-4 py-2 relative">
@@ -1426,6 +1443,7 @@ const App: React.FC = () => {
     // --- Data Loading and State Management ---
     const [isLoading, setIsLoading] = useState(true);
     const [toasts, setToasts] = useState<ToastData[]>([]);
+    const toastIdCounter = useRef(0);
 
     // --- Core Data State ---
     const [allMembers, setAllMembers] = useState<Member[]>([]);
@@ -1490,6 +1508,7 @@ const App: React.FC = () => {
     }, []);
 
     const addToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
+        toastIdCounter.current += 1;
         const newToast: ToastData = { id: Date.now(), message, type };
         setToasts(prevToasts => [...prevToasts, newToast]);
         setTimeout(() => {
@@ -3268,9 +3287,9 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                                 <Route path="/location" element={<LocationServices members={companyMembers} addToast={addToast} currentUser={currentUser} allUsers={companyUsers} onUpdateAdvisorLocation={handleUpdateAdvisorLocation} onCreateCheckIn={handleCreateCheckIn} advisorLocations={advisorLocations} checkIns={checkIns} onFetchAdvisorTrail={handleFetchAdvisorTrail} activeCheckIn={activeCheckIn} onCheckOut={handleCheckOut} onGetActiveCheckIn={getActiveCheckIn} designations={designations} roles={roles} />} />
                                 <Route path="/chatbot" element={<Chatbot members={companyMembers} leads={companyLeads} tasks={allTasks} expenses={expenses} manualIncomes={manualIncomes} manualCommissions={manualCommissions} addToast={addToast} />} />
                                 <Route path="/profile" element={currentUser?.roleId && roles.find(r => r.id === currentUser.roleId)?.name.toLowerCase().includes('admin') ? <AdminProfile {...{ user: currentUser, users: companyUsers, allMembers: companyMembers, onOpenEmployeeModal: () => handleOpenEmployeeModal(null), onUpdateProfile: handleSaveEmployee, addToast, designations, permissions: currentUserPermissions, roles }} /> : <ProfilePage {...{ user: currentUser, onUpdateProfile: handleSaveEmployee, onUpdatePassword: handleUpdatePassword, addToast, allMembers: companyMembers, users: companyUsers, geographies, onUpdateGeographies: handleUpdateGeographies, bankMasters, designations, permissions: currentUserPermissions, genders, accountTypes, roles }} />} />
-                                <Route path="/employees" element={<EmployeeManagement {...{ users: companyUsers, allMembers: companyMembers, onOpenEmployeeModal: handleOpenEmployeeModal, onToggleStatus: async (userId) => { const user = allUsers.find(u => u.id === userId); if(user) { const newStatus = user.profile?.status === 'Active' ? 'Inactive' : 'Active'; await handleSaveEmployee({...user, profile: {...user.profile, status: newStatus} as EmployeeProfile}); addToast("Employee status updated.", "success"); }}, attendance, onUpdateAttendance: handleUpdateAttendanceByAdmin, finrootsBranches: companyBranches, addToast, designations, permissions: currentUserPermissions, roles }} />} />
+                                <Route path="/employees" element={<EmployeeManagement {...{ users: companyUsers, allMembers: companyMembers, onOpenEmployeeModal: handleOpenEmployeeModal, onToggleStatus: async (userId) => { const user = allUsers.find(u => u.id === userId); if(user) { const newStatus = user.profile?.status === 'Active' ? 'Inactive' : 'Active'; await handleSaveEmployee({...user, profile: {...user.profile, status: newStatus} as EmployeeProfile}); }}, attendance, onUpdateAttendance: handleUpdateAttendanceByAdmin, finrootsBranches: companyBranches, addToast, designations, permissions: currentUserPermissions, roles }} />} />
                                 <Route path="/servicesHub" element={<ServicesHub addToast={addToast} allMembers={companyMembers} onViewMember={handleOpenMemberModal} onUpdateCommissionStatus={handleUpdateCommissionStatus} currentUser={currentUser} designations={designations} />} />
-                                <Route path="/actionHub" element={<ActionAutomationHub {...{ notifications: hubNotifications, onRenewPolicy: handleRenewPolicy, activityLog: hubActivityLog, addToast, onNotificationSent: () => {}, appointments: hubAppointments, tasks: hubTasks, onDismissItem: handleDismissItem, savedGreetingUrl: null, setSavedGreetingUrl: () => {}, upsellOpportunities, onDismissOpportunity: (id) => setUpsellOpportunities(prev => prev.filter(o => o.id !== id)), members: companyMembers, onScheduleMessage: (msg) => { setCustomMessages(prev => [...prev, {...msg, id: `cm-${Date.now()}`}]); addToast('Custom message scheduled!', 'success'); }, onClearAll: handleClearActionHubNotifications, onScheduleAppointment: (appt) => { const member = companyMembers.find(m => m.id === appt.memberId); if(member) { setAppointments(prev => [...prev, { ...appt, id: `appt-${Date.now()}`, memberName: member.name }]); addToast('Appointment scheduled!', 'success'); } }, rules: automationRules, onUpdateRule: (rule) => setAutomationRules(prev => prev.map(r => r.id === rule.id ? rule : r)), onAddRule: handleAddAutomationRule, docTemplates, onUpdateTemplates: setDocTemplates, currentUser, users: companyUsers, onViewMember: onViewMember, permissions: currentUserPermissions, occasionTypeMasters, onUpdateOccasionTypeMasters: handleUpdateOccasionTypeMasters }} />} />
+                                <Route path="/actionHub" element={<ActionAutomationHub {...{ notifications: hubNotifications, onRenewPolicy: handleRenewPolicy, activityLog: hubActivityLog, addToast, onNotificationSent: () => {}, appointments: hubAppointments, tasks: hubTasks, onDismissItem: handleDismissItem, savedGreetingUrl: null, setSavedGreetingUrl: () => {}, upsellOpportunities, onDismissOpportunity: (id) => setUpsellOpportunities(prev => prev.filter(o => o.id !== id)), members: companyMembers, onScheduleMessage: (msg) => { setCustomMessages(prev => [...prev, {...msg, id: `cm-${Date.now()}`}]); addToast('Custom message scheduled!', 'success'); }, onClearAll: handleClearActionHubNotifications, onScheduleAppointment: (appt) => { const member = companyMembers.find(m => m.id === appt.memberId); if(member) { setAppointments(prev => [...prev, { ...appt, id: `appt-${Date.now()}`, memberName: member.name }]); addToast('Appointment scheduled!', 'success'); } }, rules: automationRules, onUpdateRule: (rule) => setAutomationRules(prev => prev.map(r => r.id === rule.id ? rule : r)), onAddRule: handleAddAutomationRule, docTemplates, onUpdateTemplates: setDocTemplates, currentUser, users: companyUsers, onViewMember: onViewMember, permissions: currentUserPermissions, occasionTypeMasters, onUpdateOccasionTypeMasters: handleUpdateOccasionTypeMasters,roles }} />} />
                                 <Route path="/masterMember/" element={<MasterData {...{addToast, allMembers: companyMembers,allLeads: companyLeads, users: companyUsers, customerFieldMasters, onUpdateCustomerFieldMasters: handleUpdateCustomerFieldMasters, businessVerticals, onUpdateBusinessVerticals: handleUpdateBusinessVerticals, leadSources, onUpdateLeadSources: handleUpdateLeadSources, schemes, onUpdateSchemes: handleUpdateSchemes, agencies, onUpdateAgencies: handleUpdateAgencies, operatingCompanies, onUpdateOperatingCompanies: handleUpdateOperatingCompany, finrootsBranches: allBranches, onUpdateFinrootsBranches: handleUpdateFinrootsBranches, finrootsCompanyInfo, onUpdateFinRootsCompanyInfo: setFinrootsCompanyInfo, geographies, onUpdateGeographies: handleUpdateGeographies, relationshipTypes, onUpdateRelationshipTypes: handleUpdateRelationshipTypes, documentMasters, onUpdateDocumentMasters: handleUpdateDocumentMasters, insuranceTypeDocumentRules, onUpdateInsuranceTypeDocumentRules: handleUpdateInsuranceTypeDocumentRules, giftMasters, onUpdateGiftMasters: handleUpdateGiftMasters, customerTiers, onUpdateCustomerTiers: handleUpdateCustomerTiers, taskStatuses: taskStatusMasters, onUpdateTaskStatuses: handleUpdateTaskStatusMasters, customerCategories, onUpdateCustomerCategories: handleUpdateCustomerCategories, bankMasters, onUpdateBankMasters: handleUpdateBankMasters, customerSubCategories, onUpdateCustomerSubCategories: handleUpdateCustomerSubCategories, customerGroups, onUpdateCustomerGroups: handleUpdateCustomerGroups, taskMasters, onUpdateTaskMasters: handleUpdateTaskMasters, insuranceTypes, onUpdateInsuranceTypes: handleUpdateInsuranceTypes, insuranceFields, onUpdateInsuranceFields: handleUpdateInsuranceFields, routes, onUpdateRoutes: handleUpdateRoutes, designations, onUpdateDesignations: handleUpdateDesignations, currentUser, customerTierCalculationMethod, onUpdateCustomerTierCalculationMethod: handleUpdateAllMemberTiers, expenseCategoriesLevel1, onUpdateExpenseCategoriesLevel1: handleUpdateExpenseCategoriesLevel1, expenseCategoriesLevel2, onUpdateExpenseCategoriesLevel2: handleUpdateExpenseCategoriesLevel2, expenseCategoriesLevel3, onUpdateExpenseCategoriesLevel3: handleUpdateExpenseCategoriesLevel3, incomeCategoriesLevel1, onUpdateIncomeCategoriesLevel1: handleUpdateIncomeCategoriesLevel1, incomeCategoriesLevel2, onUpdateIncomeCategoriesLevel2: handleUpdateIncomeCategoriesLevel2, religions, onUpdateReligions: handleUpdateReligions, festivals, onUpdateFestivals: handleUpdateFestivals, festivalDates, onUpdateFestivalDates: handleUpdateFestivalDates, amcs, onUpdateAmcs: handleUpdateAmcs, mutualFundSchemes, onUpdateMutualFundSchemes: handleUpdateMutualFundSchemes, mutualFundFields, onUpdateMutualFundFields: handleUpdateMutualFundFields, rolePermissions, onUpdateRolePermissions: handleUpdateRolePermissions, genders, onUpdateGenders: handleUpdateGenders, maritalStatuses, onUpdateMaritalStatuses: handleUpdateMaritalStatuses, customerTypes, onUpdateCustomerTypes: handleUpdateCustomerTypes, processStageMasters, onUpdateProcessStageMasters: handleUpdateProcessStageMasters,accountTypes:accountTypes,onUpdateAccountTypes:handleUpdateAccountTypes, financialYears, onUpdateFinancialYears: handleUpdateFinancialYears, documentNumbering, onUpdateDocumentNumbering: handleUpdateDocumentNumbering, activeFinancialYearId, roles, onUpdateRoles: handleUpdateRoles, leadStageMasters, onUpdateLeadStageMasters:handleUpdateLeadStageMasters, occasionTypeMasters, onUpdateOccasionTypeMasters: handleUpdateOccasionTypeMasters }} />} />
                                 <Route path="/reports-insights" element={<ReportsAndInsights members={companyMembers} users={companyUsers} tasks={allTasks} attendance={attendance} onUpdateAttendance={handleUpdateAttendanceByAdmin} addToast={addToast} allLeads={companyLeads} currentUser={currentUser} leadSources={leadSources} schemes={schemes} insuranceTypes={insuranceTypes} onOpenAttendanceReport={() => setIsAttendanceReportModalOpen(true)} designations={designations} roles={roles} permissions={currentUserPermissions} />} />
                                 <Route path="/taskManagement" element={<TaskManagement allTasks={allTasks} permissions={currentUserPermissions} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} onCreateTask={handleCreateTask} onCreateBulkTask={handleCreateBulkTask} onOpenTask={handleOpenTask} users={companyUsers} members={companyMembers} leads={companyLeads} taskStatusMasters={taskStatusMasters} taskMasters={taskMasters} addToast={addToast} currentUser={currentUser} finrootsBranches={companyBranches} onReassignTask={handleReassignTask} onUpdateTaskWithRemark={handleUpdateTask} designations={designations} roles={roles} />} />

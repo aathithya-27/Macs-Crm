@@ -7,13 +7,13 @@ import {
 import Button from './ui/Button.tsx';
 import { 
     Member, ActivityLog, Appointment, Task, UpsellOpportunity, CustomScheduledMessage, AutomationRule, DocTemplate, 
-    User as UserType, Notification, ModalTab, AppModule, PermissionLevel, OccasionTypeMaster
+    User as UserType, Notification, ModalTab, AppModule, PermissionLevel, OccasionTypeMaster, Role
 } from '../types.ts';
 import Input from './ui/Input.tsx';
 import DocumentHub from './DocumentHub.tsx';
 import Modal from './ui/Modal.tsx';
 import SearchableSelect from './ui/SearchableSelect.tsx';
-import { updateOccasionTypeMasters } from '../services/apiService.ts'; // --- FIX: Corrected import path ---
+import { updateOccasionTypeMasters } from '../services/apiService.ts';
 
 // Helper components & functions from original files, slightly adapted
 const handleSendMessage = (type: 'sms' | 'whatsapp', mobile: string, message: string) => {
@@ -206,7 +206,7 @@ const ChannelTag: React.FC<{ channel: 'whatsapp' | 'sms' | 'email' | 'call' | st
     return <span className={`px-2 py-1 text-xs font-medium rounded ${style}`}>{channel}</span>;
 };
 
-// --- MODIFICATION: Add OccasionTypeMaster to props ---
+// --- MODIFICATION: Add roles to props ---
 interface ActionAutomationHubProps {
     notifications: Notification[];
     onRenewPolicy: (memberId: string, policyId: string) => Promise<boolean>;
@@ -233,11 +233,11 @@ interface ActionAutomationHubProps {
     users: UserType[];
     onViewMember: (member: Member, initialTab?: ModalTab) => void;
     permissions: { [key in AppModule]?: PermissionLevel };
-    occasionTypeMasters: OccasionTypeMaster[]; // --- NEW ---
-    onUpdateOccasionTypeMasters: (data: OccasionTypeMaster[]) => void; // --- NEW ---
+    occasionTypeMasters: OccasionTypeMaster[]; 
+    onUpdateOccasionTypeMasters: (data: OccasionTypeMaster[]) => void;
+    roles: Role[]; // --- NEW ---
 }
 
-// --- MODIFICATION: Add OccasionTypeMaster and existing rules to props for validation ---
 const AddRuleModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
@@ -278,7 +278,7 @@ const AddRuleModal: React.FC<{
             await updateOccasionTypeMasters(updatedList);
             onUpdateOccasionTypeMasters(updatedList);
             addToast(`New occasion type "${name}" created.`, 'success');
-            return newOccasionType.name; // Return the name to be set
+            return newOccasionType.name;
         } catch (e) {
             addToast('Failed to create new occasion type.', 'error');
             return null;
@@ -294,7 +294,6 @@ const AddRuleModal: React.FC<{
     };
 
     const handleSave = () => {
-        // --- MODIFICATION: Add duplicate check ---
         const ruleExists = rules.some(rule => rule.type.toLowerCase() === type.toLowerCase());
         if (ruleExists) {
             addToast(`A rule for "${type}" already exists. Please edit the existing rule.`, 'error');
@@ -338,7 +337,7 @@ const AddRuleModal: React.FC<{
                             onCreate={async (name) => {
                                 const newTypeName = await handleCreateOccasionType(name);
                                 if (newTypeName) {
-                                    setType(newTypeName); // Auto-select the newly created type
+                                    setType(newTypeName);
                                 }
                                 return newTypeName;
                             }}
@@ -429,7 +428,7 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
     onDismissItem, savedGreetingUrl, setSavedGreetingUrl, upsellOpportunities, onDismissOpportunity, members,
     onScheduleMessage, onClearAll, onScheduleAppointment, rules, onUpdateRule, onAddRule,
     docTemplates, onUpdateTemplates, currentUser, users, onViewMember, permissions,
-    occasionTypeMasters, onUpdateOccasionTypeMasters // Destructure new props
+    occasionTypeMasters, onUpdateOccasionTypeMasters, roles
 }) => {
     const [activeHubTab, setActiveHubTab] = useState<ActionHubTab>('actions');
 
@@ -496,20 +495,29 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
         handleAction(notificationId);
     };
     
+    // --- MODIFICATION BEGINS ---
+    const advisorsForFilter = useMemo(() => {
+        const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
+        return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
+    }, [users, roles]);
+
     const visibleTasks = useMemo(() => {
         if (!currentUser) return [];
+        // Admin/Manager view
         if (permissions?.actionHub === 'modify' || permissions?.masterMember === 'modify') {
             if (adminTaskFilter === 'all') {
                 return tasks;
             }
             return tasks.filter(task => task.primaryContactPerson === adminTaskFilter);
         }
+        // Advisor/Standard user view
         const assignedMemberIds = new Set(members.filter(m => m.assignedTo?.includes(currentUser.id)).map(m => m.id));
         return tasks.filter(task => 
             task.primaryContactPerson === currentUser.id || 
             (task.memberId && assignedMemberIds.has(task.memberId))
         );
     }, [tasks, currentUser, members, adminTaskFilter, permissions]);
+    // --- MODIFICATION ENDS ---
 
     const hasNotifications = overdue.length > 0 || upcoming.length > 0;
     
@@ -627,6 +635,7 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
                         <div className="space-y-4">
                             <div>
                                 <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Tasks</h4>
+                                {/* --- MODIFICATION BEGINS --- */}
                                 {(permissions?.actionHub === 'modify' || permissions?.masterMember === 'modify') && (
                                     <div className="mb-4">
                                         <label htmlFor="task-advisor-filter" className="text-sm font-medium text-gray-700 dark:text-gray-300 mr-2">Filter by Advisor:</label>
@@ -637,12 +646,13 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
                                             className="px-3 py-1 border border-gray-300 rounded-lg shadow-sm text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                         >
                                             <option value="all">All Advisors</option>
-                                            {users.filter(u => u.role === 'Advisor').map(adv => (
-                                                <option key={adv.id} value={adv.id}>{adv.name}</option>
+                                            {advisorsForFilter.map(adv => (
+                                                <option key={adv.id} value={adv.id}>{adv.name} {adv.profile?.status === 'Inactive' ? '🔴' : ''}</option>
                                             ))}
                                         </select>
                                     </div>
                                 )}
+                                {/* --- MODIFICATION ENDS --- */}
                                 {visibleTasks.length > 0 ? visibleTasks.map(task => (
                                     <div key={task.id} className="p-3 border-b border-gray-200 dark:border-gray-700 last:border-b-0">
                                         <div className="flex items-start justify-between">
