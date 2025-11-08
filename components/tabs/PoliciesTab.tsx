@@ -287,7 +287,7 @@ const PolicyEditor: React.FC<{
     insuranceFields, onUpdateInsuranceFields, designations, permissions, genders
 }) => {
     
-    const [selectedCompanyId, setSelectedCompanyId] = useState<string>(policy.companyId || '');
+    const [selectedcomp_id, setSelectedcomp_id] = useState<string>(policy.comp_id || '');
     
     const [isAddingField, setIsAddingField] = useState(false);
     const [newFieldInfo, setNewFieldInfo] = useState({ label: '', fieldType: 'text' as InsuranceFieldMaster['fieldType'], group: '', columnSpan: 1 as 1 | 2 | 3, options: [''], columnHeaders: [''], rowHeaders: [''] });
@@ -493,7 +493,7 @@ const PolicyEditor: React.FC<{
         return insuranceTypes.filter(it => it.parentId === selectedParentTypeId && it.active);
     }, [insuranceTypes, selectedParentTypeId]);
 
-    const companyIdsInSchemesForType = useMemo(() => {
+    const comp_idsInSchemesForType = useMemo(() => {
         if (!selectedParentTypeId) return new Set<string>();
         
         const relevantTypeIds = new Set([selectedParentTypeId]);
@@ -503,24 +503,23 @@ const PolicyEditor: React.FC<{
             }
         });
         
-        return new Set(schemes.filter(s => s.insuranceTypeId && relevantTypeIds.has(s.insuranceTypeId)).map(s => s.companyId));
-    }, [selectedParentTypeId, insuranceTypes, schemes]);
+        return new Set(schemes.filter(s => s.insuranceTypeId && relevantTypeIds.has(s.insuranceTypeId)).map(s => s.agencyId));    }, [selectedParentTypeId, insuranceTypes, schemes]);
 
     const filteredCompanies = useMemo(() => {
         if (!selectedParentTypeId) return [];
-        return companies.filter(c => c.active && companyIdsInSchemesForType.has(c.id));
-    }, [selectedParentTypeId, companies, companyIdsInSchemesForType]);
+        return companies.filter(c => c.active && comp_idsInSchemesForType.has(c.id));
+    }, [selectedParentTypeId, companies, comp_idsInSchemesForType]);
 
     const filteredSchemes = useMemo(() => {
-        if (!selectedCompanyId || !selectedParentTypeId) return [];
+        if (!selectedcomp_id || !selectedParentTypeId) return [];
         
         const relevantTypeIds = new Set([selectedParentTypeId, policy.insuranceTypeId]);
         return schemes.filter(s => 
-            s.companyId === selectedCompanyId && 
+            s.agencyId === selectedcomp_id && 
             s.insuranceTypeId && relevantTypeIds.has(s.insuranceTypeId) && 
             s.active
         );
-    }, [selectedCompanyId, policy.insuranceTypeId, selectedParentTypeId, schemes]);
+    }, [selectedcomp_id, policy.insuranceTypeId, selectedParentTypeId, schemes]);
 
 
     const dynamicFields = useMemo(() => {
@@ -598,8 +597,8 @@ const PolicyEditor: React.FC<{
                                 value={selectedParentTypeId || ''}
                                 onChange={(e) => {
                                     const newParentId = e.target.value;
-                                    setSelectedCompanyId('');
-                                    handlePolicyChange(policy.id, { insuranceTypeId: newParentId, companyId: '', schemeId: '', schemeName: '' });
+                                    setSelectedcomp_id('');
+                                    handlePolicyChange(policy.id, { insuranceTypeId: newParentId, comp_id: '', schemeId: '', schemeName: '' });
                                 }}
                                 className={selectClasses} 
                                 disabled={isReadOnly}
@@ -614,7 +613,7 @@ const PolicyEditor: React.FC<{
                                 value={policy.insuranceTypeId === selectedParentTypeId ? '' : policy.insuranceTypeId || ''}
                                 onChange={(e) => {
                                     handlePolicyChange(policy.id, { insuranceTypeId: e.target.value || selectedParentTypeId });
-                                    setSelectedCompanyId('');
+                                    setSelectedcomp_id('');
                                 }}
                                 className={selectClasses}
                                 disabled={isReadOnly || !selectedParentTypeId || childTypeOptions.length === 0}
@@ -626,11 +625,11 @@ const PolicyEditor: React.FC<{
                         <div className={policy.insuranceTypeId ? '' : 'opacity-50'}>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Agency/Company</label>
                             <select 
-                                value={selectedCompanyId} 
+                                value={selectedcomp_id} 
                                 onChange={(e) => {
-                                    const newCompanyId = e.target.value;
-                                    setSelectedCompanyId(newCompanyId);
-                                    handlePolicyChange(policy.id, { companyId: newCompanyId, schemeId: '', schemeName: '' });
+                                    const newcomp_id = e.target.value;
+                                    setSelectedcomp_id(newcomp_id);
+                                    handlePolicyChange(policy.id, { comp_id: newcomp_id, schemeId: '', schemeName: '' });
                                 }} 
                                 className={selectClasses} 
                                 disabled={!policy.insuranceTypeId || isReadOnly}
@@ -639,7 +638,7 @@ const PolicyEditor: React.FC<{
                                 {filteredCompanies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
                         </div>
-                        <div className={selectedCompanyId ? '' : 'opacity-50'}>
+                        <div className={selectedcomp_id ? '' : 'opacity-50'}>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Scheme</label>
                             <select 
                                 value={policy.schemeId || ''} 
@@ -651,7 +650,7 @@ const PolicyEditor: React.FC<{
                                     });
                                 }} 
                                 className={selectClasses} 
-                                disabled={!selectedCompanyId || isReadOnly}
+                                disabled={!selectedcomp_id || isReadOnly}
                             >
                                 <option value="">Select Scheme...</option>
                                 {filteredSchemes.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}
@@ -1299,7 +1298,7 @@ export const PoliciesTab: React.FC<PoliciesTabProps> = ({
                 if (updatedFields.insuranceTypeId !== undefined && updatedFields.insuranceTypeId !== oldPolicy.insuranceTypeId) {
                     newPolicy.schemeId = '';
                     newPolicy.schemeName = '';
-                    newPolicy.companyId = '';
+                    newPolicy.comp_id = '';
                     newPolicy.dynamicData = {};
                 }
 

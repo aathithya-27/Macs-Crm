@@ -433,7 +433,7 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
     const [activeHubTab, setActiveHubTab] = useState<ActionHubTab>('actions');
 
     const canModifyActions = permissions?.actionHub === 'modify';
-    const canModifyAutomation = permissions?.masterMember === 'modify';
+    const canModifyAutomation = permissions?.masterData === 'modify';
     const canModifyPolicies = permissions?.policies === 'modify';
 
     const [editingRuleId, setEditingRuleId] = useState<number | null>(null);
@@ -504,7 +504,7 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
     const visibleTasks = useMemo(() => {
         if (!currentUser) return [];
         // Admin/Manager view
-        if (permissions?.actionHub === 'modify' || permissions?.masterMember === 'modify') {
+        if (permissions?.actionHub === 'modify' || permissions?.masterData === 'modify') {
             if (adminTaskFilter === 'all') {
                 return tasks;
             }
@@ -636,7 +636,7 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
                             <div>
                                 <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Tasks</h4>
                                 {/* --- MODIFICATION BEGINS --- */}
-                                {(permissions?.actionHub === 'modify' || permissions?.masterMember === 'modify') && (
+                                {(permissions?.actionHub === 'modify' || permissions?.masterData === 'modify') && (
                                     <div className="mb-4">
                                         <label htmlFor="task-advisor-filter" className="text-sm font-medium text-gray-700 dark:text-gray-300 mr-2">Filter by Advisor:</label>
                                         <select

@@ -36,7 +36,8 @@ const Pagination: React.FC<PaginationProps> = ({
   const pageNumbers: number[] = [];
   const pagesToShow = 3; // Show a small, sliding window of pages
 
-  if (totalPages > 0) {
+   if (totalPages > 0) {
+    
     if (totalPages <= pagesToShow) {
       // If there are few enough pages, show them all
       for (let i = 1; i <= totalPages; i++) {
@@ -99,8 +100,9 @@ const Pagination: React.FC<PaginationProps> = ({
             </button>
             {pageNumbers.map((page, index) => (
                 <button
-                  key={index}
+                                   key={index}
                   onClick={() => onPageChange(page)}
+                  
                   aria-current={currentPage === page ? 'page' : undefined}
                   className={`relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium ${
                     currentPage === page

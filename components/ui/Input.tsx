@@ -1,12 +1,13 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, forwardRef } from 'react';
 import { Calendar, Eye, EyeOff } from 'lucide-react';
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
 }
 
-const Input: React.FC<InputProps> = ({ label, id, type, ...props }) => {
-  const inputRef = useRef<HTMLInputElement>(null);
+const Input = forwardRef<HTMLInputElement, InputProps>(({ label, id, type, ...props }, ref) => {
+  const internalRef = useRef<HTMLInputElement>(null);
+  const inputRef = (ref as React.RefObject<HTMLInputElement>) || internalRef;
   const [showPassword, setShowPassword] = useState(false);
 
   const handleIconClick = () => {
@@ -82,6 +83,8 @@ const Input: React.FC<InputProps> = ({ label, id, type, ...props }) => {
       </div>
     </div>
   );
-};
+});
+
+Input.displayName = 'Input';
 
 export default Input;

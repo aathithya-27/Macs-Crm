@@ -561,7 +561,7 @@ export const getChatbotResponse = async (
 
     try {
         const prompt = `
-You are FinBot, a friendly and highly capable AI assistant for a financial advisor using the FinRoots CRM. Your goal is to help the advisor manage their entire business efficiently.
+You are FinBot, a friendly and highly capable AI assistant for a financial advisor using the  CRM. Your goal is to help the advisor manage their entire business efficiently.
 You have access to the full CRM data in JSON format. Use this data to answer the advisor's questions comprehensively.
 
 - Today's date is: ${new Date().toISOString().split('T')[0]}.
@@ -615,7 +615,7 @@ export const getAutomatedClientResponse = async (
 
     try {
         const prompt = `
-You are a helpful, polite, and professional AI assistant for FinRoots, a financial consultancy.
+You are a helpful, polite, and professional AI assistant for , a financial consultancy.
 You are chatting with a customer. Your goal is to answer their questions accurately and concisely.
 - If the user asks about policy details, claims, or renewals, politely inform them that you can help and ask them to provide their policy number or registered mobile number for verification.
 - If the user's query is about a topic you don't recognize, provide a friendly response stating that you will connect them with a human agent who can better assist.

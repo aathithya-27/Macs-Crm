@@ -20,7 +20,7 @@ type Step = 'enter_id' | 'enter_otp_password' | 'success';
 
 export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClose, users, onResetPassword, addToast, operatingCompanies }) => {
     const [step, setStep] = useState<Step>('enter_id');
-    const [companyCode, setCompanyCode] = useState('');
+    const [comp_code, setcomp_code] = useState('');
     const [companyName, setCompanyName] = useState('');
     const [employeeId, setEmployeeId] = useState('');
     const [email, setEmail] = useState('');
@@ -30,16 +30,16 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     
-    const companyMap = useMemo(() => new Map(operatingCompanies.map(c => [c.companyCode, c.name])), [operatingCompanies]);
+    const companyMap = useMemo(() => new Map(operatingCompanies.map(c => [c.comp_code, c.name])), [operatingCompanies]);
 
     useEffect(() => {
-        if(companyCode) {
-            const name = companyMap.get(companyCode.toUpperCase());
+        if(comp_code) {
+            const name = companyMap.get(comp_code.toUpperCase());
             setCompanyName(name || 'Invalid Code');
         } else {
             setCompanyName('');
         }
-    }, [companyCode, companyMap]);
+    }, [comp_code, companyMap]);
     
     useEffect(() => {
         setEmail('');
@@ -102,7 +102,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
     const handleClose = () => {
         // Reset state on close
         setStep('enter_id');
-        setCompanyCode('');
+        setcomp_code('');
         setCompanyName('');
         setEmployeeId('');
         setEmail('');
@@ -133,8 +133,8 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
                             <Input
                                 id="company-code"
                                 label="Company Code"
-                                value={companyCode}
-                                onChange={e => setCompanyCode(e.target.value)}
+                                value={comp_code}
+                                onChange={e => setcomp_code(e.target.value)}
                                 placeholder="e.g., FIN01"
                             />
                             {companyName && (

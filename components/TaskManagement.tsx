@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { Task, User, Member, TaskStatusMaster, FinRootsBranch, Lead, TaskMaster, Designation, Role, AppModule, PermissionLevel } from '../types.ts';
+import { Task, User, Member, TaskStatusMaster, Branch, Lead, TaskMaster, Designation, Role, AppModule, PermissionLevel } from '../types.ts';
 import { ListTodo, Plus, Edit2, Calendar, User as UserIcon, Briefcase, Table, LayoutGrid, Search, ArrowUp, ArrowDown, Trash2, Users, Building, GitCommit, RefreshCw, History, MessageSquare, Clock } from 'lucide-react';
 import Button from './ui/Button.tsx';
 import Input from './ui/Input.tsx';
@@ -22,7 +22,7 @@ interface TaskManagementProps {
     taskMasters: TaskMaster[];
     addToast: (message: string, type?: 'success' | 'error') => void;
     currentUser: User | null;
-    finrootsBranches: FinRootsBranch[];
+    Branches: Branch[];
     onReassignTask: (taskId: string, newAdvisorId: string, reassignerId: string, remark?: string) => void;
     onUpdateTaskWithRemark: (task: Task, remark: string) => void;
     designations: Designation[];
@@ -492,7 +492,7 @@ const TaskTable: React.FC<{
                     const isScheduledForFuture = task.taskType === 'Auto' && task.scheduledCreationDateTime && new Date(task.scheduledCreationDateTime) > new Date();
                     const isOverdue = !isEndState && !isScheduledForFuture && new Date(task.expectedCompletionDateTime) < new Date();
                     const employee = users.find(u => u.id === task.primaryContactPerson);
-                    const branchName = employee?.profile?.employeeBranchId ? branchMap.get(employee.profile.employeeBranchId) : 'N/A';
+                    const branch_name = employee?.profile?.employeebranch_id ? branchMap.get(employee.profile.employeebranch_id) : 'N/A';
                     const clientName = task.memberId ? memberMap.get(task.memberId) : (task.leadId ? leadMap.get(task.leadId) : 'Personal Task');
                     const alternates = (task.alternateContactPersons || []).map(id => users.find(u=>u.id === id)?.name).filter(Boolean).join(', ');
                     const title = alternates ? `Alternate: ${alternates}` : undefined;
@@ -532,7 +532,7 @@ const TaskTable: React.FC<{
                                 </div>
                                 {/* --- MODIFICATION ENDS --- */}
                             </td>
-                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{branchName}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{branch_name}</td>
                             <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{clientName}</td>
                             <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{task.creationDateTime ? new Date(task.creationDateTime).toLocaleDateString() : 'N/A'}</td>
                             <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{new Date(task.expectedCompletionDateTime).toLocaleDateString()}</td>
@@ -576,7 +576,7 @@ const TaskTable: React.FC<{
 export const TaskManagement: React.FC<TaskManagementProps> = ({
     allTasks, onUpdateTask, onDeleteTask, onCreateTask, onCreateBulkTask, onOpenTask,
     users, members, leads, taskStatusMasters, taskMasters, addToast, currentUser, 
-    finrootsBranches, onReassignTask, onUpdateTaskWithRemark, designations, roles, permissions
+    Branches, onReassignTask, onUpdateTaskWithRemark, designations, roles, permissions
 }) => {
     const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -607,7 +607,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
         return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId) && u.profile?.status === 'Active');
     }, [users, roles]);
 
-    const branchMap = useMemo(() => new Map(finrootsBranches.map(b => [b.id, b.branchName])), [finrootsBranches]);
+    const branchMap = useMemo(() => new Map(Branches.map(b => [b.id, b.branch_name])), [Branches]);
     
     const isCurrentUserAdvisor = useMemo(() => roles.find(r => r.id === currentUser?.roleId)?.isAdvisor === true, [currentUser, roles]);
     const canCreate = (permissions?.taskManagement === 'create' || permissions?.taskManagement === 'modify') && !isCurrentUserAdvisor;
@@ -620,14 +620,14 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
         if (branchFilter === 'all') {
             return allAdvisors;
         }
-        return allAdvisors.filter(adv => adv.profile?.employeeBranchId === branchFilter);
+        return allAdvisors.filter(adv => adv.profile?.employeebranch_id === branchFilter);
     }, [users, roles, branchFilter]);
     
     const advisorsForAssignment = useMemo(() => {
         if (!selectedBranch) {
             return advisors;
         }
-        return advisors.filter(adv => adv.profile?.employeeBranchId === selectedBranch);
+        return advisors.filter(adv => adv.profile?.employeebranch_id === selectedBranch);
     }, [advisors, selectedBranch]);
     
     const manualTaskMaster = useMemo(() => taskMasters.find(tm => tm.name.toLowerCase() === 'manual' && tm.active), [taskMasters]);
@@ -693,8 +693,8 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
             
             const advisorMatch = advisorFilter === 'all' || task.primaryContactPerson === advisorFilter;
             const employeeForBranch = users.find(u => u.id === task.primaryContactPerson);
-            const branchId = employeeForBranch?.profile?.employeeBranchId;
-            const branchMatch = branchFilter === 'all' || branchId === branchFilter;
+            const branch_id = employeeForBranch?.profile?.employeebranch_id;
+            const branchMatch = branchFilter === 'all' || branch_id === branchFilter;
             return searchMatch && statusMatch && advisorMatch && branchMatch;
         });
 
@@ -720,8 +720,8 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                 case 'branch':
                     const aAdvisor = users.find(u => u.id === a.primaryContactPerson);
                     const bAdvisor = users.find(u => u.id === b.primaryContactPerson);
-                    aValue = branchMap.get(aAdvisor?.profile?.employeeBranchId || '') || 'Z';
-                    bValue = branchMap.get(bAdvisor?.profile?.employeeBranchId || '') || 'Z';
+                    aValue = branchMap.get(aAdvisor?.profile?.employeebranch_id || '') || 'Z';
+                    bValue = branchMap.get(bAdvisor?.profile?.employeebranch_id || '') || 'Z';
                     break;
                 case 'taskType':
                     aValue = a.memberId || a.leadId ? 'Customer' : 'Personal';
@@ -887,7 +887,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
     const advisorsInSelectedBranches = useMemo(() => {
         if (selectedBranches.length === 0) return [];
         return advisors
-            .filter(a => a.profile?.employeeBranchId && selectedBranches.includes(a.profile.employeeBranchId))
+            .filter(a => a.profile?.employeebranch_id && selectedBranches.includes(a.profile.employeebranch_id))
             .map(adv => ({ 
                 value: adv.id, 
                 label: adv.profile?.status === 'Inactive' ? `${adv.name} 🔴` : adv.name 
@@ -990,7 +990,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                                     className="w-full h-10 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-brand-primary bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                 >
                                     <option value="all">All Branches</option>
-                                    {finrootsBranches.map(branch => <option key={branch.id} value={branch.id}>{branch.branchName}</option>)}
+                                    {Branches.map(branch => <option key={branch.id} value={branch.id}>{branch.branch_name}</option>)}
                                 </select>
                             </div>
                             {/* --- MODIFICATION BEGINS --- */}
@@ -1098,7 +1098,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                             <>
                                 <SearchableSelect
                                     label="Select Branch"
-                                    options={finrootsBranches.map(b => ({ value: b.id, label: b.branchName }))}
+                                    options={Branches.map(b => ({ value: b.id, label: b.branch_name }))}
                                     value={selectedBranch}
                                     onChange={setSelectedBranch}
                                     placeholder="Select branch to filter employees..."
@@ -1118,7 +1118,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                             <>
                                 <MultiSelectDropdown
                                     label="Select Branches"
-                                    options={finrootsBranches.map(b => ({ value: b.id, label: b.branchName }))}
+                                    options={Branches.map(b => ({ value: b.id, label: b.branch_name }))}
                                     selectedValues={selectedBranches}
                                     onChange={setSelectedBranches}
                                 />

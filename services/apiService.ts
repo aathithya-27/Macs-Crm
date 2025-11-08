@@ -1,18 +1,15 @@
-// --- apiService.ts ---
-
 import { 
     Member, Policy, PolicyType, Lead, User, Route, ProcessStage, EmployeeProfile, Company, 
-    FinRootsBranch, Religion, Festival, FestivalDate, AdvisorLocation, CheckIn, 
+    Branch, Religion, Festival, FestivalDate, AdvisorLocation, CheckIn, 
     CheckInOutcome, UpsellCategory, Designation, RolePermissions, AppModule, PermissionLevel, 
     Gender, MaritalStatus, CustomerType, CustomerTier, ProcessStageMaster, RelationshipType,
-    // --- NEW: Import new types ---
-    FinancialYear, DocumentNumbering, Role, // --- ADDED: Import Role ---
+    FinancialYear, DocumentNumbering, Role, 
     InsuranceTypeDocumentRule,
-    LeadStageMaster, // --- ADDED ---
-    OccasionTypeMaster // --- NEW: IMPORT OccasionTypeMaster ---
+    LeadStageMaster, 
+    OccasionTypeMaster 
 } from '../types.ts';
 
-// --- NEW: Mock Data for Financial Years ---
+
 let financialYearsData: FinancialYear[] = [
     { id: 'fy-1', finYear: '2024-2025', fromDate: '2024-04-01', toDate: '2025-03-31', status: 'Active' },
     { id: 'fy-2', finYear: '2025-2026', fromDate: '2025-04-01', toDate: '2026-03-31', status: 'Active' },
@@ -20,29 +17,25 @@ let financialYearsData: FinancialYear[] = [
 
 // --- NEW: Mock Data for Document Numbering ---
 let documentNumberingData: DocumentNumbering[] = [
-    // Vouchers
     { id: 'dn-1', type: 'Voucher', prefix: 'VCH/24-25/', suffix: null, startingNumber: 1, finYearId: 'fy-1', status: 'Active' },
     { id: 'dn-2', type: 'Voucher', prefix: 'VOUCHER/', suffix: '/25-26', startingNumber: 1001, finYearId: 'fy-2', status: 'Active' },
-    // Receipts
     { id: 'dn-3', type: 'Receipt', prefix: 'RECPT/24-25/', suffix: null, startingNumber: 1, finYearId: 'fy-1', status: 'Active' },
     { id: 'dn-4', type: 'Receipt', prefix: 'R/', suffix: '/A', startingNumber: 500, finYearId: 'fy-2', status: 'Active' },
 ];
 
 
 // --- NEW: LOCAL STORAGE PERSISTENCE LOGIC ---
-const LS_OPERATING_COMPANIES_KEY = 'finroots-operatingCompanies';
-const LS_USERS_KEY = 'finroots-users';
+const LS_OPERATING_COMPANIES_KEY = '-operatingCompanies';
+const LS_USERS_KEY = '-users';
 
-// --- MODIFIED: MOCK DATA FOR DESIGNATIONS (isAdvisor REMOVED) ---
 let designationsData: Designation[] = [
     { id: 'des-admin', name: 'Admin', active: true, order: 0 },
     { id: 'des-advisor', name: 'Advisor', active: true, order: 1 },
     { id: 'des-secretary', name: 'Secretary', active: true, order: 2 },
     { id: 'des-support', name: 'Support', active: true, order: 3 },
-    { id: 'des-security', name: 'Security', active: true, order: 4 }, // Example for a user without a role
+    { id: 'des-security', name: 'Security', active: true, order: 4 }, 
 ];
 
-// --- NEW: MOCK DATA FOR ROLES (contains isAdvisor logic) ---
 let rolesData: Role[] = [
     { id: 'role-admin', name: 'System Administrator', isAdvisor: false, active: true, order: 0 },
     { id: 'role-advisor', name: 'Sales Advisor', isAdvisor: true, active: true, order: 1 },
@@ -52,66 +45,58 @@ let rolesData: Role[] = [
 
 // --- NEW: MOCK DATA FOR DOCUMENT RULES ---
 let insuranceTypeDocumentRulesData: InsuranceTypeDocumentRule[] = [
-    // Life Insurance (Parent) requires PAN and Aadhaar
     { id: 'rule-1', insuranceTypeId: 'it-life', documentId: 'doc-1', isMandatory: true }, // PAN Card
     { id: 'rule-2', insuranceTypeId: 'it-life', documentId: 'doc-2', isMandatory: true }, // Aadhaar Card
-    // Term Life (Child) also requires a Bank Statement
-    { id: 'rule-3', insuranceTypeId: 'it-term', documentId: 'doc-5', isMandatory: false }, // Bank Statement (Not Mandatory)
-    // Health Insurance requires Aadhaar
+    { id: 'rule-3', insuranceTypeId: 'it-term', documentId: 'doc-5', isMandatory: false }, // Bank Statement 
     { id: 'rule-4', insuranceTypeId: 'it-health', documentId: 'doc-2', isMandatory: true }, // Aadhaar Card
-    // Motor Insurance requires RC book
-    { id: 'rule-5', insuranceTypeId: 'it-motor', documentId: 'doc-4', isMandatory: true }, // Driving License (as a stand-in for RC)
+    { id: 'rule-5', insuranceTypeId: 'it-motor', documentId: 'doc-4', isMandatory: true }, // Driving License 
 ];
 
 
-// --- MODIFIED: MOCK DATA FOR DESIGNATION PERMISSIONS NOW USES PERMISSIONLEVEL ---
 // --- NOTE: This will later be changed to RolePermissions ---
-// --- MODIFIED: This is now RolePermissionsData and is keyed by roleId ---
 let rolePermissionsData: RolePermissions[] = [
     {
         roleId: 'role-admin',
-        permissions: { // Admin has full modify access
+        permissions: { 
             dashboard: 'modify', 'reports & insights': 'modify', profitAndLoss: 'modify', calendar: 'modify', employees: 'modify', 
             pipeline: 'modify', customers: 'modify', taskManagement: 'modify', policies: 'modify', mutualFunds: 'modify', 
             upselling: 'modify', notes: 'modify', actionHub: 'modify', servicesHub: 'modify', location: 'modify', 
-            chatbot: 'modify', masterMember: 'modify', advancedReports: 'modify', 
+            chatbot: 'modify', masterData: 'modify', advancedReports: 'modify', 
         }
     },
     {
         roleId: 'role-advisor',
-        permissions: { // Advisor has core access but is restricted in some areas
+        permissions: { 
             dashboard: 'view', 'reports & insights': 'view', profitAndLoss: 'create', calendar: 'view', employees: 'none',
             pipeline: 'modify', customers: 'modify', taskManagement: 'modify', policies: 'modify', mutualFunds: 'modify',
             upselling: 'view', notes: 'modify', actionHub: 'modify', servicesHub: 'view', location: 'modify',
-            chatbot: 'modify', masterMember: 'none', advancedReports: 'none',
+            chatbot: 'modify', masterData: 'none', advancedReports: 'none',
         }
     },
     {
         roleId: 'role-secretary',
-        permissions: { // Secretary has limited, specific access
+        permissions: { 
             dashboard: 'view', 'reports & insights': 'none', profitAndLoss: 'none', calendar: 'create', employees: 'none',
             pipeline: 'none', customers: 'create', taskManagement: 'create', policies: 'view', mutualFunds: 'none',
             upselling: 'none', notes: 'create', actionHub: 'none', servicesHub: 'none', location: 'none',
-            chatbot: 'none', masterMember: 'none', advancedReports: 'none',
+            chatbot: 'none', masterData: 'none', advancedReports: 'none',
         }
     },
     {
         roleId: 'role-support',
-        permissions: { // Support has specific access rights
+        permissions: { 
             dashboard: 'view', 'reports & insights': 'view', profitAndLoss: 'none', calendar: 'view', employees: 'view',
             pipeline: 'view', customers: 'view', taskManagement: 'view', policies: 'view', mutualFunds: 'view',
             upselling: 'view', notes: 'view', actionHub: 'view', servicesHub: 'view', location: 'none',
-            chatbot: 'view', masterMember: 'none', advancedReports: 'none',
+            chatbot: 'view', masterData: 'none', advancedReports: 'none',
         }
     }
 ];
 
 // --- UNIFIED DATA SOURCE FOR BRANCHES ---
-// This is now the single source of truth for all branches in the application.
-const finrootsBranchesData: FinRootsBranch[] = [
-    // Finroots Branches
-    { id: 'frb-1', branchName: 'Erode HQ', branchId: 'FIN01-ERD', companyMappings: [], active: true, companyId: 'FIN01', gstin: '33ABCDE1234F1Z5', pan: 'ABCDE1234F', tan: 'ERDF12345G' },
-    { id: 'frb-2', branchName: 'Coimbatore Hub', branchId: 'FIN01-CBE', companyMappings: [], active: true, companyId: 'FIN01', gstin: '33ABCDE1234F1Z6', pan: 'ABCDE1234F', tan: 'CBEF12345G' },
+const BranchesData: Branch[] = [
+    { id: 'frb-1', branch_name: 'Erode HQ', branch_id: 'FIN01-ERD', companyMappings: [], active: true, comp_id: 'FIN01', gstin: '33ABCDE1234F1Z5', pan: 'ABCDE1234F', tan: 'ERDF12345G' },
+    { id: 'frb-2', branch_name: 'Coimbatore Hub', branch_id: 'FIN01-CBE', companyMappings: [], active: true, comp_id: 'FIN01', gstin: '33ABCDE1234F1Z6', pan: 'ABCDE1234F', tan: 'CBEF12345G' },
 ];
 
 
@@ -119,7 +104,7 @@ const finrootsBranchesData: FinRootsBranch[] = [
 const initialCompanies: Company[] = [
     {
         id: 'FIN01',
-        companyCode: 'FIN01',
+        comp_code: 'FIN01',
         name: 'Finroots',
         mailingName: 'Finroots Financial Services Pvt. Ltd.',
         dateOfCreation: '2020-01-01',
@@ -153,12 +138,12 @@ const initialUsers: User[] = [
         designationId: 'des-admin',
         roleId: 'role-admin', // --- ADDED ---
         company: 'Finroots',
-        companyId: 'FIN01',
+        comp_id: 'FIN01',
         initials: 'AU',
          password: 'admin',
         profile: { 
             status: 'Active', 
-            companyId: 'FIN01',
+            comp_id: 'FIN01',
             permissions: {}
         }
     },
@@ -171,12 +156,12 @@ const initialUsers: User[] = [
     designationId: 'des-secretary',
     roleId: 'role-secretary', // --- ADDED ---
     company: 'Finroots',
-    companyId: 'FIN01',
+    comp_id: 'FIN01',
     initials: 'SU',
        password: 'secretary',
     profile: { 
         status: 'Active', 
-        companyId: 'FIN01',
+        comp_id: 'FIN01',
         permissions: {}
     }
     },
@@ -189,14 +174,14 @@ const initialUsers: User[] = [
         designationId: 'des-advisor',
         roleId: 'role-advisor', // --- ADDED ---
         company: 'Finroots',
-        companyId: 'FIN01',
+        comp_id: 'FIN01',
         initials: 'RP',
          password: 'password',
         profile: {
             status: 'Active',
             specializations: [],
-            companyId: 'FIN01',
-            employeeBranchId: 'frb-1', // Erode HQ
+            comp_id: 'FIN01',
+            employeebranch_id: 'frb-1', // Erode HQ
             activeCheckInId: null,
             permissions: {}
         }
@@ -210,14 +195,14 @@ const initialUsers: User[] = [
         designationId: 'des-advisor',
         roleId: 'role-advisor', // --- ADDED ---
         company: 'Finroots',
-        companyId: 'FIN01',
+        comp_id: 'FIN01',
         initials: 'PS',
            password: 'password',
         profile: {
             status: 'Active',
             specializations: ['Life'],
-            companyId: 'FIN01',
-            employeeBranchId: 'frb-2', // Coimbatore Hub
+            comp_id: 'FIN01',
+            employeebranch_id: 'frb-2', // Coimbatore Hub
             activeCheckInId: null,
             permissions: {}
         }
@@ -231,14 +216,14 @@ const initialUsers: User[] = [
         designationId: 'des-advisor',
         roleId: 'role-advisor', // --- ADDED ---
         company: 'Finroots',
-        companyId: 'FIN01',
+        comp_id: 'FIN01',
         initials: 'AS',
          password: 'password',
         profile: {
             status: 'Active',
             specializations: ['Health'],
-            companyId: 'FIN01',
-            employeeBranchId: 'frb-1', // Erode HQ
+            comp_id: 'FIN01',
+            employeebranch_id: 'frb-1', // Erode HQ
             activeCheckInId: null,
             permissions: {
                 'reports & insights': 'modify'
@@ -254,12 +239,12 @@ const initialUsers: User[] = [
         designationId: 'des-support',
         roleId: 'role-support', // --- ADDED ---
         company: 'Finroots',
-        companyId: 'FIN01',
+        comp_id: 'FIN01',
         initials: 'FS',
          password: 'support',
         profile: { 
             status: 'Active', 
-            companyId: 'FIN01',
+            comp_id: 'FIN01',
             permissions: {}
         }
     }
@@ -530,7 +515,7 @@ let members: Member[] = [
           licData: {
               fatherName: 'Rajesh Sharma'
           },
-          companyId: 'FIN01',
+          comp_id: 'FIN01',
           insuranceTypeId: 'it-term'
       }],
       voiceNotes: [],
@@ -561,8 +546,8 @@ let members: Member[] = [
       },
       bankDetails: {},
       company: 'Finroots',
-      companyId: 'FIN01',
-      branchId: 'frb-2', // Coimbatore Hub
+      comp_id: 'FIN01',
+      branch_id: 'frb-2', // Coimbatore Hub
       isSPOC: true,
       familyName: 'The Sharmas',
       religionId: 'rel-1' // Hinduism
@@ -588,7 +573,7 @@ let members: Member[] = [
       active: true,
       panCard: 'FGHIJ5678K',
       aadhaar: '2345 6789 0123',
-      policies: [{ id: 'POL002', policyType: 'Health Insurance', status: 'Active', coverage: 500000, premium: 15000, renewalDate: formatDate(deepaRenewal), renewalLink: 'https://example.com/renew/health', commission: { amount: 1500, status: 'Paid', paidDate: '2024-05-25' }, documentReceived: false, companyId: 'FIN01', insuranceTypeId: 'it-individual-health' }],
+      policies: [{ id: 'POL002', policyType: 'Health Insurance', status: 'Active', coverage: 500000, premium: 15000, renewalDate: formatDate(deepaRenewal), renewalLink: 'https://example.com/renew/health', commission: { amount: 1500, status: 'Paid', paidDate: '2024-05-25' }, documentReceived: false, comp_id: 'FIN01', insuranceTypeId: 'it-individual-health' }],
       voiceNotes: [],
       documents: [],
       checkIns: [],
@@ -611,8 +596,8 @@ let members: Member[] = [
       },
       bankDetails: {},
       company: 'Finroots',
-      companyId: 'FIN01',
-      branchId: 'frb-1', // Erode HQ
+      comp_id: 'FIN01',
+      branch_id: 'frb-1', // Erode HQ
       religionId: 'rel-2' // Christianity
       ,
       country: ''
@@ -637,7 +622,7 @@ let members: Member[] = [
       aadhaar: '3456 7890 1234',
       anniversary: formatDate(kavyaAnniversary), // Dynamic Anniversary
       policies: [
-          { id: 'POL003', policyType: 'General Insurance', generalInsuranceType: 'Motor', status: 'Active', coverage: 350000, premium: 8000, renewalDate: '2024-04-10', commission: { amount: 400, status: 'Paid', paidDate: '2024-04-12' }, documentReceived: true, companyId: 'FIN01', insuranceTypeId: 'it-motor' },
+          { id: 'POL003', policyType: 'General Insurance', generalInsuranceType: 'Motor', status: 'Active', coverage: 350000, premium: 8000, renewalDate: '2024-04-10', commission: { amount: 400, status: 'Paid', paidDate: '2024-04-12' }, documentReceived: true, comp_id: 'FIN01', insuranceTypeId: 'it-motor' },
       ],
       voiceNotes: [],
       documents: [],
@@ -659,8 +644,8 @@ let members: Member[] = [
       financialProfile: {},
       bankDetails: {},
       company: 'Finroots',
-      companyId: 'FIN01',
-      branchId: 'frb-2',
+      comp_id: 'FIN01',
+      branch_id: 'frb-2',
       country: ''
   },
   {
@@ -683,7 +668,7 @@ let members: Member[] = [
       panCard: 'PQRST3456M',
       aadhaar: '4567 8901 2345',
       anniversary: '2025-08-18',
-      policies: [{ id: 'POL004', policyType: 'Life Insurance', status: 'Inactive', coverage: 1000000, premium: 12000, renewalDate: '2024-03-30', commission: { amount: 1000, status: 'Cancelled' }, documentReceived: false, companyId: 'FIN01', insuranceTypeId: 'it-life' }],
+      policies: [{ id: 'POL004', policyType: 'Life Insurance', status: 'Inactive', coverage: 1000000, premium: 12000, renewalDate: '2024-03-30', commission: { amount: 1000, status: 'Cancelled' }, documentReceived: false, comp_id: 'FIN01', insuranceTypeId: 'it-life' }],
       voiceNotes: [],
       documents: [],
       checkIns: [],
@@ -704,8 +689,8 @@ let members: Member[] = [
       financialProfile: {},
       bankDetails: {},
       company: 'Finroots',
-      companyId: 'FIN01',
-      branchId: 'frb-1',
+      comp_id: 'FIN01',
+      branch_id: 'frb-1',
       country: ''
   },
     {
@@ -726,7 +711,7 @@ let members: Member[] = [
         active: true,
         panCard: 'UVXYZ9876A',
         aadhaar: '9876 5432 1098',
-        policies: [{ id: 'POL005', policyType: 'Health Insurance', status: 'Active', coverage: 1650000, premium: 18000, renewalDate: formatDate(vikramRenewal), documentReceived: true, commission: { amount: 1800, status: 'Paid', paidDate: '2024-02-06' }, companyId: 'FIN01', insuranceTypeId: 'it-family-floater' }],
+        policies: [{ id: 'POL005', policyType: 'Health Insurance', status: 'Active', coverage: 1650000, premium: 18000, renewalDate: formatDate(vikramRenewal), documentReceived: true, commission: { amount: 1800, status: 'Paid', paidDate: '2024-02-06' }, comp_id: 'FIN01', insuranceTypeId: 'it-family-floater' }],
         voiceNotes: [],
         documents: [],
         checkIns: [],
@@ -750,8 +735,8 @@ let members: Member[] = [
         },
         bankDetails: {},
         company: 'Finroots',
-        companyId: 'FIN01',
-        branchId: 'frb-1',
+        comp_id: 'FIN01',
+        branch_id: 'frb-1',
         country: ''
     },
    {
@@ -773,8 +758,8 @@ let members: Member[] = [
        panCard: 'BCDEF2345G',
        aadhaar: '8765 4321 0987',
        policies: [
-           { id: 'POL006', policyType: 'Health Insurance', status: 'Active', coverage: 1000000, premium: 22000, renewalDate: '2025-01-20', commission: { amount: 2000, status: 'Paid', paidDate: '2024-01-22' }, documentReceived: true, companyId: 'FIN01', insuranceTypeId: 'it-health' },
-           { id: 'POL007', policyType: 'Life Insurance', status: 'Active', coverage: 2800000, premium: 30000, renewalDate: '2025-01-20', commission: { amount: 3000, status: 'Paid', paidDate: '2024-01-22' }, documentReceived: true, companyId: 'FIN01', insuranceTypeId: 'it-life' }
+           { id: 'POL006', policyType: 'Health Insurance', status: 'Active', coverage: 1000000, premium: 22000, renewalDate: '2025-01-20', commission: { amount: 2000, status: 'Paid', paidDate: '2024-01-22' }, documentReceived: true, comp_id: 'FIN01', insuranceTypeId: 'it-health' },
+           { id: 'POL007', policyType: 'Life Insurance', status: 'Active', coverage: 2800000, premium: 30000, renewalDate: '2025-01-20', commission: { amount: 3000, status: 'Paid', paidDate: '2024-01-22' }, documentReceived: true, comp_id: 'FIN01', insuranceTypeId: 'it-life' }
        ],
        mutualFundHoldings: [
            {
@@ -820,8 +805,8 @@ let members: Member[] = [
        },
        bankDetails: {},
        company: 'Finroots',
-       companyId: 'FIN01',
-       branchId: 'frb-2',
+       comp_id: 'FIN01',
+       branch_id: 'frb-2',
        country: ''
    }
 ];
@@ -871,10 +856,10 @@ members = hydrateInitialData(members);
 // --- END: AUTOMATIC DATA HYDRATION LOGIC ---
 
 let leads: Lead[] = [
-    { id: 'lead-1', name: 'Ravi Kumar', phone: '9876512345', email: 'ravi.k@example.com', leadSource: { sourceId: 'ls-8' }, status: 'Lead', estimatedValue: 15000, assignedTo: 'user-2', createdAt: '2024-07-20T10:00:00Z', notes: 'Interested in a family health plan.', company: 'Finroots', companyId: 'FIN01' },
-    { id: 'lead-2', name: 'Sunita Nair', phone: '9123456780', email: 'sunita.n@example.com', leadSource: { sourceId: 'rt-2', detail: 'Priya Sharma' }, status: 'Contacted', estimatedValue: 25000, assignedTo: 'user-2', createdAt: '2024-07-18T14:30:00Z', notes: 'Referred by Priya Sharma. Follow up next week.', company: 'Finroots', companyId: 'FIN01' },
-    { id: 'lead-3', name: 'Amit Desai', phone: '9988776650', email: 'amit.d@example.com', leadSource: { sourceId: 'ls-4' }, status: 'Meeting Scheduled', estimatedValue: 50000, assignedTo: 'user-2', createdAt: '2024-07-15T11:00:00Z', notes: 'Meeting on Friday at 3 PM to discuss life insurance options.', company: 'Finroots', companyId: 'FIN01' },
-    { id: 'lead-4', name: 'Meera Gupta', phone: '9000011111', email: 'meera.g@example.com', leadSource: { sourceId: 'ls-9' }, status: 'Proposal Sent', estimatedValue: 12000, assignedTo: 'user-2', createdAt: '2024-07-12T09:00:00Z', notes: 'Sent proposal for vehicle insurance. Awaiting response.', company: 'Finroots', companyId: 'FIN01' },
+    { id: 'lead-1', name: 'Ravi Kumar', phone: '9876512345', email: 'ravi.k@example.com', leadSource: { sourceId: 'ls-8' }, status: 'Lead', estimatedValue: 15000, assignedTo: 'user-2', createdAt: '2024-07-20T10:00:00Z', notes: 'Interested in a family health plan.', company: 'Finroots', comp_id: 'FIN01' },
+    { id: 'lead-2', name: 'Sunita Nair', phone: '9123456780', email: 'sunita.n@example.com', leadSource: { sourceId: 'rt-2', detail: 'Priya Sharma' }, status: 'Contacted', estimatedValue: 25000, assignedTo: 'user-2', createdAt: '2024-07-18T14:30:00Z', notes: 'Referred by Priya Sharma. Follow up next week.', company: 'Finroots', comp_id: 'FIN01' },
+    { id: 'lead-3', name: 'Amit Desai', phone: '9988776650', email: 'amit.d@example.com', leadSource: { sourceId: 'ls-4' }, status: 'Meeting Scheduled', estimatedValue: 50000, assignedTo: 'user-2', createdAt: '2024-07-15T11:00:00Z', notes: 'Meeting on Friday at 3 PM to discuss life insurance options.', company: 'Finroots', comp_id: 'FIN01' },
+    { id: 'lead-4', name: 'Meera Gupta', phone: '9000011111', email: 'meera.g@example.com', leadSource: { sourceId: 'ls-9' }, status: 'Proposal Sent', estimatedValue: 12000, assignedTo: 'user-2', createdAt: '2024-07-12T09:00:00Z', notes: 'Sent proposal for vehicle insurance. Awaiting response.', company: 'Finroots', comp_id: 'FIN01' },
 ];
 
 // NEW: In-memory stores for location tracking data
@@ -914,7 +899,7 @@ const cityCoordinates: Record<string, { lat: number; lng: number }> = {
 const simulateDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // --- MODIFICATION BEGINS ---
-export const login = async (company: string, employeeId: string, password_param: string, roleId: string, branchId?: string, financialYearId?: string): Promise<User | null> => {
+export const login = async (company: string, employeeId: string, password_param: string, roleId: string, branch_id?: string, financialYearId?: string): Promise<User | null> => {
     await simulateDelay(200);
 
     const user = users.find(u =>
@@ -936,7 +921,7 @@ export const login = async (company: string, employeeId: string, password_param:
         return null; // Role mismatch
     }
 
-    if (user.profile?.employeeBranchId && user.profile.employeeBranchId !== branchId) {
+    if (user.profile?.employeebranch_id && user.profile.employeebranch_id !== branch_id) {
         return null; // Branch mismatch for any user who has a specific branch assigned.
     }
 
@@ -976,9 +961,9 @@ export const updateDocumentNumbering = async (updatedData: DocumentNumbering[]):
 };
 
 
-export const getUsers = async (companyId?: string): Promise<User[]> => {
+export const getUsers = async (comp_id?: string): Promise<User[]> => {
   await simulateDelay(100);
-  const filteredUsers = companyId ? users.filter(u => u.companyId === companyId) : users;
+  const filteredUsers = comp_id ? users.filter(u => u.comp_id === comp_id) : users;
   return JSON.parse(JSON.stringify(filteredUsers));
 };
 
@@ -994,7 +979,7 @@ export const createEmployee = async (employeeData: Omit<User, 'id' | 'role' | 'i
         role: designationsData.find(d => d.id === employeeData.designationId)?.name || 'Employee',
         initials,
         password: passwordToStore,
-        profile: { status: employeeData.profile?.status || 'Active', ...employeeData.profile, companyId: employeeData.companyId }
+        profile: { status: employeeData.profile?.status || 'Active', ...employeeData.profile, comp_id: employeeData.comp_id }
     };
     users.push(newEmployee);
     return JSON.parse(JSON.stringify(newEmployee));
@@ -1027,9 +1012,9 @@ export const deleteEmployee = async (userId: string): Promise<{ success: true }>
 };
 
 
-export const getMembers = async (companyId?: string, advisorId?: string): Promise<Member[]> => {
+export const getMembers = async (comp_id?: string, advisorId?: string): Promise<Member[]> => {
   await simulateDelay(500);
-  let filteredMembers = companyId ? members.filter(m => m.companyId === companyId) : members;
+  let filteredMembers = comp_id ? members.filter(m => m.comp_id === comp_id) : members;
 
   if (advisorId) {
       filteredMembers = filteredMembers.filter(m =>
@@ -1043,7 +1028,7 @@ export const createMember = async (memberData: Omit<Member, 'id' | 'sno'>): Prom
   await simulateDelay(300);
   const newId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-  const membersOfCompany = members.filter(m => m.companyId === memberData.companyId);
+  const membersOfCompany = members.filter(m => m.comp_id === memberData.comp_id);
   const maxSno = membersOfCompany.length > 0 ? Math.max(...membersOfCompany.map(m => m.sno)) : 0;
   const newSno = maxSno + 1;
 
@@ -1061,7 +1046,7 @@ export const createMember = async (memberData: Omit<Member, 'id' | 'sno'>): Prom
     processStages: memberData.processStages || {},
     stageLastChanged: memberData.stageLastChanged || new Date().toISOString(), // Keep for fallback
     stageLastChangedMap: memberData.stageLastChangedMap || {},
-    companyId: memberData.companyId,
+    comp_id: memberData.comp_id,
     maritalStatus: memberData.maritalStatus || null, // Ensure default
   };
 
@@ -1161,16 +1146,16 @@ export const getLeads = async (): Promise<Lead[]> => {
     return JSON.parse(JSON.stringify(leads));
 };
 
-export const createLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'company' | 'companyId'>, companyId: string): Promise<Lead> => {
+export const createLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'company' | 'comp_id'>, comp_id: string): Promise<Lead> => {
     await simulateDelay(300);
-    const companyName = companies.find(c => c.id === companyId)?.name || 'Unknown';
+    const companyName = companies.find(c => c.id === comp_id)?.name || 'Unknown';
     const newLead: Lead = {
         id: `lead-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         ...leadData,
         createdAt: new Date().toISOString(),
         status: leadData.status || 'Lead',
         company: companyName,
-        companyId: companyId
+        comp_id: comp_id
     };
     leads.push(newLead);
     return JSON.parse(JSON.stringify(newLead));
@@ -1205,7 +1190,7 @@ export const getOperatingCompanies = async (): Promise<Company[]> => {
 export const createOperatingCompany = async (companyData: Omit<Company, 'id'>): Promise<Company> => {
     await simulateDelay(300);
     const newCompany: Company = {
-        id: companyData.companyCode || `COMP-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        id: companyData.comp_code || `COMP-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         ...companyData,
         dateOfCreation: new Date().toISOString().split('T')[0],
         active: true,
@@ -1226,7 +1211,7 @@ export const updateOperatingCompany = async (companyData: Company): Promise<Comp
 
     if (oldCompanyName !== companyData.name) {
         users = users.map(user => {
-            if (user.companyId === companyData.id) {
+            if (user.comp_id === companyData.id) {
                 return { ...user, company: companyData.name };
             }
             return user;
@@ -1239,30 +1224,30 @@ export const updateOperatingCompany = async (companyData: Company): Promise<Comp
 };
 
 // --- Branch API Functions ---
-export const getFinrootsBranches = async (): Promise<FinRootsBranch[]> => {
+export const getBranches = async (): Promise<Branch[]> => {
     await simulateDelay(100);
-    return JSON.parse(JSON.stringify(finrootsBranchesData));
+    return JSON.parse(JSON.stringify(BranchesData));
 };
 
-export const createBranch = async (branchData: Omit<FinRootsBranch, 'id'>): Promise<FinRootsBranch> => {
+export const createBranch = async (branchData: Omit<Branch, 'id'>): Promise<Branch> => {
     await simulateDelay(300);
-    const newBranch: FinRootsBranch = {
+    const newBranch: Branch = {
         id: `frb-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
         ...branchData,
         active: true,
     };
-    finrootsBranchesData.push(newBranch);
+    BranchesData.push(newBranch);
     return JSON.parse(JSON.stringify(newBranch));
 };
 
-export const updateBranch = async (branchData: FinRootsBranch): Promise<FinRootsBranch> => {
+export const updateBranch = async (branchData: Branch): Promise<Branch> => {
     await simulateDelay(300);
-    const index = finrootsBranchesData.findIndex(b => b.id === branchData.id);
+    const index = BranchesData.findIndex(b => b.id === branchData.id);
     if (index === -1) {
         throw new Error('Branch not found');
     }
-    finrootsBranchesData[index] = { ...finrootsBranchesData[index], ...branchData };
-    return JSON.parse(JSON.stringify(finrootsBranchesData[index]));
+    BranchesData[index] = { ...BranchesData[index], ...branchData };
+    return JSON.parse(JSON.stringify(BranchesData[index]));
 };
 
 // --- NEW: Role API Functions ---

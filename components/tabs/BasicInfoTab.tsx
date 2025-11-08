@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Member, User, LeadSource, Route, LeadSourceMaster, Geography, CustomerCategory, CustomerSubCategory, CustomerGroup, FinRootsBranch, Religion, CustomerFieldMaster, Designation, AppModule, PermissionLevel, Gender, MaritalStatus, Role } from '../../types.ts';
+import { Member, User, LeadSource, Route, LeadSourceMaster, Geography, CustomerCategory, CustomerSubCategory, CustomerGroup, Branch, Religion, CustomerFieldMaster, Designation, AppModule, PermissionLevel, Gender, MaritalStatus, Role } from '../../types.ts';
 import Input from '../ui/Input.tsx';
 import Button from '../ui/Button.tsx';
 import { ShieldCheck, Loader2, Info, MapPin, Copy, Target, BrainCircuit, Link as LinkIcon, Plus, Trash2, X } from 'lucide-react';
@@ -460,7 +460,7 @@ interface BasicInfoTabProps {
   customerSubCategories: CustomerSubCategory[];
   customerGroups: CustomerGroup[];
   onAddNewReferrer?: () => void;
-  finrootsBranches: FinRootsBranch[];
+  Branches: Branch[];
   religions: Religion[];
   customerFieldMasters: CustomerFieldMaster[]; 
   onUpdateCustomerFieldMasters: (data: CustomerFieldMaster[]) => void;
@@ -508,7 +508,7 @@ const calculateAge = (dobString: string): number | null => {
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({ 
     data, onChange, errors, addToast, currentUser, users, routes, onUpdateRoutes, 
     allMembers, leadSources, geographies, onUpdateGeographies, customerCategories, 
-    customerSubCategories, customerGroups, onAddNewReferrer, finrootsBranches, 
+    customerSubCategories, customerGroups, onAddNewReferrer, Branches, 
     religions, customerFieldMasters, onUpdateCustomerFieldMasters, designations,
     permissions, genders, maritalStatuses, roles
 }) => {
@@ -538,7 +538,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     })), [advisors]);
   const userMap = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users]);
 
-  const branchOptions = useMemo(() => finrootsBranches.map(branch => ({ value: branch.id, label: branch.branchName })), [finrootsBranches]);
+  const branchOptions = useMemo(() => Branches.map(branch => ({ value: branch.id, label: branch.branch_name })), [Branches]);
   const canToggleStatus = permissions?.customers === 'modify';
 
   const canDeactivate = useMemo(() => {
@@ -1018,8 +1018,8 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                     <SearchableSelect 
                         label="Branch" 
                         options={branchOptions} 
-                        value={data.branchId || ''} 
-                        onChange={(value) => onChange('branchId', value)} 
+                        value={data.branch_id || ''} 
+                        onChange={(value) => onChange('branch_id', value)} 
                         placeholder="Select a branch..." 
                     />
                 </div>

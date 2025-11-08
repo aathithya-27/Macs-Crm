@@ -1,5 +1,5 @@
 import React, { useMemo, useCallback, useState, useRef, useEffect } from 'react';
-import { Member, ModalTab, User, FinRootsBranch, Designation, AppModule, PermissionLevel } from '../types.ts';
+import { Member, ModalTab, User, Branch, Designation, AppModule, PermissionLevel } from '../types.ts';
 import { Edit, Users, Mic, Phone, FileSignature, UserCheck, ArrowUp, ArrowDown, ChevronDown } from 'lucide-react';
 import { ViewIcon } from './ui/Icons.tsx';
 import ToggleSwitch from './ui/ToggleSwitch.tsx';
@@ -13,7 +13,7 @@ interface MemberTableProps {
   onDelete: (memberId: string) => void;
   onToggleStatus: (memberId: string) => void;
   onGenerateReview: (memberId: string) => void;
-  finrootsBranches: FinRootsBranch[];
+  Branches: Branch[];
   sortConfig: { key: string; direction: 'asc' | 'desc' };
   onSort: (key: string) => void;
   designations: Designation[];
@@ -24,7 +24,7 @@ interface MemberTableProps {
 
 const MemberTable: React.FC<MemberTableProps> = ({ 
     members, allMembers, currentUser, users, onEdit, onDelete, 
-    onToggleStatus, onGenerateReview, finrootsBranches, 
+    onToggleStatus, onGenerateReview, Branches, 
     sortConfig, onSort, designations, permissions,
     currentPage = 1, itemsPerPage = 10
 }) => {
@@ -48,7 +48,7 @@ const MemberTable: React.FC<MemberTableProps> = ({
 
   const userMap = useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
   const memberSnoToNameMap = useMemo(() => new Map(allMembers.map(m => [m.sno, m.name])), [allMembers]);
-  const branchMap = useMemo(() => new Map(finrootsBranches.map(b => [b.id, b.branchName])), [finrootsBranches]);
+  const branchMap = useMemo(() => new Map(Branches.map(b => [b.id, b.branch_name])), [Branches]);
   const canToggleStatus = permissions?.customers === 'modify';
 
   const SortableHeader: React.FC<{ sortKey: string; label: string; className?: string; }> = ({ sortKey, label, className = '' }) => (
@@ -129,7 +129,7 @@ const MemberTable: React.FC<MemberTableProps> = ({
         <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
           {members.map((member, index) => {
             const hasMultipleNumbers = !!member.mobile2;
-            const branchName = member.branchId ? branchMap.get(member.branchId) : 'N/A';
+            const branch_name = member.branch_id ? branchMap.get(member.branch_id) : 'N/A';
 
             const parentSpoc = member.spocId ? allMembers.find(m => m.sno === member.spocId) : null;
             const displayFamilyName = parentSpoc ? parentSpoc.familyName : member.familyName;
@@ -166,7 +166,7 @@ const MemberTable: React.FC<MemberTableProps> = ({
                 </div>
               </td>
               {/* --- MODIFICATION ENDS --- */}
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{branchName}</td>
+              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{branch_name}</td>
               <td className="px-6 py-4 whitespace-nowrap">
                   <MemberTypeBadge memberType={member.memberType} />
               </td>
@@ -241,7 +241,7 @@ const MemberTable: React.FC<MemberTableProps> = ({
       <div className="md:hidden p-4 space-y-4">
         {members.map((member, index) => {
           const hasMultipleNumbers = !!member.mobile2;
-          const branchName = member.branchId ? branchMap.get(member.branchId) : 'N/A';
+          const branch_name = member.branch_id ? branchMap.get(member.branch_id) : 'N/A';
 
           const parentSpoc = member.spocId ? allMembers.find(m => m.sno === member.spocId) : null;
           const displayFamilyName = parentSpoc ? parentSpoc.familyName : member.familyName;
@@ -282,7 +282,7 @@ const MemberTable: React.FC<MemberTableProps> = ({
             <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
                  <div>
                     <p className="text-gray-500 dark:text-gray-400 font-medium">Branch</p>
-                    <p className="text-brand-text dark:text-gray-300">{branchName}</p>
+                    <p className="text-brand-text dark:text-gray-300">{branch_name}</p>
                 </div>
                 <div>
                     <p className="text-gray-500 dark:text-gray-400 font-medium">Customer Type</p>

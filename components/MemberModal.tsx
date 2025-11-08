@@ -3,7 +3,7 @@ import { Member, ModalTab, User, Route, ProcessStage, ProcessLog, Policy, BankDe
     Company, DocumentMaster, RelationshipType, LeadSourceMaster, Geography, 
     BankMaster, CustomerCategory, CustomerSubCategory, CustomerGroup, FamilyMemberNode, Task, 
     TaskStatusMaster, TaskMaster, InsuranceTypeMaster, InsuranceFieldMaster, 
-    BusinessVertical, CoveredMember, FinRootsBranch, Religion, CustomerFieldMaster, AMC, 
+    BusinessVertical, CoveredMember, Branch, Religion, CustomerFieldMaster, AMC, 
     MutualFundScheme, MutualFundHolding, MutualFundTransaction, MutualFundFieldMaster, Designation,
     AppModule, PermissionLevel,
     Gender, MaritalStatus, ProcessStageMaster, AccountType, Role, RolePermissions,
@@ -604,7 +604,7 @@ interface MemberModalProps {
   customerFieldMasters: CustomerFieldMaster[];
   onUpdateCustomerFieldMasters: (data: CustomerFieldMaster[]) => void;
   onCreateReferrer: (referrerData: { name: string; mobile: string; email?: string }) => Promise<Member | null>;
-  finrootsBranches: FinRootsBranch[]; 
+  Branches: Branch[]; 
   religions: Religion[]; 
   onAddDocumentMaster: (name: string) => void;
   amcs: AMC[];
@@ -627,7 +627,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     leadSources, geographies, onUpdateGeographies, bankMasters, customerCategories, 
     customerSubCategories, customerGroups, allTasks, taskStatusMasters, taskMasters, 
     insuranceTypes, insuranceFields, onUpdateInsuranceFields, customerFieldMasters, onUpdateCustomerFieldMasters, 
-    onCreateReferrer, finrootsBranches, religions, onAddDocumentMaster, amcs, 
+    onCreateReferrer, Branches, religions, onAddDocumentMaster, amcs, 
     mutualFundSchemes, mutualFundFields, designations, permissions,
     genders, maritalStatuses, accountTypes, roles,
     occasionTypeMasters, onUpdateOccasionTypeMasters
@@ -1079,7 +1079,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                         customerSubCategories={customerSubCategories} 
                         customerGroups={customerGroups} 
                         onAddNewReferrer={() => setIsNewReferrerModalOpen(true)} 
-                        finrootsBranches={finrootsBranches} 
+                        Branches={Branches} 
                         religions={religions}
                         customerFieldMasters={customerFieldMasters}
                         onUpdateCustomerFieldMasters={onUpdateCustomerFieldMasters}

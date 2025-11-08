@@ -35,7 +35,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onSelectRole, theme, toggleTh
                     <div className="p-4 bg-white dark:bg-gray-800 rounded-full shadow-md mb-4">
                         <Shield className="w-16 h-16 text-brand-primary" />
                     </div>
-                    <h1 className="text-5xl font-bold text-gray-900 dark:text-white">FinRoots</h1>
+                    <h1 className="text-5xl font-bold text-gray-900 dark:text-white"></h1>
                     <p className="mt-2 text-lg text-gray-600 dark:text-gray-400">Select your role to continue.</p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-6">

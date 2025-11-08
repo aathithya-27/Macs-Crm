@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Member, VoiceNote, User, Lead, FinRootsBranch, Designation, AppModule, PermissionLevel, Role, Task } from '../types.ts';
+import { Member, VoiceNote, User, Lead, Branch, Designation, AppModule, PermissionLevel, Role, Task } from '../types.ts';
 import { searchVoiceNotes, SearchResult, summarizeTranscript, transcribeAudioToEnglish, summarizeManualText } from '../services/geminiService.ts';
 import Button from './ui/Button.tsx';
 import { NotebookText, Search, BrainCircuit, Loader2, Calendar, Download, FileText, ArrowLeft, Mic, StopCircle, Save, X, Brain, PlusCircle, Trash2, Tag, Languages, RefreshCw, XCircle, PencilLine, Settings2, User as UserIcon, CheckCircle, GripVertical, List, Briefcase, ChevronDown } from 'lucide-react';
@@ -148,7 +148,7 @@ interface NotesPageProps {
   addToast: (message: string, type?: 'success' | 'error') => void;
   currentUser: User | null;
   users: User[];
-  finrootsBranches: FinRootsBranch[];
+  Branches: Branch[];
   designations: Designation[];
   permissions: { [key in AppModule]?: PermissionLevel };
   roles: Role[];
@@ -157,7 +157,7 @@ interface NotesPageProps {
 
 const NotesPage: React.FC<NotesPageProps> = ({ 
     members, leads, onSaveMember, onSaveLeadNote, onCreateTask, addToast, 
-    currentUser, users, finrootsBranches, designations, permissions, roles
+    currentUser, users, Branches, designations, permissions, roles
 }) => {
     const [creatorMode, setCreatorMode] = useState<CreatorMode>('voice');
     const [scribeStatus, setScribeStatus] = useState<ScribeStatus>('idle');

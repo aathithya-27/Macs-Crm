@@ -43,7 +43,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
     { tab: 'servicesHub', path: '/servicesHub', label: 'Services Hub', icon: <Wrench size={20}/> },
     { tab: 'location', path: '/location', label: 'Location Services', icon: <MapPin size={20}/> },
     { tab: 'chatbot', path: '/chatbot', label: 'Chatbot', icon: <MessageSquare size={20}/> },
-    { tab: 'masterMember', path: '/masterMember', label: 'Master Data', icon: <Database size={20} /> }
+    { tab: 'masterData', path: '/masterData', label: 'Master Data', icon: <Database size={20} /> }
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen, setIsSidebarOpen, onLogout, user, permissions }) => {

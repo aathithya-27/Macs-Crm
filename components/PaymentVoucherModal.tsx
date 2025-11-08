@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { Company, Expense, ExpenseCategoryLevel1, ExpenseCategoryLevel2, ExpenseCategoryLevel3, FinRootsBranch, DocumentNumbering } from '../types.ts';
+import { Company, Expense, ExpenseCategoryLevel1, ExpenseCategoryLevel2, ExpenseCategoryLevel3, Branch, DocumentNumbering } from '../types.ts';
 import { Download, X, Plus, Trash2, Save, ChevronDown } from 'lucide-react';
 // @ts-ignore
 import * as htmlToImage from 'https://cdn.skypack.dev/html-to-image';
@@ -20,7 +20,7 @@ export interface VoucherSaveData {
     voucherNo: string;
     date: string;
     payeeName: string;
-    branchId: string;
+    branch_id: string;
     finYearId: string;
     lineItems: VoucherLineItem[];
 }
@@ -29,7 +29,7 @@ interface PaymentVoucherModalProps {
     isOpen: boolean;
     onClose: () => void;
     companyInfo: Company | null;
-    branches: FinRootsBranch[];
+    branches: Branch[];
     expenseCategoriesLevel1: ExpenseCategoryLevel1[];
     expenseCategoriesLevel2: ExpenseCategoryLevel2[];
     expenseCategoriesLevel3: ExpenseCategoryLevel3[];
@@ -146,7 +146,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
     const [voucherNo, setVoucherNo] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [payeeName, setPayeeName] = useState('');
-    const [branchId, setBranchId] = useState<string>(branches.length > 0 ? branches[0].id : '');
+    const [branch_id, setbranch_id] = useState<string>(branches.length > 0 ? branches[0].id : '');
     const [lineItems, setLineItems] = useState<VoucherLineItem[]>([]);
     
     // State for the "Log Expense" form integrated at the top
@@ -194,7 +194,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                 setVoucherNo(firstExpense.voucherNo || `VCH-TEMP-${Date.now()}`); // Use existing number
                 setDate(firstExpense.date);
                 setPayeeName(firstExpense.paidTo || '');
-                setBranchId(firstExpense.branchId || (branches.length > 0 ? branches[0].id : ''));
+                setbranch_id(firstExpense.branch_id || (branches.length > 0 ? branches[0].id : ''));
                 
                 const items = voucherToEdit.map(exp => {
                     const path = [];
@@ -230,7 +230,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                 
                 setDate(new Date().toISOString().split('T')[0]);
                 setPayeeName('');
-                setBranchId(branches.length > 0 ? branches[0].id : '');
+                setbranch_id(branches.length > 0 ? branches[0].id : '');
                 setLineItems([]);
                 setLogExpenseForm({ categoryLevel1Id: '', categoryLevel2Id: '', categoryLevel3Id: '' });
             }
@@ -325,7 +325,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
             voucherNo,
             date,
             payeeName,
-            branchId,
+            branch_id,
             finYearId: activeFinancialYearId,
             lineItems
         };
@@ -359,7 +359,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
 
     if (!isOpen) return null;
 
-    const selectedBranchName = branches.find(b => b.id === branchId)?.branchName || 'Select Branch';
+    const selectedbranch_name = branches.find(b => b.id === branch_id)?.branch_name || 'Select Branch';
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 animate-fade-in">
@@ -400,18 +400,18 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                         <div className="text-center mb-4">
                             <h1 className="text-3xl font-bold">{companyInfo?.name || 'Your Company'}</h1>
                             <div className="flex justify-center items-center text-sm gap-2 mt-1">
-                                <span className="font-semibold">{companyInfo?.companyCode}</span>
+                                <span className="font-semibold">{companyInfo?.comp_code}</span>
                                 <div ref={branchDropdownRef} className="relative inline-block text-left">
                                     <button type="button" onClick={() => setIsBranchDropdownOpen(!isBranchDropdownOpen)} className="inline-flex justify-center items-center w-full rounded-md px-2 py-1 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none disabled:cursor-not-allowed" disabled={!isEditable}>
-                                        {selectedBranchName}
+                                        {selectedbranch_name}
                                         <ChevronDown className="-mr-1 ml-2 h-5 w-5" />
                                     </button>
                                     {isBranchDropdownOpen && (
                                         <div className="origin-top-center absolute left-1/2 -translate-x-1/2 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10">
                                             <div className="py-1" role="menu" aria-orientation="vertical">
                                                 {branches.map(branch => (
-                                                    <a href="#" key={branch.id} onClick={(e) => { e.preventDefault(); setBranchId(branch.id); setIsBranchDropdownOpen(false); }} className="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem">
-                                                        {branch.branchName}
+                                                    <a href="#" key={branch.id} onClick={(e) => { e.preventDefault(); setbranch_id(branch.id); setIsBranchDropdownOpen(false); }} className="text-gray-700 block px-4 py-2 text-sm hover:bg-gray-100" role="menuitem">
+                                                        {branch.branch_name}
                                                     </a>
                                                 ))}
                                             </div>

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
-import { Lead, LeadStatus, LeadStageMaster, User, LeadSource, LeadSourceMaster, FinRootsBranch, PolicyType, InsuranceTypeMaster, AppModule, PermissionLevel, Role } from '../types.ts';
+import { Lead, LeadStatus, LeadStageMaster, User, LeadSource, LeadSourceMaster, Branch, PolicyType, InsuranceTypeMaster, AppModule, PermissionLevel, Role } from '../types.ts';
 import Button from './ui/Button.tsx';
 import { Plus, IndianRupee, Briefcase, Check, X, MoreVertical, ArrowRight, UserPlus, XCircle, Trash2, Clock, CheckCircle, SlidersHorizontal, Lightbulb, Loader2 } from 'lucide-react';
 import MultiSelectDropdown from './ui/MultiSelectDropdown.tsx';
@@ -15,7 +15,7 @@ interface SalesPipelineProps {
     onConvertLead: (lead: Lead) => void;
     leadSources: LeadSourceMaster[];
     onDeleteLead: (leadId: string) => void;
-    finrootsBranches: FinRootsBranch[];
+    Branches: Branch[];
     insuranceTypes: InsuranceTypeMaster[];
     addToast: (message: string, type?: 'success' | 'error') => void;
     permissions: { [key in AppModule]?: PermissionLevel };
@@ -286,7 +286,7 @@ interface FilterPanelProps {
     onApply: () => void;
     onClear: () => void;
     advisors: User[];
-    branches: FinRootsBranch[];
+    branches: Branch[];
     branchOptions: { value: string; label: string }[];
     valueBounds: { min: number; max: number };
     leadSources: LeadSourceMaster[];
@@ -446,7 +446,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ isOpen, onClose, filters, onF
     );
 };
 
-const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadModal, onUpdateLead, onConvertLead, leadSources, onDeleteLead, finrootsBranches, insuranceTypes, addToast, permissions, leadStageMasters, roles }) => {
+const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadModal, onUpdateLead, onConvertLead, leadSources, onDeleteLead, Branches, insuranceTypes, addToast, permissions, leadStageMasters, roles }) => {
     const userMap = useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
     const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
     const [isFindingOpportunityFor, setIsFindingOpportunityFor] = useState<string | null>(null);
@@ -517,9 +517,9 @@ const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadM
             
             if (branches.length > 0) {
                 const hasUnassigned = branches.includes('unassigned');
-                const branchIds = branches.filter(b => b !== 'unassigned');
-                const leadInSelectedBranches = lead.branchId && branchIds.includes(lead.branchId);
-                const leadIsUnassigned = hasUnassigned && (!lead.branchId || lead.branchId === '');
+                const branch_ids = branches.filter(b => b !== 'unassigned');
+                const leadInSelectedBranches = lead.branch_id && branch_ids.includes(lead.branch_id);
+                const leadIsUnassigned = hasUnassigned && (!lead.branch_id || lead.branch_id === '');
     
                 if (!leadInSelectedBranches && !leadIsUnassigned) {
                     return false;
@@ -606,8 +606,8 @@ const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadM
     
     const branchOptionsForFilter = useMemo(() => [
         { value: 'unassigned', label: 'Unassigned / No Branch' },
-        ...finrootsBranches.map(b => ({ value: b.id, label: b.branchName }))
-    ], [finrootsBranches]);
+        ...Branches.map(b => ({ value: b.id, label: b.branch_name }))
+    ], [Branches]);
 
     const activeFilterCount = useMemo(() => {
         let count = 0;
@@ -674,7 +674,7 @@ const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadM
                 onApply={applyFilters}
                 onClear={clearFilters}
                 advisors={advisorsForFilter}
-                branches={finrootsBranches}
+                branches={Branches}
                 branchOptions={branchOptionsForFilter}
                 valueBounds={valueBounds}
                 leadSources={leadSources}

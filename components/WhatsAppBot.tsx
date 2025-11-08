@@ -128,14 +128,14 @@ const Chatbot: React.FC<ChatbotProps> = ({ members, leads, tasks, expenses, manu
   const [selectedSegments, setSelectedSegments] = useState<string[]>([]);
   
   // AI Assistant State
-  const assistantInitialMsg: Message = { id: 1, sender: 'bot', text: "Hello! I am your AI Chatbot Assistant for FinRoots CRM. How can I help you today?" };
+  const assistantInitialMsg: Message = { id: 1, sender: 'bot', text: "Hello! I am your AI Chatbot Assistant for  CRM. How can I help you today?" };
   const [assistantMessages, setAssistantMessages] = useState<Message[]>([assistantInitialMsg]);
   const [assistantInput, setAssistantInput] = useState('');
   const [isAssistantTyping, setIsAssistantTyping] = useState(false);
   const assistantInitialSuggestions = ["Who is Priya Sharma?", "Renewals due this month", "Upsell ideas for Kavya Reddy", "Show my recent expenses"];
 
   // Client Simulator State
-  const simulatorInitialMsg: Message = { id: 1, sender: 'bot', text: "Welcome to FinRoots support! How can I assist you today?" };
+  const simulatorInitialMsg: Message = { id: 1, sender: 'bot', text: "Welcome to  support! How can I assist you today?" };
   const [simulatorMessages, setSimulatorMessages] = useState<Message[]>([simulatorInitialMsg]);
   const [simulatorInput, setSimulatorInput] = useState('');
   const [isSimulatorTyping, setIsSimulatorTyping] = useState(false);

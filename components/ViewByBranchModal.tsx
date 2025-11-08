@@ -21,11 +21,11 @@ export const ViewByBranchModal: React.FC<ViewByBranchModalProps> = ({ isOpen, on
         }
     }, [isOpen, selectedBranches]);
 
-    const handleToggleBranch = (branchId: string) => {
+    const handleToggleBranch = (branch_id: string) => {
         setLocalSelection(prev => 
-            prev.includes(branchId) 
-                ? prev.filter(id => id !== branchId)
-                : [...prev, branchId]
+            prev.includes(branch_id) 
+                ? prev.filter(id => id !== branch_id)
+                : [...prev, branch_id]
         );
     };
 
@@ -74,7 +74,7 @@ export const ViewByBranchModal: React.FC<ViewByBranchModalProps> = ({ isOpen, on
                                 checked={localSelection.includes(branch.id)}
                                 onChange={() => handleToggleBranch(branch.id)}
                             />
-                            <span className="text-sm text-gray-800 dark:text-gray-200">{branch.branchName}</span>
+                            <span className="text-sm text-gray-800 dark:text-gray-200">{branch.branch_name}</span>
                         </label>
                     ))}
                 </div>

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Member, Expense, ManualIncome, User, Policy, IncomeCategoryLevel1, IncomeCategoryLevel2, ExpenseCategoryLevel1, ExpenseCategoryLevel2, ExpenseCategoryLevel3, Company, ManualCommission, FinRootsBranch, InsuranceTypeMaster, AppModule, PermissionLevel, DocumentNumbering, ManualReceipt, FinancialYear } from '../types.ts';
+import { Member, Expense, ManualIncome, User, Policy, IncomeCategoryLevel1, IncomeCategoryLevel2, ExpenseCategoryLevel1, ExpenseCategoryLevel2, ExpenseCategoryLevel3, Company, ManualCommission, Branch, InsuranceTypeMaster, AppModule, PermissionLevel, DocumentNumbering, ManualReceipt, FinancialYear } from '../types.ts';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { IndianRupee, Plus, TrendingUp, TrendingDown, FileText, Download, BarChart2, PieChart as PieChartIcon, Table2, Search, ArrowUpDown, FilePlus2, ChevronDown, X as XIcon, Edit2, Trash2, Lock, Info } from 'lucide-react';
 import PaymentVoucherModal, { VoucherSaveData } from './PaymentVoucherModal.tsx';
@@ -130,7 +130,7 @@ interface ProfitAndLossProps {
     onDeleteManualCommission: (commissionId: string) => void;
     currentUser: User | null;
     companyInfo: Company | null;
-    branches: FinRootsBranch[];
+    branches: Branch[];
     onSaveVoucher: (data: VoucherSaveData) => void;
     insuranceTypes: InsuranceTypeMaster[];
     permissions: { [key in AppModule]?: PermissionLevel };
@@ -817,7 +817,7 @@ const IncomesTab: React.FC<IncomesTabProps> = (props) => {
 };
 
 const ExpensesTab: React.FC<ExpensesTabProps> = ({ expenses, expenseCategoriesLevel1, expenseCategoriesLevel2, expenseCategoriesLevel3, onDeleteExpense, onDeleteVoucher, handleOpenVoucherModal, canCreate, canModify, branches, canCreateNew, creationDisabledReason, activeFY }) => {
-    const [filters, setFilters] = useState({ startDate: '', endDate: '', searchTerm: '', branchId: 'all' });
+    const [filters, setFilters] = useState({ startDate: '', endDate: '', searchTerm: '', branch_id: 'all' });
     const { items: sortedItems, requestSort, sortConfig } = useSortableData(expenses);
 
     const handleDelete = (item: Expense) => {
@@ -859,7 +859,7 @@ const ExpensesTab: React.FC<ExpensesTabProps> = ({ expenses, expenseCategoriesLe
             if (startDate && new Date(exp.date) < startDate) return false;
             if (endDate && new Date(exp.date) > endDate) return false;
 
-            if (filters.branchId !== 'all' && exp.branchId !== filters.branchId) return false;
+            if (filters.branch_id !== 'all' && exp.branch_id !== filters.branch_id) return false;
 
             if (filters.searchTerm) {
                 const searchTerm = filters.searchTerm.toLowerCase();
@@ -1065,7 +1065,7 @@ const FilterControls: React.FC<{
     onFilterChange: (filters: any) => void,
     insuranceTypeOptions?: { value: string; label: string }[],
     schemeNameOptions?: string[],
-    branches?: FinRootsBranch[],
+    branches?: Branch[],
 }> = ({ filters, onFilterChange, insuranceTypeOptions, schemeNameOptions, branches }) => {
     const hasPolicyFilters = insuranceTypeOptions || schemeNameOptions;
     const gridCols = `lg:grid-cols-${3 + (hasPolicyFilters ? 2 : 0) + (branches ? 1 : 0)}`;
@@ -1089,13 +1089,13 @@ const FilterControls: React.FC<{
                  <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Branch</label>
                     <select
-                        value={filters.branchId}
-                        onChange={e => onFilterChange({ ...filters, branchId: e.target.value })}
+                        value={filters.branch_id}
+                        onChange={e => onFilterChange({ ...filters, branch_id: e.target.value })}
                         className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                     >
                         <option value="all">All Branches</option>
                         {branches.map(opt => (
-                            <option key={opt.id} value={opt.id}>{opt.branchName}</option>
+                            <option key={opt.id} value={opt.id}>{opt.branch_name}</option>
                         ))}
                     </select>
                 </div>

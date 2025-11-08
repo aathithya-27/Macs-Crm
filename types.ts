@@ -1,20 +1,17 @@
 import React from 'react';
 
-// --- NEW: Role Interface ---
-// A Role defines a set of permissions and system responsibilities.
 export interface Role {
   id: string;
   name: string;
-  isAdvisor: boolean; // This flag now lives here. It determines core sales/advisory functions.
-  canViewLocationTracker?: boolean; // Permission to view the location tracker tab
+  isAdvisor: boolean; 
+  canViewLocationTracker?: boolean;
   active?: boolean;
   order?: number;
 }
 
-// --- NEW: Financial Year & Document Numbering Types ---
 export interface FinancialYear {
   id: string;
-  finYear: string; // e.g., "2025-2026"
+  finYear: string; 
   fromDate: string;
   toDate: string;
   status: 'Active' | 'Inactive';
@@ -23,19 +20,17 @@ export interface FinancialYear {
 export interface DocumentNumbering {
   id: string;
   type: 'Voucher' | 'Receipt';
-  prefix: string; // The manual "Kword", e.g., "VOUCH/25-26/"
-  // --- MODIFICATION: Added suffix ---
-  suffix?: string | null; // e.g., "/FIN"
+  prefix: string;  
+  suffix?: string | null; 
   startingNumber: number;
   finYearId: string;
   status: 'Active' | 'Inactive';
 }
 
-// --- NEW: Manual Receipt Types (CORRECTED) ---
 export interface ReceiptLineItem {
     id: string;
     description: string;
-    paymentMode: 'Cash' | 'UPI' | 'Cheque' | 'NetBanking'; // MOVED HERE
+    paymentMode: 'Cash' | 'UPI' | 'Cheque' | 'NetBanking'; 
     amount: number;
 }
 
@@ -45,16 +40,14 @@ export interface ManualReceipt {
     date: string;
     receivedFrom: string;
     address?: string;
-    finYearId: string; // Link to the financial year
+    finYearId: string; 
     lineItems: ReceiptLineItem[];
     createdBy: string;
 }
 
 
-// --- NEW: Granular Permission Level Definition ---
 export type PermissionLevel = 'view' | 'create' | 'modify' | 'none';
 
-// --- MODIFIED: Designation & Permission Types ---
 export interface Designation {
   id: string;
   name: string;
@@ -66,13 +59,11 @@ export interface Designation {
 export interface DesignationPermissions {
   designationId: string;
   permissions: {
-    // MODIFIED: Changed from boolean to the new PermissionLevel
     [key in AppModule]?: PermissionLevel;
   };
 }
 
 
-// --- NEW: Religion & Festival Types ---
 
 export interface Religion {
   id: string;
@@ -81,27 +72,23 @@ export interface Religion {
   order?: number;
 }
 
-// MODIFIED: Simplified the Festival interface
 export interface Festival {
   id: string;
   name: string;
-  religionId?: string | null; // Optional link to a Religion
+  religionId?: string | null; 
   active?: boolean;
   order?: number;
 }
 
-// This interface remains the single source for all festival dates.
 export interface FestivalDate {
     id: string;
-    festivalId: string; // Links to the parent Festival
-    date: string; // Full ISO date, e.g., "2024-11-01"
+    festivalId: string; 
+    date: string; 
     year: number;
-    // --- MODIFICATION: Added 'active' property to manage date status individually ---
     active?: boolean;
 }
 
 
-// --- MODIFIED: Employee & User Types ---
 
 export type AdvisorSpecialization = 'Life' | 'Health' | 'Motor' | 'Home' | 'Travel';
 
@@ -120,7 +107,7 @@ export interface AdvisorAddress {
   line1?: string;
   line2?: string;
   line3?: string;
-  country?: string; // MODIFICATION: Added country field
+  country?: string; 
   state?: string;
   district?: string;
   city?: string;
@@ -136,9 +123,7 @@ export interface BankDetails {
     accountNumber?: string;
     cifNumber?: string;
     ifscCode?: string;
-    // --- MODIFICATION START ---
     accountType?: string | '';
-    // --- MODIFICATION END ---
 }
 
 export interface AdvisorDocument {
@@ -149,9 +134,9 @@ export interface AdvisorDocument {
   mimeType: string;
 }
 
-export interface EmployeeProfile { // RENAMED from AdvisorProfile
+export interface EmployeeProfile {
   photoUrl?: string;
-  employeeBranchId?: string;
+  employeebranch_id?: string;
   dateOfBirth?: string;
   dateOfJoining?: string;
   dateOfCreation?: string;
@@ -163,13 +148,13 @@ export interface EmployeeProfile { // RENAMED from AdvisorProfile
   attendance?: { [date: string]: 'Present' | 'Absent' };
   /** @deprecated Use `specializationIds` instead. */
   specializations?: AdvisorSpecialization[];
-  specializationIds?: string[]; // To store selected insurance type IDs
+  specializationIds?: string[]; 
   amcIds?: string[];
-  agentCode?: string; // NEW: To store the agent code for agent appointments
-  branchName?: string;
+  agentCode?: string; 
+  branch_name?: string;
   fatherName?: string;
   motherName?: string;
-  gender?: string | null; // MODIFIED from 'Male' | 'Female' | 'Other';
+  gender?: string | null; 
   workExperienceYears?: number;
   workExperienceMonths?: number;
   industry?: string;
@@ -185,13 +170,10 @@ export interface EmployeeProfile { // RENAMED from AdvisorProfile
   /** @deprecated Use `businessVerticalIds` instead. */
   employeeGroup?: 'LI' | 'HI' | 'GI';
   businessVerticalIds?: string[];
-  companyId?: string;
+  comp_id?: string;
   bankDetails?: BankDetails;
   documents?: AdvisorDocument[];
-  // --- NEW ---
-  activeCheckInId?: string | null; // ID of the current active CheckIn record
-
-  // NEW: User-specific permission overrides
+  activeCheckInId?: string | null;
   permissions?: {
     [key in AppModule]?: PermissionLevel;
   };
@@ -205,16 +187,15 @@ export interface User {
   /** @deprecated Use `designationId` instead. */
   role: string;
   designationId: string;
-  roleId?: string | null; // --- ADDED: This will link a user to their permissions Role ---
+  roleId?: string | null; 
   company: string;
-  companyId: string;
+  comp_id: string;
   initials: string;
   password?: string;
   profile?: EmployeeProfile;
 }
 
 
-// --- Policy & Insurance Types ---
 
 export type ConcretePolicyType = 'Health Insurance' | 'Life Insurance' | 'General Insurance';
 export type PolicyType = ConcretePolicyType | '';
@@ -337,18 +318,15 @@ export interface LICData {
 }
 
 export interface HealthInsuranceData {
-    // Proposer Details
     proposerPanNo?: string;
     proposerAadharNo?: string;
     proposerEmailId?: string;
     proposerPhoneNo?: string;
 
-    // Bank Details
     bankName?: string;
     accountNo?: string;
     ifscCode?: string;
 
-    // Insured Details for Self/Individual
     height?: number;
     weight?: number;
     occupation?: string;
@@ -357,13 +335,11 @@ export interface HealthInsuranceData {
     fatherName?: string;
     motherName?: string;
 
-    // Nominee Details
     nomineeName?: string;
     nomineeRelationship?: string;
     nomineeDob?: string;
     nomineeGender?: 'Male' | 'Female' | 'Other';
 
-    // Medical History Questionnaire
     hadMedicalTreatment?: boolean;
     medicalTreatmentDetails?: string;
     hadSurgery?: boolean;
@@ -371,7 +347,6 @@ export interface HealthInsuranceData {
     onMedication?: boolean;
     medicationDetails?: string;
 
-    // Kept for backward compatibility if needed
     previousPolicies?: LICPreviousPolicy[];
 }
 
@@ -398,7 +373,7 @@ export interface Policy {
   documentReceived?: boolean;
   premiumFrequency?: 'Monthly' | 'Quarterly' | 'Half-Yearly' | 'Yearly';
   premiumAsPerFrequency?: number;
-  companyId?: string;
+  comp_id?: string;
   isLegacyFamilyPolicy?: boolean;
   insuranceTypeId?: string | null;
   policyNumber?: string;
@@ -406,7 +381,7 @@ export interface Policy {
   policyTerm?: number;
   policyTermUnit?: 'Years' | 'Months';
   maturityDate?: string;
-  installmentsPaid?: number; // MODIFIED: Added field to track paid installments
+  installmentsPaid?: number; 
 
   /** @deprecated Use `dynamicData` to store all policy-specific information. */
   licData?: LICData;
@@ -421,7 +396,6 @@ export interface Policy {
 }
 
 
-// --- Member & Customer Types ---
 
 export interface CoveredMember {
     id: string;
@@ -429,7 +403,7 @@ export interface CoveredMember {
     name: string;
     relationship: string;
     dob: string;
-    gender?: string | null; // MODIFIED from 'Male' | 'Female' | 'Transgender' | 'Other';
+    gender?: string | null; 
     email?: string;
     mobile?: string;
     address?: string;
@@ -440,13 +414,11 @@ export interface CoveredMember {
     isGoodHealth?: boolean;
 }
 
-// --- MODIFICATION START: Updated SpecialOccasion to use an ID ---
 export interface SpecialOccasion {
     id: string;
     occasionTypeId: string;
     date: string;
 }
-// --- MODIFICATION END ---
 
 export interface DigipinDetails {
     summary?: string;
@@ -477,9 +449,9 @@ export interface Member {
   name: string;
   memberId: string;
   dob: string;
-  gender?: string | null; // MODIFIED from 'Male' | 'Female' | 'Transgender' | 'Other';
+  gender?: string | null;
   bloodGroup?: 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-';
-  maritalStatus: string | null; // MODIFIED from 'Single' | 'Married' | 'Divorced' | 'Widowed';
+  maritalStatus: string | null;
   mobile: string;
   mobile2?: string;
   email?: string;
@@ -511,25 +483,22 @@ export interface Member {
   assignedTo: string[];
   leadSource?: LeadSource;
   routeId?: string | null;
-  // --- MODIFICATION START ---
   /** @deprecated Use `processStages` instead. A member can have multiple process flows. */
   processStage: ProcessStage;
-  processStages?: Record<string, ProcessStage>; // Key is policy.id or 'mutual-fund'
+  processStages?: Record<string, ProcessStage>; 
   /** @deprecated Use `stageLastChangedMap` instead. */
   stageLastChanged?: string;
-  stageLastChangedMap?: Record<string, string>; // Key is policy.id or 'mutual-fund'
+  stageLastChangedMap?: Record<string, string>;
   /** @deprecated Use `processHistories` instead. */
   processHistory?: ProcessLog[];
-  processHistories?: Record<string, ProcessLog[]>; // Key is policy.id or 'mutual-fund'
-  // --- MODIFICATION END ---
+  processHistories?: Record<string, ProcessLog[]>;
   financialProfile?: FinancialProfile;
   bankDetails?: BankDetails;
   createdBy?: string;
   createdAt?: string;
-  // documentChecklist?: { [key: string]: boolean | string }; // --- REMOVED ---
   company: string;
-  companyId: string;
-  branchId?: string;
+  comp_id: string;
+  branch_id?: string;
   referrerId?: string;
   isReferrerOnly?: boolean;
   customerCategoryId?: string;
@@ -566,29 +535,23 @@ export interface FamilyMemberNode {
 }
 
 
-// --- Lead, Pipeline & Process Types ---
 
 export interface LeadSource {
     sourceId: string | null;
     detail?: string;
 }
 
-// --- MODIFICATION START ---
-// This is now the universal type for a stage name string.
 export type ProcessStage = string;
 
-// This new interface will be used in Master Data to define the stages themselves.
 export interface ProcessStageMaster {
   id: string;
   name: string;
   order: number;
   active: boolean;
-  insuranceTypeId?: string | null; // Links to a main insurance type
-  isMutualFund?: boolean; // Flag for the single MF workflow
+  insuranceTypeId?: string | null; 
+  isMutualFund?: boolean;
 }
-// --- MODIFICATION END ---
 
-// --- NEW: Lead Stage Types ---
 export type LeadStatus = string;
 
 export interface LeadStageMaster {
@@ -597,7 +560,6 @@ export interface LeadStageMaster {
   order: number;
   active: boolean;
 }
-// --- END NEW ---
 
 
 export interface ProcessLog {
@@ -620,7 +582,6 @@ export interface Lead {
     email?: string;
     phone: string;
     leadSource?: LeadSource;
-    // --- MODIFICATION: Changed from hardcoded union to new LeadStatus type ---
     status: LeadStatus;
     estimatedValue: number;
     assignedTo: string;
@@ -634,8 +595,8 @@ export interface Lead {
     policyInterestGeneralType?: GeneralInsuranceType;
     insuranceTypeId?: string | null;
     company: string;
-    companyId: string;
-    branchId?: string;
+    comp_id: string;
+    branch_id?: string;
     followUpDate?: string;
     voiceNotes?: VoiceNote[];
     upsellSuggestion?: string;
@@ -647,7 +608,6 @@ export interface Lead {
 export type PipelineStatus = 'Lead' | 'Contacted' | 'Meeting Scheduled' | 'Proposal Sent';
 
 
-// --- Task, Activity & Notification Types ---
 
 export interface VoiceNote {
     id: string;
@@ -708,7 +668,7 @@ export interface TaskActivityLog {
   timestamp: string;
   action: 'Created' | 'Status Change' | 'Details Updated' | 'Reassigned';
   details: string;
-  by: string; // User ID
+  by: string; 
 }
 
 export interface Task {
@@ -730,7 +690,7 @@ export interface Task {
   active?: boolean;
   activityLog?: TaskActivityLog[];
   originalAssigneeId?: string;
-  scheduledCreationDateTime?: string; // NEW: For scheduling 'Auto' tasks
+  scheduledCreationDateTime?: string;
 }
 
 export interface Notification {
@@ -754,9 +714,8 @@ export interface Notification {
 }
 
 
-// --- App State & UI Types ---
 
-export type Tab = 'dashboard' | 'reports & insights' | 'pipeline' | 'customers' | 'policies' | 'notes' | 'actionHub' | 'location' | 'chatbot' | 'profile' | 'employees' | 'servicesHub' | 'masterMember' | 'taskManagement' | 'profitAndLoss' | 'calendar' | 'advancedReports' | 'upselling' | 'mutualFunds';
+export type Tab = 'dashboard' | 'reports & insights' | 'pipeline' | 'customers' | 'policies' | 'notes' | 'actionHub' | 'location' | 'chatbot' | 'profile' | 'employees' | 'servicesHub' | 'masterData' | 'taskManagement' | 'profitAndLoss' | 'calendar' | 'advancedReports' | 'upselling' | 'mutualFunds';
 export enum ModalTab {
     BasicInfo = 'Basic Info',
     Documents = 'Documents',
@@ -770,13 +729,12 @@ export enum ModalTab {
     Investments = 'Investments'
 }
 
-export enum EmployeeModalTab { // RENAMED from AdvisorModalTab
+export enum EmployeeModalTab { 
     GeneralInfo = 'General Info',
     Address = 'Address',
     Education = 'Education Details',
     Customers = 'Customers',
     Documents = 'Documents',
-    // NEW: Permissions tab for admins to configure user-specific access
     Permissions = 'Permissions'
 }
 export type DashboardTaskTypeFilter = 'all' | 'personal' | 'customer' | 'shared';
@@ -800,19 +758,15 @@ export interface AttendanceRecord {
 export type AttendanceState = Record<string, AttendanceRecord[]>;
 
 
-// --- Automation & Configuration ---
-
-// --- MODIFICATION START: AutomationRule type is now more flexible ---
 export interface AutomationRule {
     id: number;
-    type: string; // Was a hardcoded union, now a string to allow dynamic occasion types
+    type: string;
     timing: { value: number; unit: 'days' | 'weeks'; relation: 'before'; };
     enabled: boolean;
     template: string;
     channels: ('whatsapp' | 'sms' | 'email' | 'call')[];
     icon?: React.ReactElement;
 }
-// --- MODIFICATION END ---
 
 
 export interface CustomScheduledMessage {
@@ -830,7 +784,7 @@ export interface DocTemplate {
 
 /** @deprecated This is replaced by the Role interface. */
 export type DeprecatedRole = 'Admin' | 'Advisor' | 'Support';
-export type AppModule = 'dashboard' | 'reports & insights' | 'profitAndLoss' | 'calendar' | 'employees' | 'pipeline' | 'customers' | 'taskManagement' | 'policies' | 'notes' | 'actionHub' | 'servicesHub' | 'location' | 'chatbot' | 'masterMember' | 'advancedReports' | 'upselling' | 'mutualFunds';
+export type AppModule = 'dashboard' | 'reports & insights' | 'profitAndLoss' | 'calendar' | 'employees' | 'pipeline' | 'customers' | 'taskManagement' | 'policies' | 'notes' | 'actionHub' | 'servicesHub' | 'location' | 'chatbot' | 'masterData' | 'advancedReports' | 'upselling' | 'mutualFunds';
 /** @deprecated Use Role-based permissions instead. */
 export interface RolePermissions {
   roleId: string;
@@ -839,7 +793,6 @@ export interface RolePermissions {
   };
 }
 
-// --- Miscellaneous Types ---
 
 export interface GiftMapping {
     tier: string; 
@@ -848,8 +801,8 @@ export interface GiftMapping {
 
 export interface CustomerTier {
     id: string;
-    name?: string; // Kept for display purposes
-    customerTypeId: string; // REPLACES name for logic
+    name?: string; 
+    customerTypeId: string; 
     minimumSumAssured?: number; 
     minimumPremium?: number; 
     giftId: string | null;
@@ -858,7 +811,6 @@ export interface CustomerTier {
 }
 
 
-// --- START: MUTUAL FUNDS TYPES (REVISED & EXPANDED) ---
 export interface AMC { 
     id: string;
     name: string;
@@ -909,7 +861,6 @@ export interface MutualFundHolding {
 
     dynamicData?: Record<string, any>; 
 }
-// --- END: MUTUAL FUNDS TYPES ---
 
 
 export interface AgentAppointment {
@@ -921,9 +872,8 @@ export interface AgentAppointment {
 }
 
 
-// --- Master Data Management ---
 
-export interface FinRootsCompanyInfo {
+export interface CompanyInfo {
     name: string;
     hq: string;
     cin: string;
@@ -932,7 +882,7 @@ export interface FinRootsCompanyInfo {
 
 export interface Company {
     id: string;
-    companyCode: string;
+    comp_code: string;
     name: string;
     mailingName?: string;
     dateOfCreation?: string;
@@ -946,7 +896,7 @@ export interface Company {
         district?: string;
         area?: string;
         pinCode?: string;
-        country?: string; // MODIFICATION: Added country field
+        country?: string; 
     };
     contact?: {
         phoneNo?: string;
@@ -967,19 +917,29 @@ export interface Company {
     defaultForVehiclePurchaseOrder?: boolean;
 }
 
+// --- MODIFICATION START: New dedicated type for Insurance Agencies ---
+export interface InsuranceAgency {
+    id: string;
+    agencyCode: string;
+    name: string;
+    active?: boolean;
+}
+// --- MODIFICATION END ---
+
+
 export interface BranchCompanyMapping {
     id: string;
-    companyId: string;
-    companyName?: string;
+    comp_id: string;
+    comp_name?: string;
     mappingStatus: boolean;
     finYrClosureAllowed: boolean;
 }
 
-export interface FinRootsBranch {
+export interface Branch {
     id: string;
-    branchId: string;
-    branchName: string;
-    companyId: string;
+    branch_id: string;
+    branch_name: string;
+    comp_id: string;
     active?: boolean;
     dateOfCreation?: string;
     gstin?: string;
@@ -996,7 +956,7 @@ export interface FinRootsBranch {
         pinCode?: string;
         phone?: string;
         fax?: string;
-        country?: string; // MODIFICATION: Added country field
+        country?: string;
     };
     altAddress?: {
         line1?: string;
@@ -1009,7 +969,7 @@ export interface FinRootsBranch {
         pinCode?: string;
         phone?: string;
         fax?: string;
-        country?: string; // MODIFICATION: Added country field
+        country?: string;
     };
     features?: {
         expService?: boolean;
@@ -1027,7 +987,7 @@ export interface BankMaster {
     id: string;
     bankCode: string;
     bankName: string;
-    branchName: string;
+    branch_name: string;
     acGroupCode?: string;
     glCode?: string;
     glDescription?: string;
@@ -1056,7 +1016,6 @@ export interface BankMaster {
 }
 
 
-// --- Master Data - Dropdowns & Mappings ---
 
 export interface BusinessVertical { id: string; name: string; active?: boolean; order?: number; }
 export interface LeadSourceMaster {
@@ -1065,13 +1024,13 @@ export interface LeadSourceMaster {
   parentId: string | null;
   active?: boolean;
   order?: number;
-  allowReferrerSelection?: boolean; // --- THIS IS THE NEW PROPERTY ---
+  allowReferrerSelection?: boolean; 
 }
 export type ReferralType = LeadSourceMaster;
 export interface SchemeMaster { 
     id: string; 
     name: string; 
-    companyId: string; 
+    agencyId: string; 
     active?: boolean; 
     order?: number; 
     type: ConcretePolicyType;
@@ -1079,47 +1038,33 @@ export interface SchemeMaster {
     insuranceTypeId?: string;
 }
 export interface Geography { id: string; name: string; type: 'Country' | 'State' | 'District' | 'City' | 'Area'; parentId: string | null; active?: boolean; }
-// --- MODIFICATION START ---
 export interface TaskStatusMaster { 
     id: string; 
     name: string; 
     active?: boolean; 
     order?: number; 
-    isInitialState?: boolean; // Task moves to this state after being opened
-    isEndState?: boolean;     // This status is considered a final state
+    isInitialState?: boolean; 
+    isEndState?: boolean;     
 }
-// --- MODIFICATION END ---
 export interface GiftMaster { id: string; name: string; active?: boolean; order?: number; }
 export interface RelationshipType { id: string; name: string; active?: boolean; }
 export interface DocumentMaster { id: string; name: string; active?: boolean; order?: number; }
 export interface RelationshipType {id: string; name: string; active?: boolean;  order?: number;}
-// export interface SchemeDocumentMapping { schemeId: string; documentId: string; } // --- REMOVED ---
 export interface CustomerCategory { id: string; name: string; active?: boolean; order?: number; }
 export interface CustomerSubCategory { id: string; name: string; parentId: string; active?: boolean; order?: number; }
 export interface CustomerGroup { id: string; name: string; active?: boolean; order?: number; }
 export interface TaskMaster { id: string; name: string; active?: boolean; order?: number; }
-// --- MODIFICATION START ---
 export interface AccountType { id: string; name: string; active?: boolean; order?: number; }
-// --- MODIFICATION END ---
 
-// --- NEW: Added OccasionTypeMaster for dynamic occasions ---
 export interface OccasionTypeMaster { 
     id: string; 
     name: string; 
     active?: boolean; 
     order?: number; 
 }
-// --- END NEW ---
 
 /** @deprecated Replaced by InsuranceTypeDocumentRule */
-// export interface PolicyChecklistMaster { 
-//     id: string; 
-//     name: string; 
-//     parentId: string | null; 
-//     policyType: string; 
-//     active?: boolean; 
-//     order?: number; 
-// }
+
 export interface Route { id: string; name: string; active?: boolean; order?: number; }
 
 export interface InsuranceTypeMaster {
@@ -1131,14 +1076,12 @@ export interface InsuranceTypeMaster {
     parentId: string | null; 
 }
 
-// --- NEW INTERFACE FOR DOCUMENT RULES ---
 export interface InsuranceTypeDocumentRule {
   id: string;
   insuranceTypeId: string;
   documentId: string;
   isMandatory: boolean;
 }
-// --- END NEW INTERFACE ---
 
 export interface InsuranceFieldMaster {
     id: string;
@@ -1192,7 +1135,6 @@ export interface UpsellCategory {
 }
 
 
-// --- Profit & Loss Module Types ---
 
 export interface IncomeCategoryLevel1 { 
   id: string;
@@ -1243,8 +1185,8 @@ export interface Expense {
   voucherNo?: string; 
   modeOfPayment?: 'Cash' | 'UPI' | 'Net Banking' | 'Cheque';
   expenseHead?: string;
-  branchId?: string;
-  finYearId?: string; // NEW: Link to financial year
+  branch_id?: string;
+  finYearId?: string;
 }
 
 export interface ManualIncome {
@@ -1269,7 +1211,6 @@ export interface ManualCommission {
   createdBy: string;
 }
 
-// --- Location Tracking Types ---
 
 export interface AdvisorLocation {
   advisorId: string;
@@ -1299,7 +1240,6 @@ export interface CheckIn {
   manualCheckInReason?: string; 
 }
 
-// --- NEW MASTER DATA TYPES ---
 export interface Gender {
   id: string;
   name: string;

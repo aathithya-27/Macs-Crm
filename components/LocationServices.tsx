@@ -1290,7 +1290,7 @@ const LocationServices: React.FC<LocationServicesProps> = ({
                             mapTypeControl: false,
                             fullscreenControl: false,
                             zoomControl: true,
-                            mapId: 'FINROOTS_CRM_MAP'
+                            mapId: '_CRM_MAP'
                         }}
                     >
                        {directionsServiceOptions && (

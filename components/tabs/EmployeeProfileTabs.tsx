@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { User, EmployeeProfile, AdvisorEducation, AdvisorAddress, Member, FinRootsBranch, Geography, BankMaster, BusinessVertical, InsuranceTypeMaster, AMC, Designation, AppModule, PermissionLevel, RolePermissions, Gender, AccountType, Role, DocumentMaster } from '../../types.ts';
+import { User, EmployeeProfile, AdvisorEducation, AdvisorAddress, Member, Branch, Geography, BankMaster, BusinessVertical, InsuranceTypeMaster, AMC, Designation, AppModule, PermissionLevel, RolePermissions, Gender, AccountType, Role, DocumentMaster } from '../../types.ts';
 import Input from '../ui/Input.tsx';
 import Button from '../ui/Button.tsx';
 import { Trash2, PlusCircle, X, Users, Copy, Banknote, KeyRound } from 'lucide-react';
@@ -100,7 +100,7 @@ export const GeneralInfoTab: React.FC<{
     data: Partial<User>; 
     onChange: (field: keyof User | 'profile', value: any) => void;
     onSave: (employee: User, closeModal?: boolean) => void;
-    finrootsBranches?: FinRootsBranch[];
+    Branches?: Branch[];
     addToast: (message: string, type?: 'success' | 'error') => void;
     bankMasters: BankMaster[];
     businessVerticals?: BusinessVertical[];
@@ -112,7 +112,7 @@ export const GeneralInfoTab: React.FC<{
     accountTypes: AccountType[]; 
     permissions: { [key in AppModule]?: PermissionLevel };
 }> = ({ 
-    data, onChange, onSave, finrootsBranches, addToast, bankMasters, businessVerticals, 
+    data, onChange, onSave, Branches, addToast, bankMasters, businessVerticals, 
     insuranceTypes, amcs, designations, roles, genders, accountTypes, permissions  
 }) => {
     const profile = data.profile || { status: 'Active' };
@@ -209,10 +209,10 @@ export const GeneralInfoTab: React.FC<{
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Branch</label>
-                    <select value={profile.employeeBranchId || ''} onChange={e => handleProfileChange('employeeBranchId', e.target.value)} className={selectClasses} disabled={!finrootsBranches}>
-                        <option value="">{finrootsBranches ? 'Select Branch...' : 'Branch Info Unavailable'}</option>
-                        {finrootsBranches?.map(branch => (
-                            <option key={branch.id} value={branch.id}>{branch.branchName}</option>
+                    <select value={profile.employeebranch_id || ''} onChange={e => handleProfileChange('employeebranch_id', e.target.value)} className={selectClasses} disabled={!Branches}>
+                        <option value="">{Branches ? 'Select Branch...' : 'Branch Info Unavailable'}</option>
+                        {Branches?.map(branch => (
+                            <option key={branch.id} value={branch.id}>{branch.branch_name}</option>
                         ))}
                     </select>
                 </div>

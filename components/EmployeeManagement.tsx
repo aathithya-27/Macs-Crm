@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { User, Member, FinRootsBranch, AttendanceState, Designation, AppModule, PermissionLevel, Role, AttendanceRecord } from '../types.ts';
+import { User, Member, Branch, AttendanceState, Designation, AppModule, PermissionLevel, Role, AttendanceRecord } from '../types.ts';
 import Button from './ui/Button.tsx';
 import { Plus, Search, Edit, Users, Building, Info, ArrowUp, ArrowDown, Edit2, Briefcase, Clock, X } from 'lucide-react';
 import ToggleSwitch from './ui/ToggleSwitch.tsx';
@@ -64,14 +64,14 @@ interface EmployeeManagementProps {
   onToggleStatus: (userId: string) => void;
   attendance: AttendanceState;
   onUpdateAttendance: (userId: string, status: AttendanceRecord['status'], reason?: string) => void;
-  finrootsBranches: FinRootsBranch[];
+  Branches: Branch[];
   addToast: (message: string, type?: 'success' | 'error') => void;
   designations: Designation[];
   permissions: { [key in AppModule]?: PermissionLevel };
   roles: Role[];
 }
 
-const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembers, onOpenEmployeeModal, onToggleStatus, attendance, onUpdateAttendance, finrootsBranches, addToast, designations, permissions, roles }) => {
+const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembers, onOpenEmployeeModal, onToggleStatus, attendance, onUpdateAttendance, Branches, addToast, designations, permissions, roles }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All Employees' | 'Active' | 'Inactive'>('Active');
   const [branchFilter, setBranchFilter] = useState<string[]>([]);
@@ -89,7 +89,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
     setCurrentPage(1);
   }, [searchQuery, statusFilter, branchFilter]);
   
-  const branchMap = useMemo(() => new Map(finrootsBranches.map(b => [b.id, b.branchName])), [finrootsBranches]);
+  const branchMap = useMemo(() => new Map(Branches.map(b => [b.id, b.branch_name])), [Branches]);
   const designationMap = useMemo(() => new Map(designations.map(d => [d.id, d.name])), [designations]);
   const roleMap = useMemo(() => new Map(roles.map(r => [r.id, r.name])), [roles]);
 
@@ -104,7 +104,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
     }
 
     if (branchFilter.length > 0) {
-        filteredEmployees = filteredEmployees.filter(emp => emp.profile?.employeeBranchId && branchFilter.includes(emp.profile.employeeBranchId));
+        filteredEmployees = filteredEmployees.filter(emp => emp.profile?.employeebranch_id && branchFilter.includes(emp.profile.employeebranch_id));
     }
     
       
@@ -127,8 +127,8 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
                 bValue = new Date(b.profile?.dateOfJoining || 0).getTime();
                 break;
             case 'branch':
-                aValue = branchMap.get(a.profile?.employeeBranchId || '') || 'ZZZ';
-                bValue = branchMap.get(b.profile?.employeeBranchId || '') || 'ZZZ';
+                aValue = branchMap.get(a.profile?.employeebranch_id || '') || 'ZZZ';
+                bValue = branchMap.get(b.profile?.employeebranch_id || '') || 'ZZZ';
                 break;
             case 'attendance':
                 aValue = getTodaysStatus(a.id);
@@ -294,7 +294,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
                             {employee.roleId ? roleMap.get(employee.roleId) : <span className="italic text-gray-400 dark:text-gray-500">None</span>}
                           </td>
                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                             {branchMap.get(employee.profile?.employeeBranchId || '') || 'Unassigned'}
+                             {branchMap.get(employee.profile?.employeebranch_id || '') || 'Unassigned'}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {employee.profile?.dateOfJoining ? new Date(employee.profile.dateOfJoining).toLocaleDateString('en-GB') : 'N/A'}
@@ -366,7 +366,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
       <ViewByBranchModal
         isOpen={isBranchModalOpen}
         onClose={() => setIsBranchModalOpen(false)}
-        branches={finrootsBranches}
+        branches={Branches}
         selectedBranches={branchFilter}
         onApplyFilter={setBranchFilter}
       />

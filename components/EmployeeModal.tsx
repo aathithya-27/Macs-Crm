@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 // MODIFIED: Added Role, RolePermissions
-import { User, EmployeeProfile, EmployeeModalTab, Member, FinRootsBranch, Geography, BankMaster, BusinessVertical, InsuranceTypeMaster, AMC, Designation, Gender, DocumentMaster, AccountType, Role } from '../types.ts';
+import { User, EmployeeProfile, EmployeeModalTab, Member, Branch, Geography, BankMaster, BusinessVertical, InsuranceTypeMaster, AMC, Designation, Gender, DocumentMaster, AccountType, Role } from '../types.ts';
 import Modal from './ui/Modal.tsx';
 import Button from './ui/Button.tsx';
 import Input from './ui/Input.tsx';
@@ -20,7 +20,7 @@ interface EmployeeModalProps {
     addToast: (message: string, type?: 'success' | 'error') => void;
     allMembers: Member[];
     users: User[];
-    finrootsBranches: FinRootsBranch[];
+    Branches: Branch[];
     currentUser: User | null;
     geographies: Geography[];
     onUpdateGeographies: (data: Geography[]) => void;
@@ -37,7 +37,7 @@ interface EmployeeModalProps {
 
 export const EmployeeModal: React.FC<EmployeeModalProps> = ({ 
     isOpen, onClose, employee, onSave, addToast, allMembers, users, 
-    finrootsBranches, currentUser, geographies, onUpdateGeographies, 
+    Branches, currentUser, geographies, onUpdateGeographies, 
     bankMasters, businessVerticals, insuranceTypes, amcs, designations,
     roles, genders, documentMasters, accountTypes
 }) => {
@@ -50,7 +50,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         if (emp) return JSON.parse(JSON.stringify(emp));
 
                       const companyEmployeeIds = users
-            .filter(u => u.companyId === currentUser?.companyId && !isNaN(parseInt(u.employeeId, 10)))
+            .filter(u => u.comp_id === currentUser?.comp_id && !isNaN(parseInt(u.employeeId, 10)))
             .map(u => parseInt(u.employeeId, 10));
     
         const nextIdNumber = companyEmployeeIds.length > 0 ? Math.max(...companyEmployeeIds) + 1 : 1001;
@@ -63,7 +63,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
             designationId: '',
             roleId: null, // --- ADDED ---
             company: currentUser?.company || '',
-            companyId: currentUser?.companyId || '',
+            comp_id: currentUser?.comp_id || '',
             profile: {
                 status: 'Active',
                 dateOfCreation: today,
@@ -71,7 +71,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                 educationDetails: [],
                 permanentAddress: {},
                 localAddress: {},
-                companyId: currentUser?.companyId || '',
+                comp_id: currentUser?.comp_id || '',
                 documents: [],
                 businessVerticalIds: [],
                 specializationIds: [],
@@ -165,7 +165,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
 
     const handleSave = () => {
         if (validateForm()) {
-            if (!employee && users.some(u => u.employeeId === formData.employeeId && u.companyId === formData.companyId)) {
+            if (!employee && users.some(u => u.employeeId === formData.employeeId && u.comp_id === formData.comp_id)) {
                 addToast('An employee with this Employee ID already exists for this company.', 'error');
                 return;
             }
@@ -266,7 +266,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
                         </nav>
                     </div>
                     <div className="pt-6">
-                                               {activeTab === EmployeeModalTab.GeneralInfo && <GeneralInfoTab data={formData} onChange={handleChange} onSave={onSave} finrootsBranches={finrootsBranches} addToast={addToast} bankMasters={bankMasters} businessVerticals={businessVerticals} insuranceTypes={insuranceTypes} amcs={amcs} designations={designations} roles={roles} genders={genders} accountTypes={accountTypes} permissions={{}} />}                        {activeTab === EmployeeModalTab.Address && <AddressTab data={formData} onChange={handleChange} geographies={geographies} onUpdateGeographies={onUpdateGeographies} addToast={addToast} />}
+                                               {activeTab === EmployeeModalTab.GeneralInfo && <GeneralInfoTab data={formData} onChange={handleChange} onSave={onSave} Branches={Branches} addToast={addToast} bankMasters={bankMasters} businessVerticals={businessVerticals} insuranceTypes={insuranceTypes} amcs={amcs} designations={designations} roles={roles} genders={genders} accountTypes={accountTypes} permissions={{}} />}                        {activeTab === EmployeeModalTab.Address && <AddressTab data={formData} onChange={handleChange} geographies={geographies} onUpdateGeographies={onUpdateGeographies} addToast={addToast} />}
                         {activeTab === EmployeeModalTab.Education && <EducationTab data={formData} onChange={handleChange} />}
                         {activeTab === EmployeeModalTab.Documents && <EmployeeDocumentsTab data={formData} onChange={handleChange} addToast={addToast} documentMasters={documentMasters} />}
                         {activeTab === EmployeeModalTab.Customers && isAdvisorRole && <EmployeeCustomersTab employee={formData as User} allMembers={allMembers} users={users} />}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Lead, User, LeadSource, LeadSourceMaster, LeadActivityLog, FinRootsBranch, InsuranceTypeMaster, Member, AppModule, PermissionLevel, Role, LeadStageMaster } from '../types.ts';
+import { Lead, User, LeadSource, LeadSourceMaster, LeadActivityLog, Branch, InsuranceTypeMaster, Member, AppModule, PermissionLevel, Role, LeadStageMaster } from '../types.ts';
 import Modal from './ui/Modal.tsx';
 import Button from './ui/Button.tsx';
 import Input from './ui/Input.tsx';
@@ -125,7 +125,7 @@ interface LeadModalProps {
     currentUser: User | null;
     users: User[];
     leadSources: LeadSourceMaster[];
-    finrootsBranches: FinRootsBranch[];
+    Branches: Branch[];
     insuranceTypes: InsuranceTypeMaster[];
     allMembers: Member[];
     onCreateReferrer: (referrerData: { name: string, mobile: string, email?: string }) => Promise<Member | null>;
@@ -136,7 +136,7 @@ interface LeadModalProps {
 
 const LeadModal: React.FC<LeadModalProps> = ({ 
     isOpen, onClose, lead, onSave, addToast, currentUser, users, 
-    leadSources, finrootsBranches, insuranceTypes, allMembers, 
+    leadSources, Branches, insuranceTypes, allMembers, 
     onCreateReferrer, permissions, roles, leadStageMasters
 }) => {
     const [formData, setFormData] = useState<Partial<Lead>>({});
@@ -177,7 +177,7 @@ const LeadModal: React.FC<LeadModalProps> = ({
             notes: '',
             assignedTo: isCurrentUserAdvisor ? currentUser!.id : '',
             insuranceTypeId: null,
-            branchId: '',
+            branch_id: '',
             followUpDate: '',
             referrerId: undefined,
         };
@@ -222,9 +222,9 @@ const LeadModal: React.FC<LeadModalProps> = ({
         } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
             newErrors.email = 'Please enter a valid email address.';
         }
-        if (!formData.branchId) {
+        if (!formData.branch_id) {
             // @ts-ignore
-            newErrors.branchId = 'Branch is required.';
+            newErrors.branch_id = 'Branch is required.';
         }
         if (!formData.leadSource?.sourceId) {
             // @ts-ignore
@@ -329,18 +329,18 @@ const LeadModal: React.FC<LeadModalProps> = ({
                             </div>
                             
                              <div>
-                                <label htmlFor="branchId" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Branch *</label>
+                                <label htmlFor="branch_id" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Branch *</label>
                                 <select 
-                                    id="branchId" 
-                                    value={formData.branchId || ''} 
-                                    onChange={(e) => handleChange('branchId', e.target.value)} 
+                                    id="branch_id" 
+                                    value={formData.branch_id || ''} 
+                                    onChange={(e) => handleChange('branch_id', e.target.value)} 
                                     className={selectClasses}
                                     disabled={isReadOnly}
                                 >
                                   <option value="">Select Branch...</option>
-                                  {finrootsBranches.map(branch => <option key={branch.id} value={branch.id}>{branch.branchName}</option>)}
+                                  {Branches.map(branch => <option key={branch.id} value={branch.id}>{branch.branch_name}</option>)}
                                 </select>
-                                {errors.branchId && <p className="text-red-600 text-xs mt-1">{errors.branchId as string}</p>}
+                                {errors.branch_id && <p className="text-red-600 text-xs mt-1">{errors.branch_id as string}</p>}
                             </div>
                             
                             <div>

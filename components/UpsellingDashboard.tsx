@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Member, UpsellCategory, InsuranceTypeMaster, User, FinRootsBranch, Role } from '../types';
+import { Member, UpsellCategory, InsuranceTypeMaster, User, Branch, Role } from '../types';
 import { generateUpsellSuggestion } from '../services/geminiService';
 import { CheckCircle, XCircle, Sparkles, Loader2, Search } from 'lucide-react';
 import Modal from './ui/Modal';
@@ -13,7 +13,7 @@ interface UpsellingDashboardProps {
     insuranceTypes: InsuranceTypeMaster[];
     addToast: (message: string, type?: 'success' | 'error') => void;
     users: User[];
-    branches: FinRootsBranch[];
+    branches: Branch[];
     roles: Role[];
 }
 
@@ -141,7 +141,7 @@ const UpsellingDashboard: React.FC<UpsellingDashboardProps> = ({ members, upsell
                 member.memberId.toLowerCase().includes(searchQuery.toLowerCase());
 
             const advisorMatch = selectedAdvisor === 'all' || member.assignedTo.includes(selectedAdvisor);
-            const branchMatch = selectedBranch === 'all' || member.branchId === selectedBranch;
+            const branchMatch = selectedBranch === 'all' || member.branch_id === selectedBranch;
             const productMatch = selectedProductFilter === 'all' || !memberProductStatus.get(member.id)?.has(selectedProductFilter);
 
             return searchMatch && advisorMatch && branchMatch && productMatch;
@@ -234,7 +234,7 @@ const UpsellingDashboard: React.FC<UpsellingDashboardProps> = ({ members, upsell
                      {/* --- MODIFICATION ENDS --- */}
                      <SearchableSelect
                         label="Filter by Branch"
-                        options={[{ value: 'all', label: 'All Branches' }, ...branches.map(b => ({ value: b.id, label: b.branchName }))]}
+                        options={[{ value: 'all', label: 'All Branches' }, ...branches.map(b => ({ value: b.id, label: b.branch_name }))]}
                         value={selectedBranch}
                         onChange={setSelectedBranch}
                     />

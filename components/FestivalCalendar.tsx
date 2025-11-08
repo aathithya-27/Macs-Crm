@@ -122,7 +122,7 @@ const FestivalCalendar: React.FC<FestivalCalendarProps> = ({ allMembers, festiva
         (member.otherSpecialOccasions || []).forEach(occasion => {
             const occDate = new Date(occasion.date);
             occDate.setFullYear(currentYear);
-            events.push({ date: occDate, type: 'Special Occasion', title: `${member.name} - ${occasion.name}`, member: { id: member.id, name: member.name } });
+            events.push({ date: occDate, type: 'Special Occasion', title: `${member.name} - Special Occasion`, member: { id: member.id, name: member.name } });
         });
       }
     });

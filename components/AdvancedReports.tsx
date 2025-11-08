@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Member, Policy, User, Task, Lead, FinRootsBranch, SchemeMaster, Company, Expense, ManualIncome, CustomerTier, AttendanceState, BusinessVertical, TaskStatusMaster, ExpenseCategoryLevel1, ExpenseCategoryLevel2, ExpenseCategoryLevel3, IncomeCategoryLevel1, IncomeCategoryLevel2, CustomerFieldMaster, InsuranceFieldMaster, InsuranceTypeMaster, ManualCommission, Designation, Role, LeadStageMaster, Gender, MaritalStatus } from '../types.ts';
+import { Member, Policy, User, Task, Lead, Branch, SchemeMaster, Company, Expense, ManualIncome, CustomerTier, AttendanceState, BusinessVertical, TaskStatusMaster, ExpenseCategoryLevel1, ExpenseCategoryLevel2, ExpenseCategoryLevel3, IncomeCategoryLevel1, IncomeCategoryLevel2, CustomerFieldMaster, InsuranceFieldMaster, InsuranceTypeMaster, ManualCommission, Designation, Role, LeadStageMaster, Gender, MaritalStatus } from '../types.ts';
 import { Download, FileX, BarChart3, Info, PieChart as PieChartIcon, BarChartHorizontal } from 'lucide-react';
 import Button from './ui/Button.tsx';
 import Input from './ui/Input.tsx';
@@ -21,7 +21,7 @@ interface AdvancedReportsProps {
     users: User[];
     tasks: Task[];
     leads: Lead[];
-    branches: FinRootsBranch[];
+    branches: Branch[];
     schemes: SchemeMaster[];
     companies: Company[];
     expenses: Expense[];
@@ -141,7 +141,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     ], [users]);
     // --- MODIFICATION ENDS ---
 
-    const branchOptions = useMemo(() => [{ value: 'all', label: 'All Branches' }, ...branches.map(b => ({ value: b.branchId, label: b.branchName }))], [branches]);
+    const branchOptions = useMemo(() => [{ value: 'all', label: 'All Branches' }, ...branches.map(b => ({ value: b.branch_id, label: b.branch_name }))], [branches]);
     const policyTypeOptions = useMemo(() => [{ value: 'all', label: 'All Policy Types' }, ...insuranceTypes.filter(it => !it.parentId && it.active).map(it => ({ value: it.id, label: it.name }))], [insuranceTypes]);
     const subTypeOptions = useMemo(() => {
         if (policyTypeFilter === 'all') return [];
@@ -153,7 +153,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     const companyOptions = useMemo(() => [{ value: 'all', label: 'All Agencies' }, ...companies.map(c => ({ value: c.id, label: c.name }))], [companies]);
     const schemeOptions = useMemo(() => {
         const baseOptions = [{ value: 'all', label: 'All Schemes' }];
-        const filteredSchemes = schemes.filter(s => companyFilter === 'all' || s.companyId === companyFilter);
+        const filteredSchemes = schemes.filter(s => companyFilter === 'all' || s.agencyId === companyFilter);
         return [...baseOptions, ...filteredSchemes.map(s => ({ value: s.name, label: s.name }))]
     }, [schemes, companyFilter]);
 
@@ -188,12 +188,12 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     
     const branchMatch = (item: any) => {
         if (branchFilter === 'all') return true;
-        if (item.branchId && item.branchId === branchFilter) return true;
+        if (item.branch_id && item.branch_id === branchFilter) return true;
         
         const employeeId = item.createdBy || item.primaryContactPerson || (Array.isArray(item.assignedTo) ? item.assignedTo[0] : item.assignedTo);
         if (employeeId) {
             const employee = users.find(u => u.id === employeeId);
-            if (employee?.profile?.employeeBranchId === branchFilter) return true;
+            if (employee?.profile?.employeebranch_id === branchFilter) return true;
         }
         return false;
     };
@@ -243,7 +243,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                     if (!createdDate || !isValid(createdDate)) return false;
 
                     const typeMatch = policyTypeFilter === 'all' || (p.insuranceTypeId && relevantTypeIds.has(p.insuranceTypeId));
-                    const companyMatch = companyFilter === 'all' || p.companyId === companyFilter;
+                    const companyMatch = companyFilter === 'all' || p.comp_id === companyFilter;
                     const schemeMatch = schemeFilter === 'all' || p.schemeName === schemeFilter;
                     return (createdDate >= start && createdDate <= end) && advisorMatch(p.member) && branchMatch(p.member) && typeMatch && companyMatch && schemeMatch;
                 });
@@ -285,7 +285,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                         records.forEach(rec => {
                             const recDate = parseISO(rec.timestamp);
                             if (recDate >= start && recDate <= end) {
-                                flatAttendance.push({ ...rec, userName: user.name, branchName: branches.find(b => b.branchId === user.profile?.employeeBranchId)?.branchName || 'N/A' });
+                                flatAttendance.push({ ...rec, userName: user.name, branch_name: branches.find(b => b.branch_id === user.profile?.employeebranch_id)?.branch_name || 'N/A' });
                             }
                         });
                     }
@@ -407,7 +407,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         const base: ReportColumn[] = [
             { key: 'memberId', label: 'Member ID' }, { key: 'name', label: 'Name' }, { key: 'mobile', label: 'Mobile' },
             { key: 'city', label: 'City' }, { key: 'memberType', label: 'Tier' },
-            { key: 'branchId', label: 'Branch', render: (r: Member) => branches.find(b => b.branchId === r.branchId)?.branchName || 'N/A' },
+            { key: 'branch_id', label: 'Branch', render: (r: Member) => branches.find(b => b.branch_id === r.branch_id)?.branch_name || 'N/A' },
             { key: 'assignedTo', label: 'Assigned To', render: (r: Member) => r.assignedTo.map((id: string) => users.find(u=>u.id === id)?.name).join(', ') || 'N/A'},
             { key: 'createdAt', label: 'Creation Date', render: (r: Member) => r.createdAt ? format(parseISO(r.createdAt), 'dd/MM/yyyy') : 'N/A' },
         ];
@@ -516,7 +516,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                 { key: 'date', label: 'Date', render: r => format(parseISO(r.date), 'dd/MM/yyyy') }, { key: 'voucherNo', label: 'Voucher No.' },
                 { key: 'category', label: 'Category', render: r => getExpenseCategoryPath(r) }, { key: 'description', label: 'Description' },
                 { key: 'paidTo', label: 'Paid To' }, { key: 'amount', label: 'Amount', render: r => toLocaleCurrency(r.amount), isNumeric: true },
-                { key: 'branchId', label: 'Branch', render: r => branches.find(b => b.branchId === r.branchId)?.branchName || 'N/A' },
+                { key: 'branch_id', label: 'Branch', render: r => branches.find(b => b.branch_id === r.branch_id)?.branch_name || 'N/A' },
             ],
             income: [
                 { key: 'date', label: 'Date', render: r => format(parseISO(r.date), 'dd/MM/yyyy') },
@@ -526,7 +526,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             ],
             attendance: [
                 { key: 'timestamp', label: 'Date', render: r => format(parseISO(r.timestamp), 'dd/MM/yyyy') },
-                { key: 'userName', label: 'Employee' }, { key: 'branchName', label: 'Branch' }, { key: 'status', label: 'Status' },
+                { key: 'userName', label: 'Employee' }, { key: 'branch_name', label: 'Branch' }, { key: 'status', label: 'Status' },
                 { key: 'reason', label: 'Reason for Absence' },
             ],
             taskPerformance: [

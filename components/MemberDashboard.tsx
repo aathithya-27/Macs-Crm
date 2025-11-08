@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { Member, ModalTab, User, FinRootsBranch, Designation, AppModule, PermissionLevel, Role } from '../types.ts';
+import { Member, ModalTab, User, Branch, Designation, AppModule, PermissionLevel, Role } from '../types.ts';
 import MemberTable from './MemberTable.tsx';
 import Button from './ui/Button.tsx';
 import { Plus, Search, BrainCircuit, Loader2, ArrowLeft, Settings2, Bot } from 'lucide-react';
@@ -20,7 +20,7 @@ interface MemberDashboardProps {
   onToggleStatus: (memberId: string) => void;
   onGenerateReview: (memberId: string) => void;
   addToast: (message: string, type?: 'success' | 'error') => void;
-  finrootsBranches: FinRootsBranch[];
+  Branches: Branch[];
   designations: Designation[];
   permissions: { [key in AppModule]?: PermissionLevel };
   roles: Role[];
@@ -38,7 +38,7 @@ const ITEMS_PER_PAGE = 10;
 const MemberDashboard: React.FC<MemberDashboardProps> = ({ 
     members, allMembers, currentUser, users, onEditMember, onCreateMember, 
     onConversationalCreate, onDeleteMember, onToggleStatus, onGenerateReview, 
-    addToast, finrootsBranches, designations, permissions, roles
+    addToast, Branches, designations, permissions, roles
 }) => {
   const [searchMode, setSearchMode] = useState<SearchMode>('ai');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('Active');
@@ -359,7 +359,7 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({
               onDelete={onDeleteMember}
               onToggleStatus={onToggleStatus}
               onGenerateReview={onGenerateReview}
-              finrootsBranches={finrootsBranches}
+              Branches={Branches}
               sortConfig={sortConfig}
               onSort={handleSort}
               designations={designations}

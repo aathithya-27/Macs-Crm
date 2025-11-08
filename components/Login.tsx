@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Shield, Lock, Sun, Moon, Building, User as UserIcon, GitBranch, Calendar, Award } from 'lucide-react';
 import Button from './ui/Button.tsx';
-import { User as UserType, FinRootsBranch, Company, Designation, FinancialYear, Role } from '../types.ts';
+import { User as UserType, Branch, Company, Designation, FinancialYear, Role } from '../types.ts';
 import Input from './ui/Input.tsx';
 import { login, getFinancialYears } from '../services/apiService.ts';
 
@@ -10,7 +10,7 @@ interface LoginProps {
     onForgotPassword: () => void;
     theme: 'light' | 'dark';
     toggleTheme: () => void;
-    allBranches: FinRootsBranch[];
+    allBranches: Branch[];
     operatingCompanies: Company[];
     roles: Role[];
 }
@@ -18,7 +18,7 @@ interface LoginProps {
 const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleTheme, allBranches, operatingCompanies, roles }) => {
     const [company, setCompany] = useState('');
     const [roleId, setRoleId] = useState('');
-    const [branchId, setBranchId] = useState('');
+    const [branch_id, setbranch_id] = useState('');
     const [employeeId, setEmployeeId] = useState('');
     const [password, setPassword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
@@ -33,11 +33,11 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
     const companyBranches = useMemo(() => {
         const selectedCompany = companyOptions.find(c => c.name === company);
         if (!selectedCompany) return [];
-        return allBranches.filter(b => b.companyId === selectedCompany.id && b.active);
+        return allBranches.filter(b => b.comp_id === selectedCompany.id && b.active);
     }, [company, allBranches, companyOptions]);
 
     useEffect(() => {
-        setBranchId('');
+        setbranch_id('');
     }, [company, roleId]);
     
     useEffect(() => {
@@ -82,7 +82,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
 
         // --- MODIFICATION BEGINS ---
         try {
-            const user = await login(company, employeeId, password, roleId, branchId, financialYearId);
+            const user = await login(company, employeeId, password, roleId, branch_id, financialYearId);
 
             if (user) {
                 if (rememberMe) {
@@ -189,13 +189,13 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                             <GitBranch className="absolute left-3 top-10 h-5 w-5 text-gray-400" />
                             <select
                                 id="branch"
-                                value={branchId}
-                                onChange={(e) => setBranchId(e.target.value)}
+                                value={branch_id}
+                                onChange={(e) => setbranch_id(e.target.value)}
                                 className="w-full pl-10 pr-4 py-2 mt-1 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                             >
                                 <option value="">Select Branch...</option>
                                 {companyBranches.map(branch => (
-                                    <option key={branch.id} value={branch.id}>{branch.branchName}</option>
+                                    <option key={branch.id} value={branch.id}>{branch.branch_name}</option>
                                 ))}
                             </select>
                         </div>

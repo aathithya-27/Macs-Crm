@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef, forwardRef } from 'react';
 import { Search, Calendar, AlertTriangle, CheckCircle, Clock, FileText, X, SlidersHorizontal, ArrowUp, ArrowDown } from 'lucide-react';
-import { Member, Policy, ModalTab, User, FinRootsBranch, InsuranceTypeMaster, Designation, AppModule, PermissionLevel, Role } from '../types.ts';
+import { Member, Policy, ModalTab, User, Branch, InsuranceTypeMaster, Designation, AppModule, PermissionLevel, Role } from '../types.ts';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, endOfYear, eachWeekOfInterval, eachMonthOfInterval, parseISO, Interval, isValid, differenceInMonths } from 'date-fns';
@@ -121,7 +121,7 @@ interface PolicyManagerProps {
   onViewMember: (member: Member, initialTab?: ModalTab) => void;
   addToast: (message: string, type?: 'success' | 'error') => void;
   users: User[];
-  finrootsBranches: FinRootsBranch[];
+  Branches: Branch[];
   insuranceTypes: InsuranceTypeMaster[];
   designations: Designation[];
   permissions: { [key in AppModule]?: PermissionLevel };
@@ -148,7 +148,7 @@ const FilterPanel: React.FC<{
     onApply: () => void;
     onClear: () => void;
     advisors: User[];
-    branches: FinRootsBranch[];
+    branches: Branch[];
     insuranceTypes: InsuranceTypeMaster[];
     valueBounds: { min: number; max: number };
 }> = ({ isOpen, onClose, filters, onFilterChange, onApply, onClear, advisors, branches, insuranceTypes, valueBounds }) => {
@@ -229,7 +229,7 @@ const FilterPanel: React.FC<{
                     {/* --- MODIFICATION BEGINS --- */}
                      <MultiSelectDropdown label="Filter by Advisor" options={advisorOptions} selectedValues={filters.advisors} onChange={selected => onFilterChange(prev => ({...prev, advisors: selected}))} />
                      {/* --- MODIFICATION ENDS --- */}
-                     <MultiSelectDropdown label="Filter by Branch" options={branches.map(b => ({ value: b.id, label: b.branchName }))} selectedValues={filters.branches} onChange={selected => onFilterChange(prev => ({...prev, branches: selected}))} />
+                     <MultiSelectDropdown label="Filter by Branch" options={branches.map(b => ({ value: b.id, label: b.branch_name }))} selectedValues={filters.branches} onChange={selected => onFilterChange(prev => ({...prev, branches: selected}))} />
                 </div>
                 <div className="p-4 border-t dark:border-gray-700 flex justify-between items-center">
                     <Button variant="secondary" onClick={onClear}>Clear All</Button>
@@ -241,7 +241,7 @@ const FilterPanel: React.FC<{
 };
 
 
-const PolicyManager: React.FC<PolicyManagerProps> = ({ members, onRenewPolicy, onViewMember, addToast, users, finrootsBranches, insuranceTypes, designations, permissions, roles }) => {
+const PolicyManager: React.FC<PolicyManagerProps> = ({ members, onRenewPolicy, onViewMember, addToast, users, Branches, insuranceTypes, designations, permissions, roles }) => {
   const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' }>({ key: 'daysLeft', direction: 'asc' });
   const [currentPage, setCurrentPage] = useState(1);
@@ -251,7 +251,7 @@ const PolicyManager: React.FC<PolicyManagerProps> = ({ members, onRenewPolicy, o
   const canModify = permissions?.policies === 'modify';
 
   const userMap = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users]);
-  const branchMap = useMemo(() => new Map(finrootsBranches.map(b => [b.id, b.branchName])), [finrootsBranches]);
+  const branchMap = useMemo(() => new Map(Branches.map(b => [b.id, b.branch_name])), [Branches]);
   const insuranceTypeMap = useMemo(() => new Map(insuranceTypes.map(it => [it.id, it])), [insuranceTypes]);
 
   const getPolicyTypeName = useCallback((insuranceTypeId?: string | null) => {
@@ -316,7 +316,7 @@ const allPolicies = useMemo(() => {
           daysLeft,
           renewalStatus: renewalStatus,
           advisorId: primaryAdvisor?.id,
-          branchId: primaryAdvisor?.profile?.employeeBranchId,
+          branch_id: primaryAdvisor?.profile?.employeebranch_id,
           policyTypeName: getPolicyTypeName(policy.insuranceTypeId),
           balanceInstallments,
         };
@@ -361,7 +361,7 @@ const allPolicies = useMemo(() => {
 
         if (lowercasedSearchTerm) {
             const advisorName = userMap.get(policy.advisorId || '') || '';
-            const branchName = branchMap.get(policy.branchId || '') || '';
+            const branch_name = branchMap.get(policy.branch_id || '') || '';
             const renewalDateString = new Date(policy.renewalDate).toLocaleDateString('en-GB');
 
             const searchMatch = 
@@ -370,7 +370,7 @@ const allPolicies = useMemo(() => {
                 policy.id.toLowerCase().includes(lowercasedSearchTerm) ||
                 (policy.policyTypeName || '').toLowerCase().includes(lowercasedSearchTerm) ||
                 advisorName.toLowerCase().includes(lowercasedSearchTerm) ||
-                branchName.toLowerCase().includes(lowercasedSearchTerm) ||
+                branch_name.toLowerCase().includes(lowercasedSearchTerm) ||
                 policy.premium.toString().includes(lowercasedSearchTerm) ||
                 renewalDateString.includes(lowercasedSearchTerm);
 
@@ -380,7 +380,7 @@ const allPolicies = useMemo(() => {
         const { renewalDateRange, premiumRange, advisors, branches, insuranceTypeIds } = activeFilters;
         
         if (advisors.length > 0 && !advisors.includes(policy.advisorId || '')) return false;
-        if (branches.length > 0 && !branches.includes(policy.branchId || '')) return false;
+        if (branches.length > 0 && !branches.includes(policy.branch_id || '')) return false;
         if (policy.premium < premiumRange.min || policy.premium > premiumRange.max) return false;
 
         const renewalDate = new Date(policy.renewalDate).getTime();
@@ -427,7 +427,7 @@ const allPolicies = useMemo(() => {
             case 'daysLeft': aValue = a.daysLeft; bValue = b.daysLeft; break;
             case 'renewalStatus': aValue = a.renewalStatus; bValue = b.renewalStatus; break;
             case 'advisor': aValue = userMap.get(a.advisorId || '') || 'Z'; bValue = userMap.get(b.advisorId || '') || 'Z'; break;
-            case 'branch': aValue = branchMap.get(a.branchId || '') || 'Z'; bValue = branchMap.get(b.branchId || '') || 'Z'; break;
+            case 'branch': aValue = branchMap.get(a.branch_id || '') || 'Z'; bValue = branchMap.get(b.branch_id || '') || 'Z'; break;
             case 'term': aValue = a.policyTerm || 0; bValue = b.policyTerm || 0; break;
             case 'maturityDate': aValue = a.maturityDate ? new Date(a.maturityDate).getTime() : 0; bValue = b.maturityDate ? new Date(b.maturityDate).getTime() : 0; break;
             case 'balanceInstallments': aValue = a.balanceInstallments ?? -1; bValue = b.balanceInstallments ?? -1; break;
@@ -536,7 +536,7 @@ const allPolicies = useMemo(() => {
         onApply={() => { setActiveFilters(tempFilters); setIsFilterPanelOpen(false); }} 
         onClear={() => { const clearedFilters = { ...initialFilters, premiumRange: { min: valueBounds.min, max: valueBounds.max } }; setActiveFilters(clearedFilters); setTempFilters(clearedFilters); }} 
         advisors={advisorsForFilter} 
-        branches={finrootsBranches} 
+        branches={Branches} 
         insuranceTypes={insuranceTypes} 
         valueBounds={valueBounds}
       />
@@ -616,7 +616,7 @@ const allPolicies = useMemo(() => {
                             </div>
                         </td>
                         {/* --- MODIFICATION ENDS --- */}
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{branchMap.get(policy.branchId || '') || 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{branchMap.get(policy.branch_id || '') || 'N/A'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(policy.premium)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{policy.policyTerm ? `${policy.policyTerm} ${policy.policyTermUnit}` : 'N/A'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-700 dark:text-gray-200">{policy.balanceInstallments ?? 'N/A'}</td>
