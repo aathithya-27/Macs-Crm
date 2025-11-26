@@ -2005,6 +2005,11 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                                         relationshipTypes={relationshipTypes}
                                         leadSources={leadSources}
                                         insuranceTypes={insuranceTypes}
+                                        customerCategories={customerCategories}
+                                        customerSubCategories={customerSubCategories}
+                                        customerGroups={customerGroups}
+                                        religions={religions}
+                                        maritalStatuses={maritalStatuses}
                                         addToast={addToast}
                                     />
                                 } />
