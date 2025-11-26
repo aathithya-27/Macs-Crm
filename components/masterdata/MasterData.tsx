@@ -28,6 +28,7 @@ import MaritalStatusManager from './MaritalStatusManager';
 import CustomerFieldManager from './CustomerFieldManager';
 import TaskTypeManager from './TaskTypeManager';
 import BankMastersManager from './BankMastersManager';
+import CampaignMasterManager from './CampaignMasterManager'; // --- NEW IMPORT ---
 
 import {
     Member, Lead, User, BusinessVertical, LeadSourceMaster, SchemeMaster, Company, Branch, Geography, RelationshipType,
@@ -38,7 +39,7 @@ import {
     Gender, MaritalStatus,InsuranceAgency, CustomerType, ProcessStageMaster, AccountType, FinancialYear, DocumentNumbering, LeadStageMaster, Task
 } from '../../types';
 
-import { Database, GitBranch, Building, SlidersHorizontal, Handshake, HandCoins, UserCog, Award, Lock, UserPlus, Calendar as CalendarIcon, Sparkles, Users, Workflow, HeartHandshake, Globe2, FileTextIcon, Landmark, CheckSquare, Heart, Venus, ArrowUp, ArrowDown, Route as RouteIcon, Layers, ChevronDown } from 'lucide-react';
+import { Database, GitBranch, Building, SlidersHorizontal, Handshake, HandCoins, UserCog, Award, Lock, UserPlus, Calendar as CalendarIcon, Sparkles, Users, Workflow, HeartHandshake, Globe2, FileTextIcon, Landmark, CheckSquare, Heart, Venus, ArrowUp, ArrowDown, Route as RouteIcon, Layers, ChevronDown, Megaphone } from 'lucide-react';
 
 // Props interface
 interface MasterDataProps {
@@ -156,6 +157,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
     const contentContainerRef = useRef<HTMLDivElement>(null);
     const navLinkRefs = useRef(new Map<string, HTMLElement>());
 
+    // General Master Data Permissions
     const permissionLevel = useMemo(() => {
         if (!currentUser || !rolePermissions) return 'none';
         const userPermissions = rolePermissions.find(p => p.roleId === currentUser.roleId);
@@ -165,10 +167,21 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
     const canCreate = permissionLevel === 'create' || permissionLevel === 'modify';
     const canModify = permissionLevel === 'modify';
 
+    // Specific Campaign Permissions
+    const campaignPermissionLevel = useMemo(() => {
+        if (!currentUser || !rolePermissions) return 'none';
+        const userPermissions = rolePermissions.find(p => p.roleId === currentUser.roleId);
+        return userPermissions?.permissions.campaign || 'none';
+    }, [currentUser, rolePermissions]);
+
+    const canCreateCampaign = campaignPermissionLevel === 'create' || campaignPermissionLevel === 'modify';
+    const canModifyCampaign = campaignPermissionLevel === 'modify';
+
     const navItems = useMemo(() => [
         { id: 'companyMaster', path: '/masterData/companyMaster', label: 'Company Master', icon: <Building size={18}/> },
         { id: 'branches', path: '/masterData/branches', label: 'Branch', icon: <GitBranch size={18}/> },
         { id: 'businessVerticals', path: '/masterData/businessVerticals', label: 'Business Vertical', icon: <Layers size={18}/> },
+        { id: 'campaign', path: '/masterData/campaign', label: 'Campaign Master', icon: <Megaphone size={18} /> }, // --- NEW ITEM ---
         { id: 'policyConfiguration', path: '/masterData/policyConfiguration', label: 'Policy Configuration', icon: <SlidersHorizontal size={18}/>},
         { id: 'schemesAndMappings', path: '/masterData/schemesAndMappings', label: 'Agency and Scheme', icon: <Handshake size={18}/> },
         { id: 'mutualFunds', path: '/masterData/mutualFunds', label: 'Mutual Funds', icon: <HandCoins size={18}/> },
@@ -379,6 +392,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                     <Route path="customerMaster" element={<CustomerFieldManager customerFieldMasters={props.customerFieldMasters} onUpdateCustomerFieldMasters={props.onUpdateCustomerFieldMasters} addToast={props.addToast} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="taskMasters" element={<TaskTypeManager taskMasters={props.taskMasters} onUpdateTaskMasters={props.onUpdateTaskMasters} addToast={props.addToast} allTasks={props.allTasks} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="bankMasters" element={<BankMastersManager bankMasters={props.bankMasters} onUpdateBankMasters={props.onUpdateBankMasters} accountTypes={props.accountTypes} onUpdateAccountTypes={props.onUpdateAccountTypes} addToast={props.addToast} allMembers={props.allMembers} canCreate={canCreate} canModify={canModify} />} />
+                    <Route path="campaign" element={<CampaignMasterManager addToast={props.addToast} canCreate={canCreateCampaign} canModify={canModifyCampaign} />} />
                 </Routes>
             </div>
         </div>

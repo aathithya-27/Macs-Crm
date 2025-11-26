@@ -1,7 +1,3 @@
-// SECURITY WARNING: In a production application, this file should not exist on the
-// frontend. API calls to services like Google Gemini should be made from a secure
-// backend server where the API key can be safely stored and managed. Exposing an
-// API key on the client-side is a significant security risk.
 
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { Member, VoiceNote, Policy, UpsellOpportunity, TodaysFocusItem, Lead, FinancialProfile, Task, Expense, ManualIncome, ManualCommission, UpsellCategory } from '../types.ts';
@@ -10,20 +6,15 @@ import { generateDigipin as generateDigipinUtil } from './apiService.ts';
 const simulateDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const fallback_generateDigipinFromCoords = async (lat: number, lng: number): Promise<string> => {
-    // A simple, non-geographic fallback for demonstration.
     return `FB-LOC-${Math.random().toString(16).slice(2, 8).toUpperCase()}`;
 };
 
 
 const fallback_getCoordsFromDigipin = async (digipin: string): Promise<{ lat: number; lng: number } | null> => {
-    // This is a simplified fallback for demonstration purposes.
-    // A more robust fallback could use a local library or a different geocoding service.
     await simulateDelay(400);
-    // Simulate a successful response for a known test location (e.g., Hosur)
     if (digipin === '7J5R9R5Q+5R') {
         return { lat: 12.722, lng: 77.832 };
     }
-    // Simulate failure for other codes
     return null;
 };
 
@@ -34,12 +25,6 @@ if (!process.env.API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || "" });
 
-/**
- * Implements the Soundex algorithm to generate a phonetic code for a string.
- * This helps in finding names that sound similar but are spelled differently.
- * @param s The input string (typically a name).
- * @returns The 4-character Soundex code.
- */
 const soundex = (s: string): string => {
     if (!s) {
         return "";
@@ -64,12 +49,6 @@ const soundex = (s: string): string => {
     return (r + '000').slice(0, 4);
 };
 
-/**
- * Extracts structured data from an image of a document (PAN, Aadhaar) using Gemini.
- * @param base64Image The base64 encoded image string.
- * @param mimeType The MIME type of the image.
- * @returns A promise resolving to an object with extracted data or null.
- */
 export const extractDataFromImage = async (
     base64Image: string, 
     mimeType: string,
@@ -77,7 +56,7 @@ export const extractDataFromImage = async (
 ): Promise<{ idNumber: string; name: string; address: string; phoneNumber: string; dob: string; } | null> => {
     if (!process.env.API_KEY) {
         if(addToast) addToast("Using fallback AI for OCR.", "error");
-        return null; // Fallback for OCR is disabled for brevity
+        return null;
     }
     try {
         const imagePart = {
@@ -124,18 +103,10 @@ Return only the raw JSON object.
 
     } catch (error) {
         console.error("Gemini API error in extractDataFromImage:", error);
-        if(addToast) addToast("Gemini OCR failed, using fallback.", "error");
         return null;
     }
 };
 
-/**
- * Analyzes a payment proof screenshot using Gemini.
- * @param base64Image The base64 encoded image string.
- * @param mimeType The MIME type of the image.
- * @param expectedAmount The premium amount to verify against.
- * @returns A promise that resolves to the extracted payment details.
- */
 export const analyzePaymentProof = async (
     base64Image: string,
     mimeType: string,
@@ -194,7 +165,6 @@ Return a single JSON object. Do not include any other text, explanation, or mark
 
         const jsonStr = response.text.trim();
         const result = JSON.parse(jsonStr);
-        // Additional validation
         if (result.status && ['Verified', 'Mismatch', 'Unverified'].includes(result.status)) {
             return result as Policy['paymentDetails'];
         }
@@ -202,17 +172,10 @@ Return a single JSON object. Do not include any other text, explanation, or mark
 
     } catch (error) {
         console.error("Gemini API error in analyzePaymentProof:", error);
-        if(addToast) addToast("Gemini analysis failed, using fallback.", "error");
         return { transactionId: 'N/A', amount: '0', date: '', status: 'Unverified', statusReason: 'Fallback AI used.' };
     }
 };
 
-/**
- * Generates a Plus Code-like Digipin from coordinates using a simulated AI call.
- * @param lat The latitude.
- * @param lng The longitude.
- * @returns A promise resolving to the generated Digipin string.
- */
 export const generateDigipinFromCoords = async (
     lat: number,
     lng: number,
@@ -223,9 +186,6 @@ export const generateDigipinFromCoords = async (
         return fallback_generateDigipinFromCoords(lat, lng);
     }
     try {
-        // This is a simulation. In a real scenario, you might send coordinates to Gemini
-        // with a prompt asking it to return a Plus Code or a custom smart ID.
-        // For this demo, we use a local utility function to simulate the generation.
         const digipin = generateDigipinUtil(lat, lng);
         return digipin;
     } catch (error) {
@@ -235,24 +195,15 @@ export const generateDigipinFromCoords = async (
     }
 };
 
-/**
- * NEW: Resolves a Plus Code-style Digipin to its latitude and longitude coordinates.
- * This enables the two-way synchronization feature.
- * @param digipin The Plus Code string (e.g., '7J5R9R5Q+5R').
- * @param addToast Optional toast function for user feedback.
- * @returns A promise that resolves to an object with lat and lng, or null on failure.
- */
 export const getCoordsFromDigipin = async (
     digipin: string,
     addToast?: (message: string, type?: 'success' | 'error') => void
 ): Promise<{ lat: number; lng: number } | null> => {
-    // If the API key isn't set, use the fallback mechanism immediately.
     if (!process.env.API_KEY) {
         if (addToast) addToast("Using fallback AI for Digipin resolution.", "error");
         return fallback_getCoordsFromDigipin(digipin);
     }
     try {
-        // Construct a clear prompt for the Gemini API.
         const prompt = `
             You are a highly accurate geocoding service.
             Your task is to resolve the given Google Plus Code (also known as a Digipin) into its corresponding geographic coordinates.
@@ -265,13 +216,12 @@ export const getCoordsFromDigipin = async (
             Do not include any other text, explanation, or markdown formatting. Just the raw JSON object.
         `;
 
-        // Make the API call to Gemini.
         const response: GenerateContentResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
             contents: prompt,
             config: {
                 responseMimeType: 'application/json',
-                temperature: 0, // Set to 0 for deterministic, factual responses.
+                temperature: 0,
                 responseSchema: {
                     type: Type.OBJECT,
                     properties: {
@@ -283,11 +233,9 @@ export const getCoordsFromDigipin = async (
             },
         });
 
-        // Parse the JSON response.
         const jsonStr = response.text.trim();
         const result = JSON.parse(jsonStr);
 
-        // Basic validation to ensure we got numbers back.
         if (typeof result.lat === 'number' && typeof result.lng === 'number') {
             return result;
         } else {
@@ -297,7 +245,6 @@ export const getCoordsFromDigipin = async (
     } catch (error) {
         console.error("Gemini API error in getCoordsFromDigipin:", error);
         if (addToast) addToast("AI Digipin resolution failed, using fallback.", "error");
-        // On any error, revert to the fallback function.
         return fallback_getCoordsFromDigipin(digipin);
     }
 };
@@ -311,12 +258,6 @@ const fallback_enrichDigipinLocation = async (lat: number, lng: number): Promise
     };
 };
 
-/**
- * Enriches a location with a summary and nearby landmarks using Gemini.
- * @param lat The latitude.
- * @param lng The longitude.
- * @returns A promise resolving to an object with a summary and a list of landmarks.
- */
 export const enrichDigipinLocation = async (
     lat: number,
     lng: number,
@@ -364,12 +305,6 @@ export const enrichDigipinLocation = async (
     }
 };
 
-/**
- * Summarizes an uploaded document (image or PDF handled as an image) using Gemini.
- * @param base64Data The base64 encoded document data.
- * @param mimeType The MIME type of the document.
- * @returns A summary of the document.
- */
 export const summarizeDocument = async (
     base64Data: string, 
     mimeType: string,
@@ -399,17 +334,11 @@ export const summarizeDocument = async (
         return response.text.trim();
     } catch (error) {
         console.error("Gemini API error in summarizeDocument:", error);
-        if(addToast) addToast("Gemini summarization failed, using fallback.", "error");
         return 'Fallback: Summarization unavailable.';
     }
 };
 
 
-/**
- * Generates policy suggestions based on a member's profile.
- * @param member The member's data.
- * @returns A string containing policy suggestions.
- */
 export const getPolicySuggestions = async (
     member: Member,
     addToast?: (message: string, type?: 'success' | 'error') => void
@@ -448,17 +377,10 @@ export const getPolicySuggestions = async (
 
     } catch (error) {
         console.error("Gemini API error in getPolicySuggestions:", error);
-        if(addToast) addToast("Gemini suggestions failed, using fallback.", "error");
         return 'Fallback: Consider a top-up health plan.';
     }
 };
 
-/**
- * Filters members based on a natural language query, now with phonetic search.
- * @param query The natural language search query from the user.
- * @param members The full list of members.
- * @returns A promise that resolves to an array of member IDs that match the query.
- */
 export const searchMembersWithNL = async (
     query: string, 
     members: Member[], 
@@ -469,16 +391,14 @@ export const searchMembersWithNL = async (
         return [];
     }
     if (!query) {
-        return members.map(m => m.id); // Return all if query is empty
+        return members.map(m => m.id);
     }
 
-    // Augment member data with Soundex codes for phonetic matching
     const membersWithSoundex = members.map(member => ({
         ...member,
         nameSoundex: soundex(member.name)
     }));
     
-    // Generate a soundex code for the query if it looks like a name
     const querySoundex = soundex(query.split(' ')[0]);
 
     try {
@@ -529,7 +449,6 @@ JSON array of matching IDs:
 
     } catch (error) {
         console.error("Gemini API error in searchMembersWithNL:", error);
-        if(addToast) addToast("Gemini search failed, using basic search.", "error");
         return [];
     }
 };
@@ -543,12 +462,6 @@ interface ChatbotContext {
     manualCommissions: ManualCommission[];
 }
 
-/**
- * Generates a contextual response for the FinBot admin-facing chatbot.
- * @param userMessage The latest message from the user.
- * @param context The full CRM data context.
- * @returns A promise that resolves to the bot's text response.
- */
 export const getChatbotResponse = async (
     userMessage: string, 
     context: ChatbotContext,
@@ -599,11 +512,6 @@ Your response:
     }
 };
 
-/**
- * Generates a response for a client in the simulator, acting as an automated assistant.
- * @param userMessage The message from the simulated client.
- * @returns A promise that resolves to the bot's text response to the client.
- */
 export const getAutomatedClientResponse = async (
     userMessage: string,
     addToast?: (message: string, type?: 'success' | 'error') => void
@@ -631,25 +539,18 @@ Your response:
             contents: prompt,
             config: {
                 temperature: 0.6,
-                thinkingConfig: { thinkingBudget: 0 } // faster response for client chat
+                thinkingConfig: { thinkingBudget: 0 }
             }
         });
 
         return response.text;
     } catch (error) {
         console.error("Gemini API error in getAutomatedClientResponse:", error);
-        if(addToast) addToast("Gemini client chat failed, using fallback.", "error");
         return 'Fallback: An agent will be with you shortly.';
     }
 };
 
 
-/**
- * Generates an optimal route for visiting multiple customers.
- * @param customers The list of customers to visit, including their locations.
- * @param userLocation The starting location of the user.
- * @returns A promise that resolves to an ordered array of customer IDs.
- */
 export const getOptimalRoute = async (
     customers: Member[], 
     userLocation: { lat: number, lng: number },
@@ -685,7 +586,7 @@ JSON array of optimally ordered customer IDs:
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
-                temperature: 0.1, // Low temperature for deterministic routing
+                temperature: 0.1,
                 responseSchema: {
                     type: Type.ARRAY,
                     items: {
@@ -700,30 +601,20 @@ JSON array of optimally ordered customer IDs:
         const result = JSON.parse(jsonStr);
 
         if (Array.isArray(result) && result.every(item => typeof item === 'string')) {
-            // Basic validation to ensure all requested IDs are returned
             if(result.length === customers.length && result.every(id => customers.find(c => c.id === id))) {
                return result;
             }
         }
         
          console.error("AI response for routing was not a valid array of all customer IDs:", result);
-        if(addToast) addToast("Gemini routing failed, using fallback.", "error");
         return [];
 
     } catch (error) {
         console.error("Gemini API error in getOptimalRoute:", error);
-        if(addToast) addToast("Gemini routing failed, using fallback.", "error");
         return [];
     }
 };
 
-/**
- * Finds clients located on a plausible travel route between two locations.
- * @param startLocationName The name of the starting location (e.g., "Erode, Tamil Nadu").
- * @param endLocationName The name of the ending location (e.g., "Coimbatore, Tamil Nadu").
- * @param members The full list of members.
- * @returns A promise that resolves to an array of member IDs that are on the route.
- */
 export const findClientsOnRoute = async (
     startLocationName: string, 
     endLocationName: string, 
@@ -787,24 +678,15 @@ JSON array of matching customer IDs on the route:
             return result;
         } else {
                  console.error("AI response was not a valid array of strings:", result);
-            if(addToast) addToast("Gemini path finding failed, using fallback.", "error");
             return [];
         }
 
     } catch (error) {
         console.error("Gemini API error in findClientsOnRoute:", error);
-        if(addToast) addToast("Gemini path finding failed, using fallback.", "error");
         return [];
     }
 };
 
-/**
- * Transcribes an audio file to English text using Gemini.
- * It can handle multiple source languages (English, Hindi, Tamil, Telugu, Malayalam).
- * @param base64Audio The base64 encoded audio string.
- * @param mimeType The MIME type of the audio file.
- * @returns A promise that resolves to the English transcript.
- */
 export const transcribeAudioToEnglish = async (
     base64Audio: string, 
     mimeType: string,
@@ -842,13 +724,6 @@ export const transcribeAudioToEnglish = async (
     }
 };
 
-/**
- * Summarizes a voice transcript using the Gemini API.
- * @param transcript The raw text transcript.
- * @param clientName The name of the client.
- * @param previousSummaries Optional array of previous summaries for context.
- * @returns A promise that resolves to a structured VoiceNote object.
- */
 export const summarizeTranscript = async (
     transcript: string, 
     clientName: string, 
@@ -934,7 +809,6 @@ ${transcript}
         return JSON.parse(jsonStr);
 
     } catch (error) {
-        if(addToast) addToast("Gemini quota exceeded. Using fallback for summarization.", "error");
         return null;
     }
 };
@@ -1019,12 +893,6 @@ Instructions:
     }
 };
 
-/**
- * Analyzes a competitor's policy document and suggests talking points.
- * @param base64Data The base64 encoded document data.
- * @param mimeType The MIME type of the document.
- * @returns A string containing talking points.
- */
 export const analyzeCompetitorPolicy = async (
     base64Data: string, 
     mimeType: string,
@@ -1064,17 +932,11 @@ If the document is unclear, state that.
         return response.text.trim();
     } catch (error) {
         console.error("Gemini API error in analyzeCompetitorPolicy:", error);
-        if(addToast) addToast("Gemini competitor analysis failed, using fallback.", "error");
         return 'Fallback: Competitor analysis unavailable.';
     }
 };
 
 
-/**
- * Forecasts customer growth for the next 3 months.
- * @param historicalData An array of past customer growth data.
- * @returns A promise that resolves to an array of forecast data.
- */
 export const forecastCustomerGrowth = async (
     historicalData: { name: string, Customers: number }[],
     addToast?: (message: string, type?: 'success' | 'error') => void
@@ -1122,12 +984,6 @@ export const forecastCustomerGrowth = async (
 };
 
 
-/**
- * Suggests an efficient trip to visit a cluster of nearby clients.
- * @param userLocation The user's current location.
- * @param members The full list of members.
- * @returns A promise that resolves to an array of 3-4 ordered client IDs.
- */
 export const suggestSmartTrip = async (
     userLocation: { lat: number, lng: number }, 
     members: Member[],
@@ -1168,17 +1024,10 @@ export const suggestSmartTrip = async (
 
     } catch (error) {
         console.error("Gemini API error in suggestSmartTrip:", error);
-        if(addToast) addToast("Gemini trip suggestion failed, using fallback.", "error");
         return [];
     }
 };
 
-/**
- * Generates a comprehensive annual review for a client using Gemini.
- * @param member The member data.
- * @param allOpportunities The list of all upsell opportunities.
- * @returns A promise that resolves to the formatted review text.
- */
 export const generateAnnualReview = async (
     member: Member, 
     allOpportunities: UpsellOpportunity[],
@@ -1245,18 +1094,11 @@ export const generateAnnualReview = async (
 
     } catch (error) {
         console.error("Gemini API error in generateAnnualReview:", error);
-        if(addToast) addToast("Gemini review generation failed, using fallback.", "error");
         return "Fallback: Annual review generation unavailable.";
     }
 };
 
 
-/**
- * Summarizes a manually typed text note using the Gemini API.
- * @param manualText The raw text of the note.
- * @param clientName The name of the client.
- * @returns A promise that resolves to a structured VoiceNote-like object.
- */
 export const summarizeManualText = async (
     manualText: string, 
     clientName: string,
@@ -1328,16 +1170,10 @@ ${manualText}
         return JSON.parse(jsonStr);
 
     } catch (error) {
-        if(addToast) addToast("Gemini note summarization failed. Using fallback.", "error");
         return { client: clientName, recording_date: new Date().toISOString(), summary: manualText, transcript_snippet: manualText, detected_language: 'N/A', tags: [], status: 'Fallback', actionItems: [] };
     }
 };
 
-/**
- * Generates a prioritized list of focus items for the advisor's dashboard.
- * @param context An object containing all relevant CRM data.
- * @returns A promise that resolves to an array of TodaysFocusItem objects.
- */
 export const generateTodaysFocus = async (
     context: {
         members: Member[];
@@ -1411,12 +1247,6 @@ Return a valid JSON array of objects. Do not include any other text or explanati
     }
 };
 
-/**
- * Parses natural language input to extract member details and generate a follow-up question.
- * @param userInput The user's text input.
- * @param accumulatedData The data already collected for the member.
- * @returns A promise resolving to an object with new member data and a follow-up question.
- */
 export const parseNaturalLanguageToMember = async (
     userInput: string,
     accumulatedData: Partial<Member>,
@@ -1487,11 +1317,6 @@ Your response MUST be a valid JSON object. Do not include any other text.
     }
 };
 
-/**
- * Generates a financial health report based on a member's profile.
- * @param member The member data.
- * @returns A promise that resolves to the formatted report text.
- */
 export const generateFinancialHealthReport = async (member: Member, addToast?: (message: string, type?: 'success' | 'error') => void): Promise<string> => {
     if (!process.env.API_KEY) {
         if (addToast) addToast("Using fallback for report generation.", "error");
@@ -1537,11 +1362,6 @@ Keep the tone professional, helpful, and easy to understand. Do not invent data 
     }
 };
 
-/**
- * Generates upsell opportunities for a selection of members.
- * @param members The list of all members.
- * @returns A promise resolving to an array of UpsellOpportunity objects.
- */
 export const generateUpsellOpportunities = async (
     members: Member[],
     addToast?: (message: string, type?: 'success' | 'error') => void
@@ -1551,8 +1371,6 @@ export const generateUpsellOpportunities = async (
         return [];
     }
 
-    // To be efficient, let's select up to 3 interesting members for this demo.
-    // e.g., Gold+ tier members or members with only one policy.
     const interestingMembers = members
         .filter(m => m.active && (['Gold', 'Diamond', 'Platinum'].includes(m.memberType) || m.policies.length === 1))
         .slice(0, 3);
@@ -1631,11 +1449,6 @@ Your JSON array output:
     }
 };
 
-/**
- * Generates an upsell opportunity for a single member.
- * @param member The member to analyze.
- * @returns A promise resolving to an UpsellOpportunity object or null.
- */
 export const generateUpsellOpportunityForMember = async (
     member: Member,
     addToast?: (message: string, type?: 'success' | 'error') => void
@@ -1706,11 +1519,6 @@ If no clear opportunity is found, return an object with an empty "suggestions" s
     }
 };
 
-/**
- * Generates an upsell/cross-sell opportunity for a single lead.
- * @param lead The lead to analyze.
- * @returns A promise resolving to a string suggestion or null.
- */
 export const generateUpsellOpportunityForLead = async (
     lead: Lead,
     addToast?: (message: string, type?: 'success' | 'error') => void
@@ -1775,12 +1583,6 @@ If no clear opportunity is found, return an object with an empty "suggestions" s
     }
 };
 
-/**
- * NEW: Generates a tailored upsell suggestion and sales pitch for a specific customer.
- * @param member The customer to analyze.
- * @param upsellCategories The list of all possible product categories.
- * @returns A promise resolving to an object with the suggestion and a sales pitch.
- */
 export const generateUpsellSuggestion = async (
     member: Member,
     upsellCategories: UpsellCategory[],

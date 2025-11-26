@@ -1,6 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
-import { ResponsiveContainer, LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, AreaChart, Area } from 'recharts';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -12,7 +11,6 @@ import {
   Legend as ChartJsLegend,
   Filler,
 } from 'chart.js';
-import { Line as ChartJsLine } from 'react-chartjs-2';
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -23,6 +21,7 @@ ChartJS.register(
   ChartJsLegend,
   Filler
 );
+
 import MemberDashboard from './components/MemberDashboard.tsx';
 import { MemberModal } from './components/MemberModal.tsx';
 import AnnualReviewModal from './components/AnnualReviewModal.tsx';
@@ -34,7 +33,6 @@ import PolicyManager from './components/PolicyManager.tsx';
 import ProfilePage from './components/ProfilePage.tsx';
 import AdminProfile from './components/AdminProfile.tsx';
 import Sidebar from './components/Sidebar.tsx';
-import CommissionDashboard from './components/CommissionDashboard.tsx';
 import SalesPipeline from './components/SalesPipeline.tsx';
 import LeadModal from './components/LeadModal.tsx';
 import { ActionAutomationHub } from './components/ActionAutomationHub.tsx';
@@ -42,13 +40,10 @@ import { ProposalGeneratorModal } from './components/ProposalGeneratorModal.tsx'
 import NotesPage from './components/NotesPage.tsx';
 import EmployeeManagement from './components/EmployeeManagement.tsx';
 import { EmployeeModal } from './components/EmployeeModal.tsx';
-import LandingPage from './components/LandingPage.tsx';
 import Login from './components/Login.tsx';
 import MutualFunds from './components/MutualFunds.tsx';
-import AgentAppointments from './components/AgentAppointments.tsx';
 import { MasterData } from './components/masterdata/MasterData.tsx';
 import { TaskManagement } from './components/TaskManagement.tsx';
-import Button from './components/ui/Button.tsx';
 import ProfitAndLoss from './components/ProfitAndLoss.tsx';
 import FestivalCalendar from './components/FestivalCalendar.tsx';
 import { VoucherSaveData } from './components/PaymentVoucherModal.tsx';
@@ -56,13 +51,13 @@ import { ReceiptSaveData } from './components/ManualReceiptModal.tsx';
 import AdvancedReports from './components/AdvancedReports.tsx';
 import UpsellingDashboard from './components/UpsellingDashboard.tsx';
 import ServicesHub from './components/ServicesHub.tsx';
-
+import CampaignExecution from './components/CampaignExecution.tsx'; 
 
 import {
     Member, ToastData, ActivityLog, Appointment, Task, UpsellOpportunity, AutomationRule, CustomScheduledMessage, ModalTab,
     Lead, User, Policy, Route as RouteType, DocTemplate, EmployeeProfile, Tab, GiftMapping, BusinessVertical,
-    SchemeMaster, Company, Branch, Geography, RelationshipType, DocumentMaster, /* SchemeDocumentMapping, */ GiftMaster, TaskStatusMaster, CustomerCategory,
-    Notification, BankMaster, CompanyInfo, CustomerSubCategory, CustomerGroup, TaskMaster, TodaysFocusItem, /* PolicyChecklistMaster, */
+    SchemeMaster, Company, Branch, Geography, RelationshipType, DocumentMaster, GiftMaster, TaskStatusMaster, CustomerCategory,
+    Notification, BankMaster, CompanyInfo, CustomerSubCategory, CustomerGroup, TaskMaster, TodaysFocusItem,
     InsuranceTypeMaster, InsuranceFieldMaster, LeadActivityLog, VoiceNote, TaskActivityLog,
     LeadSource, LeadSourceMaster, CoveredMember, Designation,
     CustomerTier,
@@ -109,20 +104,13 @@ import {
     getOccasionTypeMasters, updateOccasionTypeMasters
 } from './services/apiService.ts';
 import { getPolicySuggestions, generateAnnualReview, generateUpsellOpportunityForMember, generateTodaysFocus } from './services/geminiService.ts';
-import { indianStates } from './constants.tsx';
 import ToastContainer from './components/ui/Toast.tsx';
 import { Shield, Bell, Loader2, Menu, Sun, Moon, ArrowUp, Gift as GiftIcon, Calendar, Star, BarChart2, TrendingUp, Users as UsersIcon, CheckCircle, Clock, Percent, Workflow, X, Plus, Save, Edit2, Trash2, Building, MapPin, Briefcase, FileText as FileTextIcon, ListTodo, CheckSquare, BarChart3, TrendingDown, Map as MapIcon, Donut, IndianRupee, Zap, GripVertical, ArrowDown, Search } from 'lucide-react';
 import NotificationDropdown from './components/NotificationDropdown.tsx';
 import DuplicateMemberModal from './components/DuplicateMemberModal.tsx';
 import { ForgotPasswordModal } from './components/ForgotPasswordModal.tsx';
-import { ViewByBranchModal } from './components/ViewByBranchModal.tsx';
-import { AttendanceModal } from './components/AttendanceModal.tsx';
 import { ViewByTierModal } from './components/ViewByTierModal.tsx';
-import Modal from './components/ui/Modal.tsx';
-import Input from './components/ui/Input.tsx';
-import SearchableSelect from './components/ui/SearchableSelect.tsx';
-
-
+import { AttendanceModal } from './components/AttendanceModal.tsx';
 import { AttendanceReportModal } from './components/AttendanceReportModal.tsx';
 import { ReportsAndInsights } from './components/ReportsAndInsights.tsx';
 import { generateLeadActivityLog } from './utils/leadUtils.ts';
@@ -179,14 +167,13 @@ const App: React.FC = () => {
     const toastIdCounter = useRef(0);
 
     const [allMembers, setAllMembers] = useState<Member[]>([]);
-       const [allLeads, setAllLeads] = useState<Lead[]>([]);
+    const [allLeads, setAllLeads] = useState<Lead[]>([]);
     const [allUsers, setAllUsers] = useState<User[]>([]);
     const [routes, setRoutes] = useState<RouteType[]>([]);
     const [allTasks, setAllTasks] = useState<Task[]>(initialTasks);
     const [designations, setDesignations] = useState<Designation[]>([]);
     const [roles, setRoles] = useState<Role[]>([]);
     const [rolePermissions, setRolePermissions] = useState<RolePermissions[]>([]);
-
 
     const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
     const [editingMember, setEditingMember] = useState<Member | null>(null);
@@ -210,8 +197,6 @@ const App: React.FC = () => {
     const [isViewByTierModalOpen, setIsViewByTierModalOpen] = useState(false);
     const [viewingTier, setViewingTier] = useState<CustomerTier | null>(null);
     const [isAttendanceReportModalOpen, setIsAttendanceReportModalOpen] = useState(false);
-
-
 
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [activityLog, setActivityLog] = useState<ActivityLog[]>([]);
@@ -250,11 +235,11 @@ const App: React.FC = () => {
     }, [addToast]);
 
     const [dismissedFocusItems, setDismissedFocusItems] = useState<string[]>([]);
-
     const [todaysFocusItems, setTodaysFocusItems] = useState<TodaysFocusItem[]>([]);
     const [isFocusLoading, setIsFocusLoading] = useState(false);
     const [focusError, setFocusError] = useState<string | null>(null);
 
+    // Master Data State
     const [businessVerticals, setBusinessVerticals] = useState<BusinessVertical[]>(initialBusinessVerticals);
     const [leadSources, setLeadSources] = useState<LeadSourceMaster[]>(initialLeadSources);
     const [schemes, setSchemes] = useState<SchemeMaster[]>(initialSchemes);
@@ -305,15 +290,12 @@ const App: React.FC = () => {
     const [leadStageMasters, setLeadStageMasters] = useState<LeadStageMaster[]>([]);
     const [occasionTypeMasters, setOccasionTypeMasters] = useState<OccasionTypeMaster[]>([]);
 
-    // --- MODIFICATION START: Create a compatible array for components that still expect the old Company type ---
     const agenciesAsCompanies: Company[] = useMemo(() => agencies.map(agency => ({
         id: agency.id,
         name: agency.name,
         active: agency.active,
         comp_code: agency.agencyCode,
     })), [agencies]);
-    // --- MODIFICATION END ---
-
 
     const companyMembers = useMemo(() => allMembers.filter(m => m.comp_id === currentUser?.comp_id), [allMembers, currentUser]);
     const companyLeads = useMemo(() => allLeads.filter(l => l.comp_id === currentUser?.comp_id), [allLeads, currentUser]);
@@ -325,7 +307,7 @@ const App: React.FC = () => {
         const allModules: AppModule[] = [
             'dashboard', 'reports & insights', 'profitAndLoss', 'calendar', 'employees', 'pipeline', 'customers',
             'taskManagement', 'policies', 'notes', 'actionHub', 'servicesHub', 'location', 'chatbot', 'masterData',
-            'advancedReports', 'upselling', 'mutualFunds'
+            'advancedReports', 'upselling', 'mutualFunds', 'campaign'
         ];
 
         for (const module of allModules) {
@@ -338,9 +320,7 @@ const App: React.FC = () => {
 
         const rolePerms = rolePermissions.find(p => p.roleId === currentUser.roleId);
         const basePermissions = rolePerms?.permissions || {};
-
         const userOverrides = currentUser.profile?.permissions || {};
-
         Object.assign(finalPermissions, basePermissions, userOverrides);
 
         const userRole = roles.find(r => r.id === currentUser.roleId);
@@ -381,7 +361,6 @@ const App: React.FC = () => {
         return manualReceipts.filter(r => r.finYearId === trueCurrentFinancialYear.id).length;
     }, [manualReceipts, trueCurrentFinancialYear]);
 
-
     const handleDismissFocusItem = useCallback((itemId: string) => {
         setDismissedFocusItems(prev => [...prev, itemId]);
         addToast('Focus item dismissed.', 'success');
@@ -409,13 +388,11 @@ const App: React.FC = () => {
         return { ...member, tierId: null, memberType: 'No Tier' };
     }, []);
 
-
     const handleUpdateAllMemberTiers = useCallback(async (newMethod: TierCalculationMethod) => {
         setCustomerTierCalculationMethod(newMethod);
         const updatedMembers = allMembers.map(member => calculateMemberTier(member, customerTiers, newMethod));
         setAllMembers(updatedMembers);
         addToast(`Type calculation method updated to '${newMethod}'. All Customer Type have been re-evaluated.`, 'success');
-
     }, [allMembers, customerTiers, calculateMemberTier, addToast]);
 
     const handleUpdateBusinessVerticals = useCallback((newData: BusinessVertical[]) => setBusinessVerticals([...newData]), []);
@@ -457,7 +434,6 @@ const App: React.FC = () => {
     const handleUpdateMaritalStatuses = useCallback((newData: MaritalStatus[]) => setMaritalStatuses([...newData]), []);
     const handleUpdateCustomerTypes = useCallback((newData: CustomerType[]) => setCustomerTypes([...newData]), []);
     const handleUpdateOccasionTypeMasters = useCallback((newData: OccasionTypeMaster[]) => setOccasionTypeMasters([...newData]), []);
-
     const handleUpdateProcessStageMasters = useCallback(async (newData: ProcessStageMaster[]) => {
         try {
             const updated = await updateProcessStageMasters(newData);
@@ -551,7 +527,6 @@ const App: React.FC = () => {
 
     const handleSaveVoucherDetails = useCallback((data: VoucherSaveData) => {
         const { voucherNo, date, payeeName, branch_id, lineItems, finYearId } = data;
-
         const existingExpensesMap = new Map(expenses.map(e => [e.id, e]));
         const processedExistingIds = new Set<string>();
         const newAndUpdatedExpenses: Expense[] = [];
@@ -631,7 +606,6 @@ const App: React.FC = () => {
 
     const handleSaveReceipt = useCallback((data: Omit<ReceiptSaveData, 'createdBy' | 'id'> & { id?: string }) => {
         if (!currentUser) return;
-
         if (data.id) {
             const updatedReceipt: ManualReceipt = {
                 ...data,
@@ -720,7 +694,6 @@ const App: React.FC = () => {
         }
     }, [currentUser, isLoading, fetchTodaysFocus]);
 
-
     useEffect(() => {
         const loadData = async () => {
             setIsLoading(true);
@@ -800,7 +773,6 @@ const App: React.FC = () => {
         };
         loadData();
     }, [addToast]);
-
 
     useEffect(() => {
         const userRole = roles.find(r => r.id === currentUser?.roleId);
@@ -941,9 +913,7 @@ const App: React.FC = () => {
         }
     }, [companyMembers, customMessages, festivals, festivalDates, religions, occasionTypeMasters, automationRules]);
 
-    
     const undismissedNotifications = useMemo(() => notifications.filter(n => !n.dismissed && !dismissedItems[n.id]), [notifications, dismissedItems]);
-
     const hubNotifications = useMemo(() => notifications.filter(n => !n.dismissed && !dismissedItems[n.id]), [notifications, dismissedItems]);
     const hubTasks = useMemo(() => allTasks.filter(t => !dismissedItems[t.id]), [allTasks, dismissedItems]);
     const hubAppointments = useMemo(() => appointments.filter(a => !dismissedItems[a.id]), [appointments, dismissedItems]);
@@ -965,6 +935,7 @@ const App: React.FC = () => {
         };
     }, []);
 
+    // --- RESTORED FUNCTIONS ---
     const handleClearDropdown = useCallback(() => {
         setDropdownCleared(true);
         addToast("Notifications cleared from this view.", "success");
@@ -974,6 +945,7 @@ const App: React.FC = () => {
         setNotifications(prev => prev.map(n => ({ ...n, dismissed: true })));
         addToast("All notifications cleared from Action Hub.", "success");
     }, [addToast]);
+    // ----------------------------
 
      const handleLogin = (user: User, finYearId: string) => {
         setCurrentUser(user);
@@ -1999,7 +1971,6 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                                 <Route path="/masterData/*" element={<MasterData allTasks={[]} {...{ addToast, allMembers: companyMembers, allLeads: companyLeads, users: companyUsers, customerFieldMasters, onUpdateCustomerFieldMasters: handleUpdateCustomerFieldMasters, businessVerticals, onUpdateBusinessVerticals: handleUpdateBusinessVerticals, leadSources, onUpdateLeadSources: handleUpdateLeadSources, schemes, onUpdateSchemes: handleUpdateSchemes, agencies, onUpdateAgencies: handleUpdateAgencies, operatingCompanies, onUpdateOperatingCompanies: handleUpdateOperatingCompany, Branches: allBranches, onUpdateBranches: handleUpdateBranches, CompanyInfo, onUpdateCompanyInfo: setCompanyInfo, geographies, onUpdateGeographies: handleUpdateGeographies, relationshipTypes, onUpdateRelationshipTypes: handleUpdateRelationshipTypes, documentMasters, onUpdateDocumentMasters: handleUpdateDocumentMasters, insuranceTypeDocumentRules, onUpdateInsuranceTypeDocumentRules: handleUpdateInsuranceTypeDocumentRules, giftMasters, onUpdateGiftMasters: handleUpdateGiftMasters, customerTiers, onUpdateCustomerTiers: handleUpdateCustomerTiers, taskStatuses: taskStatusMasters, onUpdateTaskStatuses: handleUpdateTaskStatusMasters, customerCategories, onUpdateCustomerCategories: handleUpdateCustomerCategories, bankMasters, onUpdateBankMasters: handleUpdateBankMasters, customerSubCategories, onUpdateCustomerSubCategories: handleUpdateCustomerSubCategories, customerGroups, onUpdateCustomerGroups: handleUpdateCustomerGroups, taskMasters, onUpdateTaskMasters: handleUpdateTaskMasters, insuranceTypes, onUpdateInsuranceTypes: handleUpdateInsuranceTypes, insuranceFields, onUpdateInsuranceFields: handleUpdateInsuranceFields, routes, onUpdateRoutes: handleUpdateRoutes, designations, onUpdateDesignations: handleUpdateDesignations, currentUser, customerTierCalculationMethod, onUpdateCustomerTierCalculationMethod: handleUpdateAllMemberTiers, expenseCategoriesLevel1, onUpdateExpenseCategoriesLevel1: handleUpdateExpenseCategoriesLevel1, expenseCategoriesLevel2, onUpdateExpenseCategoriesLevel2: handleUpdateExpenseCategoriesLevel2, expenseCategoriesLevel3, onUpdateExpenseCategoriesLevel3: handleUpdateExpenseCategoriesLevel3, incomeCategoriesLevel1, onUpdateIncomeCategoriesLevel1: handleUpdateIncomeCategoriesLevel1, incomeCategoriesLevel2, onUpdateIncomeCategoriesLevel2: handleUpdateIncomeCategoriesLevel2, religions, onUpdateReligions: handleUpdateReligions, festivals, onUpdateFestivals: handleUpdateFestivals, festivalDates, onUpdateFestivalDates: handleUpdateFestivalDates, amcs, onUpdateAmcs: handleUpdateAmcs, mutualFundSchemes, onUpdateMutualFundSchemes: handleUpdateMutualFundSchemes, mutualFundFields, onUpdateMutualFundFields: handleUpdateMutualFundFields, rolePermissions, onUpdateRolePermissions: handleUpdateRolePermissions, genders, onUpdateGenders: handleUpdateGenders, maritalStatuses, onUpdateMaritalStatuses: handleUpdateMaritalStatuses, customerTypes, onUpdateCustomerTypes: handleUpdateCustomerTypes, processStageMasters, onUpdateProcessStageMasters: handleUpdateProcessStageMasters, accountTypes: accountTypes, onUpdateAccountTypes: handleUpdateAccountTypes, financialYears, onUpdateFinancialYears: handleUpdateFinancialYears, documentNumbering, onUpdateDocumentNumbering: handleUpdateDocumentNumbering, activeFinancialYearId, roles, onUpdateRoles: handleUpdateRoles, leadStageMasters, onUpdateLeadStageMasters: handleUpdateLeadStageMasters }} />} />
                                 <Route path="/reports-insights" element={<ReportsAndInsights members={companyMembers} users={companyUsers} tasks={allTasks} attendance={attendance} onUpdateAttendance={handleUpdateAttendanceByAdmin} addToast={addToast} allLeads={companyLeads} currentUser={currentUser} leadSources={leadSources} schemes={schemes} insuranceTypes={insuranceTypes} onOpenAttendanceReport={() => setIsAttendanceReportModalOpen(true)} designations={designations} roles={roles} permissions={currentUserPermissions} />} />
                                 <Route path="/taskManagement" element={<TaskManagement allTasks={allTasks} permissions={currentUserPermissions} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} onCreateTask={handleCreateTask} onCreateBulkTask={handleCreateBulkTask} onOpenTask={handleOpenTask} users={companyUsers} members={companyMembers} leads={companyLeads} taskStatusMasters={taskStatusMasters} taskMasters={taskMasters} addToast={addToast} currentUser={currentUser} Branches={companyBranches} onReassignTask={handleReassignTask} onUpdateTaskWithRemark={handleUpdateTask} designations={designations} roles={roles} />} />
-
                                 <Route path="/profitAndLoss" element={<ProfitAndLoss
                                     allMembers={companyMembers} expenses={expenses} manualIncomes={manualIncomes} manualCommissions={manualCommissions}
                                     manualReceipts={manualReceipts}
@@ -2021,10 +1992,23 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                                     lastVoucherNumber={lastVoucherNumber}
                                     lastReceiptNumber={lastReceiptNumber}
                                 />} />
-
                                 <Route path="/calendar" element={<FestivalCalendar allMembers={companyMembers} festivals={festivals} festivalDates={festivalDates} religions={religions} onViewMember={onViewMember} />} />
                                 <Route path="/advancedReports" element={<AdvancedReports members={companyMembers} users={companyUsers} tasks={allTasks} leads={companyLeads} branches={companyBranches} schemes={schemes} companies={agenciesAsCompanies} expenses={expenses} manualIncomes={manualIncomes} manualCommissions={manualCommissions} currentUser={currentUser} customerTiers={customerTiers} attendance={attendance} expenseCategoriesLevel1={expenseCategoriesLevel1} expenseCategoriesLevel2={expenseCategoriesLevel2} expenseCategoriesLevel3={expenseCategoriesLevel3} incomeCategoriesLevel1={incomeCategoriesLevel1} incomeCategoriesLevel2={incomeCategoriesLevel2} businessVerticals={businessVerticals} taskStatusMasters={taskStatusMasters} customerFieldMasters={customerFieldMasters} insuranceFields={insuranceFields} insuranceTypes={insuranceTypes} designations={designations} roles={roles} leadStageMasters={leadStageMasters} genders={genders} maritalStatuses={maritalStatuses} />} />
                                 <Route path="/upselling" element={<UpsellingDashboard members={companyMembers} upsellCategories={upsellCategories} insuranceTypes={insuranceTypes} addToast={addToast} users={companyUsers} branches={companyBranches} roles={roles}  />} />
+                                
+                                {/* --- NEW ROUTE --- */}
+                                <Route path="/campaign" element={
+                                    <CampaignExecution 
+                                        members={companyMembers}
+                                        geographies={geographies}
+                                        businessVerticals={businessVerticals}
+                                        relationshipTypes={relationshipTypes}
+                                        leadSources={leadSources}
+                                        insuranceTypes={insuranceTypes}
+                                        addToast={addToast}
+                                    />
+                                } />
+                                
                                 <Route path="*" element={<div>Not Implemented</div>} />
                             </Routes>
                         </div>

@@ -3,9 +3,8 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
     Shield, User, Users, MapPin, LayoutDashboard, FileText, LogOut, BarChart2, NotebookText,
     X, MessageSquare, Briefcase, Zap, UserPlus, TrendingUp, Database, Wrench, ListTodo, 
-    IndianRupee, Calendar as CalendarIcon, BarChart3, UserCog,HandCoins
+    IndianRupee, Calendar as CalendarIcon, BarChart3, UserCog, HandCoins, Megaphone
 } from 'lucide-react';
-// MODIFIED: Imported AppModule and PermissionLevel
 import { Tab, AppModule, PermissionLevel } from '../types.ts';
 import { User as UserType } from '../types.ts';
 
@@ -14,7 +13,6 @@ interface SidebarProps {
     setIsSidebarOpen: (isOpen: boolean) => void;
     onLogout: () => void;
     user: UserType | null;
-    // MODIFIED: The permissions prop is now more specific
     permissions: { [key in AppModule]?: PermissionLevel } | null;
 }
 
@@ -33,6 +31,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
     { tab: 'employees', path: '/employees', label: 'Employee Management', icon: <UserCog size={20}/> },
     { tab: 'pipeline', path: '/pipeline', label: 'Lead Management', icon: <Briefcase size={20}/> },
     { tab: 'customers', path: '/customers', label: 'Customers', icon: <Users size={20}/> },
+    { tab: 'campaign', path: '/campaign', label: 'Campaigns', icon: <Megaphone size={20}/> }, // --- NEW ITEM ---
     { tab: 'taskManagement', path: '/taskManagement', label: 'Task Management', icon: <ListTodo size={20}/> },
     { tab: 'policies', path: '/policies', label: 'Policy List', icon: <FileText size={20}/> },
     { tab: 'mutualFunds', path: '/mutualFunds', label: 'Mutual Funds', icon: <HandCoins size={20}/> },
@@ -78,8 +77,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen, setIsSidebarOpen, onLo
         };
     }, [isSidebarOpen, setIsSidebarOpen]);
 
-    // MODIFIED: This now filters the navigation items based on the user's permissions.
-    // A user will only see a link if their permission level for that module is not 'none'.
     const navItems = useMemo(() => {
         if (!permissions) return [];
         return ALL_NAV_ITEMS.filter(item => permissions[item.tab as AppModule] && permissions[item.tab as AppModule] !== 'none');

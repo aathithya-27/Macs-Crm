@@ -1,5 +1,16 @@
 import React from 'react';
 
+// --- NEW: Campaign Master Interface ---
+export interface CampaignMaster {
+    id: string;
+    name: string;
+    description?: string;
+    startDate: string;
+    endDate: string;
+    active: boolean;
+    order?: number;
+}
+
 export interface Role {
   id: string;
   name: string;
@@ -45,7 +56,6 @@ export interface ManualReceipt {
     createdBy: string;
 }
 
-
 export type PermissionLevel = 'view' | 'create' | 'modify' | 'none';
 
 export interface Designation {
@@ -62,8 +72,6 @@ export interface DesignationPermissions {
     [key in AppModule]?: PermissionLevel;
   };
 }
-
-
 
 export interface Religion {
   id: string;
@@ -87,8 +95,6 @@ export interface FestivalDate {
     year: number;
     active?: boolean;
 }
-
-
 
 export type AdvisorSpecialization = 'Life' | 'Health' | 'Motor' | 'Home' | 'Travel';
 
@@ -146,7 +152,6 @@ export interface EmployeeProfile {
   salary?: number;
   status: 'Active' | 'Inactive';
   attendance?: { [date: string]: 'Present' | 'Absent' };
-  /** @deprecated Use `specializationIds` instead. */
   specializations?: AdvisorSpecialization[];
   specializationIds?: string[]; 
   amcIds?: string[];
@@ -167,7 +172,6 @@ export interface EmployeeProfile {
   permanentAddress?: AdvisorAddress;
   localAddress?: AdvisorAddress;
   educationDetails?: AdvisorEducation[];
-  /** @deprecated Use `businessVerticalIds` instead. */
   employeeGroup?: 'LI' | 'HI' | 'GI';
   businessVerticalIds?: string[];
   comp_id?: string;
@@ -184,7 +188,6 @@ export interface User {
   employeeId: string;
   name: string;
   email: string;
-  /** @deprecated Use `designationId` instead. */
   role: string;
   designationId: string;
   roleId?: string | null; 
@@ -194,8 +197,6 @@ export interface User {
   password?: string;
   profile?: EmployeeProfile;
 }
-
-
 
 export type ConcretePolicyType = 'Health Insurance' | 'Life Insurance' | 'General Insurance';
 export type PolicyType = ConcretePolicyType | '';
@@ -251,6 +252,7 @@ export interface TravelInsuranceData {
   nomineeDetails?: string;
   travelers?: Traveler[];
 }
+
 export interface PersonalAccidentInsuranceData {
     fullName?: string;
     dobOrAge?: string;
@@ -269,7 +271,6 @@ export interface LICFamilyMember {
     ageAtDeath?: number;
     causeOfDeath?: string;
 }
-
 
 export interface LICPreviousPolicy {
     id: string;
@@ -322,11 +323,9 @@ export interface HealthInsuranceData {
     proposerAadharNo?: string;
     proposerEmailId?: string;
     proposerPhoneNo?: string;
-
     bankName?: string;
     accountNo?: string;
     ifscCode?: string;
-
     height?: number;
     weight?: number;
     occupation?: string;
@@ -334,25 +333,21 @@ export interface HealthInsuranceData {
     isGoodHealth?: boolean;
     fatherName?: string;
     motherName?: string;
-
     nomineeName?: string;
     nomineeRelationship?: string;
     nomineeDob?: string;
     nomineeGender?: 'Male' | 'Female' | 'Other';
-
     hadMedicalTreatment?: boolean;
     medicalTreatmentDetails?: string;
     hadSurgery?: boolean;
     surgeryDetails?: string;
     onMedication?: boolean;
     medicationDetails?: string;
-
     previousPolicies?: LICPreviousPolicy[];
 }
 
 export interface Policy {
   id:string;
-  /** @deprecated Use `insuranceTypeId` instead. */
   policyType: PolicyType;
   schemeName?: string;
   schemeId?: string; 
@@ -377,25 +372,16 @@ export interface Policy {
   isLegacyFamilyPolicy?: boolean;
   insuranceTypeId?: string | null;
   policyNumber?: string;
-
   policyTerm?: number;
   policyTermUnit?: 'Years' | 'Months';
   maturityDate?: string;
   installmentsPaid?: number; 
-
-  /** @deprecated Use `dynamicData` to store all policy-specific information. */
   licData?: LICData;
-  /** @deprecated Use `dynamicData` to store all policy-specific information. */
   healthInsuranceData?: HealthInsuranceData;
-  /** @deprecated Use `insuranceTypeId` to determine policy subtype and `dynamicData` for storage. */
   generalInsuranceType?: GeneralInsuranceType;
-  /** @deprecated Use `dynamicData` to store all policy-specific information. */
   generalInsuranceData?: MotorInsuranceData | HomeInsuranceData | TravelInsuranceData | PersonalAccidentInsuranceData;
-  
   dynamicData?: Record<string, any>;
 }
-
-
 
 export interface CoveredMember {
     id: string;
@@ -483,13 +469,10 @@ export interface Member {
   assignedTo: string[];
   leadSource?: LeadSource;
   routeId?: string | null;
-  /** @deprecated Use `processStages` instead. A member can have multiple process flows. */
   processStage: ProcessStage;
   processStages?: Record<string, ProcessStage>; 
-  /** @deprecated Use `stageLastChangedMap` instead. */
   stageLastChanged?: string;
   stageLastChangedMap?: Record<string, string>;
-  /** @deprecated Use `processHistories` instead. */
   processHistory?: ProcessLog[];
   processHistories?: Record<string, ProcessLog[]>;
   financialProfile?: FinancialProfile;
@@ -515,7 +498,6 @@ export interface Member {
   checkIns?: CheckIn[];
   mutualFundHoldings?: MutualFundHolding[];
   bankMandates?: BankMandate[]; 
-  
   fileNo?: string; 
   kycStatus?: 'Validated' | 'Registered' | 'Rejected' | 'Not Registered'; 
   ucc?: string; 
@@ -533,8 +515,6 @@ export interface FamilyMemberNode {
     mobile?: string;
     email?: string;
 }
-
-
 
 export interface LeadSource {
     sourceId: string | null;
@@ -560,7 +540,6 @@ export interface LeadStageMaster {
   order: number;
   active: boolean;
 }
-
 
 export interface ProcessLog {
     stage: ProcessStage;
@@ -589,9 +568,7 @@ export interface Lead {
     lastUpdatedAt?: string;
     activityLog?: LeadActivityLog[];
     notes?: string;
-    /** @deprecated Use `insuranceTypeId` instead. */
     policyInterestType?: PolicyType;
-    /** @deprecated Use `insuranceTypeId` instead. */
     policyInterestGeneralType?: GeneralInsuranceType;
     insuranceTypeId?: string | null;
     company: string;
@@ -604,10 +581,7 @@ export interface Lead {
     createdBy?: string;
 }
 
-/** @deprecated Use LeadStageMaster instead. */
 export type PipelineStatus = 'Lead' | 'Contacted' | 'Meeting Scheduled' | 'Proposal Sent';
-
-
 
 export interface VoiceNote {
     id: string;
@@ -713,9 +687,9 @@ export interface Notification {
   dismissed?: boolean;
 }
 
+// --- MODIFIED: Added 'campaign' to Tab ---
+export type Tab = 'dashboard' | 'reports & insights' | 'pipeline' | 'customers' | 'policies' | 'notes' | 'actionHub' | 'location' | 'chatbot' | 'profile' | 'employees' | 'servicesHub' | 'masterData' | 'taskManagement' | 'profitAndLoss' | 'calendar' | 'advancedReports' | 'upselling' | 'mutualFunds' | 'campaign';
 
-
-export type Tab = 'dashboard' | 'reports & insights' | 'pipeline' | 'customers' | 'policies' | 'notes' | 'actionHub' | 'location' | 'chatbot' | 'profile' | 'employees' | 'servicesHub' | 'masterData' | 'taskManagement' | 'profitAndLoss' | 'calendar' | 'advancedReports' | 'upselling' | 'mutualFunds';
 export enum ModalTab {
     BasicInfo = 'Basic Info',
     Documents = 'Documents',
@@ -757,7 +731,6 @@ export interface AttendanceRecord {
 
 export type AttendanceState = Record<string, AttendanceRecord[]>;
 
-
 export interface AutomationRule {
     id: number;
     type: string;
@@ -767,7 +740,6 @@ export interface AutomationRule {
     channels: ('whatsapp' | 'sms' | 'email' | 'call')[];
     icon?: React.ReactElement;
 }
-
 
 export interface CustomScheduledMessage {
     id: string;
@@ -782,17 +754,17 @@ export interface DocTemplate {
     content: string;
 }
 
-/** @deprecated This is replaced by the Role interface. */
 export type DeprecatedRole = 'Admin' | 'Advisor' | 'Support';
-export type AppModule = 'dashboard' | 'reports & insights' | 'profitAndLoss' | 'calendar' | 'employees' | 'pipeline' | 'customers' | 'taskManagement' | 'policies' | 'notes' | 'actionHub' | 'servicesHub' | 'location' | 'chatbot' | 'masterData' | 'advancedReports' | 'upselling' | 'mutualFunds';
-/** @deprecated Use Role-based permissions instead. */
+
+// --- MODIFIED: Added 'campaign' to AppModule ---
+export type AppModule = 'dashboard' | 'reports & insights' | 'profitAndLoss' | 'calendar' | 'employees' | 'pipeline' | 'customers' | 'taskManagement' | 'policies' | 'notes' | 'actionHub' | 'servicesHub' | 'location' | 'chatbot' | 'masterData' | 'advancedReports' | 'upselling' | 'mutualFunds' | 'campaign';
+
 export interface RolePermissions {
   roleId: string;
   permissions: {
     [key in AppModule]?: PermissionLevel;
   };
 }
-
 
 export interface GiftMapping {
     tier: string; 
@@ -809,7 +781,6 @@ export interface CustomerTier {
     active?: boolean;
     order?: number;
 }
-
 
 export interface AMC { 
     id: string;
@@ -845,23 +816,17 @@ export interface MutualFundHolding {
     schemeId: string; 
     folioNumber: string;
     investmentType: 'SIP' | 'Lumpsum';
-    
     totalInvestment: number; 
     units: number; 
     currentValue: number; 
-    
     sipAmount?: number;
     sipDate?: number; 
     bankMandateId?: string | null; 
-    
     transactions: MutualFundTransaction[];
-    
     status: 'Active' | 'Paused' | 'Stopped';
     sipRejections?: { date: string; reason: string; }[]; 
-
     dynamicData?: Record<string, any>; 
 }
-
 
 export interface AgentAppointment {
     id: string;
@@ -870,8 +835,6 @@ export interface AgentAppointment {
     purpose: string;
     status: 'Scheduled' | 'Completed' | 'Cancelled';
 }
-
-
 
 export interface CompanyInfo {
     name: string;
@@ -917,15 +880,12 @@ export interface Company {
     defaultForVehiclePurchaseOrder?: boolean;
 }
 
-// --- MODIFICATION START: New dedicated type for Insurance Agencies ---
 export interface InsuranceAgency {
     id: string;
     agencyCode: string;
     name: string;
     active?: boolean;
 }
-// --- MODIFICATION END ---
-
 
 export interface BranchCompanyMapping {
     id: string;
@@ -1015,8 +975,6 @@ export interface BankMaster {
     order?: number;
 }
 
-
-
 export interface BusinessVertical { id: string; name: string; active?: boolean; order?: number; }
 export interface LeadSourceMaster {
   id: string;
@@ -1047,9 +1005,8 @@ export interface TaskStatusMaster {
     isEndState?: boolean;     
 }
 export interface GiftMaster { id: string; name: string; active?: boolean; order?: number; }
-export interface RelationshipType { id: string; name: string; active?: boolean; }
+export interface RelationshipType { id: string; name: string; active?: boolean; order?: number; }
 export interface DocumentMaster { id: string; name: string; active?: boolean; order?: number; }
-export interface RelationshipType {id: string; name: string; active?: boolean;  order?: number;}
 export interface CustomerCategory { id: string; name: string; active?: boolean; order?: number; }
 export interface CustomerSubCategory { id: string; name: string; parentId: string; active?: boolean; order?: number; }
 export interface CustomerGroup { id: string; name: string; active?: boolean; order?: number; }
@@ -1062,8 +1019,6 @@ export interface OccasionTypeMaster {
     active?: boolean; 
     order?: number; 
 }
-
-/** @deprecated Replaced by InsuranceTypeDocumentRule */
 
 export interface Route { id: string; name: string; active?: boolean; order?: number; }
 
@@ -1134,8 +1089,6 @@ export interface UpsellCategory {
   linkedInsuranceTypeIds: string[]; 
 }
 
-
-
 export interface IncomeCategoryLevel1 { 
   id: string;
   name: string;
@@ -1168,7 +1121,6 @@ export interface ExpenseCategoryLevel3 {
   parentId: string; 
   active?: boolean;
 }
-
 
 export interface Expense {
   id: string;
@@ -1210,7 +1162,6 @@ export interface ManualCommission {
   description: string;
   createdBy: string;
 }
-
 
 export interface AdvisorLocation {
   advisorId: string;

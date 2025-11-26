@@ -6,7 +6,8 @@ import {
     FinancialYear, DocumentNumbering, Role, 
     InsuranceTypeDocumentRule,
     LeadStageMaster, 
-    OccasionTypeMaster 
+    OccasionTypeMaster,
+    CampaignMaster // --- NEW IMPORT ---
 } from '../types.ts';
 
 
@@ -15,7 +16,6 @@ let financialYearsData: FinancialYear[] = [
     { id: 'fy-2', finYear: '2025-2026', fromDate: '2025-04-01', toDate: '2026-03-31', status: 'Active' },
 ];
 
-// --- NEW: Mock Data for Document Numbering ---
 let documentNumberingData: DocumentNumbering[] = [
     { id: 'dn-1', type: 'Voucher', prefix: 'VCH/24-25/', suffix: null, startingNumber: 1, finYearId: 'fy-1', status: 'Active' },
     { id: 'dn-2', type: 'Voucher', prefix: 'VOUCHER/', suffix: '/25-26', startingNumber: 1001, finYearId: 'fy-2', status: 'Active' },
@@ -23,8 +23,12 @@ let documentNumberingData: DocumentNumbering[] = [
     { id: 'dn-4', type: 'Receipt', prefix: 'R/', suffix: '/A', startingNumber: 500, finYearId: 'fy-2', status: 'Active' },
 ];
 
+// --- NEW: Mock Data for Campaigns ---
+let campaignsData: CampaignMaster[] = [
+    { id: 'camp-1', name: 'Diwali Bonanza', description: 'Special offers for the festive season', startDate: '2024-10-01', endDate: '2024-11-15', active: true, order: 0 },
+    { id: 'camp-2', name: 'Year End Drive', description: 'Closing financial year targets', startDate: '2024-12-01', endDate: '2024-12-31', active: true, order: 1 },
+];
 
-// --- NEW: LOCAL STORAGE PERSISTENCE LOGIC ---
 const LS_OPERATING_COMPANIES_KEY = '-operatingCompanies';
 const LS_USERS_KEY = '-users';
 
@@ -43,7 +47,6 @@ let rolesData: Role[] = [
     { id: 'role-support', name: 'Support Staff', isAdvisor: false, active: true, order: 3 },
 ];
 
-// --- NEW: MOCK DATA FOR DOCUMENT RULES ---
 let insuranceTypeDocumentRulesData: InsuranceTypeDocumentRule[] = [
     { id: 'rule-1', insuranceTypeId: 'it-life', documentId: 'doc-1', isMandatory: true }, // PAN Card
     { id: 'rule-2', insuranceTypeId: 'it-life', documentId: 'doc-2', isMandatory: true }, // Aadhaar Card
@@ -53,7 +56,6 @@ let insuranceTypeDocumentRulesData: InsuranceTypeDocumentRule[] = [
 ];
 
 
-// --- NOTE: This will later be changed to RolePermissions ---
 let rolePermissionsData: RolePermissions[] = [
     {
         roleId: 'role-admin',
@@ -61,7 +63,7 @@ let rolePermissionsData: RolePermissions[] = [
             dashboard: 'modify', 'reports & insights': 'modify', profitAndLoss: 'modify', calendar: 'modify', employees: 'modify', 
             pipeline: 'modify', customers: 'modify', taskManagement: 'modify', policies: 'modify', mutualFunds: 'modify', 
             upselling: 'modify', notes: 'modify', actionHub: 'modify', servicesHub: 'modify', location: 'modify', 
-            chatbot: 'modify', masterData: 'modify', advancedReports: 'modify', 
+            chatbot: 'modify', masterData: 'modify', advancedReports: 'modify', campaign: 'modify' // Added campaign
         }
     },
     {
@@ -70,7 +72,7 @@ let rolePermissionsData: RolePermissions[] = [
             dashboard: 'view', 'reports & insights': 'view', profitAndLoss: 'create', calendar: 'view', employees: 'none',
             pipeline: 'modify', customers: 'modify', taskManagement: 'modify', policies: 'modify', mutualFunds: 'modify',
             upselling: 'view', notes: 'modify', actionHub: 'modify', servicesHub: 'view', location: 'modify',
-            chatbot: 'modify', masterData: 'none', advancedReports: 'none',
+            chatbot: 'modify', masterData: 'none', advancedReports: 'none', campaign: 'view' // Added campaign
         }
     },
     {
@@ -79,7 +81,7 @@ let rolePermissionsData: RolePermissions[] = [
             dashboard: 'view', 'reports & insights': 'none', profitAndLoss: 'none', calendar: 'create', employees: 'none',
             pipeline: 'none', customers: 'create', taskManagement: 'create', policies: 'view', mutualFunds: 'none',
             upselling: 'none', notes: 'create', actionHub: 'none', servicesHub: 'none', location: 'none',
-            chatbot: 'none', masterData: 'none', advancedReports: 'none',
+            chatbot: 'none', masterData: 'none', advancedReports: 'none', campaign: 'none' // Added campaign
         }
     },
     {
@@ -88,19 +90,16 @@ let rolePermissionsData: RolePermissions[] = [
             dashboard: 'view', 'reports & insights': 'view', profitAndLoss: 'none', calendar: 'view', employees: 'view',
             pipeline: 'view', customers: 'view', taskManagement: 'view', policies: 'view', mutualFunds: 'view',
             upselling: 'view', notes: 'view', actionHub: 'view', servicesHub: 'view', location: 'none',
-            chatbot: 'view', masterData: 'none', advancedReports: 'none',
+            chatbot: 'view', masterData: 'none', advancedReports: 'none', campaign: 'none' // Added campaign
         }
     }
 ];
 
-// --- UNIFIED DATA SOURCE FOR BRANCHES ---
 const BranchesData: Branch[] = [
     { id: 'frb-1', branch_name: 'Erode HQ', branch_id: 'FIN01-ERD', companyMappings: [], active: true, comp_id: 'FIN01', gstin: '33ABCDE1234F1Z5', pan: 'ABCDE1234F', tan: 'ERDF12345G' },
     { id: 'frb-2', branch_name: 'Coimbatore Hub', branch_id: 'FIN01-CBE', companyMappings: [], active: true, comp_id: 'FIN01', gstin: '33ABCDE1234F1Z6', pan: 'ABCDE1234F', tan: 'CBEF12345G' },
 ];
 
-
-// Mock Data for Companies
 const initialCompanies: Company[] = [
     {
         id: 'FIN01',
@@ -126,9 +125,7 @@ const initialCompanies: Company[] = [
     }
 ];
 
-// --- MODIFIED: Users now have a roleId ---
 const initialUsers: User[] = [
-    // Finroots Users
     {
         id: 'user-1',
         employeeId: 'admin',
@@ -136,7 +133,7 @@ const initialUsers: User[] = [
         email: 'admin@finroots.com',
         role: 'Admin', 
         designationId: 'des-admin',
-        roleId: 'role-admin', // --- ADDED ---
+        roleId: 'role-admin', 
         company: 'Finroots',
         comp_id: 'FIN01',
         initials: 'AU',
@@ -154,7 +151,7 @@ const initialUsers: User[] = [
     email: 'secretary@finroots.com',
     role: 'Secretary',
     designationId: 'des-secretary',
-    roleId: 'role-secretary', // --- ADDED ---
+    roleId: 'role-secretary', 
     company: 'Finroots',
     comp_id: 'FIN01',
     initials: 'SU',
@@ -172,7 +169,7 @@ const initialUsers: User[] = [
         email: 'rohan.p@finroots.com',
         role: 'Advisor',
         designationId: 'des-advisor',
-        roleId: 'role-advisor', // --- ADDED ---
+        roleId: 'role-advisor', 
         company: 'Finroots',
         comp_id: 'FIN01',
         initials: 'RP',
@@ -181,7 +178,7 @@ const initialUsers: User[] = [
             status: 'Active',
             specializations: [],
             comp_id: 'FIN01',
-            employeebranch_id: 'frb-1', // Erode HQ
+            employeebranch_id: 'frb-1', 
             activeCheckInId: null,
             permissions: {}
         }
@@ -193,7 +190,7 @@ const initialUsers: User[] = [
         email: 'priya.s@finroots.com',
         role: 'Advisor',
         designationId: 'des-advisor',
-        roleId: 'role-advisor', // --- ADDED ---
+        roleId: 'role-advisor', 
         company: 'Finroots',
         comp_id: 'FIN01',
         initials: 'PS',
@@ -202,7 +199,7 @@ const initialUsers: User[] = [
             status: 'Active',
             specializations: ['Life'],
             comp_id: 'FIN01',
-            employeebranch_id: 'frb-2', // Coimbatore Hub
+            employeebranch_id: 'frb-2',
             activeCheckInId: null,
             permissions: {}
         }
@@ -214,7 +211,7 @@ const initialUsers: User[] = [
         email: 'amit.s@finroots.com',
         role: 'Advisor',
         designationId: 'des-advisor',
-        roleId: 'role-advisor', // --- ADDED ---
+        roleId: 'role-advisor', 
         company: 'Finroots',
         comp_id: 'FIN01',
         initials: 'AS',
@@ -223,7 +220,7 @@ const initialUsers: User[] = [
             status: 'Active',
             specializations: ['Health'],
             comp_id: 'FIN01',
-            employeebranch_id: 'frb-1', // Erode HQ
+            employeebranch_id: 'frb-1',
             activeCheckInId: null,
             permissions: {
                 'reports & insights': 'modify'
@@ -237,7 +234,7 @@ const initialUsers: User[] = [
         email: 'support@finroots.com',
         role: 'Support',
         designationId: 'des-support',
-        roleId: 'role-support', // --- ADDED ---
+        roleId: 'role-support', 
         company: 'Finroots',
         comp_id: 'FIN01',
         initials: 'FS',
@@ -250,7 +247,6 @@ const initialUsers: User[] = [
     }
 ];
 
-// --- HYDRATED STATE FROM LOCAL STORAGE OR DEFAULTS ---
 
 let companies: Company[] = (() => {
     try {
@@ -258,7 +254,6 @@ let companies: Company[] = (() => {
         return stored ? JSON.parse(stored) : initialCompanies;
     } catch (e) {
         console.error("Failed to parse stored companies:", e);
-        // On failure, reset to default and clear bad data
         localStorage.removeItem(LS_OPERATING_COMPANIES_KEY);
         return initialCompanies;
     }
@@ -274,7 +269,6 @@ let routes: Route[] = [
     { id: 'route-4', name: 'Chennai Route', active: true, order: 3 },
 ];
 
-// --- CORRECTION: Moved variable declaration to the top level ---
 let relationshipTypesData: RelationshipType[] = [
     { id: 'rel-1', name: 'Self', active: true, order: 0 },
     { id: 'rel-2', name: 'Spouse', active: true, order: 1 },
@@ -285,63 +279,44 @@ let relationshipTypesData: RelationshipType[] = [
 ];
 
 
-// --- NEW: Mock Data for Religions and Festivals ---
 let religionsData: Religion[] = [
     { id: 'rel-1', name: 'Hinduism', active: true, order: 0 },
     { id: 'rel-2', name: 'Christianity', active: true, order: 1 },
     { id: 'rel-3', name: 'Islam', active: true, order: 2 },
     { id: 'rel-4', name: 'Sikhism', active: true, order: 3 },
-    { id: 'rel-gen', name: 'General', active: true, order: 4 }, // NEW
+    { id: 'rel-gen', name: 'General', active: true, order: 4 }, 
 ];
 
-// MODIFIED: `festivalsData` simplified.
 let festivalsData: Festival[] = [
     { id: 'fest-1', name: 'Diwali', religionId: 'rel-1', active: true },
     { id: 'fest-3', name: 'Eid al-Fitr', religionId: 'rel-3', active: true },
     { id: 'fest-4', name: 'Holi', religionId: 'rel-1', active: true },
     { id: 'fest-5', name: 'Good Friday', religionId: 'rel-2', active: true },
     { id: 'fest-2', name: 'Christmas', religionId: 'rel-2', active: true },
-    { id: 'fest-6', name: 'New Year\'s Day', religionId: 'rel-gen', active: true }, // MODIFIED
+    { id: 'fest-6', name: 'New Year\'s Day', religionId: 'rel-gen', active: true }, 
 ];
 
-// Data store for annual dates of festivals.
 let festivalDatesData: FestivalDate[] = [
-    // Diwali Dates
     { id: 'fest-date-1', festivalId: 'fest-1', year: 2024, date: '2024-11-01', active: true },
     { id: 'fest-date-2', festivalId: 'fest-1', year: 2025, date: '2025-10-21', active: true },
-
-    // Eid al-Fitr Dates
     { id: 'fest-date-3', festivalId: 'fest-3', year: 2025, date: '2025-03-30', active: true },
     { id: 'fest-date-4', festivalId: 'fest-3', year: 2026, date: '2026-03-20', active: true },
-    
-    // Holi Dates
     { id: 'fest-date-5', festivalId: 'fest-4', year: 2025, date: '2025-03-14', active: true },
     { id: 'fest-date-6', festivalId: 'fest-4', year: 2026, date: '2026-03-04', active: true },
-    
-    // Good Friday Dates
     { id: 'fest-date-7', festivalId: 'fest-5', year: 2025, date: '2025-04-18', active: true },
     { id: 'fest-date-8', festivalId: 'fest-5', year: 2026, date: '2026-04-03', active: true },
-    
-    // Christmas Dates
     { id: 'fest-date-9', festivalId: 'fest-2', year: 2024, date: '2024-12-25', active: true },
     { id: 'fest-date-10', festivalId: 'fest-2', year: 2025, date: '2025-12-25', active: true },
-
-    // New Year's Day Dates
     { id: 'fest-date-11', festivalId: 'fest-6', year: 2025, date: '2025-01-01', active: true },
     { id: 'fest-date-12', festivalId: 'fest-6', year: 2026, date: '2026-01-01', active: true },
 ];
 
-// --- START OF CORRECTION ---
-// Mock Data for Upselling Categories.
-// This is now simplified. The dashboard component will dynamically find all child insurance types.
 let upsellCategoriesData: UpsellCategory[] = [
     { id: 'uc-1', name: 'Life Insurance', order: 0, active: true, linkedInsuranceTypeIds: ['it-life'] },
     { id: 'uc-2', name: 'Health Insurance', order: 1, active: true, linkedInsuranceTypeIds: ['it-health'] },
     { id: 'uc-3', name: 'General Insurance', order: 2, active: true, linkedInsuranceTypeIds: ['it-general'] },
 ];
-// --- END OF CORRECTION ---
 
-// --- NEW: Mock Data for Gender, Marital Status, and Customer Type ---
 let gendersData: Gender[] = [
     { id: 'gen-1', name: 'Male', active: true, order: 0 },
     { id: 'gen-2', name: 'Female', active: true, order: 1 },
@@ -363,7 +338,6 @@ let customerTypesData: CustomerType[] = [
     { id: 'ct-4', name: 'Platinum', active: true, order: 3 },
 ];
 
-// MODIFIED: initialCustomerTiers now uses customerTypeId
 const initialCustomerTiers: CustomerTier[] = [
     { id: 'tier-1', customerTypeId: 'ct-1', name: 'Silver', minimumSumAssured: 0, minimumPremium: 0, giftId: 'gift-1', active: true, order: 0 },
     { id: 'tier-2', customerTypeId: 'ct-2', name: 'Gold', minimumSumAssured: 500000, minimumPremium: 25000, giftId: 'gift-2', active: true, order: 1 },
@@ -371,10 +345,7 @@ const initialCustomerTiers: CustomerTier[] = [
     { id: 'tier-4', customerTypeId: 'ct-4', name: 'Platinum', minimumSumAssured: 3000000, minimumPremium: 150000, giftId: 'gift-4', active: true, order: 3 },
 ];
 
-
-// --- MODIFICATION START: Replaced single process flow with product-specific flows ---
 let processStageMastersData: ProcessStageMaster[] = [
-    // Life Insurance
     { id: 'ps-life-1', name: 'Initial Contact', insuranceTypeId: 'it-life', order: 0, active: true },
     { id: 'ps-life-2', name: 'Requirement Analysis', insuranceTypeId: 'it-life', order: 1, active: true },
     { id: 'ps-life-3', name: 'Plan Presentation', insuranceTypeId: 'it-life', order: 2, active: true },
@@ -382,51 +353,38 @@ let processStageMastersData: ProcessStageMaster[] = [
     { id: 'ps-life-5', name: 'Premium Collection', insuranceTypeId: 'it-life', order: 4, active: true },
     { id: 'ps-life-6', name: 'Policy Issuance', insuranceTypeId: 'it-life', order: 5, active: true },
     { id: 'ps-life-7', name: 'Policy Delivery', insuranceTypeId: 'it-life', order: 6, active: true },
-    
-    // Health Insurance
     { id: 'ps-health-1', name: 'Lead Generation', insuranceTypeId: 'it-health', order: 0, active: true },
     { id: 'ps-health-2', name: 'Consultation', insuranceTypeId: 'it-health', order: 1, active: true },
     { id: 'ps-health-3', name: 'Plan Comparison', insuranceTypeId: 'it-health', order: 2, active: true },
     { id: 'ps-health-4', name: 'Proposal Submission', insuranceTypeId: 'it-health', order: 3, active: true },
     { id: 'ps-health-5', name: 'Medical Underwriting', insuranceTypeId: 'it-health', order: 4, active: true },
     { id: 'ps-health-6', name: 'Policy Activation', insuranceTypeId: 'it-health', order: 5, active: true },
-
-    // General Insurance
     { id: 'ps-general-1', name: 'Inquiry', insuranceTypeId: 'it-general', order: 0, active: true },
     { id: 'ps-general-2', name: 'Quotation', insuranceTypeId: 'it-general', order: 1, active: true },
     { id: 'ps-general-3', name: 'Inspection (if any)', insuranceTypeId: 'it-general', order: 2, active: true },
     { id: 'ps-general-4', name: 'Payment', insuranceTypeId: 'it-general', order: 3, active: true },
     { id: 'ps-general-5', name: 'Cover Note Issuance', insuranceTypeId: 'it-general', order: 4, active: true },
-
-    // Mutual Funds
     { id: 'ps-mf-1', name: 'Risk Profiling', isMutualFund: true, order: 0, active: true },
     { id: 'ps-mf-2', name: 'KYC Verification', isMutualFund: true, order: 1, active: true },
     { id: 'ps-mf-3', name: 'Scheme Selection', isMutualFund: true, order: 2, active: true },
     { id: 'ps-mf-4', name: 'Investment Execution', isMutualFund: true, order: 3, active: true },
     { id: 'ps-mf-5', name: 'Portfolio Review', isMutualFund: true, order: 4, active: true },
 ];
-// --- MODIFICATION END ---
 
-// --- NEW: MOCK DATA FOR LEAD STAGE MASTER ---
 let leadStageMastersData: LeadStageMaster[] = [
     { id: 'ls-stage-1', name: 'Lead', order: 0, active: true },
     { id: 'ls-stage-2', name: 'Contacted', order: 1, active: true },
     { id: 'ls-stage-3', name: 'Meeting Scheduled', order: 2, active: true },
     { id: 'ls-stage-4', name: 'Proposal Sent', order: 3, active: true },
 ];
-// --- END NEW ---
 
-// --- NEW: MOCK DATA FOR OCCASION TYPE MASTER ---
 let occasionTypeMastersData: OccasionTypeMaster[] = [
     { id: 'occ-type-1', name: 'Housewarming', active: true, order: 0 },
     { id: 'occ-type-2', name: 'New Car Purchase', active: true, order: 1 },
     { id: 'occ-type-3', name: 'Work Anniversary', active: true, order: 2 },
     { id: 'occ-type-4', name: 'Child\'s Graduation', active: true, order: 3 },
 ];
-// --- END NEW ---
 
-
-// Premium Calculation Logic
 export const calculatePremium = (policyType: PolicyType, coverage: number): number => {
     switch (policyType) {
         case 'Health Insurance':
@@ -440,8 +398,6 @@ export const calculatePremium = (policyType: PolicyType, coverage: number): numb
     }
 };
 
-// --- DIGIPIN GENERATION ---
-// This is exported so the simulated geminiService can use it.
 export const generateDigipin = (lat: number, lng: number): string => {
     const CCODE = "23456789CFGHJMPQRVWX";
     let lat_val = Math.round((lat + 90) * 8000 * 20);
@@ -457,13 +413,9 @@ export const generateDigipin = (lat: number, lng: number): string => {
         if (i === 0) code = '+' + code;
         if (i === 1) code = ' ' + code;
     }
-
-    // Replace space with '+' as per standard Plus Code format
-    return code.replace(' ', '+').slice(0, 11); // e.g., 7J4VPQCP+HG
+    return code.replace(' ', '+').slice(0, 11); 
 };
 
-
-// --- DYNAMIC DATE GENERATION FOR DEMO ---
 const today = new Date();
 const priyaDob = new Date(today);
 priyaDob.setFullYear(1985);
@@ -476,346 +428,294 @@ deepaRenewal.setDate(today.getDate() + 25);
 
 const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
-// In-memory database simulation
-// MODIFIED: gender and maritalStatus now use IDs
-// MODIFICATION START: Updated members to use new process stage structure
+// --- EXTENDED MOCK MEMBERS DATA FOR CAMPAIGN TESTING ---
 let members: Member[] = [
+  // 1. MUMBAI - LIFE INSURANCE (TERM) - HIGH VALUE
   {
-      id: '1',
-      sno: 1, // New permanent ID
-      name: 'Priya Sharma',
-      memberId: 'PR1043312',
-      dob: formatDate(priyaDob), // Dynamic Birthday
-      gender: 'gen-2', // Female
-      bloodGroup: 'O+',
-      maritalStatus: 'mar-2', // Married
-      mobile: '+91 9876543312',
-      state: 'Maharashtra',
-      city: 'Mumbai City',
-      address: '101, Thirupathi Valley, Goregaon East',
-      memberType: 'Diamond', // Updated to Diamond based on new tiers
-      tierId: 'tier-3', // Updated to tier-3
-      active: true,
-      panCard: 'ABCDE1234F',
-      aadhaar: '1234 5678 9012',
-      anniversary: '2010-04-20',
-      otherSpecialOccasions: [
-          { id: 'occ-1', occasionTypeId: 'occ-type-1', date: '2024-05-15' }
-      ],
+      id: '1', 
+      sno: 1, 
+      name: 'Priya Sharma', 
+      memberId: 'PR1043312', 
+      dob: '1985-01-01', 
+      gender: 'gen-2', 
+      maritalStatus: 'mar-2',
+      mobile: '+91 9876543312', 
+      country: 'India',          // Added for filter
+      state: 'Maharashtra', 
+      district: 'Mumbai Suburban', // Added for filter
+      city: 'Mumbai', 
+      area: 'Goregaon East',     // Added for filter
+      address: '101, Thirupathi Valley',
+      memberType: 'Diamond', 
+      tierId: 'tier-3', 
+      active: true, 
+      panCard: 'ABCDE1234F', 
+      aadhaar: '123456789012',
       policies: [{
-          id: 'POL001',
-          policyType: 'Life Insurance',
-          status: 'Active',
-          coverage: 2300000, // Updated coverage
-          premium: 25000,
-          renewalDate: '2024-08-13',
-          renewalLink: 'https://example.com/renew/life',
-          commission: { amount: 2500, status: 'Paid', paidDate: '2024-06-15' },
-          documentReceived: false,
-          licData: {
-              fatherName: 'Rajesh Sharma'
-          },
-          comp_id: 'FIN01',
-          insuranceTypeId: 'it-term'
+          id: 'POL001', 
+          policyType: 'Life Insurance', 
+          status: 'Active', 
+          coverage: 5000000, 
+          premium: 50000, // High Premium for Value Filter
+          renewalDate: '2024-08-13', 
+          comp_id: 'FIN01', 
+          insuranceTypeId: 'it-term' // Term Life
       }],
-      voiceNotes: [],
-      documents: [],
-      checkIns: [],
-      digipin: '7JFJ3Q6H+2V', // Mumbai
-      lat: 19.1678,
-      lng: 72.8647,
-      digipinDetails: {
-          summary: 'A bustling residential area in Goregaon East.',
-          landmarks: ['Oberoi Mall', 'Goregaon Station', 'Film City'],
-      },
-      automatedGreetingsEnabled: true,
-      inactiveSince: null,
-      assignedTo: ['user-2'], // Rohan Patel
-      leadSource: { sourceId: 'rt-3', detail: 'Arjun Mehta' },
-      processStage: 'Premium Collection', // DEPRECATED - kept for fallback
-      processStages: { 'it-life': 'Premium Collection' },
-      stageLastChanged: '2024-07-10T10:00:00.000Z', // DEPRECATED
-      stageLastChangedMap: { 'it-life': '2024-07-10T10:00:00.000Z' },
-      processHistory: [], // DEPRECATED
-      processHistories: { 'it-life': [] },
-      createdBy: 'user-1',
-      createdAt: '2024-01-10T10:00:00.000Z',
-      financialProfile: {
-          riskTolerance: 'Medium',
-          annualIncome: 2500000
-      },
-      bankDetails: {},
-      company: 'Finroots',
-      comp_id: 'FIN01',
-      branch_id: 'frb-2', // Coimbatore Hub
-      isSPOC: true,
-      familyName: 'The Sharmas',
-      religionId: 'rel-1' // Hinduism
-      ,
-      country: ''
-  },
-
-  {
-      id: '2',
-      sno: 2, // New permanent ID
-      name: 'Deepa Verma',
-      memberId: 'DEA286543',
-      dob: '1990-11-12',
-      gender: 'gen-2', // Female
-      bloodGroup: 'A+',
-      maritalStatus: 'mar-1', // Single
-      mobile: '+91 9043386543',
-      state: 'Delhi',
-      city: 'New Delhi',
-      address: 'A-23, Mullai Nagar, Connaught Place',
-      memberType: 'Silver', // Still Silver
-      tierId: 'tier-1',
-      active: true,
-      panCard: 'FGHIJ5678K',
-      aadhaar: '2345 6789 0123',
-      policies: [{ id: 'POL002', policyType: 'Health Insurance', status: 'Active', coverage: 500000, premium: 15000, renewalDate: formatDate(deepaRenewal), renewalLink: 'https://example.com/renew/health', commission: { amount: 1500, status: 'Paid', paidDate: '2024-05-25' }, documentReceived: false, comp_id: 'FIN01', insuranceTypeId: 'it-individual-health' }],
-      voiceNotes: [],
-      documents: [],
-      checkIns: [],
-      lat: 28.6315, // Legacy data for backward compatibility
-      lng: 77.2167,
-      automatedGreetingsEnabled: false,
-      inactiveSince: null,
-      assignedTo: ['user-3'], // Priya Singh
-      leadSource: { sourceId: 'ls-3' },
-      processStage: 'Proposal Submission',
-      processStages: { 'it-health': 'Proposal Submission' },
-      stageLastChanged: '2024-07-15T10:00:00.000Z',
-      stageLastChangedMap: { 'it-health': '2024-07-15T10:00:00.000Z' },
-      processHistory: [],
-      processHistories: { 'it-health': [] },
-      createdBy: 'user-2',
-      createdAt: '2024-02-15T10:00:00.000Z',
-      financialProfile: {
-          riskTolerance: 'Low'
-      },
-      bankDetails: {},
-      company: 'Finroots',
-      comp_id: 'FIN01',
-      branch_id: 'frb-1', // Erode HQ
-      religionId: 'rel-2' // Christianity
-      ,
-      country: ''
-  },
-  {
-      id: '3',
-      sno: 3, // New permanent ID
-      name: 'Kavya Reddy',
-      memberId: 'KA5446573',
-      dob: '1982-03-30',
-      gender: 'gen-2', // Female
-      bloodGroup: 'B-',
-      maritalStatus: 'mar-2', // Married
-      mobile: '+91 9675346573',
-      state: 'Karnataka',
-      city: 'Bengaluru (Bangalore) Urban',
-      address: '54, TVS Road, HSR Layout',
-      memberType: 'Silver', // Updated to Silver based on new tiers
-      tierId: 'tier-1',
-      active: true,
-      panCard: 'KLMNO9012L',
-      aadhaar: '3456 7890 1234',
-      anniversary: formatDate(kavyaAnniversary), // Dynamic Anniversary
-      policies: [
-          { id: 'POL003', policyType: 'General Insurance', generalInsuranceType: 'Motor', status: 'Active', coverage: 350000, premium: 8000, renewalDate: '2024-04-10', commission: { amount: 400, status: 'Paid', paidDate: '2024-04-12' }, documentReceived: true, comp_id: 'FIN01', insuranceTypeId: 'it-motor' },
-      ],
-      voiceNotes: [],
-      documents: [],
-      checkIns: [],
-      lat: 12.9121,
-      lng: 77.6389,
-      automatedGreetingsEnabled: true,
-      inactiveSince: null,
-      assignedTo: ['user-3'], // Priya Singh
-      leadSource: { sourceId: 'ls-8' },
-      processStage: 'Payment',
-      processStages: { 'it-general': 'Payment' },
-      stageLastChanged: '2024-06-20T10:00:00.000Z',
-      stageLastChangedMap: { 'it-general': '2024-06-20T10:00:00.000Z' },
-      processHistory: [],
-      processHistories: { 'it-general': [] },
-      createdBy: 'user-2',
-      createdAt: '2024-03-20T10:00:00.000Z',
-      financialProfile: {},
-      bankDetails: {},
-      company: 'Finroots',
-      comp_id: 'FIN01',
-      branch_id: 'frb-2',
-      country: ''
-  },
-  {
-      id: '4',
-      sno: 4, // New permanent ID
-      name: 'Ramya Iyer',
-      memberId: 'RA3483536',
-      dob: '1995-08-25',
-      gender: 'gen-2', // Female
-      bloodGroup: 'AB+',
-      maritalStatus: 'mar-1', // Single
-      mobile: '+91 8736283536',
-      state: 'Tamil Nadu',
-      city: 'Chennai',
-      address: '3/45, Ram Nagar, Nungambakkam',
-      memberType: 'Gold', // Updated to Gold based on new tiers
-      tierId: 'tier-2',
-      active: false,
-      inactiveSince: '2024-03-15T10:00:00.000Z',
-      panCard: 'PQRST3456M',
-      aadhaar: '4567 8901 2345',
-      anniversary: '2025-08-18',
-      policies: [{ id: 'POL004', policyType: 'Life Insurance', status: 'Inactive', coverage: 1000000, premium: 12000, renewalDate: '2024-03-30', commission: { amount: 1000, status: 'Cancelled' }, documentReceived: false, comp_id: 'FIN01', insuranceTypeId: 'it-life' }],
-      voiceNotes: [],
-      documents: [],
-      checkIns: [],
-      digipin: '7M52376V+5R', // Chennai
-      lat: 13.0604,
-      lng: 80.2495,
-      automatedGreetingsEnabled: false,
-      assignedTo: [],
-      leadSource: { sourceId: 'ls-4' },
+      mutualFundHoldings: [],
+      leadSource: { sourceId: 'ls-ref', detail: 'Referral' },
+      company: 'Finroots', 
+      comp_id: 'FIN01', 
+      isSPOC: true, 
+      assignedTo: ['user-2'],
       processStage: 'Initial Contact',
-      processStages: { 'it-life': 'Initial Contact' },
-      stageLastChanged: '2024-02-01T10:00:00.000Z',
-      stageLastChangedMap: { 'it-life': '2024-02-01T10:00:00.000Z' },
-      processHistory: [],
-      processHistories: {},
-      createdBy: 'user-1',
-      createdAt: '2024-04-01T10:00:00.000Z',
-      financialProfile: {},
-      bankDetails: {},
-      company: 'Finroots',
-      comp_id: 'FIN01',
-      branch_id: 'frb-1',
-      country: ''
+      voiceNotes: [], 
+      documents: [], 
+      checkIns: []
   },
-    {
-        id: '5',
-        sno: 5, // New permanent ID
-        name: 'Vikram Singh',
-        memberId: 'VI7B56789',
-        dob: '1978-01-15',
-        gender: 'gen-1', // Male
-        bloodGroup: 'O-',
-        maritalStatus: 'mar-2', // Married
-        mobile: '+91 9123456789',
-        state: 'Maharashtra',
-        city: 'Pune',
-        address: '7B, Clover Park, Viman Nagar',
-        memberType: 'Diamond', // Updated to Diamond based on new tiers
-        tierId: 'tier-3',
-        active: true,
-        panCard: 'UVXYZ9876A',
-        aadhaar: '9876 5432 1098',
-        policies: [{ id: 'POL005', policyType: 'Health Insurance', status: 'Active', coverage: 1650000, premium: 18000, renewalDate: formatDate(vikramRenewal), documentReceived: true, commission: { amount: 1800, status: 'Paid', paidDate: '2024-02-06' }, comp_id: 'FIN01', insuranceTypeId: 'it-family-floater' }],
-        voiceNotes: [],
-        documents: [],
-        checkIns: [],
-        lat: 18.5679,
-        lng: 73.9143,
-        automatedGreetingsEnabled: true,
-        inactiveSince: null,
-        assignedTo: ['user-2'], // Rohan Patel
-        leadSource: { sourceId: 'ls-5' },
-        processStage: 'Policy Activation',
-        processStages: { 'it-health': 'Policy Activation' },
-        stageLastChanged: '2024-05-15T10:00:00.000Z',
-        stageLastChangedMap: { 'it-health': '2024-05-15T10:00:00.000Z' },
-        processHistory: [],
-        processHistories: {},
-        createdBy: 'user-2',
-        createdAt: '2024-05-15T10:00:00.000Z',
-        financialProfile: {
-            riskTolerance: 'High',
-            annualIncome: 4000000
-        },
-        bankDetails: {},
-        company: 'Finroots',
-        comp_id: 'FIN01',
-        branch_id: 'frb-1',
-        country: ''
-    },
-   {
-       id: '6',
-       sno: 6, // New permanent ID for Finroots
-       name: 'Arjun Mehta',
-       memberId: 'AR1176655',
-       dob: '1992-07-22',
-       gender: 'gen-1', // Male
-       bloodGroup: 'A-',
-       maritalStatus: 'mar-1', // Single
-       mobile: '+91 9988776655',
-       state: 'Karnataka',
-       city: 'Bengaluru (Bangalore) Urban',
-       address: '112, 4th Cross, Indiranagar',
-       memberType: 'Platinum',
-       tierId: 'tier-4',
-       active: true,
-       panCard: 'BCDEF2345G',
-       aadhaar: '8765 4321 0987',
-       policies: [
-           { id: 'POL006', policyType: 'Health Insurance', status: 'Active', coverage: 1000000, premium: 22000, renewalDate: '2025-01-20', commission: { amount: 2000, status: 'Paid', paidDate: '2024-01-22' }, documentReceived: true, comp_id: 'FIN01', insuranceTypeId: 'it-health' },
-           { id: 'POL007', policyType: 'Life Insurance', status: 'Active', coverage: 2800000, premium: 30000, renewalDate: '2025-01-20', commission: { amount: 3000, status: 'Paid', paidDate: '2024-01-22' }, documentReceived: true, comp_id: 'FIN01', insuranceTypeId: 'it-life' }
-       ],
-       mutualFundHoldings: [
-           {
-               id: 'mfh-1',
-               schemeId: 'mf-2', // HDFC Small Cap
-               folioNumber: '987654321/12',
-               investmentType: 'SIP',
-               totalInvestment: 35000,
-               units: 350,
-               currentValue: 38500,
-               sipAmount: 5000,
-               sipDate: 10,
-               status: 'Active',
-               transactions: [],
-               sipRejections: [
-                   {
-                       date: new Date(new Date().setDate(today.getDate() - 12)).toISOString().split('T')[0],
-                       reason: 'Insufficient Funds'
-                   }
-               ]
-           }
-       ],
-       voiceNotes: [],
-       documents: [],
-       checkIns: [],
-       lat: 12.9784,
-       lng: 77.6408,
-       automatedGreetingsEnabled: true,
-       inactiveSince: null,
-       assignedTo: ['user-2', 'user-3'], // Rohan & Priya
-       leadSource: { sourceId: 'ls-7' },
-       processStage: 'Initial Contact', // Fallback
-       processStages: { 'it-health': 'Consultation', 'it-life': 'Requirement Analysis', 'mutual-fund': 'KYC Verification' },
-       stageLastChanged: '2024-07-22T10:00:00.000Z', // Fallback
-       stageLastChangedMap: { 'it-health': '2024-07-22T10:00:00.000Z', 'it-life': '2024-07-22T10:00:00.000Z', 'mutual-fund': '2024-07-22T10:00:00.000Z' },
-       processHistory: [],
-       processHistories: {},
-       createdBy: 'user-2',
-       createdAt: '2024-07-22T10:00:00.000Z',
-       financialProfile: {
-           riskTolerance: 'Aggressive',
-           annualIncome: 5500000
-       },
-       bankDetails: {},
-       company: 'Finroots',
-       comp_id: 'FIN01',
-       branch_id: 'frb-2',
-       country: ''
-   }
-];
-// MODIFICATION END
 
-// --- START: AUTOMATIC DATA HYDRATION LOGIC ---
+  // 2. DELHI - MUTUAL FUNDS - HIGH INVESTMENT
+  {
+      id: '2', 
+      sno: 2, 
+      name: 'Deepa Verma', 
+      memberId: 'DEA286543', 
+      dob: '1990-11-12', 
+      gender: 'gen-2', 
+      maritalStatus: 'mar-1',
+      mobile: '+91 9043386543', 
+      country: 'India',
+      state: 'Delhi', 
+      district: 'New Delhi',
+      city: 'New Delhi', 
+      area: 'Connaught Place',
+      address: 'A-23, Mullai Nagar',
+      memberType: 'Gold', 
+      tierId: 'tier-2', 
+      active: true, 
+      panCard: 'FGHIJ5678K', 
+      aadhaar: '234567890123',
+      policies: [],
+      mutualFundHoldings: [
+          {
+              id: 'mfh-2', 
+              schemeId: 'mf-1', 
+              folioNumber: '12345', 
+              investmentType: 'Lumpsum',
+              totalInvestment: 500000, 
+              units: 5000, 
+              currentValue: 750000, // High Value for MF Filter
+              transactions: [], 
+              status: 'Active'
+          }
+      ],
+      leadSource: { sourceId: 'ls-dm', detail: 'Facebook' },
+      company: 'Finroots', 
+      comp_id: 'FIN01', 
+      isSPOC: true, 
+      assignedTo: ['user-3'],
+      processStage: 'Risk Profiling',
+      voiceNotes: [], 
+      documents: [], 
+      checkIns: []
+  },
+
+  // 3. BANGALORE - GENERAL INSURANCE (MOTOR)
+  {
+      id: '3', 
+      sno: 3, 
+      name: 'Kavya Reddy', 
+      memberId: 'KA5446573', 
+      dob: '1982-03-30', 
+      gender: 'gen-2', 
+      maritalStatus: 'mar-2',
+      mobile: '+91 9675346573', 
+      country: 'India',
+      state: 'Karnataka', 
+      district: 'Bangalore Urban',
+      city: 'Bengaluru', 
+      area: 'HSR Layout',
+      address: '54, TVS Road',
+      memberType: 'Silver', 
+      tierId: 'tier-1', 
+      active: true, 
+      panCard: 'KLMNO9012L', 
+      aadhaar: '345678901234',
+      policies: [
+          { 
+              id: 'POL003', 
+              policyType: 'General Insurance', 
+              generalInsuranceType: 'Motor', 
+              status: 'Active', 
+              coverage: 350000, 
+              premium: 12000, 
+              renewalDate: '2024-04-10', 
+              comp_id: 'FIN01', 
+              insuranceTypeId: 'it-motor' 
+          },
+      ],
+      mutualFundHoldings: [],
+      leadSource: { sourceId: 'ls-web', detail: 'Website' },
+      company: 'Finroots', 
+      comp_id: 'FIN01', 
+      isSPOC: true, 
+      assignedTo: ['user-2'],
+      processStage: 'Inquiry',
+      voiceNotes: [], 
+      documents: [], 
+      checkIns: []
+  },
+
+  // 4. CHENNAI - HEALTH INSURANCE (FAMILY FLOATER) - RELATIONSHIP TEST
+  {
+      id: '5', 
+      sno: 5, 
+      name: 'Vikram Singh', 
+      memberId: 'VI7B56789', 
+      dob: '1978-01-15', 
+      gender: 'gen-1', 
+      maritalStatus: 'mar-2',
+      mobile: '+91 9123456789', 
+      country: 'India',
+      state: 'Tamil Nadu', 
+      district: 'Chennai',
+      city: 'Chennai', 
+      area: 'Viman Nagar',
+      address: '7B, Clover Park',
+      memberType: 'Platinum', 
+      tierId: 'tier-4', 
+      active: true, 
+      panCard: 'UVXYZ9876A', 
+      aadhaar: '987654321098',
+      policies: [{ 
+          id: 'POL005', 
+          policyType: 'Health Insurance', 
+          status: 'Active', 
+          coverage: 1500000, 
+          premium: 35000, 
+          renewalDate: '2024-12-15', 
+          comp_id: 'FIN01', 
+          insuranceTypeId: 'it-family-floater',
+          // Adding covered members to test Relationship filter (e.g. "Spouse")
+          coveredMembers: [
+              { id: 'cm-1', name: 'Vikram Singh', relationship: 'Self', dob: '1978-01-15' },
+              { id: 'cm-2', name: 'Riya Singh', relationship: 'Spouse', dob: '1980-05-20' },
+              { id: 'cm-3', name: 'Rahul Singh', relationship: 'Son', dob: '2010-08-10' }
+          ]
+      }],
+      mutualFundHoldings: [],
+      leadSource: { sourceId: 'ls-ec', detail: 'Existing Client' },
+      company: 'Finroots', 
+      comp_id: 'FIN01', 
+      isSPOC: true, 
+      assignedTo: ['user-7'],
+      processStage: 'Lead Generation',
+      voiceNotes: [], 
+      documents: [], 
+      checkIns: []
+  },
+
+  // 5. MUMBAI - MIXED PORTFOLIO - AGGRESSIVE INVESTOR
+  {
+      id: '6', 
+      sno: 6, 
+      name: 'Arjun Mehta', 
+      memberId: 'AR1176655', 
+      dob: '1992-07-22', 
+      gender: 'gen-1', 
+      maritalStatus: 'mar-1',
+      mobile: '+91 9988776655', 
+      country: 'India',
+      state: 'Maharashtra', 
+      district: 'Mumbai City',
+      city: 'Mumbai', 
+      area: 'Bandra West',
+      address: '112, 4th Cross',
+      memberType: 'Platinum', 
+      tierId: 'tier-4', 
+      active: true, 
+      panCard: 'BCDEF2345G', 
+      aadhaar: '876543210987',
+      policies: [
+          { 
+              id: 'POL007', 
+              policyType: 'Life Insurance', 
+              status: 'Active', 
+              coverage: 10000000, 
+              premium: 120000, 
+              renewalDate: '2025-01-20', 
+              comp_id: 'FIN01', 
+              insuranceTypeId: 'it-whole' 
+          } 
+      ],
+      mutualFundHoldings: [
+          {
+              id: 'mfh-1', 
+              schemeId: 'mf-2', 
+              folioNumber: '987654321', 
+              investmentType: 'SIP',
+              totalInvestment: 200000, 
+              units: 2000, 
+              currentValue: 250000, 
+              status: 'Active', 
+              transactions: []
+          }
+      ],
+      leadSource: { sourceId: 'ls-ref', detail: 'Priya Sharma' },
+      company: 'Finroots', 
+      comp_id: 'FIN01', 
+      isSPOC: true, 
+      assignedTo: ['user-2'],
+      processStage: 'Initial Contact',
+      voiceNotes: [], 
+      documents: [], 
+      checkIns: []
+  },
+
+  // 6. ERODE - LIFE INSURANCE (ENDOWMENT) - TIER 3 CITY TEST
+  {
+      id: '7', 
+      sno: 7, 
+      name: 'Senthil Kumar', 
+      memberId: 'SK887766', 
+      dob: '1988-03-15', 
+      gender: 'gen-1', 
+      maritalStatus: 'mar-2',
+      mobile: '+91 9876512345', 
+      country: 'India',
+      state: 'Tamil Nadu', 
+      district: 'Erode',
+      city: 'Erode', 
+      area: 'Perundurai Road',
+      address: '45, KVN Nagar',
+      memberType: 'Gold', 
+      tierId: 'tier-2', 
+      active: true, 
+      panCard: 'ABCDE9999Z', 
+      aadhaar: '999988887777',
+      policies: [{ 
+          id: 'POL008', 
+          policyType: 'Life Insurance', 
+          status: 'Active', 
+          coverage: 1000000, 
+          premium: 40000, 
+          renewalDate: '2024-11-20', 
+          comp_id: 'FIN01', 
+          insuranceTypeId: 'it-endowment' 
+      }],
+      mutualFundHoldings: [],
+      leadSource: { sourceId: 'ls-cc' }, // Cold Call
+      company: 'Finroots', 
+      comp_id: 'FIN01', 
+      isSPOC: true, 
+      assignedTo: ['user-3'],
+      processStage: 'Initial Contact',
+      voiceNotes: [], 
+      documents: [], 
+      checkIns: []
+  }
+];
+
 const hydrateInitialData = (memberData: Member[]): Member[] => {
-    // A simple map to assign a default scheme to policies that are missing it.
-    // In a real app, this logic could be much more complex.
     const defaultSchemes: Record<string, { schemeId: string, schemeName: string }> = {
         'Life Insurance': { schemeId: 'sch-2', schemeName: 'Jeevan Anand' },
         'Health Insurance': { schemeId: 'sch-5', schemeName: 'Comprehensive Health Plan' },
@@ -825,7 +725,6 @@ const hydrateInitialData = (memberData: Member[]): Member[] => {
     return memberData.map(member => ({
         ...member,
         policies: member.policies.map(policy => {
-            // If schemeId already exists, do nothing.
             if (policy.schemeId) {
                 return policy;
             }
@@ -844,31 +743,24 @@ const hydrateInitialData = (memberData: Member[]): Member[] => {
                     schemeName: defaultScheme.schemeName,
                 };
             }
-            
-            // Return original policy if no default is found
             return policy;
         })
     }));
 };
 
-// Run the hydration process on the initial data
 members = hydrateInitialData(members);
-// --- END: AUTOMATIC DATA HYDRATION LOGIC ---
 
 let leads: Lead[] = [
-    { id: 'lead-1', name: 'Ravi Kumar', phone: '9876512345', email: 'ravi.k@example.com', leadSource: { sourceId: 'ls-8' }, status: 'Lead', estimatedValue: 15000, assignedTo: 'user-2', createdAt: '2024-07-20T10:00:00Z', notes: 'Interested in a family health plan.', company: 'Finroots', comp_id: 'FIN01' },
-    { id: 'lead-2', name: 'Sunita Nair', phone: '9123456780', email: 'sunita.n@example.com', leadSource: { sourceId: 'rt-2', detail: 'Priya Sharma' }, status: 'Contacted', estimatedValue: 25000, assignedTo: 'user-2', createdAt: '2024-07-18T14:30:00Z', notes: 'Referred by Priya Sharma. Follow up next week.', company: 'Finroots', comp_id: 'FIN01' },
-    { id: 'lead-3', name: 'Amit Desai', phone: '9988776650', email: 'amit.d@example.com', leadSource: { sourceId: 'ls-4' }, status: 'Meeting Scheduled', estimatedValue: 50000, assignedTo: 'user-2', createdAt: '2024-07-15T11:00:00Z', notes: 'Meeting on Friday at 3 PM to discuss life insurance options.', company: 'Finroots', comp_id: 'FIN01' },
-    { id: 'lead-4', name: 'Meera Gupta', phone: '9000011111', email: 'meera.g@example.com', leadSource: { sourceId: 'ls-9' }, status: 'Proposal Sent', estimatedValue: 12000, assignedTo: 'user-2', createdAt: '2024-07-12T09:00:00Z', notes: 'Sent proposal for vehicle insurance. Awaiting response.', company: 'Finroots', comp_id: 'FIN01' },
+    { id: 'lead-1', name: 'Ravi Kumar', phone: '9876512345', email: 'ravi.k@example.com', leadSource: { sourceId: 'ls-8' }, status: 'Lead', estimatedValue: 15000, assignedTo: 'user-2', createdAt: '2024-07-20T10:00:00Z', notes: 'Interested in a family health plan.', company: 'Finroots', comp_id: 'FIN01', branch_id: 'frb-1' },
+    { id: 'lead-2', name: 'Sunita Nair', phone: '9123456780', email: 'sunita.n@example.com', leadSource: { sourceId: 'rt-2', detail: 'Priya Sharma' }, status: 'Contacted', estimatedValue: 25000, assignedTo: 'user-2', createdAt: '2024-07-18T14:30:00Z', notes: 'Referred by Priya Sharma. Follow up next week.', company: 'Finroots', comp_id: 'FIN01', branch_id: 'frb-2' },
+    { id: 'lead-3', name: 'Amit Desai', phone: '9988776650', email: 'amit.d@example.com', leadSource: { sourceId: 'ls-4' }, status: 'Meeting Scheduled', estimatedValue: 50000, assignedTo: 'user-2', createdAt: '2024-07-15T11:00:00Z', notes: 'Meeting on Friday at 3 PM to discuss life insurance options.', company: 'Finroots', comp_id: 'FIN01', branch_id: 'frb-1' },
+    { id: 'lead-4', name: 'Meera Gupta', phone: '9000011111', email: 'meera.g@example.com', leadSource: { sourceId: 'ls-9' }, status: 'Proposal Sent', estimatedValue: 12000, assignedTo: 'user-2', createdAt: '2024-07-12T09:00:00Z', notes: 'Sent proposal for vehicle insurance. Awaiting response.', company: 'Finroots', comp_id: 'FIN01', branch_id: 'frb-2' },
 ];
 
-// NEW: In-memory stores for location tracking data
 let advisorLocationsData: AdvisorLocation[] = [];
 let checkInData: CheckIn[] = [];
 let advisorLocationHistoryData: Record<string, { lat: number; lng: number; timestamp: string }[]> = {};
 
-
-// Mock database for the auto-fill feature
 const preRegisteredUsers: Record<string, Partial<Member>> = {
     '9999988888': {
         name: 'Suresh Kumar',
@@ -884,21 +776,8 @@ const preRegisteredUsers: Record<string, Partial<Member>> = {
     }
 };
 
-const cityCoordinates: Record<string, { lat: number; lng: number }> = {
-    'Mumbai City': { lat: 19.0760, lng: 72.8777 },
-    'New Delhi': { lat: 28.7041, lng: 77.1025 },
-    'Bengaluru (Bangalore) Urban': { lat: 12.9716, lng: 77.5946 },
-    'Chennai': { lat: 13.0827, lng: 80.2707 },
-    'Kolkata': { lat: 22.5726, lng: 88.3639 },
-    'Hyderabad': { lat: 17.3850, lng: 78.4867 },
-    'Pune': { lat: 18.5204, lng: 73.8567 },
-    'Ahmedabad': { lat: 23.0225, lng: 72.5714 },
-};
-
-
 const simulateDelay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// --- MODIFICATION BEGINS ---
 export const login = async (company: string, employeeId: string, password_param: string, roleId: string, branch_id?: string, financialYearId?: string): Promise<User | null> => {
     await simulateDelay(200);
 
@@ -912,21 +791,20 @@ export const login = async (company: string, employeeId: string, password_param:
         return null;
     }
 
-    // New check for active status. Throws a specific error for the UI to catch.
     if (user.profile?.status !== 'Active') {
         throw new Error('INACTIVE_ACCOUNT');
     }
 
     if (user.roleId !== roleId) {
-        return null; // Role mismatch
+        return null; 
     }
 
     if (user.profile?.employeebranch_id && user.profile.employeebranch_id !== branch_id) {
-        return null; // Branch mismatch for any user who has a specific branch assigned.
+        return null; 
     }
 
     if (financialYearId && !financialYearsData.find(fy => fy.id === financialYearId)) {
-        return null; // Invalid financial year
+        return null; 
     }
 
     if (!user.roleId) {
@@ -935,9 +813,7 @@ export const login = async (company: string, employeeId: string, password_param:
 
     return user ? JSON.parse(JSON.stringify(user)) : null;
 };
-// --- MODIFICATION ENDS ---
 
-// --- NEW: API functions for Financial Year and Document Numbering ---
 export const getFinancialYears = async (): Promise<FinancialYear[]> => {
     await simulateDelay(100);
     return JSON.parse(JSON.stringify(financialYearsData));
@@ -960,14 +836,12 @@ export const updateDocumentNumbering = async (updatedData: DocumentNumbering[]):
     return documentNumberingData;
 };
 
-
 export const getUsers = async (comp_id?: string): Promise<User[]> => {
   await simulateDelay(100);
   const filteredUsers = comp_id ? users.filter(u => u.comp_id === comp_id) : users;
   return JSON.parse(JSON.stringify(filteredUsers));
 };
 
-// RENAMED: from createAdvisor to createEmployee
 export const createEmployee = async (employeeData: Omit<User, 'id' | 'role' | 'initials'>): Promise<User> => {
     await simulateDelay(300);
     const initials = (employeeData.name || '').split(' ').map(n => n[0]).join('').toUpperCase();
@@ -985,7 +859,6 @@ export const createEmployee = async (employeeData: Omit<User, 'id' | 'role' | 'i
     return JSON.parse(JSON.stringify(newEmployee));
 };
 
-// RENAMED: from updateAdvisor to updateEmployee
 export const updateEmployee = async (employeeData: User): Promise<User> => {
     await simulateDelay(300);
     const index = users.findIndex(u => u.id === employeeData.id);
@@ -1000,7 +873,6 @@ export const updateEmployee = async (employeeData: User): Promise<User> => {
     return JSON.parse(JSON.stringify(users[index]));
 };
 
-// RENAMED: from deleteAdvisor to deleteEmployee
 export const deleteEmployee = async (userId: string): Promise<{ success: true }> => {
     await simulateDelay(300);
     const initialLength = users.length;
@@ -1010,7 +882,6 @@ export const deleteEmployee = async (userId: string): Promise<{ success: true }>
     }
     return { success: true };
 };
-
 
 export const getMembers = async (comp_id?: string, advisorId?: string): Promise<Member[]> => {
   await simulateDelay(500);
@@ -1042,12 +913,12 @@ export const createMember = async (memberData: Omit<Member, 'id' | 'sno'>): Prom
     documents: memberData.documents || [],
     checkIns: memberData.checkIns || [],
     assignedTo: memberData.assignedTo || [],
-    processStage: memberData.processStage || 'Initial Contact', // Keep for fallback
+    processStage: memberData.processStage || 'Initial Contact', 
     processStages: memberData.processStages || {},
-    stageLastChanged: memberData.stageLastChanged || new Date().toISOString(), // Keep for fallback
+    stageLastChanged: memberData.stageLastChanged || new Date().toISOString(), 
     stageLastChangedMap: memberData.stageLastChangedMap || {},
     comp_id: memberData.comp_id,
-    maritalStatus: memberData.maritalStatus || null, // Ensure default
+    maritalStatus: memberData.maritalStatus || null, 
   };
 
   if ((newMember.lat && newMember.lng) && !newMember.digipin) {
@@ -1123,7 +994,6 @@ export const findMemberByMobile = async (mobile: string): Promise<Partial<Member
     return null;
 };
 
-// --- Route API Functions ---
 export const getRoutes = async (): Promise<Route[]> => {
     await simulateDelay(100);
     return JSON.parse(JSON.stringify(routes));
@@ -1139,8 +1009,6 @@ export const updateRoute = async (routeData: Route): Promise<Route> => {
     return JSON.parse(JSON.stringify(routes[index]));
 };
 
-
-// --- Lead API Functions ---
 export const getLeads = async (): Promise<Lead[]> => {
     await simulateDelay(400);
     return JSON.parse(JSON.stringify(leads));
@@ -1181,7 +1049,6 @@ export const deleteLead = async (leadId: string): Promise<{ success: true }> => 
     return { success: true };
 };
 
-// --- Operating Company API Functions ---
 export const getOperatingCompanies = async (): Promise<Company[]> => {
     await simulateDelay(100);
     return JSON.parse(JSON.stringify(companies));
@@ -1223,7 +1090,6 @@ export const updateOperatingCompany = async (companyData: Company): Promise<Comp
     return JSON.parse(JSON.stringify(companies[index]));
 };
 
-// --- Branch API Functions ---
 export const getBranches = async (): Promise<Branch[]> => {
     await simulateDelay(100);
     return JSON.parse(JSON.stringify(BranchesData));
@@ -1250,7 +1116,6 @@ export const updateBranch = async (branchData: Branch): Promise<Branch> => {
     return JSON.parse(JSON.stringify(BranchesData[index]));
 };
 
-// --- NEW: Role API Functions ---
 export const getRoles = async (): Promise<Role[]> => {
     await simulateDelay(100);
     return JSON.parse(JSON.stringify(rolesData));
@@ -1262,7 +1127,6 @@ export const updateRoles = async (updatedData: Role[]): Promise<Role[]> => {
     return rolesData;
 };
 
-// --- Designation & Permissions API Functions ---
 export const getDesignations = async (): Promise<Designation[]> => {
     await simulateDelay(100);
     return JSON.parse(JSON.stringify(designationsData));
@@ -1290,8 +1154,6 @@ export const updateRolePermissions = async (updatedPermissions: RolePermissions)
     return JSON.parse(JSON.stringify(updatedPermissions));
 };
 
-
-// --- NEW: Relationship Type API Functions ---
 export const getRelationshipTypes = async (): Promise<RelationshipType[]> => {
     await simulateDelay(100);
     return JSON.parse(JSON.stringify(relationshipTypesData));
@@ -1303,8 +1165,6 @@ export const updateRelationshipTypes = async (updatedData: RelationshipType[]): 
     return relationshipTypesData;
 };
 
-
-// --- MODIFICATION START: New API functions for ProcessStageMaster ---
 export const getProcessStageMasters = async (): Promise<ProcessStageMaster[]> => {
     await simulateDelay(100);
     return JSON.parse(JSON.stringify(processStageMastersData));
@@ -1315,9 +1175,7 @@ export const updateProcessStageMasters = async (updatedData: ProcessStageMaster[
     processStageMastersData = JSON.parse(JSON.stringify(updatedData));
     return processStageMastersData;
 };
-// --- MODIFICATION END ---
 
-// --- NEW: API functions for LeadStageMaster ---
 export const getLeadStageMasters = async (): Promise<LeadStageMaster[]> => {
     await simulateDelay(100);
     return JSON.parse(JSON.stringify(leadStageMastersData));
@@ -1328,10 +1186,7 @@ export const updateLeadStageMasters = async (updatedData: LeadStageMaster[]): Pr
     leadStageMastersData = JSON.parse(JSON.stringify(updatedData));
     return leadStageMastersData;
 };
-// --- END NEW ---
 
-
-// --- REFACTORED & NEW: Religion & Festival API Functions ---
 export const getReligions = async (): Promise<Religion[]> => {
     await simulateDelay(100);
     return JSON.parse(JSON.stringify(religionsData));
@@ -1398,14 +1253,11 @@ export const getFestivalsByDateRange = async (startDate: Date, endDate: Date): P
     return JSON.parse(JSON.stringify(results));
 };
 
-
-// --- NEW: Upselling Category API Functions ---
 export const getUpsellCategories = async (): Promise<UpsellCategory[]> => {
     await simulateDelay(100);
     return JSON.parse(JSON.stringify(upsellCategoriesData));
 };
 
-// --- NEW: Gender, Marital Status, and Customer Type API Functions ---
 export const getGenders = async (): Promise<Gender[]> => {
     await simulateDelay(50);
     return JSON.parse(JSON.stringify(gendersData));
@@ -1421,13 +1273,11 @@ export const getCustomerTypes = async (): Promise<CustomerType[]> => {
     return JSON.parse(JSON.stringify(customerTypesData));
 };
 
-// --- NEW: Customer Tiers API Function ---
 export const getCustomerTiers = async (): Promise<CustomerTier[]> => {
     await simulateDelay(50);
     return JSON.parse(JSON.stringify(initialCustomerTiers));
 };
 
-// --- NEW: API functions for OccasionTypeMaster ---
 export const getOccasionTypeMasters = async (): Promise<OccasionTypeMaster[]> => {
     await simulateDelay(100);
     return JSON.parse(JSON.stringify(occasionTypeMastersData));
@@ -1438,10 +1288,6 @@ export const updateOccasionTypeMasters = async (updatedData: OccasionTypeMaster[
     occasionTypeMastersData = JSON.parse(JSON.stringify(updatedData));
     return occasionTypeMastersData;
 };
-// --- END NEW ---
-
-
-// --- NEW: Location Tracking API Functions ---
 
 export const getAdvisorLocations = async (): Promise<AdvisorLocation[]> => {
     await simulateDelay(100);
@@ -1454,7 +1300,7 @@ export const getCheckIns = async (): Promise<CheckIn[]> => {
 };
 
 export const updateAdvisorLocation = async (locationData: Omit<AdvisorLocation, 'advisorName'>): Promise<AdvisorLocation> => {
-    await simulateDelay(50); // Faster update for live tracking
+    await simulateDelay(50); 
     const advisor = users.find(u => u.id === locationData.advisorId);
     if (!advisor) {
         throw new Error('Advisor not found for location update.');
@@ -1576,13 +1422,11 @@ export const getActiveCheckIn = async (advisorId: string): Promise<CheckIn | nul
     return activeCheckIn ? JSON.parse(JSON.stringify(activeCheckIn)) : null;
 };
 
-
 export const getAdvisorLocationHistory = async (advisorId: string): Promise<{ lat: number; lng: number; timestamp: string }[]> => {
     await simulateDelay(150);
     return JSON.parse(JSON.stringify(advisorLocationHistoryData[advisorId] || []));
 };
 
-// --- NEW: API functions for Insurance Type Document Rules ---
 export const getInsuranceTypeDocumentRules = async (): Promise<InsuranceTypeDocumentRule[]> => {
     await simulateDelay(100);
     return JSON.parse(JSON.stringify(insuranceTypeDocumentRulesData));
@@ -1592,4 +1436,36 @@ export const updateInsuranceTypeDocumentRules = async (updatedData: InsuranceTyp
     await simulateDelay(200);
     insuranceTypeDocumentRulesData = JSON.parse(JSON.stringify(updatedData));
     return insuranceTypeDocumentRulesData;
+};
+
+// --- NEW: Campaign API Functions ---
+export const getCampaigns = async (): Promise<CampaignMaster[]> => {
+    await simulateDelay(100);
+    return JSON.parse(JSON.stringify(campaignsData));
+};
+
+export const createCampaign = async (campaignData: Omit<CampaignMaster, 'id'>): Promise<CampaignMaster> => {
+    await simulateDelay(300);
+    const newCampaign: CampaignMaster = {
+        id: `camp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        ...campaignData,
+    };
+    campaignsData.push(newCampaign);
+    return JSON.parse(JSON.stringify(newCampaign));
+};
+
+export const updateCampaign = async (campaignData: CampaignMaster): Promise<CampaignMaster> => {
+    await simulateDelay(300);
+    const index = campaignsData.findIndex(c => c.id === campaignData.id);
+    if (index === -1) {
+        throw new Error('Campaign not found');
+    }
+    campaignsData[index] = campaignData;
+    return JSON.parse(JSON.stringify(campaignsData[index]));
+};
+
+export const deleteCampaign = async (campaignId: string): Promise<{ success: true }> => {
+    await simulateDelay(300);
+    campaignsData = campaignsData.filter(c => c.id !== campaignId);
+    return { success: true };
 };

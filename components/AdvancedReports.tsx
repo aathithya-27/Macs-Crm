@@ -11,7 +11,6 @@ import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfYear, 
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 
 
-// Correctly extends jsPDF to include autoTable functionality
 interface jsPDFWithAutoTable extends jsPDF {
     autoTable: (options: any) => jsPDFWithAutoTable;
 }
@@ -47,7 +46,6 @@ interface AdvancedReportsProps {
     maritalStatuses: MaritalStatus[];
 }
 
-// --- Type Definitions for Reporting ---
 type ReportType = 'customerDetail' | 'comparativeBusiness' | 'policies' | 'commissions' | 'manualCommissions' | 'expenses' | 'income' | 'businessVertical' | 'attendance' | 'taskPerformance' | 'leadConversion';
 type Frequency = 'daily' | 'weekly' | 'monthly' | 'yearly';
 type ViewMode = 'table' | 'chart';
@@ -59,7 +57,6 @@ interface ReportColumn {
     isNumeric?: boolean;
 }
 
-// --- Helper Functions ---
 const formatCsvCell = (cellData: any): string => {
     if (cellData === null || cellData === undefined) return 'N/A';
     if (Array.isArray(cellData)) cellData = cellData.join('; ');
@@ -93,7 +90,6 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 
-// --- Main Component ---
 const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     const { 
         members, users, tasks, leads, branches, schemes, companies, expenses, 
@@ -104,7 +100,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
          leadStageMasters, genders, maritalStatuses
     } = props;
 
-    // --- State Management ---
     const [reportType, setReportType] = useState<ReportType>('policies');
     const [startDate, setStartDate] = useState(format(startOfYear(new Date()), 'yyyy-MM-dd'));
     const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -119,10 +114,8 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     const [showAllPolicyFields, setShowAllPolicyFields] = useState(false);
     const [selectedCustomerIds, setSelectedCustomerIds] = useState<string[]>([]);
     const [viewMode, setViewMode] = useState<ViewMode>('table');
-    // --- MODIFICATION BEGINS ---
     const [assignedToFilter, setAssignedToFilter] = useState('all');
     const [createdByFilter, setCreatedByFilter] = useState('all');
-    // --- MODIFICATION ENDS ---
 
 
     const advisorOptions = useMemo(() => {
@@ -131,7 +124,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         return [{ value: 'all', label: 'All Advisors' }, ...advisors.map(u => ({ value: u.id, label: u.name }))];
     }, [users, roles]);
 
-    // --- MODIFICATION BEGINS ---
     const employeeOptions = useMemo(() => [
         { value: 'all', label: 'All Employees' },
         ...users.map(u => ({
@@ -139,9 +131,8 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             label: u.profile?.status === 'Inactive' ? `${u.name} 🔴` : u.name
         }))
     ], [users]);
-    // --- MODIFICATION ENDS ---
 
-    const branchOptions = useMemo(() => [{ value: 'all', label: 'All Branches' }, ...branches.map(b => ({ value: b.branch_id, label: b.branch_name }))], [branches]);
+    const branchOptions = useMemo(() => [{ value: 'all', label: 'All Branches' }, ...branches.map(b => ({ value: b.id, label: b.branch_name }))], [branches]);
     const policyTypeOptions = useMemo(() => [{ value: 'all', label: 'All Policy Types' }, ...insuranceTypes.filter(it => !it.parentId && it.active).map(it => ({ value: it.id, label: it.name }))], [insuranceTypes]);
     const subTypeOptions = useMemo(() => {
         if (policyTypeFilter === 'all') return [];
@@ -158,7 +149,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     }, [schemes, companyFilter]);
 
 
-    // --- Category & Data Lookup Helpers ---
     const getExpenseCategoryPath = (row: Expense) => {
         const l1 = expenseCategoriesLevel1.find(c => c.id === row.categoryLevel1Id)?.name;
         const l2 = expenseCategoriesLevel2.find(c => c.id === row.categoryLevel2Id)?.name;
@@ -188,13 +178,23 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     
     const branchMatch = (item: any) => {
         if (branchFilter === 'all') return true;
-        if (item.branch_id && item.branch_id === branchFilter) return true;
-        
+
+        if (item.branch_id && item.branch_id === branchFilter) {
+            return true;
+        }
+
+        if (item.profile?.employeebranch_id && item.profile.employeebranch_id === branchFilter) {
+            return true;
+        }
+
         const employeeId = item.createdBy || item.primaryContactPerson || (Array.isArray(item.assignedTo) ? item.assignedTo[0] : item.assignedTo);
         if (employeeId) {
             const employee = users.find(u => u.id === employeeId);
-            if (employee?.profile?.employeebranch_id === branchFilter) return true;
+            if (employee?.profile?.employeebranch_id === branchFilter) {
+                return true;
+            }
         }
+
         return false;
     };
     
@@ -204,7 +204,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     };
 
 
-    // --- Core Data Filtering and Aggregation Logic ---
     const filteredData = useMemo(() => {
         const start = parseISO(startDate);
         const end = parseISO(endDate);
@@ -222,7 +221,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         }
 
         switch (reportType) {
-            // --- MODIFICATION BEGINS ---
             case 'customerDetail':
                 return members.filter(m => {
                     const createdDate = m.createdAt ? parseISO(m.createdAt) : null;
@@ -234,7 +232,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
 
                     return dateMatch && assignedToMatch && createdByMatch && branchMatch(m) && customerMatch(m);
                 });
-            // --- MODIFICATION ENDS ---
 
             case 'policies':
                 const allPolicies = members.flatMap(m => m.policies.map(p => ({ ...p, member: m })));
@@ -243,9 +240,13 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                     if (!createdDate || !isValid(createdDate)) return false;
 
                     const typeMatch = policyTypeFilter === 'all' || (p.insuranceTypeId && relevantTypeIds.has(p.insuranceTypeId));
-                    const companyMatch = companyFilter === 'all' || p.comp_id === companyFilter;
+                    
+                    const scheme = schemes.find(s => s.id === p.schemeId);
+                    const agencyMatch = companyFilter === 'all' || (scheme && scheme.agencyId === companyFilter);
+
                     const schemeMatch = schemeFilter === 'all' || p.schemeName === schemeFilter;
-                    return (createdDate >= start && createdDate <= end) && advisorMatch(p.member) && branchMatch(p.member) && typeMatch && companyMatch && schemeMatch;
+                    
+                    return (createdDate >= start && createdDate <= end) && advisorMatch(p.member) && branchMatch(p.member) && typeMatch && agencyMatch && schemeMatch;
                 });
 
             case 'commissions':
@@ -285,7 +286,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                         records.forEach(rec => {
                             const recDate = parseISO(rec.timestamp);
                             if (recDate >= start && recDate <= end) {
-                                flatAttendance.push({ ...rec, userName: user.name, branch_name: branches.find(b => b.branch_id === user.profile?.employeebranch_id)?.branch_name || 'N/A' });
+                                flatAttendance.push({ ...rec, userName: user.name, branch_name: branches.find(b => b.id === user.profile?.employeebranch_id)?.branch_name || 'N/A' });
                             }
                         });
                     }
@@ -297,7 +298,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                     const created = t.creationDateTime ? parseISO(t.creationDateTime) : null;
                     if (!created || !isValid(created)) return false;
                     const member = members.find(m => m.id === t.memberId);
-                    return (created >= start && created <= end) && advisorMatch(t) && branchMatch(member || {});
+                    return (created >= start && created <= end) && advisorMatch(t) && branchMatch(member || t);
                  });
 
             case 'leadConversion':
@@ -407,7 +408,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         const base: ReportColumn[] = [
             { key: 'memberId', label: 'Member ID' }, { key: 'name', label: 'Name' }, { key: 'mobile', label: 'Mobile' },
             { key: 'city', label: 'City' }, { key: 'memberType', label: 'Tier' },
-            { key: 'branch_id', label: 'Branch', render: (r: Member) => branches.find(b => b.branch_id === r.branch_id)?.branch_name || 'N/A' },
+            { key: 'branch_id', label: 'Branch', render: (r: Member) => branches.find(b => b.id === r.branch_id)?.branch_name || 'N/A' },
             { key: 'assignedTo', label: 'Assigned To', render: (r: Member) => r.assignedTo.map((id: string) => users.find(u=>u.id === id)?.name).join(', ') || 'N/A'},
             { key: 'createdAt', label: 'Creation Date', render: (r: Member) => r.createdAt ? format(parseISO(r.createdAt), 'dd/MM/yyyy') : 'N/A' },
         ];
@@ -516,7 +517,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                 { key: 'date', label: 'Date', render: r => format(parseISO(r.date), 'dd/MM/yyyy') }, { key: 'voucherNo', label: 'Voucher No.' },
                 { key: 'category', label: 'Category', render: r => getExpenseCategoryPath(r) }, { key: 'description', label: 'Description' },
                 { key: 'paidTo', label: 'Paid To' }, { key: 'amount', label: 'Amount', render: r => toLocaleCurrency(r.amount), isNumeric: true },
-                { key: 'branch_id', label: 'Branch', render: r => branches.find(b => b.branch_id === r.branch_id)?.branch_name || 'N/A' },
+                { key: 'branch_id', label: 'Branch', render: r => branches.find(b => b.id === r.branch_id)?.branch_name || 'N/A' },
             ],
             income: [
                 { key: 'date', label: 'Date', render: r => format(parseISO(r.date), 'dd/MM/yyyy') },
@@ -798,7 +799,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                     
                     <SearchableSelect label="Filter by Branch" options={branchOptions} value={branchFilter} onChange={setBranchFilter} />
                     
-                    {/* --- MODIFICATION BEGINS --- */}
                     {reportType === 'customerDetail' ? (
                         <>
                             <SearchableSelect label="Assigned To" options={employeeOptions} value={assignedToFilter} onChange={setAssignedToFilter} />
@@ -807,7 +807,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                     ) : (
                         <SearchableSelect label="Filter by Advisor" options={advisorOptions} value={advisorFilter} onChange={setAdvisorFilter} />
                     )}
-                    {/* --- MODIFICATION ENDS --- */}
                     
                     {reportType === 'policies' && (
                         <>
