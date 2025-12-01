@@ -1993,7 +1993,21 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                                     lastReceiptNumber={lastReceiptNumber}
                                 />} />
                                 <Route path="/calendar" element={<FestivalCalendar allMembers={companyMembers} festivals={festivals} festivalDates={festivalDates} religions={religions} onViewMember={onViewMember} />} />
-                                <Route path="/advancedReports" element={<AdvancedReports members={companyMembers} users={companyUsers} tasks={allTasks} leads={companyLeads} branches={companyBranches} schemes={schemes} companies={agenciesAsCompanies} expenses={expenses} manualIncomes={manualIncomes} manualCommissions={manualCommissions} currentUser={currentUser} customerTiers={customerTiers} attendance={attendance} expenseCategoriesLevel1={expenseCategoriesLevel1} expenseCategoriesLevel2={expenseCategoriesLevel2} expenseCategoriesLevel3={expenseCategoriesLevel3} incomeCategoriesLevel1={incomeCategoriesLevel1} incomeCategoriesLevel2={incomeCategoriesLevel2} businessVerticals={businessVerticals} taskStatusMasters={taskStatusMasters} customerFieldMasters={customerFieldMasters} insuranceFields={insuranceFields} insuranceTypes={insuranceTypes} designations={designations} roles={roles} leadStageMasters={leadStageMasters} genders={genders} maritalStatuses={maritalStatuses} />} />
+                                <Route path="/advancedReports" element={
+    <AdvancedReports 
+        members={companyMembers} 
+        users={companyUsers} 
+        branches={companyBranches} 
+        leadSources={leadSources}
+        customerCategories={customerCategories}
+        customerSubCategories={customerSubCategories}
+        customerGroups={customerGroups}
+        religions={religions}
+        genders={genders}
+        customerTiers={customerTiers}
+        businessVerticals={businessVerticals}
+    />
+} />
                                 <Route path="/upselling" element={<UpsellingDashboard members={companyMembers} upsellCategories={upsellCategories} insuranceTypes={insuranceTypes} addToast={addToast} users={companyUsers} branches={companyBranches} roles={roles}  />} />
                                 
                                 {/* --- NEW ROUTE --- */}

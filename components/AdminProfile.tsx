@@ -27,17 +27,6 @@ const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: string |
         </div>
     </div>
 );
-const StatCards: React.FC<{ icon: React.ReactNode; label: string; value: string | number; color: string; }> = ({ icon, label, value, color }) => (
-    <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-lg flex items-center gap-4 border dark:border-gray-700">
-        <div className={`p-3 rounded-full ${color}`}>
-            {icon}
-        </div>
-        <div>
-            <p className="text-2xl font-bold text-gray-800 dark:text-white">{value}</p>
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{label}</p>
-        </div>
-    </div>
-);
 
 const AdminProfile: React.FC<AdminProfileProps> = ({ user, users, allMembers, onOpenEmployeeModal, onUpdateProfile, addToast, designations, permissions, roles }) => {
     
