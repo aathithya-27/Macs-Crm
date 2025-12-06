@@ -7,7 +7,7 @@ import {
     BankMaster,
     BusinessVertical,
     LeadSourceMaster,
-    InsuranceAgency, // MODIFIED
+    InsuranceAgency,
     SchemeMaster,
     DocumentMaster,
     GiftMaster,
@@ -24,24 +24,24 @@ import {
     Task,
     ExpenseCategoryLevel1,
     ExpenseCategoryLevel2,
-    ExpenseCategoryLevel3,
     IncomeCategoryLevel1,
     IncomeCategoryLevel2,
     Expense,
+    ManualReceipt,
+    AMC,
+    MutualFundScheme,
     ManualIncome,
     ManualCommission,
-    AMC,
-    MutualFundScheme
+    OpeningBalance
 } from '../types.ts';
 import { Gift as GiftIcon, Calendar, Bell, Star } from 'lucide-react';
 import { indianStates } from '../constants.tsx';
 
-// --- MODIFICATION START: Updated initialAutomationRules to use string for type ---
 export const initialAutomationRules: AutomationRule[] = [
     {
         id: 1,
         type: 'Birthday Messages',
-        timing: { value: 0, unit: 'days', relation: 'before' }, // Represents "On the day"
+        timing: { value: 0, unit: 'days', relation: 'before' }, 
         enabled: true,
         template: 'Happy Birthday {name}! Wishing you a wonderful year ahead. Thank you for being our valued customer.',
         channels: ['whatsapp', 'sms'],
@@ -50,7 +50,7 @@ export const initialAutomationRules: AutomationRule[] = [
     {
         id: 2,
         type: 'Anniversary Messages',
-        timing: { value: 0, unit: 'days', relation: 'before' }, // Represents "On the day"
+        timing: { value: 0, unit: 'days', relation: 'before' }, 
         enabled: true,
         template: 'Happy Anniversary {name}! May this special day bring you joy and happiness.',
         channels: ['whatsapp'],
@@ -85,7 +85,7 @@ export const initialAutomationRules: AutomationRule[] = [
     },
     {
         id: 6,
-        type: 'Housewarming', // This is now a dynamic type
+        type: 'Housewarming', 
         timing: { value: 0, unit: 'days', relation: 'before' },
         enabled: true,
         template: 'Hi {name}, thinking of you on this special day: your Housewarming! Wishing you all the best.',
@@ -93,7 +93,6 @@ export const initialAutomationRules: AutomationRule[] = [
         icon: <Star className="text-yellow-500" />
     },
 ];
-// --- MODIFICATION END ---
 
 export const initialDocTemplates: DocTemplate[] = [
     { id: 'tpl-1', name: 'Life Insurance Proposal', content: `Dear {clientName},\n\nThank you for your interest...` },
@@ -101,7 +100,6 @@ export const initialDocTemplates: DocTemplate[] = [
 ];
 
 
-// --- MASTER DATA INITIAL STATE ---
 export const generateInitialGeographies = (): Geography[] => {
     const geographies: Geography[] = [];
     let idCounter = 1;
@@ -190,8 +188,9 @@ export const initialLeadSources: LeadSourceMaster[] = [
     { id: 'ls-staff', name: 'Staff', parentId: null, active: true, order: 6 },
     { id: 'ls-self', name: 'Self Generated', parentId: null, active: true, order: 7 },
     { id: 'ls-web', name: 'Website', parentId: null, active: true, order: 8 },
+    { id: 'ls-upsell', name: 'Upselling', parentId: null, active: true, order: 9 },
 ];
-// --- FIX: This list now ONLY contains external agencies. ---
+
 export const initialAgencies: InsuranceAgency[] = [
     {id: 'comp-max-life', agencyCode: 'MAXLIFE', name: 'Max Life Insurance', active: true},
     {id: 'comp-lic', agencyCode: 'LIC', name: 'Life Insurance Corporation (LIC)', active: true},
@@ -208,9 +207,8 @@ export const initialAgencies: InsuranceAgency[] = [
     {id: 'comp-oriental', agencyCode: 'ORIENTAL', name: 'Oriental Insurance', active: true},
     {id: 'comp-united', agencyCode: 'UNITEDINDIA', name: 'United India Insurance', active: true}
 ];
-// REFACTORED: initialSchemes now uses insuranceTypeId
+
 export const initialSchemes: SchemeMaster[] = [
-    // --- Life Insurance ---
     {id: 'sch-1', name: 'Smart Secure Plus Plan', type: 'Life Insurance', agencyId: 'comp-max-life', active: true, order: 0, insuranceTypeId: 'it-term'},
     {id: 'sch-2', name: 'Jeevan Anand', type: 'Life Insurance', agencyId: 'comp-lic', active: true, order: 1, insuranceTypeId: 'it-endowment'},
     {id: 'sch-3', name: 'Click 2 Protect Super', type: 'Life Insurance', agencyId: 'comp-hdfc-life', active: true, order: 2, insuranceTypeId: 'it-term'},
@@ -220,7 +218,6 @@ export const initialSchemes: SchemeMaster[] = [
     {id: 'sch-max-life-sspp', name: 'Smart Secure Plus Plan', type: 'Life Insurance', agencyId: 'comp-max-life', active: true, order: 6, insuranceTypeId: 'it-whole'},
     {id: 'sch-hdfc-sanchay', name: 'Sanchay Plus', type: 'Life Insurance', agencyId: 'comp-hdfc-life', active: true, order: 7, insuranceTypeId: 'it-endowment'},
 
-    // --- Health Insurance ---
     {id: 'sch-5', name: 'Comprehensive Health Plan', type: 'Health Insurance', agencyId: 'comp-star', active: true, order: 0, insuranceTypeId: 'it-individual-health'},
     {id: 'sch-6', name: 'ReAssure 2.0', type: 'Health Insurance', agencyId: 'comp-niva-bupa', active: true, order: 1, insuranceTypeId: 'it-family-floater'},
     {id: 'sch-7', name: 'Optima Secure', type: 'Health Insurance', agencyId: 'comp-hdfc-ergo', active: true, order: 2, insuranceTypeId: 'it-family-floater'},
@@ -230,13 +227,11 @@ export const initialSchemes: SchemeMaster[] = [
     {id: 'sch-care-plus', name: 'Care Plus', type: 'Health Insurance', agencyId: 'comp-care-health', active: true, order: 6, insuranceTypeId: 'it-critical-illness'},
     {id: 'sch-niva-bupa-aspire', name: 'Health Aspire', type: 'Health Insurance', agencyId: 'comp-niva-bupa', active: true, order: 7, insuranceTypeId: 'it-senior-citizen'},
 
-    // --- General Insurance: Motor ---
     {id: 'sch-9', name: 'Drive Smart', type: 'General Insurance', agencyId: 'comp-bajaj', active: true, order: 0, insuranceTypeId: 'it-motor'},
     {id: 'sch-10', name: 'AutoSecure', type: 'General Insurance', agencyId: 'comp-tata-aig', active: true, order: 1, insuranceTypeId: 'it-motor'},
     {id: 'sch-lombard-car', name: 'Car Insurance', type: 'General Insurance', agencyId: 'comp-icici-lombard', active: true, order: 2, insuranceTypeId: 'it-motor'},
     {id: 'sch-nia-motor', name: 'Private Car Package Policy', type: 'General Insurance', agencyId: 'comp-nia', active: true, order: 3, insuranceTypeId: 'it-motor'},
 
-    // --- General Insurance: Others ---
     {id: 'sch-united-home', name: 'Unihome Care Policy', type: 'General Insurance', agencyId: 'comp-united', active: true, order: 0, insuranceTypeId: 'it-home'},
     {id: 'sch-oriental-travel', name: 'Overseas Mediclaim Policy', type: 'General Insurance', agencyId: 'comp-oriental', active: true, order: 0, insuranceTypeId: 'it-travel'},
     {id: 'sch-tata-aig-pa', name: 'Accident Guard', type: 'General Insurance', agencyId: 'comp-tata-aig', active: true, order: 0, insuranceTypeId: 'it-pa'},
@@ -272,7 +267,6 @@ export const initialTaskMasters: TaskMaster[] = [
 ];
 export const initialCustomerFields: CustomerFieldMaster[] = [];
 
-// NEW: Initial data for MF Custom Fields
 export const initialMutualFundFields: MutualFundFieldMaster[] = [
     { id: 'mff-1', fieldName: 'riskProfile', label: 'Risk Profile', fieldType: 'select', options: ['Conservative', 'Moderate', 'Aggressive'], order: 0, active: true, group: 'Risk Analysis' },
     { id: 'mff-2', fieldName: 'investmentHorizon', label: 'Investment Horizon (Yrs)', fieldType: 'number', order: 1, active: true, group: 'Risk Analysis' },
@@ -283,28 +277,22 @@ export const initialAccountTypes: AccountType[] = [
     { id: 'at-3', name: 'Cash Credit Account', active: true, order: 2 },
 ];
 
-/* --- REMOVED: `initialPolicyChecklistMasters` is no longer needed --- */
-
 export const initialInsuranceTypes: InsuranceTypeMaster[] = [
-    // Parent Types
     { id: 'it-life', name: 'Life Insurance', parentId: null, verticalId: 'bv-1', active: true, order: 0 },
     { id: 'it-health', name: 'Health Insurance', parentId: null, verticalId: 'bv-1', active: true, order: 1 },
     { id: 'it-general', name: 'General Insurance', parentId: null, verticalId: 'bv-1', active: true, order: 2 },
 
-    // Life Children
     { id: 'it-whole', name: 'Whole Life Insurance', parentId: 'it-life', verticalId: 'bv-1', active: true, order: 0 },
     { id: 'it-term', name: 'Term Life Insurance', parentId: 'it-life', verticalId: 'bv-1', active: true, order: 1 },
     { id: 'it-endowment', name: 'Endowment Plans', parentId: 'it-life', verticalId: 'bv-1', active: true, order: 2 },
     { id: 'it-ulip', name: 'Unit-linked Insurance Plan', parentId: 'it-life', verticalId: 'bv-1', active: true, order: 3 },
 
-    // Health Children
     { id: 'it-individual-health', name: 'Individual Insurance Plans', parentId: 'it-health', verticalId: 'bv-1', active: true, order: 0 },
     { id: 'it-family-floater', name: 'Family Floater Insurance Plans', parentId: 'it-health', verticalId: 'bv-1', active: true, order: 1 },
     { id: 'it-senior-citizen', name: 'Senior Citizen Insurance Plans', parentId: 'it-health', verticalId: 'bv-1', active: true, order: 2 },
     { id: 'it-critical-illness', name: 'Critical Illness Insurance Plans', parentId: 'it-health', verticalId: 'bv-1', active: true, order: 3 },
     { id: 'it-maternity', name: 'Maternity Insurance Plans', parentId: 'it-health', verticalId: 'bv-1', active: true, order: 4 },
 
-    // General Children
     { id: 'it-motor', name: 'Motor', parentId: 'it-general', verticalId: 'bv-1', active: true, order: 0 },
     { id: 'it-home', name: 'Home', parentId: 'it-general', verticalId: 'bv-1', active: true, order: 1 },
     { id: 'it-travel', name: 'Travel', parentId: 'it-general', verticalId: 'bv-1', active: true, order: 2 },
@@ -312,16 +300,13 @@ export const initialInsuranceTypes: InsuranceTypeMaster[] = [
 ];
 
 export const initialInsuranceFields: InsuranceFieldMaster[] = [
-    // --- Life Insurance Fields ---
     { id: 'if-life-1', insuranceTypeId: 'it-life', fieldName: 'fatherName', label: "Father's Name", fieldType: 'text', order: 1, active: true, group: 'Personal Information' },
     { id: 'if-life-2', insuranceTypeId: 'it-life', fieldName: 'motherName', label: "Mother's Name", fieldType: 'text', order: 2, active: true, group: 'Personal Information' },
     { id: 'if-life-3', insuranceTypeId: 'it-life', fieldName: 'spouseName', label: "Spouse's Full Name", fieldType: 'text', order: 3, active: true, group: 'Personal Information' },
     { id: 'if-life-4', insuranceTypeId: 'it-life', fieldName: 'placeOfBirth', label: 'Place of Birth', fieldType: 'text', order: 4, active: true, group: 'Personal Information' },
 
-    // --- Term Life Specific Field ---
     { id: 'if-term-1', insuranceTypeId: 'it-term', fieldName: 'policyTermYears', label: 'Policy Term (Years)', fieldType: 'number', order: 1, active: true},
 
-    // --- Health Insurance Fields ---
     { id: 'if-health-1', insuranceTypeId: 'it-health', fieldName: 'preExistingConditions', label: 'Pre-existing Conditions', fieldType: 'text', order: 1, active: true, group: 'Medical History' },
     { id: 'if-health-2', insuranceTypeId: 'it-health', fieldName: 'heightCm', label: 'Height (cm)', fieldType: 'number', order: 6, active: true, group: 'Physical Details' },
     { id: 'if-health-3', insuranceTypeId: 'it-health', fieldName: 'weightKg', label: 'Weight (kg)', fieldType: 'number', order: 7, active: true, group: 'Physical Details' },
@@ -329,7 +314,6 @@ export const initialInsuranceFields: InsuranceFieldMaster[] = [
     { id: 'if-health-5', insuranceTypeId: 'it-health', fieldName: 'nomineeRelationship', label: 'Nominee Relationship', fieldType: 'text', order: 3, active: true, group: 'Nominee Details' },
     { id: 'if-health-6', insuranceTypeId: 'it-health', fieldName: 'hadSurgery', label: 'Had any surgery?', fieldType: 'boolean', order: 4, active: true, group: 'Medical History' },
 
-    // --- Motor Insurance Fields ---
     { id: 'if-motor-1', insuranceTypeId: 'it-motor', fieldName: 'vehicleRegNo', label: 'Vehicle Reg. No.', fieldType: 'text', order: 1, active: true, group: 'Vehicle Details' },
     { id: 'if-motor-2', insuranceTypeId: 'it-motor', fieldName: 'engineNo', label: 'Engine No.', fieldType: 'text', order: 4, active: true, group: 'Vehicle Details' },
     { id: 'if-motor-3', insuranceTypeId: 'it-motor', fieldName: 'chassisNo', label: 'Chassis No.', fieldType: 'text', order: 5, active: true, group: 'Vehicle Details' },
@@ -343,7 +327,6 @@ export const initialTasks: Task[] = [
     { id: 'task-3', triggeringPoint: 'Manual', taskDescription: 'Prepare weekly report for management', expectedCompletionDateTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), isCompleted: false, primaryContactPerson: 'user-2', statusId: 'ts-1', taskType: 'Manual', active: true },
 ];
 
-// --- NEW MOCK DATA for P&L ---
 export const initialExpenseCategoriesLevel1: ExpenseCategoryLevel1[] = [
     { id: 'exp1-1', name: 'Administrative Expenses', active: true },
     { id: 'exp1-2', name: 'Marketing Expenses', active: true },
@@ -357,13 +340,8 @@ export const initialExpenseCategoriesLevel2: ExpenseCategoryLevel2[] = [
     { id: 'exp2-5', name: 'Digital Media', parentId: 'exp1-2', active: true },
 ];
 
-export const initialExpenseCategoriesLevel3: ExpenseCategoryLevel3[] = [
-    { id: 'exp3-1', name: 'Staff Incentive', parentId: 'exp2-3', active: true },
-    { id: 'exp3-2', name: 'Google Ads', parentId: 'exp2-5', active: true },
-];
 
 
-// --- NEW MOCK DATA for 2-Tier Income Categories ---
 export const initialIncomeCategoriesLevel1: IncomeCategoryLevel1[] = [
     { id: 'inc1-1', name: 'Direct Income', active: true },
     { id: 'inc1-2', name: 'Indirect Income', active: true },
@@ -375,12 +353,78 @@ export const initialIncomeCategoriesLevel2: IncomeCategoryLevel2[] = [
     { id: 'inc2-3', name: 'Interest Received', parentId: 'inc1-2', active: true },
 ];
 
-
 export const initialExpenses: Expense[] = [
-    { id: 'exp-1', date: '2025-08-26', categoryLevel1Id: 'exp1-1', categoryLevel2Id: 'exp2-3', categoryLevel3Id: 'exp3-1', amount: 500, description: 'Cab fare for client visit', paidTo: 'Ola Cabs', createdBy: 'user-1', finYearId: 'fy-2' },
-    { id: 'exp-2', date: '2025-08-25', categoryLevel1Id: 'exp1-2', categoryLevel2Id: 'exp2-5', categoryLevel3Id: 'exp3-2', amount: 1200, description: 'Google Ads Campaign', paidTo: 'Google', createdBy: 'user-2', finYearId: 'fy-2' },
+    {
+        id: 'exp-1',
+        date: '2025-12-05',
+        categoryLevel1Id: 'exp1-1',
+        categoryLevel2Id: 'exp2-1',
+        amount: 15000,
+        description: 'For the month of Nov 2025',
+        paidTo: 'Shankar', 
+        modeOfPayment: 'Net Banking',
+        voucherNo: 'PAY-1005',
+        branch_id: 'frb-1',
+        finYearId: 'fy-2',
+        createdBy: 'user-1',
+        partyId: 'user-2',
+        partyType: 'Staff',
+        expenseHead: 'Salary-Staff',
+        bankId: 'bank-1', 
+        docNo: 'NEFT-889977',
+        docDate: '2025-12-05',
+        isPaymentReturned: false
+    },
+    {
+        id: 'exp-2',
+        date: '2025-12-05',
+        categoryLevel1Id: 'exp1-1', 
+        categoryLevel2Id: 'exp2-2', 
+        amount: 5000,
+        description: 'Office Rent Dec 2025',
+        paidTo: 'Landlord',
+        modeOfPayment: 'Cash',
+        voucherNo: 'PAY-1006',
+        branch_id: 'frb-1',
+        finYearId: 'fy-2',
+        createdBy: 'user-1',
+        partyId: '', 
+        partyType: 'Staff', 
+        expenseHead: 'Office Rent',
+        bankId: undefined,
+        docNo: '',
+        docDate: '',
+        isPaymentReturned: false
+    },
 ];
 
+export const initialReceipts: ManualReceipt[] = [
+    {
+        id: 'rec-1',
+        receiptNo: 'REC-9005',
+        date: '2025-12-05',
+        receivedFrom: 'MACS INFO',
+        partyId: '1', 
+        partyType: 'Customer',
+        address: 'Erode',
+        finYearId: 'fy-2',
+        docNo: 'NEFT-123456',
+        docDate: '2025-12-05',
+        branch_id: 'frb-1',
+        isPaymentReturned: false,
+        createdBy: 'user-1',
+        lineItems: [
+            { 
+                id: 'li-1', 
+                incomeCategory: 'Direct Income > Consultancy', 
+                description: 'Insurance Premium (Qtr 3)', 
+                paymentMode: 'NetBanking', 
+                amount: 52000,
+                bankId: 'bank-1' 
+            }
+        ]
+    }
+];
 export const initialManualIncomes: ManualIncome[] = [
     { id: 'inc-1', date: '2025-08-20', categoryLevel1Id: 'inc1-1', categoryLevel2Id: 'inc2-2', amount: 10000, description: 'Consulting for HNI client', receivedFrom: 'Mr. Sharma', createdBy: 'user-1' },
 ];
@@ -389,7 +433,6 @@ export const initialManualCommissions: ManualCommission[] = [
     { id: 'mcomm-1', date: '2025-08-28', memberId: '1', policyId: 'pol-1-1', amount: 2500, description: 'Manual entry for LIC policy', createdBy: 'user-1' }
 ];
 
-// --- NEW: MOCK DATA FOR MUTUAL FUNDS ---
 export const initialAmcs: AMC[] = [
     { id: 'amc-1', name: 'HDFC AMC', verticalId: 'bv-2', active: true, order: 0 },
     { id: 'amc-2', name: 'SBI Mutual Fund', verticalId: 'bv-2', active: true, order: 1 },
@@ -398,14 +441,40 @@ export const initialAmcs: AMC[] = [
 ];
 
 export const initialMutualFundSchemes: MutualFundScheme[] = [
-    // HDFC
     { id: 'mf-1', name: 'HDFC Flexi Cap Fund', amcId: 'amc-1', category: 'Equity', active: true, order: 0 },
     { id: 'mf-2', name: 'HDFC Small Cap Fund', amcId: 'amc-1', category: 'Equity', active: true, order: 1 },
     { id: 'mf-3', name: 'HDFC Short Term Debt Fund', amcId: 'amc-1', category: 'Debt', active: true, order: 2 },
-    // SBI
     { id: 'mf-4', name: 'SBI BlueChip Fund', amcId: 'amc-2', category: 'Equity', active: true, order: 0 },
     { id: 'mf-5', name: 'SBI Magnum Gilt Fund', amcId: 'amc-2', category: 'Debt', active: true, order: 1 },
-    // ICICI
     { id: 'mf-6', name: 'ICICI Prudential Bluechip Fund', amcId: 'amc-3', category: 'Equity', active: true, order: 0 },
     { id: 'mf-7', name: 'ICICI Prudential Balanced Advantage Fund', amcId: 'amc-3', category: 'Hybrid', active: true, order: 1 },
+];
+
+export const initialOpeningBalances: OpeningBalance[] = [
+    {
+        id: 'ob-1',
+        date: '2024-04-01',
+        categoryType: 'Income',
+        categoryLevel1Id: 'inc1-2',
+        categoryLevel2Id: 'inc2-3',
+        partyId: '1',
+        partyType: 'Customer',
+        debit: 0,
+        credit: 15000,
+        createdBy: 'user-1',
+        createdAt: '2024-04-01T10:00:00Z'
+    },
+    {
+        id: 'ob-2',
+        date: '2024-04-01',
+        categoryType: 'Expense',
+        categoryLevel1Id: 'exp1-1',
+        categoryLevel2Id: 'exp2-2',
+        partyId: 'user-3',
+        partyType: 'Staff',
+        debit: 50000,
+        credit: 0,
+        createdBy: 'user-1',
+        createdAt: '2024-04-01T10:00:00Z'
+    }
 ];

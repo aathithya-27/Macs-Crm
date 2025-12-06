@@ -19,7 +19,6 @@ import {
     Tooltip, Legend, PieChart, Pie, Cell 
 } from 'recharts';
 
-// --- Interfaces ---
 
 interface jsPDFWithAutoTable extends jsPDF {
     autoTable: (options: any) => jsPDFWithAutoTable;
@@ -96,7 +95,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = ({
     members, users, branches, leadSources, customerCategories, 
     customerSubCategories, customerGroups, religions, genders, customerTiers, businessVerticals
 }) => {
-    // --- 1. LIVE INPUT STATES ---
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -125,13 +123,11 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = ({
     const [anniversaryFrom, setAnniversaryFrom] = useState('');
     const [anniversaryTo, setAnniversaryTo] = useState('');
 
-    // --- 2. REPORT SNAPSHOT STATE ---
     const [reportSnapshot, setReportSnapshot] = useState<ReportSnapshot | null>(null);
     const [activeGraphs, setActiveGraphs] = useState<string[]>([]); 
     const [graphTypes, setGraphTypes] = useState<Record<string, GraphType>>({}); 
     const [drillDownData, setDrillDownData] = useState<DrillDownData | null>(null);
 
-    // --- Options Generation ---
     const uniqueStates = useMemo(() => Array.from(new Set(members.map(m => m.state).filter(Boolean))), [members]);
     const uniqueDistricts = useMemo(() => Array.from(new Set(members.map(m => m.district).filter(Boolean))), [members]);
     const uniqueCities = useMemo(() => Array.from(new Set(members.map(m => m.city).filter(Boolean))), [members]);
@@ -187,7 +183,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = ({
         businessVertical: 'Business Vertical'
     };
 
-    // --- Helper: Determine Verticals for a Member ---
     const getMemberVerticals = (m: Member, insuranceId: string | undefined, mfId: string | undefined) => {
         const verticals = new Set<string>();
         if (m.policies && m.policies.length > 0 && insuranceId) verticals.add(insuranceId);
@@ -195,12 +190,10 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = ({
         return verticals;
     };
 
-    // --- Filter Logic ---
     const filteredMembers = useMemo(() => {
         if (!reportSnapshot) return []; 
         const snap = reportSnapshot;
 
-        // IDs for Logic
         const insuranceVerticalId = businessVerticals.find(bv => bv.name === 'Insurance')?.id;
         const mfVerticalId = businessVerticals.find(bv => bv.name === 'Mutual Funds')?.id;
 
@@ -263,7 +256,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = ({
         });
     }, [reportSnapshot, members, leadSources, businessVerticals]);
 
-    // --- Effective Columns ---
     const effectiveColumns = useMemo(() => {
         if (!reportSnapshot) return [];
         const filters = reportSnapshot.visibleFilters;
@@ -285,7 +277,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = ({
         return filterColumns;
     }, [reportSnapshot]);
 
-    // --- Graph Data ---
     const generateGraphData = (parameter: string) => {
         const counts: Record<string, number> = {};
         const insuranceVerticalId = businessVerticals.find(bv => bv.name === 'Insurance')?.id;
@@ -313,8 +304,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = ({
                 case 'businessVertical':
                     const mVerticals = getMemberVerticals(m, insuranceVerticalId, mfVerticalId);
                     
-                    // MASKING LOGIC:
-                    // Only count verticals that are actually selected in the filter
                     const activeFilter = reportSnapshot?.businessVerticals || [];
                     const hasFilter = activeFilter.length > 0;
 
@@ -433,7 +422,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = ({
                 case 'leadSource': key = leadSources.find(ls => ls.id === m.leadSource?.sourceId)?.name || 'Unknown'; break;
                 case 'businessVertical':
                     const mVerticals = getMemberVerticals(m, insuranceVerticalId, mfVerticalId);
-                    // Apply the same masking logic for drill-down filtering
                     const activeFilter = reportSnapshot?.businessVerticals || [];
                     const hasFilter = activeFilter.length > 0;
 
@@ -456,7 +444,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = ({
         });
     };
 
-    // --- Export Logic ---
     const getExportHeaders = () => {
         const fixed = ['S.No', 'Customer ID', 'Created Date', 'Name', 'Mobile', 'Email', 'City', 'Area'];
         const dynamic = effectiveColumns.map(col => 
@@ -551,7 +538,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = ({
                 )}
             </div>
 
-            {/* --- 1. COMPACT FILTER PANEL --- */}
+            {}
             <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow border dark:border-gray-700">
                 <div className="flex items-center justify-between mb-4 border-b dark:border-gray-700 pb-2">
                     <div className="flex items-center gap-2 text-blue-600 font-semibold">
@@ -561,11 +548,11 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = ({
                 </div>
 
                 <div className="flex flex-wrap items-end gap-4">
-                    {/* Mandatory Dates */}
+                    {}
                     <div className="w-48"><Input label="From Date *" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} /></div>
                     <div className="w-48"><Input label="End Date *" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} /></div>
                     
-                    {/* Add Filter Button */}
+                    {}
                     <button 
                         onClick={handleOpenFilterModal}
                         className="mb-1 p-2 rounded-md border border-dashed border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-500 dark:text-gray-300 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors"
@@ -573,9 +560,19 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = ({
                     >
                         <Plus size={18} /> <span className="text-sm font-medium">Add Filter</span>
                     </button>
+
+                    {}
+                    {(visibleFilters.length > 0 || dateFrom || dateTo) && (
+                        <button 
+                            onClick={() => { handleReset(); setVisibleFilters([]); }}
+                            className="mb-1 px-4 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                        >
+                            Clear All
+                        </button>
+                    )}
                 </div>
 
-                {/* --- DYNAMIC FILTER INPUTS --- */}
+                {}
                 {visibleFilters.length > 0 && (
                     <div className="mt-4 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 animate-fadeIn border-t dark:border-gray-700 pt-4">
                         {visibleFilters.includes('businessVertical') && <MultiSelectDropdown label="Business Vertical" selectedValues={selectedBusinessVerticals} onChange={setSelectedBusinessVerticals} options={businessVerticalOptions} />}
@@ -620,7 +617,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = ({
                     </div>
                 )}
 
-                {/* --- GENERATE ACTIONS --- */}
+                {}
                 <div className="mt-6 pt-4 border-t dark:border-gray-700 flex justify-end gap-3">
                     <Button variant="secondary" onClick={handleReset} className="py-3 px-6 text-base">
                         <X size={18} className="mr-2" /> Clear All
@@ -631,10 +628,10 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = ({
                 </div>
             </div>
 
-            {/* --- REPORT RESULTS --- */}
+            {}
             {reportSnapshot && (
                 <div className="space-y-6 animate-fadeIn">
-                    {/* Graphs */}
+                    {}
                     {activeGraphs.length > 0 && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {activeGraphs.map((param, index) => {
@@ -703,7 +700,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = ({
                         </div>
                     )}
 
-                    {/* Table */}
+                    {}
                     <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow border dark:border-gray-700">
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                             <div className="font-semibold text-gray-800 dark:text-white">Detailed Report List</div>
@@ -749,10 +746,10 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = ({
                 </div>
             )}
 
-            {/* --- FILTER SELECTION MODAL --- */}
+            {}
             {isFilterModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
-                    <div className="bg-white dark:bg-gray-800 w-full max-w-lg rounded-lg shadow-xl flex flex-col">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn" onClick={() => setIsFilterModalOpen(false)}>
+                    <div className="bg-white dark:bg-gray-800 w-full max-w-lg rounded-lg shadow-xl flex flex-col" onClick={(e) => e.stopPropagation()}>
                         <div className="p-4 border-b dark:border-gray-700 flex justify-between items-center">
                             <h3 className="font-bold text-lg text-gray-800 dark:text-white">Add Filters</h3>
                             <button onClick={() => setIsFilterModalOpen(false)} className="text-gray-500 hover:text-red-500"><X size={20}/></button>
@@ -795,7 +792,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = ({
                 </div>
             )}
 
-            {/* --- DRILL DOWN MODAL --- */}
+            {}
             {drillDownData && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn">
                     <div className="bg-white dark:bg-gray-800 w-full max-w-4xl max-h-[90vh] rounded-lg shadow-xl flex flex-col overflow-hidden">

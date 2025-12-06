@@ -1,6 +1,5 @@
 import React from 'react';
 
-// --- NEW: Campaign Master Interface ---
 export interface CampaignMaster {
     id: string;
     name: string;
@@ -40,20 +39,28 @@ export interface DocumentNumbering {
 
 export interface ReceiptLineItem {
     id: string;
-    description: string;
+    incomeCategory: string; 
+    description: string;    
     paymentMode: 'Cash' | 'UPI' | 'Cheque' | 'NetBanking'; 
     amount: number;
+    bankId?: string;        
 }
 
 export interface ManualReceipt {
     id: string;
     receiptNo: string;
     date: string;
-    receivedFrom: string;
+    receivedFrom: string;   
+    partyId: string;        
+    partyType: 'Customer' | 'Staff'; 
     address?: string;
     finYearId: string; 
     lineItems: ReceiptLineItem[];
     createdBy: string;
+    docNo?: string;         
+    docDate?: string;       
+    isPaymentReturned?: boolean; 
+    branch_id?: string; 
 }
 
 export type PermissionLevel = 'view' | 'create' | 'modify' | 'none';
@@ -198,7 +205,7 @@ export interface User {
   profile?: EmployeeProfile;
 }
 
-export type ConcretePolicyType = 'Health Insurance' | 'Life Insurance' | 'General Insurance';
+export type ConcretePolicyType = 'Health Insurance' | 'Life Insurance' | 'General Insurance' | 'Mutual Funds';
 export type PolicyType = ConcretePolicyType | '';
 export type GeneralInsuranceType = 'Motor' | 'Home' | 'Travel' | string;
 
@@ -579,6 +586,7 @@ export interface Lead {
     upsellSuggestion?: string;
     referrerId?: string;
     createdBy?: string;
+    existingMemberId?: string;
 }
 
 export type PipelineStatus = 'Lead' | 'Contacted' | 'Meeting Scheduled' | 'Proposal Sent';
@@ -687,8 +695,7 @@ export interface Notification {
   dismissed?: boolean;
 }
 
-// --- MODIFIED: Added 'campaign' to Tab ---
-export type Tab = 'dashboard' | 'reports & insights' | 'pipeline' | 'customers' | 'policies' | 'notes' | 'actionHub' | 'location' | 'chatbot' | 'profile' | 'employees' | 'servicesHub' | 'masterData' | 'taskManagement' | 'profitAndLoss' | 'calendar' | 'advancedReports' | 'upselling' | 'mutualFunds' | 'campaign';
+export type Tab = 'dashboard' | 'reports & insights' | 'pipeline' | 'customers' | 'policies' | 'notes' | 'actionHub' | 'location' | 'chatbot' | 'profile' | 'employees' | 'servicesHub' | 'masterData' | 'taskManagement' | 'incomeAndExpense' | 'profitAndLoss' | 'calendar' | 'advancedReports' | 'upselling' | 'mutualFunds' | 'campaign';
 
 export enum ModalTab {
     BasicInfo = 'Basic Info',
@@ -756,8 +763,7 @@ export interface DocTemplate {
 
 export type DeprecatedRole = 'Admin' | 'Advisor' | 'Support';
 
-// --- MODIFIED: Added 'campaign' to AppModule ---
-export type AppModule = 'dashboard' | 'reports & insights' | 'profitAndLoss' | 'calendar' | 'employees' | 'pipeline' | 'customers' | 'taskManagement' | 'policies' | 'notes' | 'actionHub' | 'servicesHub' | 'location' | 'chatbot' | 'masterData' | 'advancedReports' | 'upselling' | 'mutualFunds' | 'campaign';
+export type AppModule = 'dashboard' | 'reports & insights' | 'incomeAndExpense' | 'profitAndLoss' | 'calendar' | 'employees' | 'pipeline' | 'customers' | 'taskManagement' | 'policies' | 'notes' | 'actionHub' | 'servicesHub' | 'location' | 'chatbot' | 'masterData' | 'advancedReports' | 'upselling' | 'mutualFunds' | 'campaign';
 
 export interface RolePermissions {
   roleId: string;
@@ -1115,12 +1121,7 @@ export interface ExpenseCategoryLevel2 {
   active?: boolean;
 }
 
-export interface ExpenseCategoryLevel3 { 
-  id: string;
-  name: string;
-  parentId: string; 
-  active?: boolean;
-}
+
 
 export interface Expense {
   id: string;
@@ -1133,12 +1134,18 @@ export interface Expense {
   relatedMemberId?: string;
   categoryLevel1Id?: string;
   categoryLevel2Id?: string;
-  categoryLevel3Id?: string;
+
   voucherNo?: string; 
   modeOfPayment?: 'Cash' | 'UPI' | 'Net Banking' | 'Cheque';
   expenseHead?: string;
   branch_id?: string;
   finYearId?: string;
+  partyId?: string;
+  partyType?: 'Customer' | 'Staff'; 
+  bankId?: string;
+  docNo?: string;
+  docDate?: string;
+  isPaymentReturned?: boolean;
 }
 
 export interface ManualIncome {
@@ -1210,4 +1217,43 @@ export interface CustomerType {
   name: string;
   active?: boolean;
   order?: number;
+}
+
+
+export interface ProfitLossEntry {
+    id: string;
+    asOnDate: string;
+    category: string; 
+    head: string;
+    party: string;
+    isCustomer: boolean;
+    debit: number; 
+    credit: number; 
+    balance: number; 
+}
+
+export interface DayBookEntry {
+    id: string;
+    date: string;
+    sourceDocNo: string; 
+    accountCategory: string; 
+    head: string;
+    party: string;
+    remarks: string;
+    debit?: number;
+    credit?: number;
+}
+
+export interface OpeningBalance {
+    id: string;
+    date: string;
+    categoryType: 'Income' | 'Expense';
+    categoryLevel1Id: string;
+    categoryLevel2Id: string;
+    partyId: string;
+    partyType: 'Customer' | 'Staff';
+    debit: number;  
+    credit: number; 
+    createdBy: string;
+    createdAt: string;
 }

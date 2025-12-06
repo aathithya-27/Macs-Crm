@@ -13,19 +13,22 @@
     "@react-google-maps/api": "^2.19.3",
     "chart.js": "^4.5.1",
     "date-fns": "^4.1.0",
-    "jspdf": "^3.0.2",
+    "jspdf": "^3.0.4",
     "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.525.0",
     "react": "^19.1.0",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.1.1",
     "react-router-dom": "^7.9.3",
-    "recharts": "^3.1.2"
+    "recharts": "^3.1.2",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@types/react-dom": "^19.1.9",
+    "@types/xlsx": "^0.0.35",
     "@vitejs/plugin-react": "^5.0.0",
+    "baseline-browser-mapping": "^2.8.32",
     "i": "^0.3.7",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"

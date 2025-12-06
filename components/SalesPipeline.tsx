@@ -37,6 +37,11 @@ const KanbanCard: React.FC<{
     activeStageNames: string[];
 }> = ({ lead, assignee, onUpdateLead, onConvertLead, onOpenLeadModal, leadSources, onDeleteLead, onFindOpportunity, isFindingOpportunity, canModify, activeStageNames }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    
+    // --- NEW: Local State for Suggestion Visibility ---
+    const [isSuggestionVisible, setIsSuggestionVisible] = useState(false);
+    const prevSuggestion = useRef(lead.upsellSuggestion);
+    
     const menuRef = useRef<HTMLDivElement>(null);
 
     const isStale = useMemo(() => {
@@ -44,6 +49,14 @@ const KanbanCard: React.FC<{
         const lastUpdateDate = lead.lastUpdatedAt ? new Date(lead.lastUpdatedAt) : new Date(lead.createdAt);
         return (new Date().getTime() - lastUpdateDate.getTime()) > staleThreshold;
     }, [lead.lastUpdatedAt, lead.createdAt]);
+
+    // --- NEW: Auto-expand when suggestion is populated ---
+    useEffect(() => {
+        if (lead.upsellSuggestion && lead.upsellSuggestion !== prevSuggestion.current) {
+            setIsSuggestionVisible(true);
+        }
+        prevSuggestion.current = lead.upsellSuggestion;
+    }, [lead.upsellSuggestion]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -84,6 +97,18 @@ const KanbanCard: React.FC<{
         setIsMenuOpen(false);
     };
 
+    // --- NEW: Handle Bulb Click Logic ---
+    const handleOpportunityClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (lead.upsellSuggestion) {
+            // If suggestion exists, simply toggle visibility
+            setIsSuggestionVisible(prev => !prev);
+        } else {
+            // If no suggestion, fetch it (useEffect will handle expansion)
+            onFindOpportunity(lead);
+        }
+    };
+
     const getDisplaySource = (source?: LeadSource) => {
         if (!source || !source.sourceId) return { text: 'Unknown', color: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200', fullText: 'Unknown' };
         
@@ -108,6 +133,7 @@ const KanbanCard: React.FC<{
             'Other Forum': 'bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300',
             'Self Generated': 'bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300',
             'Existing Client': 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300',
+            'Upselling': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300',
         };
         
         let fullText = path.join(' > ');
@@ -138,6 +164,7 @@ const KanbanCard: React.FC<{
                 
                 <div className="flex-shrink-0 flex items-center gap-2">
                     {isStale && <span title="This lead has not been updated in over a week."><Clock size={14} className="text-yellow-500" /></span>}
+                    {lead.existingMemberId && <span title="Existing Customer Lead"><UserPlus size={14} className="text-blue-500" /></span>}
                     {assignee && (
                         <div className="hidden md:flex items-center justify-center w-6 h-6 bg-gray-200 rounded-full text-gray-700 font-bold text-xs dark:bg-gray-700 dark:text-gray-200" title={assignee.name}>
                             {assignee.initials}
@@ -188,9 +215,13 @@ const KanbanCard: React.FC<{
                 </span>
                 <div className="flex items-center gap-2">
                     <button 
-                        onClick={(e) => { e.stopPropagation(); onFindOpportunity(lead); }} 
-                        className="p-1.5 rounded-full text-purple-600 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:hover:bg-purple-900/80 disabled:opacity-50"
-                        title="Find Upsell Opportunity"
+                        onClick={handleOpportunityClick}
+                        className={`p-1.5 rounded-full transition-colors disabled:opacity-50 ${
+                            isSuggestionVisible && lead.upsellSuggestion 
+                                ? 'bg-purple-200 text-purple-800 dark:bg-purple-800 dark:text-purple-200' 
+                                : 'text-purple-600 bg-purple-100 hover:bg-purple-200 dark:bg-purple-900/50 dark:text-purple-300 dark:hover:bg-purple-900/80'
+                        }`}
+                        title={lead.upsellSuggestion ? (isSuggestionVisible ? "Hide Opportunity" : "Show Opportunity") : "Find Upsell Opportunity"}
                         disabled={isFindingOpportunity}
                     >
                         {isFindingOpportunity ? <Loader2 size={14} className="animate-spin" /> : <Lightbulb size={14} />}
@@ -200,8 +231,10 @@ const KanbanCard: React.FC<{
                     </span>
                 </div>
             </div>
-            {lead.upsellSuggestion && (
-                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700/50">
+            
+            {/* Conditional Rendering of Upsell Suggestion */}
+            {lead.upsellSuggestion && isSuggestionVisible && (
+                <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700/50 animate-fade-in">
                     <div className="flex items-start gap-2 text-indigo-800 dark:text-indigo-300">
                         <Lightbulb size={14} className="flex-shrink-0 mt-0.5" />
                         <p className="text-xs font-medium">{lead.upsellSuggestion}</p>
@@ -417,6 +450,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ isOpen, onClose, filters, onF
                             className="w-full h-10 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-brand-primary bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                         >
                             <option value="">All Types</option>
+                            <option value="Mutual Funds">Mutual Funds</option> {/* ADDED MUTUAL FUNDS OPTION */}
                             {parentInsuranceTypes.map(type => (
                                 <option key={type.id} value={type.name}>{type.name}</option>
                             ))}
@@ -534,18 +568,25 @@ const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadM
             }
     
             if (policyInterestType) {
-                const leadType = insuranceTypes.find(it => it.id === lead.insuranceTypeId);
-                if (!leadType) return false;
+                // --- UPDATE: Handle Mutual Funds Logic ---
+                if (policyInterestType === 'Mutual Funds') {
+                    // Check strict equality for Mutual Funds as it doesn't have an ID in insuranceTypes
+                    if (lead.policyInterestType !== 'Mutual Funds') return false;
+                } else {
+                    // Existing logic for Insurance Types
+                    const leadType = insuranceTypes.find(it => it.id === lead.insuranceTypeId);
+                    if (!leadType) return false;
 
-                const parentType = leadType.parentId ? insuranceTypes.find(it => it.id === leadType.parentId) : leadType;
+                    const parentType = leadType.parentId ? insuranceTypes.find(it => it.id === leadType.parentId) : leadType;
 
-                if (parentType?.name !== policyInterestType) {
-                    return false;
-                }
-
-                if (policyInterestType === 'General Insurance' && policyInterestGeneralType) {
-                    if (leadType.name !== policyInterestGeneralType) {
+                    if (parentType?.name !== policyInterestType) {
                         return false;
+                    }
+
+                    if (policyInterestType === 'General Insurance' && policyInterestGeneralType) {
+                        if (leadType.name !== policyInterestGeneralType) {
+                            return false;
+                        }
                     }
                 }
             }

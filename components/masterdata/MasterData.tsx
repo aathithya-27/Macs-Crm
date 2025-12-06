@@ -34,7 +34,7 @@ import {
     Member, Lead, User, BusinessVertical, LeadSourceMaster, SchemeMaster, Company, Branch, Geography, RelationshipType,
     DocumentMaster, InsuranceTypeDocumentRule, GiftMaster, TaskStatusMaster, CustomerCategory, BankMaster, CompanyInfo,
     CustomerSubCategory, CustomerGroup, TaskMaster, InsuranceTypeMaster, InsuranceFieldMaster, CustomerFieldMaster, Route as RouteType,
-    Designation, Role, RolePermissions, CustomerTier, ExpenseCategoryLevel1, ExpenseCategoryLevel2, ExpenseCategoryLevel3,
+    Designation, Role, RolePermissions, CustomerTier, ExpenseCategoryLevel1, ExpenseCategoryLevel2,
     IncomeCategoryLevel1, IncomeCategoryLevel2, Religion, Festival, FestivalDate, AMC, MutualFundScheme, MutualFundFieldMaster,
     Gender, MaritalStatus,InsuranceAgency, CustomerType, ProcessStageMaster, AccountType, FinancialYear, DocumentNumbering, LeadStageMaster, Task
 } from '../../types';
@@ -107,8 +107,6 @@ interface MasterDataProps {
     onUpdateExpenseCategoriesLevel1: (data: ExpenseCategoryLevel1[]) => void;
     expenseCategoriesLevel2: ExpenseCategoryLevel2[];
     onUpdateExpenseCategoriesLevel2: (data: ExpenseCategoryLevel2[]) => void;
-    expenseCategoriesLevel3: ExpenseCategoryLevel3[];
-    onUpdateExpenseCategoriesLevel3: (data: ExpenseCategoryLevel3[]) => void;
     incomeCategoriesLevel1: IncomeCategoryLevel1[];
     onUpdateIncomeCategoriesLevel1: (data: IncomeCategoryLevel1[]) => void;
     incomeCategoriesLevel2: IncomeCategoryLevel2[];
@@ -383,7 +381,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                     <Route path="taskStatuses" element={<TaskStatusManager taskStatuses={props.taskStatuses} onUpdateTaskStatuses={props.onUpdateTaskStatuses} addToast={props.addToast} allTasks={props.allTasks} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="routes" element={<RoutesManager routes={props.routes} onUpdateRoutes={props.onUpdateRoutes} addToast={props.addToast} allMembers={props.allMembers} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="religionsAndFestivals" element={<ReligionsAndFestivalsManager {...props} canCreate={canCreate} canModify={canModify} />} />
-                    <Route path="expenseCategories" element={<ExpenseCategoryManager level1Data={props.expenseCategoriesLevel1} level2Data={props.expenseCategoriesLevel2} level3Data={props.expenseCategoriesLevel3} onUpdateLevel1={props.onUpdateExpenseCategoriesLevel1} onUpdateLevel2={props.onUpdateExpenseCategoriesLevel2} onUpdateLevel3={props.onUpdateExpenseCategoriesLevel3} addToast={props.addToast} canCreate={canCreate} canModify={canModify} />} />
+                    <Route path="expenseCategories" element={<ExpenseCategoryManager level1Data={props.expenseCategoriesLevel1} level2Data={props.expenseCategoriesLevel2} onUpdateLevel1={props.onUpdateExpenseCategoriesLevel1} onUpdateLevel2={props.onUpdateExpenseCategoriesLevel2} addToast={props.addToast} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="incomeCategories" element={<IncomeCategoryManager level1Data={props.incomeCategoriesLevel1} level2Data={props.incomeCategoriesLevel2} onUpdateLevel1={props.onUpdateIncomeCategoriesLevel1} onUpdateLevel2={props.onUpdateIncomeCategoriesLevel2} addToast={props.addToast} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="relationshipTypes" element={<RelationshipTypesManager relationshipTypes={props.relationshipTypes} onUpdateRelationshipTypes={props.onUpdateRelationshipTypes} addToast={props.addToast} allMembers={props.allMembers} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="customerSegments" element={<CustomerSegmentsManager {...props} canCreate={canCreate} canModify={canModify} />} />

@@ -1,28 +1,33 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { Company, Expense, ExpenseCategoryLevel1, ExpenseCategoryLevel2, ExpenseCategoryLevel3, Branch, DocumentNumbering } from '../types.ts';
-import { Download, X, Plus, Trash2, Save, ChevronDown } from 'lucide-react';
+import { Company, Expense, ExpenseCategoryLevel1, ExpenseCategoryLevel2, Branch, DocumentNumbering, User, Member, BankMaster } from '../types.ts';
+import { Download, X, Plus, Trash2, Save, ChevronDown, User as UserIcon, Users as UsersIcon } from 'lucide-react';
 // @ts-ignore
 import * as htmlToImage from 'https://cdn.skypack.dev/html-to-image';
+import SearchableSelect from './ui/SearchableSelect.tsx';
 
-// --- Type Definitions ---
 
 export interface VoucherLineItem {
-    id: string; // Can be existing expense ID or a temporary ID for new/manual lines
+    id: string; 
     expenseHead: string;
     description: string;
     fullCategoryPath: string;
     modeOfPayment: 'Cash' | 'UPI' | 'Net Banking' | 'Cheque';
     amount: number;
-    isNew: boolean; // Flag to know if this is a new expense to be created
+    bankId?: string; 
+    isNew: boolean;
 }
 
 export interface VoucherSaveData {
     voucherNo: string;
     date: string;
-    payeeName: string;
+    payeeName: string; 
     branch_id: string;
     finYearId: string;
     lineItems: VoucherLineItem[];
+    partyId: string;
+    partyType: 'Customer' | 'Staff';
+    docNo?: string;
+    docDate?: string;
 }
 
 interface PaymentVoucherModalProps {
@@ -30,22 +35,21 @@ interface PaymentVoucherModalProps {
     onClose: () => void;
     companyInfo: Company | null;
     branches: Branch[];
+    users: User[];        
+    allMembers: Member[]; 
+    bankMasters: BankMaster[];
     expenseCategoriesLevel1: ExpenseCategoryLevel1[];
     expenseCategoriesLevel2: ExpenseCategoryLevel2[];
-    expenseCategoriesLevel3: ExpenseCategoryLevel3[];
     onSave: (data: VoucherSaveData) => void;
     voucherToEdit: Expense[] | null;
     triggerExport: boolean;
     canCreate: boolean;
     canModify: boolean;
-    // --- MODIFICATION: Props now refer to the correct FY for NEW vouchers ---
-    activeFinancialYearId: string | null; // This will be the ID of the TRUE current FY for saving
-    docNumberingConfig: DocumentNumbering | null; // This is the config for the TRUE current FY
-    lastVoucherNumber: number; // This is the count for the TRUE current FY
+    activeFinancialYearId: string | null;
+    docNumberingConfig: DocumentNumbering | null;
+    lastVoucherNumber: number;
 }
 
-
-// --- Helper Functions & Components ---
 
 const Button: React.FC<{
     onClick?: () => void;
@@ -123,16 +127,17 @@ const numberToWords = (num: number): string => {
     return result.trim().replace(/\s\s+/g, ' ') + ' Only';
 };
 
-// --- Main Component ---
 
 const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
     isOpen,
     onClose,
     companyInfo,
     branches,
+    users,
+    allMembers,
+    bankMasters,
     expenseCategoriesLevel1,
     expenseCategoriesLevel2,
-    expenseCategoriesLevel3,
     onSave,
     voucherToEdit,
     triggerExport,
@@ -142,39 +147,110 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
     docNumberingConfig,
     lastVoucherNumber,
 }) => {
-    // Voucher-level state
     const [voucherNo, setVoucherNo] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [payeeName, setPayeeName] = useState('');
     const [branch_id, setbranch_id] = useState<string>(branches.length > 0 ? branches[0].id : '');
     const [lineItems, setLineItems] = useState<VoucherLineItem[]>([]);
     
-    // State for the "Log Expense" form integrated at the top
+    const [isCustomer, setIsCustomer] = useState(false);
+    const [selectedPartyId, setSelectedPartyId] = useState('');
+    const [docNo, setDocNo] = useState('');
+    const [docDate, setDocDate] = useState('');
+
     const [logExpenseForm, setLogExpenseForm] = useState({
         categoryLevel1Id: '',
         categoryLevel2Id: '',
-        categoryLevel3Id: '',
     });
 
     const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false);
     const branchDropdownRef = useRef<HTMLDivElement>(null);
-
     const voucherRef = useRef<HTMLDivElement>(null);
 
     const isEditable = useMemo(() => {
         return voucherToEdit ? canModify : canCreate;
     }, [voucherToEdit, canCreate, canModify]);
 
-    // Memos for category dropdowns
     const l1Map = useMemo(() => new Map(expenseCategoriesLevel1.map(c => [c.id, c.name])), [expenseCategoriesLevel1]);
     const l2Map = useMemo(() => new Map(expenseCategoriesLevel2.map(c => [c.id, c.name])), [expenseCategoriesLevel2]);
-    const l3Map = useMemo(() => new Map(expenseCategoriesLevel3.map(c => [c.id, c.name])), [expenseCategoriesLevel3]);
 
     const l2Options = useMemo(() => logExpenseForm.categoryLevel1Id ? expenseCategoriesLevel2.filter(c => c.parentId === logExpenseForm.categoryLevel1Id) : [], [logExpenseForm.categoryLevel1Id, expenseCategoriesLevel2]);
-    const l3Options = useMemo(() => logExpenseForm.categoryLevel2Id ? expenseCategoriesLevel3.filter(c => c.parentId === logExpenseForm.categoryLevel2Id) : [], [logExpenseForm.categoryLevel2Id, expenseCategoriesLevel3]);
 
-    // Click outside handler for branch dropdown
-     useEffect(() => {
+    const partyOptions = useMemo(() => {
+        if (isCustomer) {
+            return allMembers.map(m => ({ value: m.id, label: `${m.name} (${m.memberId})` }));
+        } else {
+            return users.map(u => ({ value: u.id, label: `${u.name} (${u.employeeId})` }));
+        }
+    }, [isCustomer, allMembers, users]);
+
+    const displayedPayeeName = useMemo(() => {
+        if (!selectedPartyId) return '';
+        const option = partyOptions.find(o => o.value === selectedPartyId);
+        return option ? option.label.split(' (')[0] : ''; 
+    }, [selectedPartyId, partyOptions]);
+
+    const requiresBankSelection = useMemo(() => {
+        return lineItems.some(item => item.modeOfPayment !== 'Cash');
+    }, [lineItems]);
+
+    useEffect(() => {
+        if (isOpen) {
+            if (voucherToEdit) {
+                const firstExpense = voucherToEdit[0];
+                setVoucherNo(firstExpense.voucherNo || `VCH-TEMP-${Date.now()}`);
+                setDate(firstExpense.date);
+                setbranch_id(firstExpense.branch_id || (branches.length > 0 ? branches[0].id : ''));
+                
+                setIsCustomer(firstExpense.partyType === 'Customer');
+                setSelectedPartyId(firstExpense.partyId || '');
+                
+                setDocNo(firstExpense.docNo || '');
+                setDocDate(firstExpense.docDate || '');
+
+                const items = voucherToEdit.map(exp => {
+                    const path = [];
+                    if (exp.categoryLevel1Id) path.push(l1Map.get(exp.categoryLevel1Id));
+                    if (exp.categoryLevel2Id) path.push(l2Map.get(exp.categoryLevel2Id));
+
+                    return {
+                        id: exp.id,
+                        expenseHead: exp.expenseHead || path[path.length - 1] || 'Manual',
+                        description: exp.description,
+                        fullCategoryPath: path.filter(Boolean).join(' > '),
+                        modeOfPayment: exp.modeOfPayment || 'Cash',
+                        amount: exp.amount,
+                        bankId: exp.bankId, 
+                        isNew: false,
+                    };
+                });
+                setLineItems(items);
+
+                if (triggerExport && voucherRef.current) {
+                    setTimeout(exportImage, 500);
+                }
+
+            } else {
+                if (docNumberingConfig) {
+                    const nextNumber = docNumberingConfig.startingNumber + lastVoucherNumber;
+                    const suffix = docNumberingConfig.suffix || '';
+                    setVoucherNo(`${docNumberingConfig.prefix}${nextNumber}${suffix}`);
+                } else {
+                    setVoucherNo(`TEMP-${lastVoucherNumber + 1}`);
+                }
+                
+                setDate(new Date().toISOString().split('T')[0]);
+                setbranch_id(branches.length > 0 ? branches[0].id : '');
+                setLineItems([]);
+                setIsCustomer(false); 
+                setSelectedPartyId('');
+                setDocNo('');
+                setDocDate('');
+                setLogExpenseForm({ categoryLevel1Id: '', categoryLevel2Id: '' });
+            }
+        }
+    }, [isOpen, voucherToEdit, lastVoucherNumber, docNumberingConfig, triggerExport, branches, l1Map, l2Map]);
+
+    useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (branchDropdownRef.current && !branchDropdownRef.current.contains(event.target as Node)) {
                 setIsBranchDropdownOpen(false);
@@ -186,70 +262,17 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
         };
     }, []);
 
-    // Initialize or reset the modal state
-    useEffect(() => {
-        if (isOpen) {
-            if (voucherToEdit) { // Editing existing voucher
-                const firstExpense = voucherToEdit[0];
-                setVoucherNo(firstExpense.voucherNo || `VCH-TEMP-${Date.now()}`); // Use existing number
-                setDate(firstExpense.date);
-                setPayeeName(firstExpense.paidTo || '');
-                setbranch_id(firstExpense.branch_id || (branches.length > 0 ? branches[0].id : ''));
-                
-                const items = voucherToEdit.map(exp => {
-                    const path = [];
-                    if (exp.categoryLevel1Id) path.push(l1Map.get(exp.categoryLevel1Id));
-                    if (exp.categoryLevel2Id) path.push(l2Map.get(exp.categoryLevel2Id));
-                    if (exp.categoryLevel3Id) path.push(l3Map.get(exp.categoryLevel3Id));
-
-                    return {
-                        id: exp.id,
-                        expenseHead: exp.expenseHead || path[path.length - 1] || 'Manual',
-                        description: exp.description,
-                        fullCategoryPath: path.filter(Boolean).join(' > '),
-                        modeOfPayment: exp.modeOfPayment || 'Cash',
-                        amount: exp.amount,
-                        isNew: false,
-                    };
-                });
-                setLineItems(items);
-
-                if (triggerExport && voucherRef.current) {
-                    setTimeout(exportImage, 500); // Timeout to allow rendering
-                }
-
-            } else { // Creating new voucher
-                // --- MODIFICATION: This logic now correctly uses the props for the CURRENT FY ---
-                if (docNumberingConfig) {
-                    const nextNumber = docNumberingConfig.startingNumber + lastVoucherNumber;
-                    const suffix = docNumberingConfig.suffix || '';
-                    setVoucherNo(`${docNumberingConfig.prefix}${nextNumber}${suffix}`);
-                } else {
-                    setVoucherNo(`TEMP-${lastVoucherNumber + 1}`); // Fallback
-                }
-                
-                setDate(new Date().toISOString().split('T')[0]);
-                setPayeeName('');
-                setbranch_id(branches.length > 0 ? branches[0].id : '');
-                setLineItems([]);
-                setLogExpenseForm({ categoryLevel1Id: '', categoryLevel2Id: '', categoryLevel3Id: '' });
-            }
-        }
-    }, [isOpen, voucherToEdit, lastVoucherNumber, docNumberingConfig, triggerExport, branches, l1Map, l2Map, l3Map]);
-
-
-    const handleCategoryChange = (level: 'categoryLevel1Id' | 'categoryLevel2Id' | 'categoryLevel3Id', value: string) => {
+    const handleCategoryChange = (level: 'categoryLevel1Id' | 'categoryLevel2Id', value: string) => {
         setLogExpenseForm(prev => {
             const newState = { ...prev, [level]: value };
-            if (level === 'categoryLevel1Id') { newState.categoryLevel2Id = ''; newState.categoryLevel3Id = ''; }
-            if (level === 'categoryLevel2Id') { newState.categoryLevel3Id = ''; }
+            if (level === 'categoryLevel1Id') { newState.categoryLevel2Id = ''; }
             return newState;
         });
     };
 
     const addLineItemFromCategory = () => {
-        if (!logExpenseForm.categoryLevel1Id) {
-            alert('Please select an Expense Category.');
+        if (!logExpenseForm.categoryLevel1Id || !logExpenseForm.categoryLevel2Id) {
+            alert('Please select both Expense Category and Expense Head.');
             return;
         }
 
@@ -258,15 +281,11 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
 
         if (logExpenseForm.categoryLevel1Id) {
             const l1 = l1Map.get(logExpenseForm.categoryLevel1Id);
-            if (l1) { path.push(l1); expenseHead = l1; }
+            if (l1) { path.push(l1); }
         }
         if (logExpenseForm.categoryLevel2Id) {
              const l2 = l2Map.get(logExpenseForm.categoryLevel2Id);
             if (l2) { path.push(l2); expenseHead = l2; }
-        }
-        if (logExpenseForm.categoryLevel3Id) {
-             const l3 = l3Map.get(logExpenseForm.categoryLevel3Id);
-            if (l3) { path.push(l3); expenseHead = l3; }
         }
 
         const newLine: VoucherLineItem = {
@@ -299,23 +318,36 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
     };
 
     const updateLineItem = (id: string, field: keyof Omit<VoucherLineItem, 'id'>, value: any) => {
-        setLineItems(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
+        setLineItems(prev => prev.map(item => {
+            if (item.id === id) {
+                const updatedItem = { ...item, [field]: value };
+                if (field === 'modeOfPayment' && value === 'Cash') {
+                    updatedItem.bankId = undefined;
+                }
+                return updatedItem;
+            }
+            return item;
+        }));
     };
     
-    // Calculations for display
     const totalAmount = useMemo(() => lineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0), [lineItems]);
     const amountInWords = useMemo(() => numberToWords(totalAmount), [totalAmount]);
 
     const handleSave = (shouldExport: boolean) => {
-        if (!payeeName.trim()) {
-            alert('Payee Name is required.');
+        if (!selectedPartyId) {
+            alert('Please select a Payee (Customer or Staff).');
             return;
         }
         if (lineItems.length === 0) {
             alert('Voucher must have at least one line item.');
             return;
         }
-        // --- MODIFICATION: This now correctly uses the activeFinancialYearId passed in for saving ---
+        const missingBankItem = lineItems.find(item => item.modeOfPayment !== 'Cash' && !item.bankId);
+        if (missingBankItem) {
+            alert('Please select a Bank for all non-cash payment modes.');
+            return;
+        }
+
         if (!activeFinancialYearId) {
             alert('Cannot save: Active Financial Year not found.');
             return;
@@ -324,10 +356,14 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
         const saveData: VoucherSaveData = {
             voucherNo,
             date,
-            payeeName,
+            payeeName: displayedPayeeName,
             branch_id,
             finYearId: activeFinancialYearId,
-            lineItems
+            lineItems,
+            partyId: selectedPartyId,
+            partyType: isCustomer ? 'Customer' : 'Staff',
+            docNo,
+            docDate
         };
         onSave(saveData);
 
@@ -362,20 +398,52 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
     const selectedbranch_name = branches.find(b => b.id === branch_id)?.branch_name || 'Select Branch';
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 animate-fade-in">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col">
-                {/* Modal Header */}
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 animate-fade-in" onClick={onClose}>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                {}
                 <div className="p-4 flex justify-between items-center border-b dark:border-gray-700 flex-shrink-0">
                     <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Payment Voucher</h3>
                     <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"><X className="text-gray-600 dark:text-gray-300" /></button>
                 </div>
 
-                {/* Main Content Area */}
+                {}
                 <div className="flex-1 p-6 overflow-y-auto">
+                    {}
+                    {isEditable && (
+                        <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
+                            <div className="flex items-center justify-between mb-4">
+                                <h4 className="font-semibold text-gray-700 dark:text-gray-300">Payee Details</h4>
+                                <div className="flex bg-gray-200 dark:bg-gray-600 rounded-lg p-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => { setIsCustomer(false); setSelectedPartyId(''); }}
+                                        className={`px-3 py-1 text-xs font-medium rounded-md transition-colors flex items-center gap-1 ${!isCustomer ? 'bg-white dark:bg-gray-800 shadow text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
+                                    >
+                                        <UsersIcon size={12}/> Staff
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setIsCustomer(true); setSelectedPartyId(''); }}
+                                        className={`px-3 py-1 text-xs font-medium rounded-md transition-colors flex items-center gap-1 ${isCustomer ? 'bg-white dark:bg-gray-800 shadow text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
+                                    >
+                                        <UserIcon size={12}/> Customer
+                                    </button>
+                                </div>
+                            </div>
+                            <SearchableSelect
+                                label={isCustomer ? "Select Customer" : "Select Staff"}
+                                options={partyOptions}
+                                value={selectedPartyId}
+                                onChange={setSelectedPartyId}
+                                placeholder={`Search ${isCustomer ? 'Customer' : 'Staff'}...`}
+                            />
+                        </div>
+                    )}
+
                     {isEditable && (
                         <div className="mb-4 p-4 border rounded-lg bg-gray-50 dark:bg-gray-700/50 dark:border-gray-600">
-                            <h4 className="font-semibold mb-3 text-gray-700 dark:text-gray-300">Voucher Setup & Auto-Generation</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                            <h4 className="font-semibold mb-3 text-gray-700 dark:text-gray-300">Category Selection</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
                                 <div>
                                     <label className="text-sm font-medium">Expense Category</label>
                                     <select value={logExpenseForm.categoryLevel1Id} onChange={e => handleCategoryChange('categoryLevel1Id', e.target.value)} className="w-full mt-1 p-2 border rounded-md dark:bg-gray-800 dark:border-gray-500"><option value="">Select Category...</option>{expenseCategoriesLevel1.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
@@ -384,11 +452,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                                     <label className="text-sm font-medium">Expense Head</label>
                                     <select value={logExpenseForm.categoryLevel2Id} onChange={e => handleCategoryChange('categoryLevel2Id', e.target.value)} className="w-full mt-1 p-2 border rounded-md dark:bg-gray-800 dark:border-gray-500" disabled={!logExpenseForm.categoryLevel1Id}><option value="">Select Head...</option>{l2Options.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
                                 </div>
-                                 <div>
-                                    <label className="text-sm font-medium">Individual Category</label>
-                                    <select value={logExpenseForm.categoryLevel3Id} onChange={e => handleCategoryChange('categoryLevel3Id', e.target.value)} className="w-full mt-1 p-2 border rounded-md dark:bg-gray-800 dark:border-gray-500" disabled={!logExpenseForm.categoryLevel2Id}><option value="">Select Individual...</option>{l3Options.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-                                </div>
-                                <Button onClick={addLineItemFromCategory} variant="secondary" className="w-full">
+                                <Button onClick={addLineItemFromCategory} variant="secondary" className="w-full" disabled={!logExpenseForm.categoryLevel1Id || !logExpenseForm.categoryLevel2Id}>
                                     <Plus size={16} /> Add to Voucher
                                 </Button>
                             </div>
@@ -396,7 +460,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                     )}
                     
                     <div ref={voucherRef} id="payment-voucher" className="bg-white p-8 border-2 border-gray-500 font-serif text-black">
-                        {/* Voucher Header */}
+                        {}
                         <div className="text-center mb-4">
                             <h1 className="text-3xl font-bold">{companyInfo?.name || 'Your Company'}</h1>
                             <div className="flex justify-center items-center text-sm gap-2 mt-1">
@@ -422,7 +486,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                         </div>
 
                         <div className="flex justify-between items-start mb-4">
-                            <div className="w-1/3"></div> {/* Left Spacer */}
+                            <div className="w-1/3"></div> {}
                             <div className="w-1/3 text-center">
                                 <div className="bg-gray-800 text-white px-4 py-1 text-lg font-bold inline-block">PAYMENT VOUCHER</div>
                             </div>
@@ -433,66 +497,120 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                                 </div>
                                 <div className="flex items-center justify-end">
                                     <p className="font-semibold shrink-0">Date:</p>
-                                    <input type="date" value={date} onChange={e => setDate(e.target.value)} className="font-normal border-b border-dotted border-gray-500 px-2 ml-2 focus:outline-none bg-transparent" disabled={!isEditable} />
+                                    <span className="font-normal border-b border-dotted border-gray-500 px-2 ml-2 min-w-[120px] text-left">{date}</span>
                                 </div>
                             </div>
                         </div>
 
                         <div className="mb-4">
-                            <p className="font-semibold">Name: <input type="text" value={payeeName} onChange={e => setPayeeName(e.target.value)} placeholder="Enter payee name..." className="font-normal w-3/4 border-b border-dotted border-gray-500 px-2 focus:outline-none bg-transparent" disabled={!isEditable} /></p>
+                            <p className="font-semibold flex items-center">
+                                Pay To: 
+                                <span className="font-normal w-3/4 border-b border-dotted border-gray-500 px-2 ml-2 bg-transparent inline-block min-h-[24px]">
+                                    {displayedPayeeName || <span className="text-gray-400 italic text-xs">Select a payee above</span>}
+                                </span>
+                            </p>
                         </div>
 
-                        {/* Particulars Table */}
+                        {}
                         <table className="w-full border-collapse border-2 border-black text-sm">
                             <thead>
                                 <tr className="bg-gray-200">
                                     <th className="border border-black p-1 text-center font-bold w-12">S.No</th>
                                     <th className="border border-black p-1 text-center font-bold">Expenses Head</th>
                                     <th className="border border-black p-1 text-center font-bold w-2/5">Description</th>
-                                    <th className="border border-black p-1 text-center font-bold">Mode of Payment</th>
+                                    <th className="border border-black p-1 text-center font-bold w-48">Mode of Payment</th>
                                     <th className="border border-black p-1 text-center font-bold w-40">Amount</th>
-                                    {isEditable && <th className="border border-black p-1 text-center font-bold w-12"></th>}
+                                    {isEditable && <th className="border border-black p-1 text-center font-bold w-10"></th>}
                                 </tr>
                             </thead>
                             <tbody>
                                 {lineItems.map((item, index) => (
                                     <tr key={item.id}>
-                                        <td className="border border-black p-1 text-center">{index + 1}</td>
-                                        <td className="border border-black p-1">
-                                            <input type="text" value={item.expenseHead} onChange={e => updateLineItem(item.id, 'expenseHead', e.target.value)} className="w-full h-full border-none focus:outline-none bg-transparent p-1" disabled={!isEditable} />
+                                        <td className="border border-black p-1 text-center align-top pt-2">{index + 1}</td>
+                                        <td className="border border-black p-1 align-top">
+                                            <input type="text" value={item.expenseHead} onChange={e => updateLineItem(item.id, 'expenseHead', e.target.value)} className="w-full border-none focus:outline-none bg-transparent p-1" disabled={!isEditable} />
                                         </td>
-                                        <td className="border border-black p-1">
-                                            <textarea value={item.description} onChange={e => updateLineItem(item.id, 'description', e.target.value)} className="w-full h-full border-none focus:outline-none bg-transparent p-1 resize-none" rows={2} disabled={!isEditable} />
+                                        <td className="border border-black p-1 align-top">
+                                            <textarea value={item.description} onChange={e => updateLineItem(item.id, 'description', e.target.value)} className="w-full border-none focus:outline-none bg-transparent p-1 resize-none" rows={2} disabled={!isEditable} />
                                             <p className="text-xs text-gray-500 px-1">{item.fullCategoryPath}</p>
                                         </td>
-                                        <td className="border border-black p-1">
-                                            <select value={item.modeOfPayment} onChange={e => updateLineItem(item.id, 'modeOfPayment', e.target.value as any)} className="w-full h-full border-none focus:outline-none bg-transparent p-1" disabled={!isEditable}>
-                                                <option>Cash</option>
-                                                <option>UPI</option>
-                                                <option>Net Banking</option>
-                                                <option>Cheque</option>
-                                            </select>
+                                        <td className="border border-black p-1 align-top">
+                                            <div className="flex flex-col gap-1 p-1">
+                                                <select value={item.modeOfPayment} onChange={e => updateLineItem(item.id, 'modeOfPayment', e.target.value as any)} className="w-full border-none focus:outline-none bg-transparent text-sm font-semibold" disabled={!isEditable}>
+                                                    <option>Cash</option>
+                                                    <option>UPI</option>
+                                                    <option>Net Banking</option>
+                                                    <option>Cheque</option>
+                                                </select>
+                                                
+                                                {item.modeOfPayment !== 'Cash' && (
+                                                    <div className="flex items-center text-xs mt-1">
+                                                        <span className="mr-1 font-semibold text-gray-600">-</span>
+                                                        <select 
+                                                            value={item.bankId || ''} 
+                                                            onChange={e => updateLineItem(item.id, 'bankId', e.target.value)}
+                                                            className="w-full bg-transparent focus:outline-none text-gray-700 font-medium"
+                                                            disabled={!isEditable}
+                                                        >
+                                                            <option value="">Select Bank...</option>
+                                                            {bankMasters.map(bank => (
+                                                                <option key={bank.id} value={bank.id}>{bank.bankName}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </td>
-                                        <td className="border border-black p-1 text-right w-40">
-                                            <input type="number" value={item.amount || ''} onChange={e => updateLineItem(item.id, 'amount', parseFloat(e.target.value) || 0)} className="w-full h-full border-none focus:outline-none bg-transparent text-right p-1" disabled={!isEditable} />
+                                        <td className="border border-black p-1 text-right w-40 align-top pt-2">
+                                            <input type="number" value={item.amount || ''} onChange={e => updateLineItem(item.id, 'amount', parseFloat(e.target.value) || 0)} className="w-full border-none focus:outline-none bg-transparent text-right p-1" disabled={!isEditable} />
                                         </td>
                                         {isEditable && (
-                                            <td className="border border-black p-1 text-center">
-                                                <button type="button" onClick={() => removeLine(item.id)} className="p-1 text-red-500 hover:text-red-700"><Trash2 size={14} /></button>
+                                            <td className="border border-black p-1 text-center align-middle">
+                                                <button type="button" onClick={() => removeLine(item.id)} className="text-red-500 hover:text-red-700 transition-colors flex items-center justify-center w-full h-full">
+                                                    <Trash2 size={16} />
+                                                </button>
                                             </td>
                                         )}
                                     </tr>
                                 ))}
-                                {/* --- START OF FIX: Corrected Total Row Layout --- */}
                                 <tr className="bg-gray-200 font-bold">
                                     <td colSpan={3} className="border border-black p-2"></td>
                                     <td className="border border-black p-2 text-right">Total Rs.</td>
                                     <td className="border border-black p-2 text-right">{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                     {isEditable && <td className="border border-black p-2"></td>}
                                 </tr>
-                                {/* --- END OF FIX --- */}
                             </tbody>
                         </table>
+                        
+                        {}
+                        {lineItems.some(item => item.modeOfPayment !== 'Cash') && (
+                            <div className="mt-2 p-2 border border-gray-400 bg-gray-50">
+                                <div className="flex gap-8 text-sm">
+                                    <div className="flex items-center">
+                                        <p className="font-semibold shrink-0">Doc/Cheque No:</p>
+                                        <input 
+                                            type="text" 
+                                            value={docNo} 
+                                            onChange={e => setDocNo(e.target.value)} 
+                                            className="font-normal border-b border-dotted border-gray-500 px-2 ml-2 w-40 focus:outline-none bg-transparent" 
+                                            placeholder="Ref No."
+                                            disabled={!isEditable}
+                                        />
+                                    </div>
+                                    <div className="flex items-center">
+                                        <p className="font-semibold shrink-0">Doc Date:</p>
+                                        <input 
+                                            type="date" 
+                                            value={docDate} 
+                                            onChange={e => setDocDate(e.target.value)} 
+                                            className="font-normal border-b border-dotted border-gray-500 px-2 ml-2 focus:outline-none bg-transparent"
+                                            disabled={!isEditable}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        
                         <div className="mt-2 p-2 border-2 border-black"><p className="font-semibold">Amount in Words: <span className="font-normal">{amountInWords}</span></p></div>
                         <div className="mt-16 flex justify-between items-end text-sm"><p className="border-t border-dotted border-gray-600 pt-1 px-8">Prepared</p><p className="border-t border-dotted border-gray-600 pt-1 px-8">Passed</p><p className="border-t border-dotted border-gray-600 pt-1 px-8">Receiver's Signature</p></div>
                     </div>
@@ -502,7 +620,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                         </div>
                     )}
                 </div>
-                 {/* Modal Footer */}
+                 {}
                 <div className="p-4 flex justify-end items-center border-t dark:border-gray-700 flex-shrink-0 gap-4">
                     {isEditable ? (
                         <>

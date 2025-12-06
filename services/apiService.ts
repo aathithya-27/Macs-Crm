@@ -7,8 +7,45 @@ import {
     InsuranceTypeDocumentRule,
     LeadStageMaster, 
     OccasionTypeMaster,
-    CampaignMaster // --- NEW IMPORT ---
+    CampaignMaster,
+    OpeningBalance
 } from '../types.ts';
+
+import {
+    initialAutomationRules,
+    initialDocTemplates,
+    generateInitialGeographies,
+    initialCompanyInfo,
+    initialBankMasters,
+    initialBusinessVerticals,
+    initialLeadSources,
+    initialAgencies,
+    initialSchemes,
+    initialDocumentMasters,
+    initialGiftMasters,
+    initialTaskStatusMasters,
+    initialCustomerCategories,
+    initialCustomerSubCategories,
+    initialCustomerGroups,
+    initialTaskMasters,
+    initialCustomerFields,
+    initialMutualFundFields,
+    initialAccountTypes,
+    initialInsuranceTypes,
+    initialInsuranceFields,
+    initialTasks,
+    initialExpenseCategoriesLevel1,
+    initialExpenseCategoriesLevel2,
+    initialIncomeCategoriesLevel1,
+    initialIncomeCategoriesLevel2,
+    initialExpenses,
+    initialManualIncomes,
+    initialManualCommissions,
+    initialAmcs,
+    initialMutualFundSchemes,
+    initialReceipts,
+    initialOpeningBalances
+} from '../data/initialData.tsx';
 
 
 let financialYearsData: FinancialYear[] = [
@@ -23,14 +60,12 @@ let documentNumberingData: DocumentNumbering[] = [
     { id: 'dn-4', type: 'Receipt', prefix: 'R/', suffix: '/A', startingNumber: 500, finYearId: 'fy-2', status: 'Active' },
 ];
 
-// --- NEW: Mock Data for Campaigns ---
 let campaignsData: CampaignMaster[] = [
     { id: 'camp-1', name: 'Diwali Bonanza', description: 'Special offers for the festive season', startDate: '2024-10-01', endDate: '2024-11-15', active: true, order: 0 },
     { id: 'camp-2', name: 'Year End Drive', description: 'Closing financial year targets', startDate: '2024-12-01', endDate: '2024-12-31', active: true, order: 1 },
 ];
 
 const LS_OPERATING_COMPANIES_KEY = '-operatingCompanies';
-const LS_USERS_KEY = '-users';
 
 let designationsData: Designation[] = [
     { id: 'des-admin', name: 'Admin', active: true, order: 0 },
@@ -49,10 +84,10 @@ let rolesData: Role[] = [
 
 let insuranceTypeDocumentRulesData: InsuranceTypeDocumentRule[] = [
     { id: 'rule-1', insuranceTypeId: 'it-life', documentId: 'doc-1', isMandatory: true }, // PAN Card
-    { id: 'rule-2', insuranceTypeId: 'it-life', documentId: 'doc-2', isMandatory: true }, // Aadhaar Card
-    { id: 'rule-3', insuranceTypeId: 'it-term', documentId: 'doc-5', isMandatory: false }, // Bank Statement 
-    { id: 'rule-4', insuranceTypeId: 'it-health', documentId: 'doc-2', isMandatory: true }, // Aadhaar Card
-    { id: 'rule-5', insuranceTypeId: 'it-motor', documentId: 'doc-4', isMandatory: true }, // Driving License 
+    { id: 'rule-2', insuranceTypeId: 'it-life', documentId: 'doc-2', isMandatory: true },
+    { id: 'rule-3', insuranceTypeId: 'it-term', documentId: 'doc-5', isMandatory: false },
+    { id: 'rule-4', insuranceTypeId: 'it-health', documentId: 'doc-2', isMandatory: true },
+    { id: 'rule-5', insuranceTypeId: 'it-motor', documentId: 'doc-4', isMandatory: true },
 ];
 
 
@@ -60,40 +95,41 @@ let rolePermissionsData: RolePermissions[] = [
     {
         roleId: 'role-admin',
         permissions: { 
-            dashboard: 'modify', 'reports & insights': 'modify', profitAndLoss: 'modify', calendar: 'modify', employees: 'modify', 
+            dashboard: 'modify', 'reports & insights': 'modify', incomeAndExpense: 'modify', profitAndLoss: 'modify', calendar: 'modify', employees: 'modify', 
             pipeline: 'modify', customers: 'modify', taskManagement: 'modify', policies: 'modify', mutualFunds: 'modify', 
             upselling: 'modify', notes: 'modify', actionHub: 'modify', servicesHub: 'modify', location: 'modify', 
-            chatbot: 'modify', masterData: 'modify', advancedReports: 'modify', campaign: 'modify' // Added campaign
+            chatbot: 'modify', masterData: 'modify', advancedReports: 'modify', campaign: 'modify'
         }
     },
     {
         roleId: 'role-advisor',
         permissions: { 
-            dashboard: 'view', 'reports & insights': 'view', profitAndLoss: 'create', calendar: 'view', employees: 'none',
+            dashboard: 'view', 'reports & insights': 'view', incomeAndExpense: 'create', profitAndLoss: 'none', calendar: 'view', employees: 'none',
             pipeline: 'modify', customers: 'modify', taskManagement: 'modify', policies: 'modify', mutualFunds: 'modify',
             upselling: 'view', notes: 'modify', actionHub: 'modify', servicesHub: 'view', location: 'modify',
-            chatbot: 'modify', masterData: 'none', advancedReports: 'none', campaign: 'view' // Added campaign
+            chatbot: 'modify', masterData: 'none', advancedReports: 'none', campaign: 'view'
         }
     },
     {
         roleId: 'role-secretary',
         permissions: { 
-            dashboard: 'view', 'reports & insights': 'none', profitAndLoss: 'none', calendar: 'create', employees: 'none',
+            dashboard: 'view', 'reports & insights': 'none', incomeAndExpense: 'none', profitAndLoss: 'none', calendar: 'create', employees: 'none',
             pipeline: 'none', customers: 'create', taskManagement: 'create', policies: 'view', mutualFunds: 'none',
             upselling: 'none', notes: 'create', actionHub: 'none', servicesHub: 'none', location: 'none',
-            chatbot: 'none', masterData: 'none', advancedReports: 'none', campaign: 'none' // Added campaign
+            chatbot: 'none', masterData: 'none', advancedReports: 'none', campaign: 'none'
         }
     },
     {
         roleId: 'role-support',
         permissions: { 
-            dashboard: 'view', 'reports & insights': 'view', profitAndLoss: 'none', calendar: 'view', employees: 'view',
+            dashboard: 'view', 'reports & insights': 'view', incomeAndExpense: 'none', profitAndLoss: 'none', calendar: 'view', employees: 'view',
             pipeline: 'view', customers: 'view', taskManagement: 'view', policies: 'view', mutualFunds: 'view',
             upselling: 'view', notes: 'view', actionHub: 'view', servicesHub: 'view', location: 'none',
-            chatbot: 'view', masterData: 'none', advancedReports: 'none', campaign: 'none' // Added campaign
+            chatbot: 'view', masterData: 'none', advancedReports: 'none', campaign: 'none'
         }
     }
 ];
+
 
 const BranchesData: Branch[] = [
     { id: 'frb-1', branch_name: 'Erode HQ', branch_id: 'FIN01-ERD', companyMappings: [], active: true, comp_id: 'FIN01', gstin: '33ABCDE1234F1Z5', pan: 'ABCDE1234F', tan: 'ERDF12345G' },
@@ -385,6 +421,8 @@ let occasionTypeMastersData: OccasionTypeMaster[] = [
     { id: 'occ-type-4', name: 'Child\'s Graduation', active: true, order: 3 },
 ];
 
+let openingBalancesData: OpeningBalance[] = initialOpeningBalances;
+
 export const calculatePremium = (policyType: PolicyType, coverage: number): number => {
     switch (policyType) {
         case 'Health Insurance':
@@ -416,21 +454,7 @@ export const generateDigipin = (lat: number, lng: number): string => {
     return code.replace(' ', '+').slice(0, 11); 
 };
 
-const today = new Date();
-const priyaDob = new Date(today);
-priyaDob.setFullYear(1985);
-const kavyaAnniversary = new Date(today);
-kavyaAnniversary.setFullYear(2005);
-const vikramRenewal = new Date(today);
-vikramRenewal.setDate(today.getDate() + 7);
-const deepaRenewal = new Date(today);
-deepaRenewal.setDate(today.getDate() + 25);
-
-const formatDate = (date: Date) => date.toISOString().split('T')[0];
-
-// --- EXTENDED MOCK MEMBERS DATA FOR CAMPAIGN TESTING ---
 let members: Member[] = [
-  // 1. MUMBAI - LIFE INSURANCE (TERM) - HIGH VALUE
   {
       id: '1', 
       sno: 1, 
@@ -440,14 +464,16 @@ let members: Member[] = [
       gender: 'gen-2', 
       maritalStatus: 'mar-2',
       mobile: '+91 9876543312', 
-      country: 'India',          // Added for filter
+      country: 'India',          
       state: 'Maharashtra', 
-      district: 'Mumbai Suburban', // Added for filter
+      district: 'Mumbai Suburban', 
       city: 'Mumbai', 
-      area: 'Goregaon East',     // Added for filter
+      area: 'Goregaon East',     
       address: '101, Thirupathi Valley',
       memberType: 'Diamond', 
-      tierId: 'tier-3', 
+      tierId: 'tier-3',
+      customerCategoryId: 'cc-1',
+      customerGroupId: 'cg-1',
       active: true, 
       panCard: 'ABCDE1234F', 
       aadhaar: '123456789012',
@@ -456,10 +482,10 @@ let members: Member[] = [
           policyType: 'Life Insurance', 
           status: 'Active', 
           coverage: 5000000, 
-          premium: 50000, // High Premium for Value Filter
+          premium: 50000, 
           renewalDate: '2024-08-13', 
           comp_id: 'FIN01', 
-          insuranceTypeId: 'it-term' // Term Life
+          insuranceTypeId: 'it-term'
       }],
       mutualFundHoldings: [],
       leadSource: { sourceId: 'ls-ref', detail: 'Referral' },
@@ -470,10 +496,10 @@ let members: Member[] = [
       processStage: 'Initial Contact',
       voiceNotes: [], 
       documents: [], 
-      checkIns: []
+      checkIns: [],
+      branch_id: 'frb-1'
   },
 
-  // 2. DELHI - MUTUAL FUNDS - HIGH INVESTMENT
   {
       id: '2', 
       sno: 2, 
@@ -491,6 +517,8 @@ let members: Member[] = [
       address: 'A-23, Mullai Nagar',
       memberType: 'Gold', 
       tierId: 'tier-2', 
+      customerCategoryId: 'cc-1',
+      customerGroupId: 'cg-2',
       active: true, 
       panCard: 'FGHIJ5678K', 
       aadhaar: '234567890123',
@@ -503,7 +531,7 @@ let members: Member[] = [
               investmentType: 'Lumpsum',
               totalInvestment: 500000, 
               units: 5000, 
-              currentValue: 750000, // High Value for MF Filter
+              currentValue: 750000,
               transactions: [], 
               status: 'Active'
           }
@@ -516,10 +544,10 @@ let members: Member[] = [
       processStage: 'Risk Profiling',
       voiceNotes: [], 
       documents: [], 
-      checkIns: []
+      checkIns: [],
+      branch_id: 'frb-1'
   },
 
-  // 3. BANGALORE - GENERAL INSURANCE (MOTOR)
   {
       id: '3', 
       sno: 3, 
@@ -536,7 +564,8 @@ let members: Member[] = [
       area: 'HSR Layout',
       address: '54, TVS Road',
       memberType: 'Silver', 
-      tierId: 'tier-1', 
+      tierId: 'tier-1',
+      customerCategoryId: 'cc-2',
       active: true, 
       panCard: 'KLMNO9012L', 
       aadhaar: '345678901234',
@@ -562,10 +591,10 @@ let members: Member[] = [
       processStage: 'Inquiry',
       voiceNotes: [], 
       documents: [], 
-      checkIns: []
+      checkIns: [],
+      branch_id: 'frb-2'
   },
 
-  // 4. CHENNAI - HEALTH INSURANCE (FAMILY FLOATER) - RELATIONSHIP TEST
   {
       id: '5', 
       sno: 5, 
@@ -582,7 +611,9 @@ let members: Member[] = [
       area: 'Viman Nagar',
       address: '7B, Clover Park',
       memberType: 'Platinum', 
-      tierId: 'tier-4', 
+      tierId: 'tier-4',
+      customerCategoryId: 'cc-1',
+      customerGroupId: 'cg-1', 
       active: true, 
       panCard: 'UVXYZ9876A', 
       aadhaar: '987654321098',
@@ -595,7 +626,6 @@ let members: Member[] = [
           renewalDate: '2024-12-15', 
           comp_id: 'FIN01', 
           insuranceTypeId: 'it-family-floater',
-          // Adding covered members to test Relationship filter (e.g. "Spouse")
           coveredMembers: [
               { id: 'cm-1', name: 'Vikram Singh', relationship: 'Self', dob: '1978-01-15' },
               { id: 'cm-2', name: 'Riya Singh', relationship: 'Spouse', dob: '1980-05-20' },
@@ -611,10 +641,10 @@ let members: Member[] = [
       processStage: 'Lead Generation',
       voiceNotes: [], 
       documents: [], 
-      checkIns: []
+      checkIns: [],
+      branch_id: 'frb-2'
   },
 
-  // 5. MUMBAI - MIXED PORTFOLIO - AGGRESSIVE INVESTOR
   {
       id: '6', 
       sno: 6, 
@@ -631,7 +661,8 @@ let members: Member[] = [
       area: 'Bandra West',
       address: '112, 4th Cross',
       memberType: 'Platinum', 
-      tierId: 'tier-4', 
+      tierId: 'tier-4',
+      customerCategoryId: 'cc-3',
       active: true, 
       panCard: 'BCDEF2345G', 
       aadhaar: '876543210987',
@@ -668,10 +699,10 @@ let members: Member[] = [
       processStage: 'Initial Contact',
       voiceNotes: [], 
       documents: [], 
-      checkIns: []
+      checkIns: [],
+      branch_id: 'frb-1'
   },
 
-  // 6. ERODE - LIFE INSURANCE (ENDOWMENT) - TIER 3 CITY TEST
   {
       id: '7', 
       sno: 7, 
@@ -688,7 +719,8 @@ let members: Member[] = [
       area: 'Perundurai Road',
       address: '45, KVN Nagar',
       memberType: 'Gold', 
-      tierId: 'tier-2', 
+      tierId: 'tier-2',
+      customerCategoryId: 'cc-1',
       active: true, 
       panCard: 'ABCDE9999Z', 
       aadhaar: '999988887777',
@@ -703,7 +735,7 @@ let members: Member[] = [
           insuranceTypeId: 'it-endowment' 
       }],
       mutualFundHoldings: [],
-      leadSource: { sourceId: 'ls-cc' }, // Cold Call
+      leadSource: { sourceId: 'ls-cc' },
       company: 'Finroots', 
       comp_id: 'FIN01', 
       isSPOC: true, 
@@ -711,7 +743,8 @@ let members: Member[] = [
       processStage: 'Initial Contact',
       voiceNotes: [], 
       documents: [], 
-      checkIns: []
+      checkIns: [],
+      branch_id: 'frb-2'
   }
 ];
 
@@ -1438,7 +1471,6 @@ export const updateInsuranceTypeDocumentRules = async (updatedData: InsuranceTyp
     return insuranceTypeDocumentRulesData;
 };
 
-// --- NEW: Campaign API Functions ---
 export const getCampaigns = async (): Promise<CampaignMaster[]> => {
     await simulateDelay(100);
     return JSON.parse(JSON.stringify(campaignsData));
@@ -1467,5 +1499,37 @@ export const updateCampaign = async (campaignData: CampaignMaster): Promise<Camp
 export const deleteCampaign = async (campaignId: string): Promise<{ success: true }> => {
     await simulateDelay(300);
     campaignsData = campaignsData.filter(c => c.id !== campaignId);
+    return { success: true };
+};
+
+export const getOpeningBalances = async (): Promise<OpeningBalance[]> => {
+    await simulateDelay(100);
+    return JSON.parse(JSON.stringify(openingBalancesData));
+};
+
+export const createOpeningBalance = async (data: Omit<OpeningBalance, 'id' | 'createdAt'>): Promise<OpeningBalance> => {
+    await simulateDelay(300);
+    const newBalance: OpeningBalance = {
+        id: `ob-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        ...data,
+        createdAt: new Date().toISOString()
+    };
+    openingBalancesData.push(newBalance);
+    return JSON.parse(JSON.stringify(newBalance));
+};
+
+export const updateOpeningBalance = async (data: OpeningBalance): Promise<OpeningBalance> => {
+    await simulateDelay(300);
+    const index = openingBalancesData.findIndex(ob => ob.id === data.id);
+    if (index === -1) {
+        throw new Error('Opening Balance record not found');
+    }
+    openingBalancesData[index] = data;
+    return JSON.parse(JSON.stringify(openingBalancesData[index]));
+};
+
+export const deleteOpeningBalance = async (id: string): Promise<{ success: true }> => {
+    await simulateDelay(300);
+    openingBalancesData = openingBalancesData.filter(ob => ob.id !== id);
     return { success: true };
 };

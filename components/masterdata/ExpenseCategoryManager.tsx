@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ExpenseCategoryLevel1, ExpenseCategoryLevel2, ExpenseCategoryLevel3 } from '../../types';
+import { ExpenseCategoryLevel1, ExpenseCategoryLevel2 } from '../../types';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Modal from '../ui/Modal';
@@ -10,10 +10,8 @@ import SearchBar from '../ui/SearchBar';
 interface ExpenseCategoryManagerProps {
     level1Data: ExpenseCategoryLevel1[];
     level2Data: ExpenseCategoryLevel2[];
-    level3Data: ExpenseCategoryLevel3[];
     onUpdateLevel1: (data: ExpenseCategoryLevel1[]) => void;
     onUpdateLevel2: (data: ExpenseCategoryLevel2[]) => void;
-    onUpdateLevel3: (data: ExpenseCategoryLevel3[]) => void;
     addToast: (message: string, type?: 'success' | 'error') => void;
     canCreate: boolean;
     canModify: boolean;
@@ -21,61 +19,42 @@ interface ExpenseCategoryManagerProps {
 
 const selectClasses = "block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
 
-type CategoryItem = ExpenseCategoryLevel1 | ExpenseCategoryLevel2 | ExpenseCategoryLevel3;
+type CategoryItem = ExpenseCategoryLevel1 | ExpenseCategoryLevel2;
 
 const ExpenseCategoryModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
-    onSave: (data: Partial<CategoryItem>, level: 1 | 2 | 3) => void;
+    onSave: (data: Partial<CategoryItem>, level: 1 | 2) => void;
     initialData: Partial<CategoryItem> | null;
-    level: 1 | 2 | 3;
+    level: 1 | 2;
     level1Data: ExpenseCategoryLevel1[];
     level2Data: ExpenseCategoryLevel2[];
     canModify: boolean;
 }> = ({ isOpen, onClose, onSave, initialData, level, level1Data, level2Data, canModify }) => {
     const [formData, setFormData] = useState({
         name: '',
-        parentId: '',
-        level1Parent: ''
+        parentId: ''
     });
 
     useEffect(() => {
         if (isOpen) {
             if (initialData) {
                 const data = initialData as any;
-                let level1Parent = '';
-                
-                if (level === 3 && data.parentId) {
-                    const l2 = level2Data.find(l => l.id === data.parentId);
-                    level1Parent = l2?.parentId || '';
-                }
-
                 setFormData({
                     name: data.name || '',
-                    parentId: data.parentId || '',
-                    level1Parent
+                    parentId: data.parentId || ''
                 });
             } else {
                 setFormData({
                     name: '',
-                    parentId: '',
-                    level1Parent: ''
+                    parentId: ''
                 });
             }
         }
     }, [isOpen, initialData, level, level2Data]);
 
     const handleInputChange = (field: string, value: string) => {
-        setFormData(prev => {
-            const newData = { ...prev, [field]: value };
-            
-            // Reset dependent fields when parent changes
-            if (field === 'level1Parent') {
-                newData.parentId = '';
-            }
-            
-            return newData;
-        });
+        setFormData(prev => ({ ...prev, [field]: value }));
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -87,8 +66,7 @@ const ExpenseCategoryModal: React.FC<{
         }
 
         if (level > 1 && !formData.parentId) {
-            const parentType = level === 2 ? 'Expense Category' : 'Expense Head Category';
-            alert(`A ${parentType} must be selected.`);
+            alert('A Expense Category must be selected.');
             return;
         }
 
@@ -105,7 +83,6 @@ const ExpenseCategoryModal: React.FC<{
         switch (level) {
             case 1: return `${action} Expense Category`;
             case 2: return `${action} Expense Head Category`;
-            case 3: return `${action} Expense Individual Category`;
             default: return 'Manage Category';
         }
     };
@@ -134,40 +111,6 @@ const ExpenseCategoryModal: React.FC<{
                             </select>
                         </div>
                     )}
-                    {level === 3 && (
-                        <>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Expense Category</label>
-                                <select 
-                                    value={formData.level1Parent} 
-                                    onChange={(e) => handleInputChange('level1Parent', e.target.value)}
-                                    className={selectClasses} 
-                                    required 
-                                    disabled={!canModify}
-                                >
-                                    <option value="">-- Select Category --</option>
-                                    {level1Data.filter(l1 => l1.active).map(l1 => (
-                                        <option key={l1.id} value={l1.id}>{l1.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1">Expense Head Category</label>
-                                <select 
-                                    value={formData.parentId} 
-                                    onChange={(e) => handleInputChange('parentId', e.target.value)}
-                                    className={selectClasses} 
-                                    disabled={!formData.level1Parent || !canModify} 
-                                    required
-                                >
-                                    <option value="">-- Select Head Category --</option>
-                                    {level2Data.filter(l2 => l2.active && l2.parentId === formData.level1Parent).map(l2 => (
-                                        <option key={l2.id} value={l2.id}>{l2.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                        </>
-                    )}
                     <Input label="Category Name" value={formData.name} onChange={(e) => handleInputChange('name', e.target.value)} placeholder="Enter category name" required disabled={!canModify} autoFocus />
                     <div className="flex justify-end gap-3 pt-4">
                         <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
@@ -180,22 +123,21 @@ const ExpenseCategoryModal: React.FC<{
 };
 
 const ExpenseCategoryManager: React.FC<ExpenseCategoryManagerProps> = ({
-    level1Data, level2Data, level3Data, onUpdateLevel1, onUpdateLevel2, onUpdateLevel3, addToast, canCreate, canModify
+    level1Data, level2Data, onUpdateLevel1, onUpdateLevel2, addToast, canCreate, canModify
 }) => {
     const [modalState, setModalState] = useState<{ 
         isOpen: boolean; 
-        level: 1 | 2 | 3; 
+        level: 1 | 2; 
         data: Partial<CategoryItem> | null; 
     }>({ isOpen: false, level: 1, data: null });
     const [searchQuery, setSearchQuery] = useState('');
     const triggerButtonRef = useRef<HTMLButtonElement>(null);
     const level1TriggerRef = useRef<HTMLButtonElement>(null);
     const level2TriggerRef = useRef<HTMLButtonElement>(null);
-    const level3TriggerRef = useRef<HTMLButtonElement>(null);
 
-    const openModal = (level: 1 | 2 | 3, data: Partial<CategoryItem> | null = null, event?: React.MouseEvent<HTMLElement>) => {
+    const openModal = (level: 1 | 2, data: Partial<CategoryItem> | null = null, event?: React.MouseEvent<HTMLElement>) => {
         if (event) {
-            const targetRef = level === 1 ? level1TriggerRef : level === 2 ? level2TriggerRef : level3TriggerRef;
+            const targetRef = level === 1 ? level1TriggerRef : level2TriggerRef;
             targetRef.current = event.currentTarget as HTMLButtonElement;
         }
         setModalState({ isOpen: true, level, data: data ? { ...data } : null });
@@ -208,12 +150,10 @@ const ExpenseCategoryManager: React.FC<ExpenseCategoryManagerProps> = ({
             level1TriggerRef.current?.focus();
         } else if (currentLevel === 2) {
             level2TriggerRef.current?.focus();
-        } else if (currentLevel === 3) {
-            level3TriggerRef.current?.focus();
         }
     };
 
-    const handleSave = (data: Partial<CategoryItem>, level: 1 | 2 | 3) => {
+    const handleSave = (data: Partial<CategoryItem>, level: 1 | 2) => {
         if (!canModify) return;
 
         switch (level) {
@@ -233,47 +173,34 @@ const ExpenseCategoryManager: React.FC<ExpenseCategoryManagerProps> = ({
                         : [...level2Data, { ...l2Data, id: `exp2-${Date.now()}` } as ExpenseCategoryLevel2]
                 );
                 break;
-            case 3:
-                const l3Data = data as Partial<ExpenseCategoryLevel3>;
-                onUpdateLevel3(
-                    l3Data.id
-                        ? level3Data.map(i => i.id === l3Data.id ? (l3Data as ExpenseCategoryLevel3) : i)
-                        : [...level3Data, { ...l3Data, id: `exp3-${Date.now()}` } as ExpenseCategoryLevel3]
-                );
-                break;
         }
         addToast('Category saved successfully!', 'success');
         closeModal();
     };
 
-    const handleToggle = (level: 1 | 2 | 3, id: string) => {
+    const handleToggle = (level: 1 | 2, id: string) => {
         if (!canModify) return;
         const toggle = (items: any[], updateFn: (data: any[]) => void) => {
             updateFn(items.map(i => i.id === id ? { ...i, active: !i.active } : i));
         };
         if (level === 1) toggle(level1Data, onUpdateLevel1);
         if (level === 2) toggle(level2Data, onUpdateLevel2);
-        if (level === 3) toggle(level3Data, onUpdateLevel3);
     };
 
     const filteredData = useMemo(() => {
         if (!searchQuery) {
-            return { level1: level1Data, level2: level2Data, level3: level3Data };
+            return { level1: level1Data, level2: level2Data };
         }
         const lowerCaseQuery = searchQuery.toLowerCase();
-        const l3Matches = new Set(level3Data.filter(l3 => l3.name.toLowerCase().includes(lowerCaseQuery)).map(i => i.id));
-        const l2ParentIdsFromL3 = new Set(level3Data.filter(l3 => l3Matches.has(l3.id)).map(l3 => l3.parentId));
-        const l2Matches = new Set(level2Data.filter(l2 => l2.name.toLowerCase().includes(lowerCaseQuery) || l2ParentIdsFromL3.has(l2.id)).map(i => i.id));
+        const l2Matches = new Set(level2Data.filter(l2 => l2.name.toLowerCase().includes(lowerCaseQuery)).map(i => i.id));
         const l1ParentIdsFromL2 = new Set(level2Data.filter(l2 => l2Matches.has(l2.id)).map(l2 => l2.parentId));
         const l1Matches = new Set(level1Data.filter(l1 => l1.name.toLowerCase().includes(lowerCaseQuery) || l1ParentIdsFromL2.has(l1.id)).map(i => i.id));
         const finalL2 = level2Data.filter(l2 => l1Matches.has(l2.parentId) || l2Matches.has(l2.id));
-        const finalL2Ids = new Set(finalL2.map(l2 => l2.id));
         return {
             level1: level1Data.filter(l1 => l1Matches.has(l1.id)),
-            level2: finalL2,
-            level3: level3Data.filter(l3 => finalL2Ids.has(l3.parentId) || l3Matches.has(l3.id)),
+            level2: finalL2
         };
-    }, [searchQuery, level1Data, level2Data, level3Data]);
+    }, [searchQuery, level1Data, level2Data]);
 
     return (
         <div>
@@ -352,40 +279,7 @@ const ExpenseCategoryManager: React.FC<ExpenseCategoryManagerProps> = ({
                         </table>
                     </div>
                 </div>
-                <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Manage Expense Individual Category</h3>
-                        {canCreate && (
-                            <Button ref={level3TriggerRef} variant="primary" onClick={(e) => openModal(3, null, e)}><Plus size={16} /> Add Category</Button>
-                        )}
-                    </div>
-                    <div className="overflow-x-auto max-h-60">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0">
-                                <tr>
-                                    <th className="px-4 py-2 text-left text-xs font-bold uppercase w-12">ID</th>
-                                    <th className="px-4 py-2 text-left text-xs font-bold uppercase">Name</th>
-                                    <th className="px-4 py-2 text-left text-xs font-bold uppercase">Status</th>
-                                    <th className="px-4 py-2 text-left text-xs font-bold uppercase">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                {filteredData.level3.map((item, index) => (
-                                    <tr key={item.id} className={!item.active ? 'opacity-50' : ''}>
-                                        <td className="px-4 py-2 text-sm text-gray-500">{index + 1}</td>
-                                        <td className="px-4 py-2 font-medium">{item.name}</td>
-                                        <td className="px-4 py-2">
-                                            <ToggleSwitch enabled={!!item.active} onChange={() => handleToggle(3, item.id)} disabled={!canModify} />
-                                        </td>
-                                        <td className="px-4 py-2">
-                                            <Button size="small" variant="light" onClick={(e) => { level3TriggerRef.current = e.currentTarget; openModal(3, item, e); }} disabled={!canModify}><Edit2 size={14} /></Button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+
             </div>
 
             <ExpenseCategoryModal

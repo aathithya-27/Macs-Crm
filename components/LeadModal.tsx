@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Lead, User, LeadSource, LeadSourceMaster, LeadActivityLog, Branch, InsuranceTypeMaster, Member, AppModule, PermissionLevel, Role, LeadStageMaster } from '../types.ts';
+import { Lead, User, LeadSourceMaster, LeadActivityLog, Branch, InsuranceTypeMaster, Member, AppModule, PermissionLevel, Role, LeadStageMaster, PolicyType } from '../types.ts';
 import Modal from './ui/Modal.tsx';
 import Button from './ui/Button.tsx';
 import Input from './ui/Input.tsx';
@@ -131,13 +131,16 @@ interface LeadModalProps {
     onCreateReferrer: (referrerData: { name: string, mobile: string, email?: string }) => Promise<Member | null>;
     permissions: { [key in AppModule]?: PermissionLevel };
     roles: Role[];
-    leadStageMasters: LeadStageMaster[]; // --- NEW ---
+    leadStageMasters: LeadStageMaster[];
+    existingMember?: Member | null;
+    initialInsuranceType?: string | null;
 }
 
 const LeadModal: React.FC<LeadModalProps> = ({ 
     isOpen, onClose, lead, onSave, addToast, currentUser, users, 
     leadSources, Branches, insuranceTypes, allMembers, 
-    onCreateReferrer, permissions, roles, leadStageMasters
+    onCreateReferrer, permissions, roles, leadStageMasters,
+    existingMember, initialInsuranceType
 }) => {
     const [formData, setFormData] = useState<Partial<Lead>>({});
     const [errors, setErrors] = useState<Partial<Record<keyof Lead, string>>>({});
@@ -147,10 +150,16 @@ const LeadModal: React.FC<LeadModalProps> = ({
     const userMap = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users]);
     const TABS = ['Details', 'Activity Timeline'];
 
+    // Special constant for Mutual Funds option since it's not in InsuranceTypeMaster
+    const MUTUAL_FUNDS_OPTION_ID = 'opt-mutual-funds';
+
     const canModify = permissions?.pipeline === 'modify';
     const canCreate = permissions?.pipeline === 'create' || canModify;
     const isReadOnly = !!lead && !canModify;
     
+    // --- Identify if this is an upselling lead creation ---
+    const isUpsellCreation = !!existingMember;
+
     const currentUserRole = useMemo(() => roles.find(r => r.id === currentUser?.roleId), [roles, currentUser]);
     const canAssignLeads = (canCreate || canModify) && !currentUserRole?.isAdvisor;
 
@@ -167,19 +176,54 @@ const LeadModal: React.FC<LeadModalProps> = ({
         
         const firstStage = leadStageMasters.filter(s => s.active).sort((a,b) => a.order - b.order)[0];
 
+        // --- Logic for Upselling pre-fill ---
+        let leadSource = { sourceId: null, detail: '' };
+        if (existingMember) {
+            const upsellSource = leadSources.find(ls => ls.name === 'Upselling');
+            if (upsellSource) {
+                leadSource = { sourceId: upsellSource.id, detail: 'Upselling from Dashboard' };
+            }
+        }
+
+        let assignedTo = isCurrentUserAdvisor ? currentUser!.id : '';
+        if (existingMember && existingMember.assignedTo && existingMember.assignedTo.length > 0) {
+            // If the customer has an assigned advisor, assign the lead to them (or the first one)
+            assignedTo = existingMember.assignedTo[0];
+        }
+
+        let insuranceTypeId = null;
+        let policyInterestType: PolicyType | undefined;
+
+        if (initialInsuranceType) {
+            if (initialInsuranceType === 'Mutual Funds') {
+                policyInterestType = 'Mutual Funds';
+            } else {
+                const type = insuranceTypes.find(it => it.name === initialInsuranceType);
+                if (type) {
+                    insuranceTypeId = type.id;
+                    // Find parent name for policyInterestType if needed, or use the type name
+                    // Here we assume simple matching for initial load
+                    const parent = type.parentId ? insuranceTypes.find(p => p.id === type.parentId) : type;
+                    policyInterestType = (parent?.name || type.name) as PolicyType;
+                }
+            }
+        }
+
         return {
-            name: '',
-            phone: '',
-            email: '',
-            leadSource: { sourceId: null, detail: '' },
-            status: firstStage ? firstStage.name : 'Lead', // --- MODIFICATION ---
+            name: existingMember?.name || '',
+            phone: existingMember?.mobile || '',
+            email: existingMember?.email || '',
+            leadSource: leadSource,
+            status: firstStage ? firstStage.name : 'Lead',
             estimatedValue: 0,
-            notes: '',
-            assignedTo: isCurrentUserAdvisor ? currentUser!.id : '',
-            insuranceTypeId: null,
-            branch_id: '',
-            followUpDate: '',
+            notes: existingMember ? `Upselling opportunity for ${initialInsuranceType || 'new policy'}.` : '',
+            assignedTo: assignedTo,
+            insuranceTypeId: insuranceTypeId,
+            policyInterestType: policyInterestType,
+            branch_id: existingMember?.branch_id || currentUser?.profile?.employeebranch_id || '',
+            followUpDate: new Date().toISOString().split('T')[0], // Default to today for upsell
             referrerId: undefined,
+            existingMemberId: existingMember?.id, // Link to existing customer
         };
     };
 
@@ -190,6 +234,7 @@ const LeadModal: React.FC<LeadModalProps> = ({
             setErrors({});
             setActiveTab('Details');
 
+            // --- Logic to set parent type dropdown ---
             if (initialData.insuranceTypeId) {
                 const type = insuranceTypes.find(t => t.id === initialData.insuranceTypeId);
                 if (type) {
@@ -197,11 +242,14 @@ const LeadModal: React.FC<LeadModalProps> = ({
                 } else {
                     setSelectedParentType(null);
                 }
+            } else if (initialData.policyInterestType === 'Mutual Funds' || initialInsuranceType === 'Mutual Funds') {
+                // Explicitly select MF option if that's the type
+                setSelectedParentType(MUTUAL_FUNDS_OPTION_ID);
             } else {
                 setSelectedParentType(null);
             }
         }
-    }, [lead, isOpen, currentUser, insuranceTypes, roles, leadStageMasters]); // --- MODIFICATION: Added leadStageMasters ---
+    }, [lead, isOpen, currentUser, insuranceTypes, roles, leadStageMasters, existingMember, initialInsuranceType]);
 
     const handleChange = (field: keyof Lead, value: any) => {
         setFormData(prev => ({ ...prev, [field]: value }));
@@ -216,11 +264,6 @@ const LeadModal: React.FC<LeadModalProps> = ({
         if (!formData.phone?.trim()) newErrors.phone = 'Phone number is required.';
         if (formData.phone && !/^\+?[0-9\s-]{10,15}$/.test(formData.phone)) {
             newErrors.phone = 'Please enter a valid phone number.';
-        }
-        if (!formData.email?.trim()) {
-            newErrors.email = 'Email is required.';
-        } else if (!/^\S+@\S+\.\S+$/.test(formData.email)) {
-            newErrors.email = 'Please enter a valid email address.';
         }
         if (!formData.branch_id) {
             // @ts-ignore
@@ -238,7 +281,7 @@ const LeadModal: React.FC<LeadModalProps> = ({
         }
         if (!selectedParentType) {
             // @ts-ignore
-            newErrors.insuranceTypeId = 'Policy of interest is required.';
+            newErrors.insuranceTypeId = 'Verical is required.';
         }
         if (!formData.assignedTo) {
             newErrors.assignedTo = 'An employee with an advisor role must be assigned.';
@@ -249,7 +292,27 @@ const LeadModal: React.FC<LeadModalProps> = ({
 
     const handleSave = () => {
         if (validateForm()) {
-            onSave(formData as Lead);
+            const finalLead = { ...formData };
+            
+            // Handle Mutual Funds Selection logic for Save
+            if (selectedParentType === MUTUAL_FUNDS_OPTION_ID) {
+                finalLead.policyInterestType = 'Mutual Funds';
+                finalLead.insuranceTypeId = null; // No ID for MF
+            } else if (finalLead.insuranceTypeId) {
+                // It's a standard insurance type
+                const type = insuranceTypes.find(t => t.id === finalLead.insuranceTypeId);
+                if (type) {
+                    const parent = type.parentId ? insuranceTypes.find(p => p.id === type.parentId) : type;
+                    finalLead.policyInterestType = (parent?.name || '') as PolicyType;
+                }
+            } else if (selectedParentType) {
+                // Parent selected but no child (handled in ID)
+                const type = insuranceTypes.find(t => t.id === selectedParentType);
+                if(type) finalLead.policyInterestType = type.name as PolicyType;
+                finalLead.insuranceTypeId = selectedParentType;
+            }
+
+            onSave(finalLead as Lead);
         } else {
             addToast('Please correct the errors before saving.', 'error');
         }
@@ -263,19 +326,31 @@ const LeadModal: React.FC<LeadModalProps> = ({
         }
     };
 
-    const parentTypeOptions = useMemo(() =>
-        insuranceTypes.filter(it => !it.parentId && it.active),
-    [insuranceTypes]);
+    const parentTypeOptions = useMemo(() => {
+        const options = insuranceTypes
+            .filter(it => !it.parentId && it.active)
+            .map(it => ({ id: it.id, name: it.name }));
+        
+        // Add Mutual Funds Option
+        options.push({ id: MUTUAL_FUNDS_OPTION_ID, name: 'Mutual Funds' });
+        
+        return options;
+    }, [insuranceTypes]);
 
     const childTypeOptions = useMemo(() => {
-        if (!selectedParentType) return [];
+        if (!selectedParentType || selectedParentType === MUTUAL_FUNDS_OPTION_ID) return [];
         return insuranceTypes.filter(it => it.parentId === selectedParentType && it.active);
     }, [insuranceTypes, selectedParentType]);
 
     const handleParentTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const newParentId = e.target.value || null;
         setSelectedParentType(newParentId);
-        handleChange('insuranceTypeId', newParentId);
+        
+        if (newParentId === MUTUAL_FUNDS_OPTION_ID) {
+            handleChange('insuranceTypeId', null); // MF doesn't have an ID in InsuranceMaster
+        } else {
+            handleChange('insuranceTypeId', newParentId);
+        }
     };
 
     const selectClasses = "block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white";
@@ -285,7 +360,9 @@ const LeadModal: React.FC<LeadModalProps> = ({
             <Modal isOpen={isOpen} onClose={onClose}>
                 <div className="flex-shrink-0 p-6 pb-4 border-b border-gray-200 dark:border-gray-700">
                     <div className="flex justify-between items-center">
-                        <h2 className="text-2xl font-bold text-brand-dark dark:text-white">{lead ? 'Edit Lead' : 'Create New Lead'}</h2>
+                        <h2 className="text-2xl font-bold text-brand-dark dark:text-white">
+                            {lead ? 'Edit Lead' : (isUpsellCreation ? 'Create Upsell Lead' : 'Create New Lead')}
+                        </h2>
                         <button onClick={onClose} className="p-1 rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-600 dark:hover:text-gray-300">
                             <X className="w-6 h-6" />
                         </button>
@@ -299,17 +376,17 @@ const LeadModal: React.FC<LeadModalProps> = ({
                      {activeTab === 'Details' && (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                             <div className="md:col-span-2">
-                                <Input label="Name *" id="name" value={formData.name || ''} onChange={(e) => handleChange('name', e.target.value)} disabled={isReadOnly} />
+                                <Input label="Name *" id="name" value={formData.name || ''} onChange={(e) => handleChange('name', e.target.value)} disabled={isReadOnly || isUpsellCreation} />
                                 {errors.name && <p className="text-red-600 text-xs mt-1">{errors.name}</p>}
                             </div>
 
                             <div>
-                                <Input label="Phone *" id="phone" type="tel" value={formData.phone || ''} onChange={(e) => handleChange('phone', e.target.value)} disabled={isReadOnly} />
+                                <Input label="Phone *" id="phone" type="tel" value={formData.phone || ''} onChange={(e) => handleChange('phone', e.target.value)} disabled={isReadOnly || isUpsellCreation} />
                                 {errors.phone && <p className="text-red-600 text-xs mt-1">{errors.phone}</p>}
                             </div>
 
                             <div>
-                                <Input label="Email *" id="email" type="email" value={formData.email || ''} onChange={(e) => handleChange('email', e.target.value)} disabled={isReadOnly} />
+                                <Input label="Email *" id="email" type="email" value={formData.email || ''} onChange={(e) => handleChange('email', e.target.value)} disabled={isReadOnly || isUpsellCreation} />
                                 {errors.email && <p className="text-red-600 text-xs mt-1">{errors.email}</p>}
                             </div>
                             
@@ -323,7 +400,7 @@ const LeadModal: React.FC<LeadModalProps> = ({
                                     referrerId={formData.referrerId}
                                     onReferrerSelect={(memberId) => handleChange('referrerId', memberId)}
                                     onAddNewReferrer={canCreate ? () => setIsNewReferrerModalOpen(true) : undefined}
-                                    disabled={isReadOnly}
+                                    disabled={isReadOnly || isUpsellCreation} // Lock source if upselling
                                 />
                                 {errors.leadSource && <p className="text-red-600 text-xs mt-1">{errors.leadSource as string}</p>}
                             </div>
@@ -349,7 +426,7 @@ const LeadModal: React.FC<LeadModalProps> = ({
                             </div>
 
                             <div>
-                                <Input label="Estimated Value (Premium) *" type="number" value={formData.estimatedValue > 0 ? String(formData.estimatedValue) : ''} onChange={(e) => handleChange('estimatedValue', parseFloat(e.target.value) || 0)} disabled={isReadOnly} />
+                                <Input label="Estimated Value*" type="number" value={formData.estimatedValue > 0 ? String(formData.estimatedValue) : ''} onChange={(e) => handleChange('estimatedValue', parseFloat(e.target.value) || 0)} disabled={isReadOnly} />
                                 {errors.estimatedValue && <p className="text-red-600 text-xs mt-1">{errors.estimatedValue}</p>}
                             </div>
 
@@ -369,7 +446,7 @@ const LeadModal: React.FC<LeadModalProps> = ({
                             </div>
 
                              <div className="md:col-span-2">
-                                <label htmlFor="policyInterestType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Policy of Interest *</label>
+                                <label htmlFor="policyInterestType" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vertical of Interest *</label>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                      <select
                                         value={selectedParentType || ''}
