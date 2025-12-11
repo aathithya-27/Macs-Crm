@@ -1,3 +1,4 @@
+
 import React from 'react';
 import {
     AutomationRule,
@@ -22,17 +23,16 @@ import {
     InsuranceTypeMaster,
     InsuranceFieldMaster,
     Task,
-    ExpenseCategoryLevel1,
-    ExpenseCategoryLevel2,
-    IncomeCategoryLevel1,
-    IncomeCategoryLevel2,
     Expense,
     ManualReceipt,
     AMC,
     MutualFundScheme,
     ManualIncome,
     ManualCommission,
-    OpeningBalance
+    OpeningBalance,
+    AccountCategory,
+    AccountSubCategory,
+    AccountHead
 } from '../types.ts';
 import { Gift as GiftIcon, Calendar, Bell, Star } from 'lucide-react';
 import { indianStates } from '../constants.tsx';
@@ -143,6 +143,7 @@ export const initialBankMasters: BankMaster[] = [
         creditLimit: 500000,
         authSign1: 'Director A',
         order: 0,
+        isOwnBank: true 
     },
     {
         id: 'bank-2',
@@ -164,6 +165,7 @@ export const initialBankMasters: BankMaster[] = [
         authSign1: 'Director A',
         authSign2: 'Director B',
         order: 1,
+        isOwnBank: false 
     },
 ];
 
@@ -327,38 +329,49 @@ export const initialTasks: Task[] = [
     { id: 'task-3', triggeringPoint: 'Manual', taskDescription: 'Prepare weekly report for management', expectedCompletionDateTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), isCompleted: false, primaryContactPerson: 'user-2', statusId: 'ts-1', taskType: 'Manual', active: true },
 ];
 
-export const initialExpenseCategoriesLevel1: ExpenseCategoryLevel1[] = [
-    { id: 'exp1-1', name: 'Administrative Expenses', active: true },
-    { id: 'exp1-2', name: 'Marketing Expenses', active: true },
+
+export const initialAccountCategories: AccountCategory[] = [
+    { id: 'ac-1', name: 'Asset', type: 'Asset', active: true, order: 0 },
+    { id: 'ac-2', name: 'Liability', type: 'Liability', active: true, order: 1 },
+    { id: 'ac-3', name: 'Income', type: 'Income', active: true, order: 2 },
+    { id: 'ac-4', name: 'Expenditure', type: 'Expense', active: true, order: 3 },
 ];
 
-export const initialExpenseCategoriesLevel2: ExpenseCategoryLevel2[] = [
-    { id: 'exp2-1', name: 'Salary', parentId: 'exp1-1', active: true },
-    { id: 'exp2-2', name: 'Rent', parentId: 'exp1-1', active: true },
-    { id: 'exp2-3', name: 'MD\'s Travel', parentId: 'exp1-1', active: true },
-    { id: 'exp2-4', name: 'Print Media Ad', parentId: 'exp1-2', active: true },
-    { id: 'exp2-5', name: 'Digital Media', parentId: 'exp1-2', active: true },
+export const initialAccountSubCategories: AccountSubCategory[] = [
+    { id: 'asc-1-1', name: 'Fixed Asset', categoryId: 'ac-1', active: true, order: 0 },
+    { id: 'asc-1-2', name: 'Current Asset', categoryId: 'ac-1', active: true, order: 1 },
+    { id: 'asc-2-1', name: 'Fixed Liability', categoryId: 'ac-2', active: true, order: 0 },
+    { id: 'asc-2-2', name: 'Current Liability', categoryId: 'ac-2', active: true, order: 1 },
+    { id: 'asc-3-1', name: 'Direct Income', categoryId: 'ac-3', active: true, order: 0 },
+    { id: 'asc-3-2', name: 'Indirect Income', categoryId: 'ac-3', active: true, order: 1 },
+    { id: 'asc-4-1', name: 'Admin Expenses', categoryId: 'ac-4', active: true, order: 0 },
+    { id: 'asc-4-2', name: 'Marketing Expenses', categoryId: 'ac-4', active: true, order: 1 },
 ];
 
+export const initialAccountHeads: AccountHead[] = [
+    { id: 'ah-1-2-1', name: 'Cash in Hand', subCategoryId: 'asc-1-2', active: true, order: 0, postingBank: false, isCash: true }, 
+    { id: 'ah-1-2-2', name: 'State Bank of India 120000012', subCategoryId: 'asc-1-2', active: true, order: 1, postingBank: true, isCash: false },
+    { id: 'ah-1-2-3', name: 'HDFC Bank 210000021', subCategoryId: 'asc-1-2', active: true, order: 2, postingBank: true, isCash: false },
+    
+    { id: 'ah-3-1-1', name: 'Commission', subCategoryId: 'asc-3-1', active: true, order: 0, postingBank: false, isCash: false },
+    { id: 'ah-3-1-2', name: 'Consultancy Fees', subCategoryId: 'asc-3-1', active: true, order: 1, postingBank: false, isCash: false },
+    
+    { id: 'ah-3-2-1', name: 'Interest Received', subCategoryId: 'asc-3-2', active: true, order: 0, postingBank: false, isCash: false },
 
-
-export const initialIncomeCategoriesLevel1: IncomeCategoryLevel1[] = [
-    { id: 'inc1-1', name: 'Direct Income', active: true },
-    { id: 'inc1-2', name: 'Indirect Income', active: true },
+    { id: 'ah-4-1-1', name: 'Salary', subCategoryId: 'asc-4-1', active: true, order: 0, postingBank: false, isCash: false },
+    { id: 'ah-4-1-2', name: 'Rent', subCategoryId: 'asc-4-1', active: true, order: 1, postingBank: false, isCash: false },
+    { id: 'ah-4-1-3', name: 'Office Rent', subCategoryId: 'asc-4-1', active: true, order: 2, postingBank: false, isCash: false },
+    
+    { id: 'ah-4-2-1', name: 'Print Media Ad', subCategoryId: 'asc-4-2', active: true, order: 0, postingBank: false, isCash: false },
+    { id: 'ah-4-2-2', name: 'Digital Media', subCategoryId: 'asc-4-2', active: true, order: 1, postingBank: false, isCash: false },
 ];
 
-export const initialIncomeCategoriesLevel2: IncomeCategoryLevel2[] = [
-    { id: 'inc2-1', name: 'Commission', parentId: 'inc1-1', active: true },
-    { id: 'inc2-2', name: 'Consultancy Fees', parentId: 'inc1-1', active: true },
-    { id: 'inc2-3', name: 'Interest Received', parentId: 'inc1-2', active: true },
-];
 
 export const initialExpenses: Expense[] = [
     {
         id: 'exp-1',
         date: '2025-12-05',
-        categoryLevel1Id: 'exp1-1',
-        categoryLevel2Id: 'exp2-1',
+        accountHeadId: 'ah-4-1-1',
         amount: 15000,
         description: 'For the month of Nov 2025',
         paidTo: 'Shankar', 
@@ -369,8 +382,8 @@ export const initialExpenses: Expense[] = [
         createdBy: 'user-1',
         partyId: 'user-2',
         partyType: 'Staff',
-        expenseHead: 'Salary-Staff',
-        bankId: 'bank-1', 
+        bankId: 'ah-1-2-2',
+        chequeDrawnOnBankId: 'bank-1',
         docNo: 'NEFT-889977',
         docDate: '2025-12-05',
         isPaymentReturned: false
@@ -378,8 +391,7 @@ export const initialExpenses: Expense[] = [
     {
         id: 'exp-2',
         date: '2025-12-05',
-        categoryLevel1Id: 'exp1-1', 
-        categoryLevel2Id: 'exp2-2', 
+        accountHeadId: 'ah-4-1-3',
         amount: 5000,
         description: 'Office Rent Dec 2025',
         paidTo: 'Landlord',
@@ -390,8 +402,7 @@ export const initialExpenses: Expense[] = [
         createdBy: 'user-1',
         partyId: '', 
         partyType: 'Staff', 
-        expenseHead: 'Office Rent',
-        bankId: undefined,
+        bankId: 'ah-1-2-1',
         docNo: '',
         docDate: '',
         isPaymentReturned: false
@@ -416,17 +427,19 @@ export const initialReceipts: ManualReceipt[] = [
         lineItems: [
             { 
                 id: 'li-1', 
-                incomeCategory: 'Direct Income > Consultancy', 
+                accountHeadId: 'ah-3-1-2',
                 description: 'Insurance Premium (Qtr 3)', 
                 paymentMode: 'NetBanking', 
                 amount: 52000,
-                bankId: 'bank-1' 
+                bankId: 'ah-1-2-3',
+                chequeDrawnOnBankId: 'bank-1'
             }
         ]
     }
 ];
+
 export const initialManualIncomes: ManualIncome[] = [
-    { id: 'inc-1', date: '2025-08-20', categoryLevel1Id: 'inc1-1', categoryLevel2Id: 'inc2-2', amount: 10000, description: 'Consulting for HNI client', receivedFrom: 'Mr. Sharma', createdBy: 'user-1' },
+    { id: 'inc-1', date: '2025-08-20', accountHeadId: 'ah-3-1-1', amount: 10000, description: 'Commission for HNI client', receivedFrom: 'Mr. Sharma', createdBy: 'user-1' },
 ];
 
 export const initialManualCommissions: ManualCommission[] = [
@@ -454,9 +467,7 @@ export const initialOpeningBalances: OpeningBalance[] = [
     {
         id: 'ob-1',
         date: '2024-04-01',
-        categoryType: 'Income',
-        categoryLevel1Id: 'inc1-2',
-        categoryLevel2Id: 'inc2-3',
+        accountHeadId: 'ah-3-2-1',
         partyId: '1',
         partyType: 'Customer',
         debit: 0,
@@ -467,9 +478,7 @@ export const initialOpeningBalances: OpeningBalance[] = [
     {
         id: 'ob-2',
         date: '2024-04-01',
-        categoryType: 'Expense',
-        categoryLevel1Id: 'exp1-1',
-        categoryLevel2Id: 'exp2-2',
+        accountHeadId: 'ah-4-1-2',
         partyId: 'user-3',
         partyType: 'Staff',
         debit: 50000,

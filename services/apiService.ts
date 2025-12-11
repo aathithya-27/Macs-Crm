@@ -8,7 +8,8 @@ import {
     LeadStageMaster, 
     OccasionTypeMaster,
     CampaignMaster,
-    OpeningBalance
+    OpeningBalance,
+    AccountCategory, AccountSubCategory, AccountHead
 } from '../types.ts';
 
 import {
@@ -34,22 +35,21 @@ import {
     initialInsuranceTypes,
     initialInsuranceFields,
     initialTasks,
-    initialExpenseCategoriesLevel1,
-    initialExpenseCategoriesLevel2,
-    initialIncomeCategoriesLevel1,
-    initialIncomeCategoriesLevel2,
     initialExpenses,
     initialManualIncomes,
     initialManualCommissions,
     initialAmcs,
     initialMutualFundSchemes,
     initialReceipts,
-    initialOpeningBalances
+    initialOpeningBalances,
+    initialAccountCategories,
+    initialAccountSubCategories,
+    initialAccountHeads
 } from '../data/initialData.tsx';
 
 
 let financialYearsData: FinancialYear[] = [
-    { id: 'fy-1', finYear: '2024-2025', fromDate: '2024-04-01', toDate: '2025-03-31', status: 'Active' },
+    { id: 'fy-1', finYear: '2024-2025', fromDate: '2024-04-01', toDate: '2025-03-31', status: 'Inactive' },
     { id: 'fy-2', finYear: '2025-2026', fromDate: '2025-04-01', toDate: '2026-03-31', status: 'Active' },
 ];
 
@@ -57,13 +57,18 @@ let documentNumberingData: DocumentNumbering[] = [
     { id: 'dn-1', type: 'Voucher', prefix: 'VCH/24-25/', suffix: null, startingNumber: 1, finYearId: 'fy-1', status: 'Active' },
     { id: 'dn-2', type: 'Voucher', prefix: 'VOUCHER/', suffix: '/25-26', startingNumber: 1001, finYearId: 'fy-2', status: 'Active' },
     { id: 'dn-3', type: 'Receipt', prefix: 'RECPT/24-25/', suffix: null, startingNumber: 1, finYearId: 'fy-1', status: 'Active' },
-    { id: 'dn-4', type: 'Receipt', prefix: 'R/', suffix: '/A', startingNumber: 500, finYearId: 'fy-2', status: 'Active' },
+    { id: 'dn-4', type: 'Receipt', prefix: 'REC/', suffix: '/25-26', startingNumber: 500, finYearId: 'fy-2', status: 'Active' },
 ];
 
 let campaignsData: CampaignMaster[] = [
     { id: 'camp-1', name: 'Diwali Bonanza', description: 'Special offers for the festive season', startDate: '2024-10-01', endDate: '2024-11-15', active: true, order: 0 },
     { id: 'camp-2', name: 'Year End Drive', description: 'Closing financial year targets', startDate: '2024-12-01', endDate: '2024-12-31', active: true, order: 1 },
 ];
+
+let accountCategoriesData: AccountCategory[] = initialAccountCategories;
+let accountSubCategoriesData: AccountSubCategory[] = initialAccountSubCategories;
+let accountHeadsData: AccountHead[] = initialAccountHeads;
+
 
 const LS_OPERATING_COMPANIES_KEY = '-operatingCompanies';
 
@@ -83,7 +88,7 @@ let rolesData: Role[] = [
 ];
 
 let insuranceTypeDocumentRulesData: InsuranceTypeDocumentRule[] = [
-    { id: 'rule-1', insuranceTypeId: 'it-life', documentId: 'doc-1', isMandatory: true }, // PAN Card
+    { id: 'rule-1', insuranceTypeId: 'it-life', documentId: 'doc-1', isMandatory: true },
     { id: 'rule-2', insuranceTypeId: 'it-life', documentId: 'doc-2', isMandatory: true },
     { id: 'rule-3', insuranceTypeId: 'it-term', documentId: 'doc-5', isMandatory: false },
     { id: 'rule-4', insuranceTypeId: 'it-health', documentId: 'doc-2', isMandatory: true },
@@ -95,7 +100,7 @@ let rolePermissionsData: RolePermissions[] = [
     {
         roleId: 'role-admin',
         permissions: { 
-            dashboard: 'modify', 'reports & insights': 'modify', incomeAndExpense: 'modify', profitAndLoss: 'modify', calendar: 'modify', employees: 'modify', 
+            dashboard: 'modify', 'reports & insights': 'modify', incomeAndExpense: 'modify', accounts: 'modify', calendar: 'modify', employees: 'modify', 
             pipeline: 'modify', customers: 'modify', taskManagement: 'modify', policies: 'modify', mutualFunds: 'modify', 
             upselling: 'modify', notes: 'modify', actionHub: 'modify', servicesHub: 'modify', location: 'modify', 
             chatbot: 'modify', masterData: 'modify', advancedReports: 'modify', campaign: 'modify'
@@ -104,7 +109,7 @@ let rolePermissionsData: RolePermissions[] = [
     {
         roleId: 'role-advisor',
         permissions: { 
-            dashboard: 'view', 'reports & insights': 'view', incomeAndExpense: 'create', profitAndLoss: 'none', calendar: 'view', employees: 'none',
+            dashboard: 'view', 'reports & insights': 'view', incomeAndExpense: 'create', accounts: 'none', calendar: 'view', employees: 'none',
             pipeline: 'modify', customers: 'modify', taskManagement: 'modify', policies: 'modify', mutualFunds: 'modify',
             upselling: 'view', notes: 'modify', actionHub: 'modify', servicesHub: 'view', location: 'modify',
             chatbot: 'modify', masterData: 'none', advancedReports: 'none', campaign: 'view'
@@ -113,7 +118,7 @@ let rolePermissionsData: RolePermissions[] = [
     {
         roleId: 'role-secretary',
         permissions: { 
-            dashboard: 'view', 'reports & insights': 'none', incomeAndExpense: 'none', profitAndLoss: 'none', calendar: 'create', employees: 'none',
+            dashboard: 'view', 'reports & insights': 'none', incomeAndExpense: 'none', accounts: 'none', calendar: 'create', employees: 'none',
             pipeline: 'none', customers: 'create', taskManagement: 'create', policies: 'view', mutualFunds: 'none',
             upselling: 'none', notes: 'create', actionHub: 'none', servicesHub: 'none', location: 'none',
             chatbot: 'none', masterData: 'none', advancedReports: 'none', campaign: 'none'
@@ -122,7 +127,7 @@ let rolePermissionsData: RolePermissions[] = [
     {
         roleId: 'role-support',
         permissions: { 
-            dashboard: 'view', 'reports & insights': 'view', incomeAndExpense: 'none', profitAndLoss: 'none', calendar: 'view', employees: 'view',
+            dashboard: 'view', 'reports & insights': 'view', incomeAndExpense: 'none', accounts: 'none', calendar: 'view', employees: 'view',
             pipeline: 'view', customers: 'view', taskManagement: 'view', policies: 'view', mutualFunds: 'view',
             upselling: 'view', notes: 'view', actionHub: 'view', servicesHub: 'view', location: 'none',
             chatbot: 'view', masterData: 'none', advancedReports: 'none', campaign: 'none'
@@ -846,6 +851,36 @@ export const login = async (company: string, employeeId: string, password_param:
 
     return user ? JSON.parse(JSON.stringify(user)) : null;
 };
+
+
+export const getAccountCategories = async (): Promise<AccountCategory[]> => {
+    await simulateDelay(100);
+    return JSON.parse(JSON.stringify(accountCategoriesData));
+}
+export const updateAccountCategories = async (updatedData: AccountCategory[]): Promise<AccountCategory[]> => {
+    await simulateDelay(200);
+    accountCategoriesData = JSON.parse(JSON.stringify(updatedData));
+    return accountCategoriesData;
+}
+export const getAccountSubCategories = async (): Promise<AccountSubCategory[]> => {
+    await simulateDelay(100);
+    return JSON.parse(JSON.stringify(accountSubCategoriesData));
+}
+export const updateAccountSubCategories = async (updatedData: AccountSubCategory[]): Promise<AccountSubCategory[]> => {
+    await simulateDelay(200);
+    accountSubCategoriesData = JSON.parse(JSON.stringify(updatedData));
+    return accountSubCategoriesData;
+}
+export const getAccountHeads = async (): Promise<AccountHead[]> => {
+    await simulateDelay(100);
+    return JSON.parse(JSON.stringify(accountHeadsData));
+}
+export const updateAccountHeads = async (updatedData: AccountHead[]): Promise<AccountHead[]> => {
+    await simulateDelay(200);
+    accountHeadsData = JSON.parse(JSON.stringify(updatedData));
+    return accountHeadsData;
+}
+
 
 export const getFinancialYears = async (): Promise<FinancialYear[]> => {
     await simulateDelay(100);

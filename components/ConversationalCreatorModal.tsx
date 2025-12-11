@@ -36,7 +36,6 @@ const ConversationalCreatorModal: React.FC<ConversationalCreatorModalProps> = ({
   }, [messages, isTyping]);
 
   useEffect(() => {
-    // Reset state when modal opens
     if (isOpen) {
         setMessages([initialMessage]);
         setInput('');

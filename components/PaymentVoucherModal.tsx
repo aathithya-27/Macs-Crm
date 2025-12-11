@@ -1,19 +1,21 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { Company, Expense, ExpenseCategoryLevel1, ExpenseCategoryLevel2, Branch, DocumentNumbering, User, Member, BankMaster } from '../types.ts';
+import { Company, Expense, Branch, DocumentNumbering, User, Member, BankMaster, AccountCategory, AccountSubCategory, AccountHead } from '../types.ts';
 import { Download, X, Plus, Trash2, Save, ChevronDown, User as UserIcon, Users as UsersIcon } from 'lucide-react';
 // @ts-ignore
 import * as htmlToImage from 'https://cdn.skypack.dev/html-to-image';
 import SearchableSelect from './ui/SearchableSelect.tsx';
 
-
 export interface VoucherLineItem {
     id: string; 
-    expenseHead: string;
+    expenseHeadId: string; 
+    expenseHeadName: string; 
     description: string;
     fullCategoryPath: string;
     modeOfPayment: 'Cash' | 'UPI' | 'Net Banking' | 'Cheque';
     amount: number;
+    
     bankId?: string; 
+    
     isNew: boolean;
 }
 
@@ -23,7 +25,7 @@ export interface VoucherSaveData {
     payeeName: string; 
     branch_id: string;
     finYearId: string;
-    lineItems: VoucherLineItem[];
+    lineItems: any[]; 
     partyId: string;
     partyType: 'Customer' | 'Staff';
     docNo?: string;
@@ -37,9 +39,12 @@ interface PaymentVoucherModalProps {
     branches: Branch[];
     users: User[];        
     allMembers: Member[]; 
-    bankMasters: BankMaster[];
-    expenseCategoriesLevel1: ExpenseCategoryLevel1[];
-    expenseCategoriesLevel2: ExpenseCategoryLevel2[];
+    bankMasters: BankMaster[]; 
+    
+    accountCategories: AccountCategory[];
+    accountSubCategories: AccountSubCategory[];
+    accountHeads: AccountHead[];
+
     onSave: (data: VoucherSaveData) => void;
     voucherToEdit: Expense[] | null;
     triggerExport: boolean;
@@ -49,7 +54,6 @@ interface PaymentVoucherModalProps {
     docNumberingConfig: DocumentNumbering | null;
     lastVoucherNumber: number;
 }
-
 
 const Button: React.FC<{
     onClick?: () => void;
@@ -111,41 +115,21 @@ const numberToWords = (num: number): string => {
     const thousand = Math.floor(num / 1000);
     num %= 1000;
 
-    if (crore > 0) {
-        result += inWords(crore) + 'Crore ';
-    }
-    if (lakh > 0) {
-        result += inWords(lakh) + 'Lakh ';
-    }
-    if (thousand > 0) {
-        result += inWords(thousand) + 'Thousand ';
-    }
-    if (num > 0) {
-        result += inWords(num);
-    }
+    if (crore > 0) result += inWords(crore) + 'Crore ';
+    if (lakh > 0) result += inWords(lakh) + 'Lakh ';
+    if (thousand > 0) result += inWords(thousand) + 'Thousand ';
+    if (num > 0) result += inWords(num);
 
     return result.trim().replace(/\s\s+/g, ' ') + ' Only';
 };
 
-
 const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
-    isOpen,
-    onClose,
-    companyInfo,
-    branches,
-    users,
-    allMembers,
-    bankMasters,
-    expenseCategoriesLevel1,
-    expenseCategoriesLevel2,
-    onSave,
-    voucherToEdit,
-    triggerExport,
-    canCreate,
-    canModify,
-    activeFinancialYearId,
-    docNumberingConfig,
-    lastVoucherNumber,
+    isOpen, onClose, companyInfo, branches,
+    users, allMembers, bankMasters,
+    accountCategories, accountSubCategories, accountHeads,
+    onSave, voucherToEdit, triggerExport,
+    canCreate, canModify, activeFinancialYearId,
+    docNumberingConfig, lastVoucherNumber,
 }) => {
     const [voucherNo, setVoucherNo] = useState('');
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -157,10 +141,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
     const [docNo, setDocNo] = useState('');
     const [docDate, setDocDate] = useState('');
 
-    const [logExpenseForm, setLogExpenseForm] = useState({
-        categoryLevel1Id: '',
-        categoryLevel2Id: '',
-    });
+    const [selectedHeadId, setSelectedHeadId] = useState('');
 
     const [isBranchDropdownOpen, setIsBranchDropdownOpen] = useState(false);
     const branchDropdownRef = useRef<HTMLDivElement>(null);
@@ -170,10 +151,6 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
         return voucherToEdit ? canModify : canCreate;
     }, [voucherToEdit, canCreate, canModify]);
 
-    const l1Map = useMemo(() => new Map(expenseCategoriesLevel1.map(c => [c.id, c.name])), [expenseCategoriesLevel1]);
-    const l2Map = useMemo(() => new Map(expenseCategoriesLevel2.map(c => [c.id, c.name])), [expenseCategoriesLevel2]);
-
-    const l2Options = useMemo(() => logExpenseForm.categoryLevel1Id ? expenseCategoriesLevel2.filter(c => c.parentId === logExpenseForm.categoryLevel1Id) : [], [logExpenseForm.categoryLevel1Id, expenseCategoriesLevel2]);
 
     const partyOptions = useMemo(() => {
         if (isCustomer) {
@@ -183,15 +160,42 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
         }
     }, [isCustomer, allMembers, users]);
 
+    const expenseHeadOptions = useMemo(() => {
+        return accountHeads
+            .filter(head => !head.postingBank && !head.isCash) 
+            .map(head => ({ value: head.id, label: head.name }));
+    }, [accountHeads]);
+
+    const bankWalletOptions = useMemo(() => {
+        return accountHeads
+            .filter(head => head.postingBank) 
+            .map(head => ({ value: head.id, label: head.name }));
+    }, [accountHeads]);
+
+    const cashWalletOptions = useMemo(() => {
+        return accountHeads
+            .filter(head => head.isCash)
+            .map(head => ({ value: head.id, label: head.name }));
+    }, [accountHeads]);
+
+    const getHeadDetails = (headId: string) => {
+        const head = accountHeads.find(h => h.id === headId);
+        if (!head) return null;
+        const sub = accountSubCategories.find(s => s.id === head.subCategoryId);
+        const cat = accountCategories.find(c => c.id === sub?.categoryId);
+        return {
+            headName: head.name,
+            subName: sub?.name || 'Unknown',
+            fullPath: `${cat?.name || 'Unknown'} > ${sub?.name || 'Unknown'}`,
+        };
+    };
+
     const displayedPayeeName = useMemo(() => {
         if (!selectedPartyId) return '';
         const option = partyOptions.find(o => o.value === selectedPartyId);
         return option ? option.label.split(' (')[0] : ''; 
     }, [selectedPartyId, partyOptions]);
 
-    const requiresBankSelection = useMemo(() => {
-        return lineItems.some(item => item.modeOfPayment !== 'Cash');
-    }, [lineItems]);
 
     useEffect(() => {
         if (isOpen) {
@@ -200,23 +204,19 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                 setVoucherNo(firstExpense.voucherNo || `VCH-TEMP-${Date.now()}`);
                 setDate(firstExpense.date);
                 setbranch_id(firstExpense.branch_id || (branches.length > 0 ? branches[0].id : ''));
-                
                 setIsCustomer(firstExpense.partyType === 'Customer');
                 setSelectedPartyId(firstExpense.partyId || '');
-                
                 setDocNo(firstExpense.docNo || '');
                 setDocDate(firstExpense.docDate || '');
 
-                const items = voucherToEdit.map(exp => {
-                    const path = [];
-                    if (exp.categoryLevel1Id) path.push(l1Map.get(exp.categoryLevel1Id));
-                    if (exp.categoryLevel2Id) path.push(l2Map.get(exp.categoryLevel2Id));
-
+                const items = voucherToEdit.map((exp, index) => {
+                    const details = getHeadDetails(exp.accountHeadId || '');
                     return {
-                        id: exp.id,
-                        expenseHead: exp.expenseHead || path[path.length - 1] || 'Manual',
+                        id: exp.id || `exp-${Date.now()}-${index}`,
+                        expenseHeadId: exp.accountHeadId || '',
+                        expenseHeadName: details?.headName || exp.description || 'Unknown',
+                        fullCategoryPath: details?.fullPath || 'Unknown',
                         description: exp.description,
-                        fullCategoryPath: path.filter(Boolean).join(' > '),
                         modeOfPayment: exp.modeOfPayment || 'Cash',
                         amount: exp.amount,
                         bankId: exp.bankId, 
@@ -245,10 +245,10 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                 setSelectedPartyId('');
                 setDocNo('');
                 setDocDate('');
-                setLogExpenseForm({ categoryLevel1Id: '', categoryLevel2Id: '' });
+                setSelectedHeadId('');
             }
         }
-    }, [isOpen, voucherToEdit, lastVoucherNumber, docNumberingConfig, triggerExport, branches, l1Map, l2Map]);
+    }, [isOpen, voucherToEdit, lastVoucherNumber, docNumberingConfig, triggerExport, branches]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -257,57 +257,49 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
             }
         };
         document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
+        return () => { document.removeEventListener("mousedown", handleClickOutside); };
     }, []);
 
-    const handleCategoryChange = (level: 'categoryLevel1Id' | 'categoryLevel2Id', value: string) => {
-        setLogExpenseForm(prev => {
-            const newState = { ...prev, [level]: value };
-            if (level === 'categoryLevel1Id') { newState.categoryLevel2Id = ''; }
-            return newState;
-        });
-    };
 
     const addLineItemFromCategory = () => {
-        if (!logExpenseForm.categoryLevel1Id || !logExpenseForm.categoryLevel2Id) {
-            alert('Please select both Expense Category and Expense Head.');
+        if (!selectedHeadId) {
+            alert('Please select an Expense Account.');
+            return;
+        }
+        const details = getHeadDetails(selectedHeadId);
+        if (!details) {
+            alert('Invalid Account Head.');
             return;
         }
 
-        const path = [];
-        let expenseHead = '';
-
-        if (logExpenseForm.categoryLevel1Id) {
-            const l1 = l1Map.get(logExpenseForm.categoryLevel1Id);
-            if (l1) { path.push(l1); }
-        }
-        if (logExpenseForm.categoryLevel2Id) {
-             const l2 = l2Map.get(logExpenseForm.categoryLevel2Id);
-            if (l2) { path.push(l2); expenseHead = l2; }
-        }
+        const defaultCashWallet = cashWalletOptions.length > 0 ? cashWalletOptions[0].value : '';
 
         const newLine: VoucherLineItem = {
             id: `new-${Date.now()}`,
-            expenseHead,
+            expenseHeadId: selectedHeadId,
+            expenseHeadName: details.headName,
+            fullCategoryPath: details.fullPath,
             description: '',
-            fullCategoryPath: path.join(' > '),
             modeOfPayment: 'Cash',
             amount: 0,
+            bankId: defaultCashWallet, 
             isNew: true,
         };
         setLineItems(prev => [...prev, newLine]);
+        setSelectedHeadId(''); 
     };
 
     const addManualLine = () => {
+        const defaultCashWallet = cashWalletOptions.length > 0 ? cashWalletOptions[0].value : '';
         const newLine: VoucherLineItem = {
-            id: `new-${Date.now()}`,
-            expenseHead: '',
-            description: '',
+            id: `manual-${Date.now()}`,
+            expenseHeadId: '',
+            expenseHeadName: 'Manual Entry',
             fullCategoryPath: 'Manual Entry',
+            description: '',
             modeOfPayment: 'Cash',
             amount: 0,
+            bankId: defaultCashWallet,
             isNew: true,
         };
         setLineItems(prev => [...prev, newLine]);
@@ -321,9 +313,15 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
         setLineItems(prev => prev.map(item => {
             if (item.id === id) {
                 const updatedItem = { ...item, [field]: value };
-                if (field === 'modeOfPayment' && value === 'Cash') {
-                    updatedItem.bankId = undefined;
+                
+                if (field === 'modeOfPayment') {
+                    if (value === 'Cash') {
+                        updatedItem.bankId = cashWalletOptions.length > 0 ? cashWalletOptions[0].value : ''; 
+                    } else {
+                        updatedItem.bankId = ''; 
+                    }
                 }
+                
                 return updatedItem;
             }
             return item;
@@ -332,6 +330,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
     
     const totalAmount = useMemo(() => lineItems.reduce((sum, item) => sum + Number(item.amount || 0), 0), [lineItems]);
     const amountInWords = useMemo(() => numberToWords(totalAmount), [totalAmount]);
+    const hasNonCash = useMemo(() => lineItems.some(item => item.modeOfPayment !== 'Cash'), [lineItems]);
 
     const handleSave = (shouldExport: boolean) => {
         if (!selectedPartyId) {
@@ -342,9 +341,9 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
             alert('Voucher must have at least one line item.');
             return;
         }
-        const missingBankItem = lineItems.find(item => item.modeOfPayment !== 'Cash' && !item.bankId);
-        if (missingBankItem) {
-            alert('Please select a Bank for all non-cash payment modes.');
+                const missingWallet = lineItems.find(item => !item.bankId);
+        if (missingWallet) {
+            alert('Please select "Paid From" (Source Wallet) for all entries. Even for Cash, a Cash Wallet must be selected.');
             return;
         }
 
@@ -359,7 +358,14 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
             payeeName: displayedPayeeName,
             branch_id,
             finYearId: activeFinancialYearId,
-            lineItems,
+            lineItems: lineItems.map(item => ({
+                id: item.isNew ? undefined : item.id,
+                accountHeadId: item.expenseHeadId, 
+                description: item.description,
+                modeOfPayment: item.modeOfPayment,
+                amount: item.amount,
+                bankId: item.bankId, 
+            })),
             partyId: selectedPartyId,
             partyType: isCustomer ? 'Customer' : 'Staff',
             docNo,
@@ -378,13 +384,13 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
         if (voucherRef.current) {
             htmlToImage.toPng(voucherRef.current, { quality: 1, pixelRatio: 2, backgroundColor: '#ffffff' })
                 .then((dataUrl: string) => {
-                                 const link = document.createElement('a');
-                                 link.download = `PaymentVoucher-${voucherNo.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
-                                              link.href = dataUrl;
+                     const link = document.createElement('a');
+                     link.download = `PaymentVoucher-${voucherNo.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+                     link.href = dataUrl;
                     link.click();
                     onClose();
                 }).catch((err: Error) => {
-                                 console.error('Voucher export failed:', err)
+                     console.error('Voucher export failed:', err)
                     onClose();
                 });
         } else {
@@ -400,15 +406,15 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
     return (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50 p-4 animate-fade-in" onClick={onClose}>
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col" onClick={e => e.stopPropagation()}>
-                {}
+                {/* Modal Header */}
                 <div className="p-4 flex justify-between items-center border-b dark:border-gray-700 flex-shrink-0">
                     <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Payment Voucher</h3>
                     <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"><X className="text-gray-600 dark:text-gray-300" /></button>
                 </div>
 
-                {}
+                {/* Main Content Area */}
                 <div className="flex-1 p-6 overflow-y-auto">
-                    {}
+                    
                     {isEditable && (
                         <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600">
                             <div className="flex items-center justify-between mb-4">
@@ -442,25 +448,27 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
 
                     {isEditable && (
                         <div className="mb-4 p-4 border rounded-lg bg-gray-50 dark:bg-gray-700/50 dark:border-gray-600">
-                            <h4 className="font-semibold mb-3 text-gray-700 dark:text-gray-300">Category Selection</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
-                                <div>
-                                    <label className="text-sm font-medium">Expense Category</label>
-                                    <select value={logExpenseForm.categoryLevel1Id} onChange={e => handleCategoryChange('categoryLevel1Id', e.target.value)} className="w-full mt-1 p-2 border rounded-md dark:bg-gray-800 dark:border-gray-500"><option value="">Select Category...</option>{expenseCategoriesLevel1.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+                            <h4 className="font-semibold mb-3 text-gray-700 dark:text-gray-300">Account Selection</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                                <div className="md:col-span-2">
+                                    <SearchableSelect 
+                                        label="Expense Head (Category)" 
+                                        options={expenseHeadOptions} 
+                                        value={selectedHeadId} 
+                                        onChange={setSelectedHeadId}
+                                        placeholder="Search expense category (e.g. Rent)..."
+                                    />
                                 </div>
-                                 <div>
-                                    <label className="text-sm font-medium">Expense Head</label>
-                                    <select value={logExpenseForm.categoryLevel2Id} onChange={e => handleCategoryChange('categoryLevel2Id', e.target.value)} className="w-full mt-1 p-2 border rounded-md dark:bg-gray-800 dark:border-gray-500" disabled={!logExpenseForm.categoryLevel1Id}><option value="">Select Head...</option>{l2Options.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-                                </div>
-                                <Button onClick={addLineItemFromCategory} variant="secondary" className="w-full" disabled={!logExpenseForm.categoryLevel1Id || !logExpenseForm.categoryLevel2Id}>
+                                <Button onClick={addLineItemFromCategory} variant="secondary" className="w-full" disabled={!selectedHeadId}>
                                     <Plus size={16} /> Add to Voucher
                                 </Button>
                             </div>
                         </div>
                     )}
                     
+                    {/* Voucher Printable Area */}
                     <div ref={voucherRef} id="payment-voucher" className="bg-white p-8 border-2 border-gray-500 font-serif text-black">
-                        {}
+                        
                         <div className="text-center mb-4">
                             <h1 className="text-3xl font-bold">{companyInfo?.name || 'Your Company'}</h1>
                             <div className="flex justify-center items-center text-sm gap-2 mt-1">
@@ -486,7 +494,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                         </div>
 
                         <div className="flex justify-between items-start mb-4">
-                            <div className="w-1/3"></div> {}
+                            <div className="w-1/3"></div> 
                             <div className="w-1/3 text-center">
                                 <div className="bg-gray-800 text-white px-4 py-1 text-lg font-bold inline-block">PAYMENT VOUCHER</div>
                             </div>
@@ -511,14 +519,14 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                             </p>
                         </div>
 
-                        {}
+                        {/* Particulars Table */}
                         <table className="w-full border-collapse border-2 border-black text-sm">
                             <thead>
                                 <tr className="bg-gray-200">
-                                    <th className="border border-black p-1 text-center font-bold w-12">S.No</th>
-                                    <th className="border border-black p-1 text-center font-bold">Expenses Head</th>
+                                    <th className="border border-black p-1 text-center font-bold w-12">#</th>
+                                    <th className="border border-black p-1 text-center font-bold">Expense Category</th>
                                     <th className="border border-black p-1 text-center font-bold w-2/5">Description</th>
-                                    <th className="border border-black p-1 text-center font-bold w-48">Mode of Payment</th>
+                                    <th className="border border-black p-1 text-center font-bold w-48">Settlement (Internal)</th>
                                     <th className="border border-black p-1 text-center font-bold w-40">Amount</th>
                                     {isEditable && <th className="border border-black p-1 text-center font-bold w-10"></th>}
                                 </tr>
@@ -527,43 +535,57 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                                 {lineItems.map((item, index) => (
                                     <tr key={item.id}>
                                         <td className="border border-black p-1 text-center align-top pt-2">{index + 1}</td>
+                                        
+                                        {/* Expense Head */}
                                         <td className="border border-black p-1 align-top">
-                                            <input type="text" value={item.expenseHead} onChange={e => updateLineItem(item.id, 'expenseHead', e.target.value)} className="w-full border-none focus:outline-none bg-transparent p-1" disabled={!isEditable} />
+                                            <input type="text" value={item.expenseHeadName} onChange={e => updateLineItem(item.id, 'expenseHeadName', e.target.value)} className="w-full border-none focus:outline-none bg-transparent p-1 font-semibold" disabled={!isEditable} readOnly={!item.isNew || item.id.startsWith('manual')} />
+                                            <div className="text-xs text-gray-500 px-1">{item.fullCategoryPath}</div>
                                         </td>
+                                        
+                                        {/* Description */}
                                         <td className="border border-black p-1 align-top">
-                                            <textarea value={item.description} onChange={e => updateLineItem(item.id, 'description', e.target.value)} className="w-full border-none focus:outline-none bg-transparent p-1 resize-none" rows={2} disabled={!isEditable} />
-                                            <p className="text-xs text-gray-500 px-1">{item.fullCategoryPath}</p>
+                                            <textarea value={item.description} onChange={e => updateLineItem(item.id, 'description', e.target.value)} className="w-full border-none focus:outline-none bg-transparent p-1 resize-none" rows={2} disabled={!isEditable} placeholder="Remarks..." />
                                         </td>
+                                        
+                                        {/* Settlement */}
                                         <td className="border border-black p-1 align-top">
                                             <div className="flex flex-col gap-1 p-1">
-                                                <select value={item.modeOfPayment} onChange={e => updateLineItem(item.id, 'modeOfPayment', e.target.value as any)} className="w-full border-none focus:outline-none bg-transparent text-sm font-semibold" disabled={!isEditable}>
+                                                <select 
+                                                    value={item.modeOfPayment} 
+                                                    onChange={e => updateLineItem(item.id, 'modeOfPayment', e.target.value as any)} 
+                                                    className="w-full border-none focus:outline-none bg-transparent text-sm font-semibold" 
+                                                    disabled={!isEditable} 
+                                                >
                                                     <option>Cash</option>
                                                     <option>UPI</option>
                                                     <option>Net Banking</option>
                                                     <option>Cheque</option>
                                                 </select>
                                                 
-                                                {item.modeOfPayment !== 'Cash' && (
-                                                    <div className="flex items-center text-xs mt-1">
-                                                        <span className="mr-1 font-semibold text-gray-600">-</span>
-                                                        <select 
-                                                            value={item.bankId || ''} 
-                                                            onChange={e => updateLineItem(item.id, 'bankId', e.target.value)}
-                                                            className="w-full bg-transparent focus:outline-none text-gray-700 font-medium"
-                                                            disabled={!isEditable}
-                                                        >
-                                                            <option value="">Select Bank...</option>
-                                                            {bankMasters.map(bank => (
-                                                                <option key={bank.id} value={bank.id}>{bank.bankName}</option>
-                                                            ))}
-                                                        </select>
-                                                    </div>
-                                                )}
+                                                <div className="mt-1">
+                                                    <label className="text-[10px] text-gray-500 block">Paid From:</label>
+                                                    <select 
+                                                        value={item.bankId || ''} 
+                                                        onChange={e => updateLineItem(item.id, 'bankId', e.target.value)}
+                                                        className={`w-full bg-transparent focus:outline-none font-medium text-xs border-b border-dotted border-gray-400 ${!item.bankId ? 'text-red-500 border-red-500' : 'text-gray-700'}`}
+                                                        disabled={!isEditable}
+                                                    >
+                                                        <option value="">Select Wallet...</option>
+                                                        {item.modeOfPayment === 'Cash' 
+                                                            ? cashWalletOptions.map(w => <option key={w.value} value={w.value}>{w.label}</option>)
+                                                            : bankWalletOptions.map(w => <option key={w.value} value={w.value}>{w.label}</option>)
+                                                        }
+                                                    </select>
+                                                </div>
                                             </div>
                                         </td>
+                                        
+                                        {/* Amount */}
                                         <td className="border border-black p-1 text-right w-40 align-top pt-2">
-                                            <input type="number" value={item.amount || ''} onChange={e => updateLineItem(item.id, 'amount', parseFloat(e.target.value) || 0)} className="w-full border-none focus:outline-none bg-transparent text-right p-1" disabled={!isEditable} />
+                                            <input type="number" value={item.amount || ''} onChange={e => updateLineItem(item.id, 'amount', parseFloat(e.target.value) || 0)} className="w-full border-none focus:outline-none bg-transparent text-right p-1 font-bold" disabled={!isEditable} />
                                         </td>
+                                        
+                                        {/* Actions */}
                                         {isEditable && (
                                             <td className="border border-black p-1 text-center align-middle">
                                                 <button type="button" onClick={() => removeLine(item.id)} className="text-red-500 hover:text-red-700 transition-colors flex items-center justify-center w-full h-full">
@@ -574,20 +596,19 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                                     </tr>
                                 ))}
                                 <tr className="bg-gray-200 font-bold">
-                                    <td colSpan={3} className="border border-black p-2"></td>
-                                    <td className="border border-black p-2 text-right">Total Rs.</td>
+                                    <td colSpan={4} className="border border-black p-2 text-right">Total Rs.</td>
                                     <td className="border border-black p-2 text-right">{totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                     {isEditable && <td className="border border-black p-2"></td>}
                                 </tr>
                             </tbody>
                         </table>
                         
-                        {}
-                        {lineItems.some(item => item.modeOfPayment !== 'Cash') && (
+                        {/* Doc/Cheque Details - Footer */}
+                        {hasNonCash && (
                             <div className="mt-2 p-2 border border-gray-400 bg-gray-50">
                                 <div className="flex gap-8 text-sm">
                                     <div className="flex items-center">
-                                        <p className="font-semibold shrink-0">Doc/Cheque No:</p>
+                                        <p className="font-semibold shrink-0">General Ref/Cheque No:</p>
                                         <input 
                                             type="text" 
                                             value={docNo} 
@@ -598,7 +619,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                                         />
                                     </div>
                                     <div className="flex items-center">
-                                        <p className="font-semibold shrink-0">Doc Date:</p>
+                                        <p className="font-semibold shrink-0">Date:</p>
                                         <input 
                                             type="date" 
                                             value={docDate} 
@@ -620,7 +641,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                         </div>
                     )}
                 </div>
-                 {}
+                 {/* Modal Footer */}
                 <div className="p-4 flex justify-end items-center border-t dark:border-gray-700 flex-shrink-0 gap-4">
                     {isEditable ? (
                         <>

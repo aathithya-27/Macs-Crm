@@ -64,7 +64,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ notificatio
                 </div>
             ) : (
                 <ul className="divide-y divide-y-gray-100 dark:divide-gray-700">
-                    {visibleNotifications.slice(0, 7).map(notification => ( // Show a limited number
+                    {visibleNotifications.slice(0, 7).map(notification => (
                         <li key={notification.id} className="flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150">
                             <button onClick={onViewAll} className="flex-grow flex items-start gap-3 text-left">
                                  {getIconForType(notification.type)}
@@ -77,7 +77,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ notificatio
                             </button>
                              <button
                                 onClick={(e) => {
-                                    e.stopPropagation(); // Prevent triggering onViewAll
+                                    e.stopPropagation();
                                     onDismissItem(notification.id);
                                 }}
                                 className="p-1 rounded-full text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary flex-shrink-0 ml-2"

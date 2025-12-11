@@ -1,17 +1,13 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-// MODIFIED: Added Role, RolePermissions
 import { User, EmployeeProfile, EmployeeModalTab, Member, Branch, Geography, BankMaster, BusinessVertical, InsuranceTypeMaster, AMC, Designation, Gender, DocumentMaster, AccountType, Role } from '../types.ts';
 import Modal from './ui/Modal.tsx';
 import Button from './ui/Button.tsx';
 import Input from './ui/Input.tsx';
 import { X, User as UserIcon, MapPin, BookOpen, Edit, Users, FileText as FileTextIcon, Lock } from 'lucide-react';
-// MODIFIED: We will assume GeneralInfoTab is in this file for now
 import { GeneralInfoTab, AddressTab, EducationTab, EmployeeCustomersTab } from './tabs/EmployeeProfileTabs.tsx';
 import { EmployeeDocumentsTab } from './tabs/EmployeeDocumentsTab.tsx';
 
-// --- Main Modal Component ---
 
-// --- MODIFIED: Props updated ---
 interface EmployeeModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -29,7 +25,7 @@ interface EmployeeModalProps {
     insuranceTypes: InsuranceTypeMaster[];
     amcs: AMC[];
     designations: Designation[];
-    roles: Role[]; // --- NEW ---
+    roles: Role[];
     genders: Gender[];
     documentMasters: DocumentMaster[];
     accountTypes: AccountType[];
@@ -61,7 +57,7 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
             email: '',
             employeeId: String(nextIdNumber),
             designationId: '',
-            roleId: null, // --- ADDED ---
+            roleId: null,
             company: currentUser?.company || '',
             comp_id: currentUser?.comp_id || '',
             profile: {
@@ -118,7 +114,6 @@ export const EmployeeModal: React.FC<EmployeeModalProps> = ({
         if (!formData.email?.trim() || !/^\S+@\S+\.\S+$/.test(formData.email)) { addToast('A valid email is required.', 'error'); return false; }
         if (!formData.employeeId?.trim()) { addToast('Employee ID is required.', 'error'); return false; }
         if (!formData.designationId) { addToast('A Designation must be selected.', 'error'); return false; }
-        // Note: Role is optional, so no validation needed for formData.roleId
         if (!employee && (!formData.password || formData.password.length < 6)) {
             addToast('A password with at least 6 characters is required for new employees.', 'error');
             return false;

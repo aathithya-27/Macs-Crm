@@ -80,7 +80,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
             return;
         }
 
-        // --- MODIFICATION BEGINS ---
         try {
             const user = await login(company, employeeId, password, roleId, branch_id, financialYearId);
 
@@ -101,7 +100,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                 setError('An error occurred during login. Please try again.');
             }
         }
-        // --- MODIFICATION ENDS ---
     };
 
     return (

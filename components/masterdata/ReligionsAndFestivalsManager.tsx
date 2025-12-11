@@ -7,8 +7,8 @@ import Input from '../ui/Input';
 import Modal from '../ui/Modal';
 import ToggleSwitch from '../ui/ToggleSwitch';
 import { Plus, Edit2, Trash2, Search, Calendar as CalendarIcon, ChevronDown } from 'lucide-react';
-import SearchableSelect from '../ui/SearchableSelect'; // MODIFICATION: Import SearchableSelect
-import SearchBar from '../ui/SearchBar'; // MODIFICATION: Import SearchBar
+import SearchableSelect from '../ui/SearchableSelect';
+import SearchBar from '../ui/SearchBar';
 
 import GenericMasterManager from './GenericMasterManager';
 
@@ -83,7 +83,6 @@ const ReligionsAndFestivalsManager: React.FC<ReligionsAndFestivalsManagerProps> 
         addToast('Festival deleted.', 'success');
     };
 
-    // --- Festival Date Logic ---
     const openDateModal = (item: Partial<FestivalDate> | null, event?: React.MouseEvent<HTMLElement>) => {
         if (event) triggerButtonRef.current = event.currentTarget as HTMLButtonElement;
         if (item && !item.id) {

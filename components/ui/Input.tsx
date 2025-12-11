@@ -13,8 +13,6 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({ label, id, type, ...pr
   const handleIconClick = () => {
     if (inputRef.current) {
       if (isDateInput) {
-        // Forcing type to 'date' before focus can help trigger the picker
-        // reliably on some browsers when using the type-switching placeholder trick.
         inputRef.current.type = 'date';
       }
       inputRef.current.focus();
@@ -24,8 +22,6 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({ label, id, type, ...pr
   const isPasswordInput = type === 'password';
   const isDateInput = type === 'date';
   
-  // This logic allows for a custom placeholder on date inputs by switching type,
-  // and toggles password visibility for password inputs.
   let displayType = isDateInput && !props.value ? 'text' : type;
   if (isPasswordInput) {
     displayType = showPassword ? 'text' : 'password';
@@ -42,7 +38,6 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({ label, id, type, ...pr
     if (props.onBlur) props.onBlur(e);
   };
   
-  // We need to pass the placeholder specifically for date inputs when they're of type 'text'.
   const placeholder = isDateInput ? 'dd-mm-yyyy' : props.placeholder;
 
   return (
@@ -52,7 +47,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({ label, id, type, ...pr
         <input
           ref={inputRef}
           id={id}
-          type={displayType || 'text'} // Default to 'text' if type is undefined
+          type={displayType || 'text'}
           onFocus={handleFocus}
           onBlur={handleBlur}
           placeholder={placeholder}
@@ -65,7 +60,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({ label, id, type, ...pr
             onClick={handleIconClick}
           />
         )}
-        {/* Password visibility toggle button */}
+        {}
         {isPasswordInput && (
           <button
             type="button"

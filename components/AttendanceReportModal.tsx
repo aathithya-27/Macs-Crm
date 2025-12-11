@@ -11,7 +11,7 @@ export const AttendanceReportModal: React.FC<{
     attendance: AttendanceState;
     users: User[];
     designations: Designation[];
-    roles: Role[]; // NEW PROP
+    roles: Role[];
 }> = ({ isOpen, onClose, attendance, users, designations, roles }) => {
     const today = new Date();
     const last7Days = new Date(today);
@@ -22,14 +22,10 @@ export const AttendanceReportModal: React.FC<{
     const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
     const [selectedAdvisor, setSelectedAdvisor] = useState('all');
 
-    // --- MODIFICATION BEGINS ---
-    // MODIFIED: Logic now based on Role and INCLUDES inactive employees
     const advisors = useMemo(() => {
         const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
-        // Filter for active status is removed to include all employees
         return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
     }, [users, roles]);
-    // --- MODIFICATION ENDS ---
 
     useEffect(() => {
         if (!isOpen) return;
@@ -73,19 +69,16 @@ export const AttendanceReportModal: React.FC<{
 
 
     const reportData = useMemo(() => {
-        // --- MODIFICATION BEGINS ---
         let flattenedData: (AttendanceRecord & { userId: string, userName: string, userStatus: 'Active' | 'Inactive' })[] = [];
 
         for (const userId in attendance) {
             const user = advisors.find(u => u.id === userId);
             if (user) {
                 attendance[userId].forEach(record => {
-                    // Also push the user's status to use for the red dot indicator
                     flattenedData.push({ ...record, userId, userName: user.name, userStatus: user.profile?.status || 'Inactive' });
                 });
             }
         }
-        // --- MODIFICATION ENDS ---
 
         const start = new Date(startDate);
         start.setHours(0, 0, 0, 0);
@@ -121,14 +114,14 @@ export const AttendanceReportModal: React.FC<{
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                         <Input label="Start Date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
                         <Input label="End Date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-                        {/* --- MODIFICATION BEGINS --- */}
+                        {}
                         <SearchableSelect
                             label="Filter by Employee"
                             options={[{ value: 'all', label: 'All Employees' }, ...advisors.map(a => ({ value: a.id, label: a.profile?.status === 'Inactive' ? `${a.name} 🔴` : a.name }))]}
                             value={selectedAdvisor}
                             onChange={setSelectedAdvisor}
                         />
-                        {/* --- MODIFICATION ENDS --- */}
+                        {}
                         <div className="flex items-center gap-2">
                             <Button variant="light" size="small" onClick={() => setDateRange(0)}>Today</Button>
                             <Button variant="light" size="small" onClick={() => setDateRange(7)}>7 Days</Button>
@@ -152,14 +145,14 @@ export const AttendanceReportModal: React.FC<{
                                 {reportData.map((record, index) => (
                                     <tr key={index}>
                                         <td className="px-4 py-3 whitespace-nowrap">{new Date(record.timestamp).toLocaleDateString()}</td>
-                                        {/* --- MODIFICATION BEGINS --- */}
+                                        {}
                                         <td className="px-4 py-3 font-medium text-gray-800 dark:text-white">
                                             <div className="flex items-center gap-2">
                                                 {record.userName}
                                                 {record.userStatus === 'Inactive' && <span className="w-2 h-2 bg-red-500 rounded-full" title="Inactive Employee"></span>}
                                             </div>
                                         </td>
-                                        {/* --- MODIFICATION ENDS --- */}
+                                        {}
                                         <td className="px-4 py-3">
                                             <span className={`px-2 py-1 text-xs font-semibold rounded-full ${record.status === 'Present' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>
                                                 {record.status}

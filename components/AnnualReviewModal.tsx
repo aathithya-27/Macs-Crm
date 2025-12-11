@@ -1,5 +1,4 @@
 import React from 'react';
-// MODIFIED: Import permission types
 import { Member, AppModule, PermissionLevel } from '../types.ts';
 import Modal from './ui/Modal.tsx';
 import Button from './ui/Button.tsx';
@@ -13,14 +12,12 @@ interface AnnualReviewModalProps {
   reviewContent: string;
   setReviewContent: (content: string) => void;
   addToast: (message: string, type?: 'success' | 'error') => void;
-  // NEW: Accept permissions prop
   permissions: { [key in AppModule]?: PermissionLevel };
 }
 
 const AnnualReviewModal: React.FC<AnnualReviewModalProps> = ({ isOpen, onClose, member, isLoading, reviewContent, setReviewContent, addToast, permissions }) => {
   const [isCopied, setIsCopied] = React.useState(false);
 
-  // NEW: Permission check for the customer module
   const canModify = permissions?.customers === 'modify';
 
   const handleCopy = () => {
@@ -53,7 +50,6 @@ const AnnualReviewModal: React.FC<AnnualReviewModalProps> = ({ isOpen, onClose, 
           onChange={(e) => setReviewContent(e.target.value)}
           className="w-full h-full min-h-[400px] p-4 font-mono text-sm bg-white dark:bg-gray-800 rounded-md border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-brand-primary focus:outline-none"
           placeholder="AI-generated review will appear here..."
-          // MODIFIED: Textarea is now read-only if user cannot modify
           readOnly={!canModify}
         />
       </div>

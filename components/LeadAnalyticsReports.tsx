@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { Member, LeadSourceMaster } from '../types.ts';
-import { CustomTooltip } from './SchemeConversionReports.tsx'; // Importing the shared tooltip
+import { CustomTooltip } from './SchemeConversionReports.tsx';
 
 export const LeadAnalyticsReports: React.FC<{ members: Member[]; leadSources: LeadSourceMaster[] }> = ({ members, leadSources }) => {
     const leadSourceAnalysis = useMemo(() => {

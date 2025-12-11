@@ -10,7 +10,7 @@ interface LeadSourceSelectorProps {
   onLeadSourceChange: (value: LeadSource) => void;
   leadSources: LeadSourceMaster[];
   allMembers?: Member[];
-  currentMemberId?: string; // To prevent self-referral
+  currentMemberId?: string;
   referrerId?: string;
   onReferrerSelect?: (memberId: string) => void;
   onAddNewReferrer?: () => void;
@@ -44,7 +44,7 @@ const LeadSourceSelector: React.FC<LeadSourceSelectorProps> = ({ value, onLeadSo
         
         onLeadSourceChange({ sourceId: selectedId, detail: '' });
         if (onReferrerSelect) {
-            onReferrerSelect(''); // Clear referrer if source changes
+            onReferrerSelect('');
         }
         
         setPath(newPath);
@@ -54,7 +54,6 @@ const LeadSourceSelector: React.FC<LeadSourceSelectorProps> = ({ value, onLeadSo
         onLeadSourceChange({ sourceId: value?.sourceId || null, detail: e.target.value });
     };
 
-    // --- THIS IS THE MODIFIED LOGIC ---
     const showReferrerField = useMemo(() => {
         if (!value?.sourceId) return false;
         let current = leadSourceMap.get(value.sourceId);

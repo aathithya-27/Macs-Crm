@@ -40,16 +40,13 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ members, addToa
     const analyticsData = useMemo(() => {
         const allPolicies = members.flatMap(m => m.policies.map(p => ({ ...p, member: m })));
         
-        // KPI: Total Annual Premium
         const totalAnnualPremium = allPolicies.reduce((sum, p) => sum + p.premium, 0);
         
-        // KPI: Average Policies per Customer
         const avgPoliciesPerCustomer = members.length > 0 ? (allPolicies.length / members.length) : 0;
         
-        // Chart 1: Monthly Renewals
         const renewalMonths = Array(12).fill(0).map((_, i) => {
             const date = new Date();
-            date.setDate(1); // Set to first of the month to avoid day-related issues
+            date.setDate(1);
             date.setMonth(date.getMonth() + i);
             return { name: date.toLocaleString('default', { month: 'short' }), Renewals: 0 };
         });
@@ -57,7 +54,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ members, addToa
         allPolicies.forEach(p => {
             const renewalDate = new Date(p.renewalDate);
             const today = new Date();
-            // We only care about renewals in the next 12 months for this chart
             const oneYearFromNow = new Date();
             oneYearFromNow.setFullYear(today.getFullYear() + 1);
 
@@ -67,7 +63,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ members, addToa
             }
         });
         
-        // Chart 2: Lead Source Distribution
         const leadSourceDistribution = members.reduce((acc, member) => {
             const leadSourceMap = new Map(leadSources.map(ls => [ls.id, ls]));
             let source = 'Unknown';
@@ -91,7 +86,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ members, addToa
 
         const leadSourceData = Object.entries(leadSourceDistribution).map(([name, value]) => ({ name, value }));
         
-        // Chart 3: Customer Growth (Simulated)
         const customerGrowthData = (() => {
             const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
             const today = new Date();
@@ -100,7 +94,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ members, addToa
                 return { name: `${months[date.getMonth()]} '${String(date.getFullYear()).slice(2)}'`, Customers: 0 };
             });
 
-            // Distribute members across the months for simulation
             const memberCount = members.length;
             let membersAssigned = 0;
             for (let i = 0; i < 5; i++) {
@@ -110,14 +103,12 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ members, addToa
             }
             growthData[5].Customers = memberCount - membersAssigned;
             
-            // Make it cumulative for a growth chart
             for (let i = 1; i < growthData.length; i++) {
                 growthData[i].Customers += growthData[i-1].Customers;
             }
             return growthData;
         })();
 
-        // Table: Geographic Distribution
         const geoDistribution = members.reduce((acc, m) => {
             acc[m.state] = (acc[m.state] || 0) + 1;
             return acc;
@@ -140,7 +131,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ members, addToa
         setIsForecasting(true);
         const result = await forecastCustomerGrowth(analyticsData.customerGrowthData, addToast);
         if (result && result.length > 0) {
-            // Reformat for the chart to connect the lines
             const lastHistoricalPoint = analyticsData.customerGrowthData[analyticsData.customerGrowthData.length - 1];
             const forecastWithConnector = [
                 { name: lastHistoricalPoint.name, Forecast: lastHistoricalPoint.Customers },
@@ -155,7 +145,6 @@ const AnalyticsDashboard: React.FC<AnalyticsDashboardProps> = ({ members, addToa
         if (!forecastData) {
             return analyticsData.customerGrowthData;
         }
-        // Merge historical and forecast data
         const allData: { name: string; Customers?: number; Forecast?: number; }[] = analyticsData.customerGrowthData.map(d => ({ ...d }));
         
         forecastData.forEach(fPoint => {

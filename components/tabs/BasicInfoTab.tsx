@@ -10,8 +10,6 @@ import LeadSourceSelector from '../LeadSourceSelector.tsx';
 import SearchableSelect from '../ui/SearchableSelect.tsx';
 import Modal from '../ui/Modal.tsx';
 
-// A copy of the EditableTable component logic will be needed here if it's not a shared component.
-// For simplicity, we'll assume a simplified version for rendering. A full implementation would import it.
 const EditableTable: React.FC<{
     masterField: CustomerFieldMaster;
     tableData: { rows: string[][] };
@@ -48,7 +46,6 @@ const EditableTable: React.FC<{
         onMasterFieldUpdate({ ...masterField, [headerKey]: newHeaders });
     };
 
-    // Sync local data if master headers change
     useEffect(() => {
         const masterCols = masterField.columnHeaders || [];
         const masterRows = masterField.rowHeaders || [];
@@ -83,7 +80,7 @@ const EditableTable: React.FC<{
                 <table className="min-w-full border-separate" style={{ borderSpacing: '0.5rem' }}>
                     <thead>
                         <tr>
-                            <th className="w-10"></th> {/* Empty corner */}
+                            <th className="w-10"></th> {}
                             {(masterField.columnHeaders || []).map((header, colIndex) => (
                                 <th key={`col-header-${colIndex}`} className="p-0 align-top">
                                     <div className="relative flex items-center gap-1 p-1 bg-gray-200 dark:bg-gray-700/80 rounded-md border border-gray-700 dark:border-gray-400">
@@ -526,7 +523,6 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   const debouncedLng = useDebounce(data.lng, 800);
   const debouncedDigipin = useDebounce(data.digipin, 800);
 
-  // --- MODIFICATION BEGINS ---
   const advisors = useMemo(() => {
     const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
     return users.filter(u => u.profile?.status === 'Active' && u.roleId && advisorRoleIds.has(u.roleId));
@@ -687,7 +683,6 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     }
   };
 
-  // --- DYNAMIC FIELD LOGIC ---
   const handleDynamicDataChange = useCallback((fieldName: string, value: any) => {
     onChange('dynamicData', (prev: any) => ({ ...prev, [fieldName]: value }));
   }, [onChange]);
@@ -1279,8 +1274,8 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                             label="Latitude" 
                             type="number" 
                             step="any" 
-                            value={data.lat === undefined ? '' : data.lat} 
-                            onChange={(e) => onChange('lat', e.target.value === '' ? undefined : parseFloat(e.target.value))} 
+                            value={data.lat === undefined ? '' : data.lat}
+                            onChange={(e) => onChange('lat', e.target.value === '' ? undefined : parseFloat(e.target.value))}
                             placeholder="e.g., 12.722" 
                         />
                         {isSyncingCoords && <Loader2 className="animate-spin w-4 h-4 text-gray-400 absolute right-3 top-10" />}
@@ -1290,8 +1285,8 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                             label="Longitude" 
                             type="number" 
                             step="any" 
-                            value={data.lng === undefined ? '' : data.lng} 
-                            onChange={(e) => onChange('lng', e.target.value === '' ? undefined : parseFloat(e.target.value))} 
+                            value={data.lng === undefined ? '' : data.lng}
+                            onChange={(e) => onChange('lng', e.target.value === '' ? undefined : parseFloat(e.target.value))}
                             placeholder="e.g., 77.832" 
                         />
                         {isSyncingCoords && <Loader2 className="animate-spin w-4 h-4 text-gray-400 absolute right-3 top-10" />}

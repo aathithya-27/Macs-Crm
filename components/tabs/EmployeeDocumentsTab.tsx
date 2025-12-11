@@ -1,23 +1,17 @@
 import React, { useState } from 'react';
-// --- MODIFICATION START ---
 import { User, AdvisorDocument, DocumentMaster } from '../../types.ts';
-// --- MODIFICATION END ---
 import Button from '../ui/Button.tsx';
 import Input from '../ui/Input.tsx';
 import { Plus, Trash2, FileText, Download, UploadCloud } from 'lucide-react';
 
-interface EmployeeDocumentsTabProps { // RENAMED
+interface EmployeeDocumentsTabProps {
     data: Partial<User>;
     onChange: (field: 'profile', value: any) => void;
     addToast: (message: string, type?: 'success' | 'error') => void;
-    // --- MODIFICATION START ---
     documentMasters: DocumentMaster[];
-    // --- MODIFICATION END ---
 }
 
-// --- MODIFICATION START ---
-export const EmployeeDocumentsTab: React.FC<EmployeeDocumentsTabProps> = ({ data, onChange, addToast, documentMasters }) => { // RENAMED
-// --- MODIFICATION END ---
+export const EmployeeDocumentsTab: React.FC<EmployeeDocumentsTabProps> = ({ data, onChange, addToast, documentMasters }) => {
     const [newDocName, setNewDocName] = useState('');
     const [newDocFile, setNewDocFile] = useState<File | null>(null);
 
@@ -50,7 +44,6 @@ export const EmployeeDocumentsTab: React.FC<EmployeeDocumentsTabProps> = ({ data
         onChange('profile', { ...data.profile, documents: [...documents, newDocument] });
         setNewDocName('');
         setNewDocFile(null);
-        // Clear the file input visually
         const input = document.getElementById('new-doc-file') as HTMLInputElement;
         if (input) input.value = '';
     };
@@ -70,7 +63,7 @@ export const EmployeeDocumentsTab: React.FC<EmployeeDocumentsTabProps> = ({ data
             <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600/50">
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Add New Document</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
-                    {/* --- MODIFICATION START --- */}
+                    {}
                     <div>
                         <label htmlFor="doc-type-select" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Document Name</label>
                         <select
@@ -85,7 +78,7 @@ export const EmployeeDocumentsTab: React.FC<EmployeeDocumentsTabProps> = ({ data
                             ))}
                         </select>
                     </div>
-                    {/* --- MODIFICATION END --- */}
+                    {}
                      <div>
                         <label htmlFor="new-doc-file" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">File</label>
                         <div className="relative">

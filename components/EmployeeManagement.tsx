@@ -112,7 +112,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
         
         const today = new Date().toISOString().split('T')[0];
         const records = attendance[userId];
-        if (!records || records.length === 0) return 'Z'; // Not Marked
+        if (!records || records.length === 0) return 'Z';
         const todaysRecord = records.slice().reverse().find(rec => rec.timestamp.startsWith(today));
         return todaysRecord ? todaysRecord.status : 'Z';
     };
@@ -174,7 +174,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
     if (status === 'Present' || status === 'Work From Home') {
         onUpdateAttendance(employee.id, status, '');
         setAttendanceMenuFor(null);
-    } else { // Absent
+    } else {
         setEditingEmployeeForReason(employee);
         setIsReasonModalOpen(true);
         setAttendanceMenuFor(null);

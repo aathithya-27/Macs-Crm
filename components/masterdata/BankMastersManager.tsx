@@ -29,7 +29,6 @@ const BankMastersManager: React.FC<BankMastersManagerProps> = ({
             <GenericMasterManager
                 key="bankMasters"
                 title="Manage Bank Master"
-                // We map the items to fit the generic component's expectation of a 'name' property
                 items={bankMasters.map(b => ({ id: b.id, name: b.bankName, active: b.active, order: b.order }))}
                 onUpdate={(updatedItems) => {
                     const originalBanksMap = new Map(bankMasters.map(b => [b.id, b]));

@@ -1,5 +1,4 @@
 import React, { useState, useCallback } from 'react';
-// CORRECTED: Fixed import path and added permission types
 import { Member, AppModule, PermissionLevel } from '../../types.ts';
 import { generateFinancialHealthReport } from '../../services/geminiService.ts';
 import Input from '../ui/Input.tsx';
@@ -10,7 +9,6 @@ interface NeedsAnalysisTabProps {
   data: Partial<Member>;
   onChange: (field: keyof Member, value: any) => void;
   addToast: (message: string, type?: 'success' | 'error') => void;
-  // CORRECTED: Accept permissions prop
   permissions: { [key in AppModule]?: PermissionLevel };
 }
 
@@ -19,7 +17,6 @@ export const NeedsAnalysisTab: React.FC<NeedsAnalysisTabProps> = ({ data, onChan
   const [isLoading, setIsLoading] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   
-  // CORRECTED: Permission check for the customer module
   const canModify = permissions?.customers === 'modify';
 
   const financialProfile = data.financialProfile || {};
@@ -55,7 +52,7 @@ export const NeedsAnalysisTab: React.FC<NeedsAnalysisTabProps> = ({ data, onChan
 
   return (
     <div className="flex flex-col lg:flex-row gap-8">
-      {/* Left Column: Data Input */}
+      {}
       <div className="lg:w-1/3 flex-shrink-0">
         <div className="space-y-6">
             <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Financial Info</h3>
@@ -112,7 +109,7 @@ export const NeedsAnalysisTab: React.FC<NeedsAnalysisTabProps> = ({ data, onChan
         </div>
       </div>
 
-      {/* Right Column: Report Output */}
+      {}
       <div className="lg:w-2/3 flex flex-col">
         <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-2">AI Generated Report</h3>
         <div className="flex-1 bg-gray-50 dark:bg-gray-900/50 rounded-lg border dark:border-gray-600/50 flex flex-col min-h-0">

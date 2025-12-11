@@ -1,12 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-// CORRECTED: Fixed import path and added permission types
 import { Member, AMC, MutualFundScheme, MutualFundHolding, MutualFundTransaction, BankMandate, MutualFundFieldMaster, AppModule, PermissionLevel } from '../../types';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import SearchableSelect from '../ui/SearchableSelect';
 import { Plus, Save, Trash2, Edit2, X, FileText } from 'lucide-react';
 
-// --- Bank Mandate Modal Component ---
 const MandateModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
@@ -66,7 +64,6 @@ interface InvestmentsTabProps {
     schemes: MutualFundScheme[];
     addToast: (message: string, type?: 'success' | 'error') => void;
     mutualFundFields: MutualFundFieldMaster[];
-    // NEW: Accept permissions prop
     permissions: { [key in AppModule]?: PermissionLevel };
 }
 
@@ -76,7 +73,6 @@ export const InvestmentsTab: React.FC<InvestmentsTabProps> = ({ data, onChange, 
     const [isMandateModalOpen, setIsMandateModalOpen] = useState(false);
     const [editingMandate, setEditingMandate] = useState<Partial<BankMandate> | null>(null);
 
-    // NEW: Permission check for the mutual funds module
     const canModify = permissions?.mutualFunds === 'modify';
 
     const initialFormState = {
@@ -149,7 +145,7 @@ export const InvestmentsTab: React.FC<InvestmentsTabProps> = ({ data, onChange, 
                         bankMandateId: formState.bankMandateId,
                         dynamicData: formState.dynamicData,
                         totalInvestment: newTotalInvestment,
-                        currentValue: h.currentValue + (newTotalInvestment - h.totalInvestment), // Adjust current value based on new investment
+                        currentValue: h.currentValue + (newTotalInvestment - h.totalInvestment),
                     };
                     return updatedHolding;
                 }

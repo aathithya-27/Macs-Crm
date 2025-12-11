@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
 
-// Import necessary types and UI components
 import { Company, Branch, Geography, User } from '../../types';
 import Button from '../ui/Button';
 import Input from '../ui/Input';
@@ -8,7 +7,6 @@ import ToggleSwitch from '../ui/ToggleSwitch';
 import SearchableSelect from '../ui/SearchableSelect';
 import { Save } from 'lucide-react';
 
-// Define the props specifically for this component
 interface CompanyMasterManagerProps {
     operatingCompanies: Company[];
     onUpdateOperatingCompanies: (data: Company) => void;
@@ -20,7 +18,6 @@ interface CompanyMasterManagerProps {
 const CompanyMasterManager: React.FC<CompanyMasterManagerProps> = ({ operatingCompanies, onUpdateOperatingCompanies, currentUser, geographies, canModify }) => {
     const [companyData, setCompanyData] = useState<Company | null>(null);
 
-    // State for cascading dropdowns
     const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
     const [selectedState, setSelectedState] = useState<string | null>(null);
     const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
@@ -68,7 +65,6 @@ const CompanyMasterManager: React.FC<CompanyMasterManagerProps> = ({ operatingCo
         setCompanyData(prev => {
             if (!prev) return null;
             const newAddress = { ...prev.address, [name]: value };
-            // Reset downstream fields if a parent changes
             if (name === 'country') {
                 newAddress.state = '';
                 newAddress.district = '';
@@ -95,7 +91,6 @@ const CompanyMasterManager: React.FC<CompanyMasterManagerProps> = ({ operatingCo
         }
     };
 
-    // Options for dropdowns
     const countryOptions = useMemo(() => geographies.filter(g => g.type === 'Country' && g.active).map(g => ({ value: g.id, label: g.name })), [geographies]);
     const stateOptions = useMemo(() => !selectedCountry ? [] : geographies.filter(g => g.type === 'State' && g.parentId === selectedCountry && g.active).map(g => ({ value: g.id, label: g.name })), [geographies, selectedCountry]);
     const districtOptions = useMemo(() => !selectedState ? [] : geographies.filter(g => g.type === 'District' && g.parentId === selectedState && g.active).map(g => ({ value: g.id, label: g.name })), [geographies, selectedState]);

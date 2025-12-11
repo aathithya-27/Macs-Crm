@@ -96,7 +96,7 @@ const MutualFundsManager: React.FC<MutualFundsManagerProps> = (props) => {
                     }
                 ]}
                 dependencyCheck={(id) =>
-                    allMembers.flatMap(member => // Changed 'm' to 'member'
+                    allMembers.flatMap(member =>
                         (member.mutualFundHoldings || []).filter(h => h.schemeId === id)
                                                       .map(h => ({ name: `Folio ${h.folioNumber} for ${member.name}`, type: 'member' }))
                     )

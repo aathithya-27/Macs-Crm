@@ -6,7 +6,7 @@ import { Tag, Calendar, PlusCircle, FileText } from 'lucide-react';
 
 interface VoiceNotesTabProps {
   data: Partial<Member>;
-  onSave: (member: Member) => void; // Kept for potential future use like deleting a note
+  onSave: (member: Member) => void;
   addToast: (message: string, type?: 'success' | 'error') => void;
   onCreateTask: (description: string, dueDate?: string, memberName?: string) => void;
 }
@@ -15,10 +15,8 @@ interface VoiceNotesTabProps {
 export const VoiceNotesTab: React.FC<VoiceNotesTabProps> = ({ data, onSave, addToast, onCreateTask }) => {
 
   const handleCreateTaskFromActionItem = (noteId: string, actionItemText: string) => {
-    // 1. Create the task using the existing global function
     onCreateTask(actionItemText, undefined, data.name || 'N/A');
     
-    // 2. Remove the action item from the specific voice note
     const updatedNotes = (data.voiceNotes || []).map(note => {
       if (note.id === noteId) {
         const newActionItems = (note.actionItems || []).filter(item => item !== actionItemText);
@@ -27,7 +25,6 @@ export const VoiceNotesTab: React.FC<VoiceNotesTabProps> = ({ data, onSave, addT
       return note;
     });
 
-    // 3. Save the updated member data via the onSave prop to persist the change
     const updatedMemberData = { ...data, voiceNotes: updatedNotes };
     onSave(updatedMemberData as Member);
     addToast('Task created from action item!', 'success');

@@ -6,7 +6,7 @@ interface TaskStatusManagerProps {
     taskStatuses: TaskStatusMaster[];
     onUpdateTaskStatuses: (data: TaskStatusMaster[]) => void;
     addToast: (message: string, type?: 'success' | 'error') => void;
-    allTasks: Task[]; // Needed for dependency check
+    allTasks: Task[];
     canCreate: boolean;
     canModify: boolean;
 }

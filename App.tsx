@@ -45,7 +45,7 @@ import MutualFunds from './components/MutualFunds.tsx';
 import { MasterData } from './components/masterdata/MasterData.tsx';
 import { TaskManagement } from './components/TaskManagement.tsx';
 import IncomeAndExpense from './components/IncomeAndExpense.tsx'; 
-import ProfitAndLoss from './components/ProfitAndLoss.tsx';
+import Accounts from './components/Accounts.tsx';
 import FestivalCalendar from './components/FestivalCalendar.tsx';
 import { VoucherSaveData } from './components/PaymentVoucherModal.tsx';
 import { ReceiptSaveData } from './components/ManualReceiptModal.tsx';
@@ -66,8 +66,7 @@ import {
     CustomerTier,
     Expense, ManualIncome, ManualCommission,
     Religion, Festival, FestivalDate,
-    IncomeCategoryLevel1, IncomeCategoryLevel2,
-    ExpenseCategoryLevel1, ExpenseCategoryLevel2,
+    AccountCategory, AccountSubCategory, AccountHead,
     AttendanceRecord,
     AttendanceState,
     CustomerFieldMaster,
@@ -106,7 +105,9 @@ import {
     getInsuranceTypeDocumentRules, updateInsuranceTypeDocumentRules,
     getLeadStageMasters, updateLeadStageMasters,
     getOccasionTypeMasters, updateOccasionTypeMasters,
-    getOpeningBalances, createOpeningBalance, updateOpeningBalance, deleteOpeningBalance
+    getOpeningBalances, createOpeningBalance, updateOpeningBalance, deleteOpeningBalance,getAccountCategories, updateAccountCategories,
+    getAccountSubCategories, updateAccountSubCategories,
+    getAccountHeads, updateAccountHeads,
 } from './services/apiService.ts';
 import { getPolicySuggestions, generateAnnualReview, generateUpsellOpportunityForMember, generateTodaysFocus } from './services/geminiService.ts';
 import ToastContainer from './components/ui/Toast.tsx';
@@ -142,10 +143,9 @@ import {
     initialInsuranceTypes,
     initialInsuranceFields,
     initialTasks,
-    initialExpenseCategoriesLevel1,
-    initialExpenseCategoriesLevel2,
-    initialIncomeCategoriesLevel1,
-    initialIncomeCategoriesLevel2,
+    initialAccountCategories,
+    initialAccountSubCategories,
+    initialAccountHeads,
     initialExpenses,
     initialManualIncomes,
     initialManualCommissions,
@@ -274,11 +274,9 @@ const App: React.FC = () => {
     const [insuranceFields, setInsuranceFields] = useState<InsuranceFieldMaster[]>(initialInsuranceFields);
     const [customerTiers, setCustomerTiers] = useState<CustomerTier[]>([]);
     const [customerTierCalculationMethod, setCustomerTierCalculationMethod] = useState<TierCalculationMethod>('sumAssured');
-    const [expenseCategoriesLevel1, setExpenseCategoriesLevel1] = useState<ExpenseCategoryLevel1[]>(initialExpenseCategoriesLevel1);
-    const [expenseCategoriesLevel2, setExpenseCategoriesLevel2] = useState<ExpenseCategoryLevel2[]>(initialExpenseCategoriesLevel2);
-
-    const [incomeCategoriesLevel1, setIncomeCategoriesLevel1] = useState<IncomeCategoryLevel1[]>(initialIncomeCategoriesLevel1);
-    const [incomeCategoriesLevel2, setIncomeCategoriesLevel2] = useState<IncomeCategoryLevel2[]>(initialIncomeCategoriesLevel2);
+    const [accountCategories, setAccountCategories] = useState<AccountCategory[]>(initialAccountCategories);
+    const [accountSubCategories, setAccountSubCategories] = useState<AccountSubCategory[]>(initialAccountSubCategories);
+    const [accountHeads, setAccountHeads] = useState<AccountHead[]>(initialAccountHeads);
     const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
     const [manualIncomes, setManualIncomes] = useState<ManualIncome[]>(initialManualIncomes);
     const [manualCommissions, setManualCommissions] = useState<ManualCommission[]>(initialManualCommissions);
@@ -315,7 +313,7 @@ const App: React.FC = () => {
     const currentUserPermissions = useMemo(() => {
         const finalPermissions: { [key in AppModule]?: PermissionLevel } = {};
         const allModules: AppModule[] = [
-            'dashboard', 'reports & insights', 'incomeAndExpense', 'profitAndLoss', 'calendar', 'employees', 'pipeline', 'customers',
+            'dashboard', 'reports & insights', 'incomeAndExpense', 'accounts', 'calendar', 'employees', 'pipeline', 'customers',
             'taskManagement', 'policies', 'notes', 'actionHub', 'servicesHub', 'location', 'chatbot', 'masterData',
             'advancedReports', 'upselling', 'mutualFunds', 'campaign'
         ];
@@ -426,11 +424,27 @@ const App: React.FC = () => {
     const handleUpdateRoutes = useCallback((newData: RouteType[]) => setRoutes([...newData]), []);
     const handleUpdateCustomerTiers = useCallback((newData: CustomerTier[]) => setCustomerTiers([...newData]), []);
     const handleUpdateCustomerFieldMasters = useCallback((newData: CustomerFieldMaster[]) => setCustomerFieldMasters([...newData]), []);
-    const handleUpdateExpenseCategoriesLevel1 = useCallback((newData: ExpenseCategoryLevel1[]) => setExpenseCategoriesLevel1([...newData]), []);
-    const handleUpdateExpenseCategoriesLevel2 = useCallback((newData: ExpenseCategoryLevel2[]) => setExpenseCategoriesLevel2([...newData]), []);
-
-    const handleUpdateIncomeCategoriesLevel1 = useCallback((newData: IncomeCategoryLevel1[]) => setIncomeCategoriesLevel1([...newData]), []);
-    const handleUpdateIncomeCategoriesLevel2 = useCallback((newData: IncomeCategoryLevel2[]) => setIncomeCategoriesLevel2([...newData]), []);
+const handleUpdateAccountCategories = useCallback(async (newData: AccountCategory[]) => {
+        try {
+            const updated = await updateAccountCategories(newData);
+            setAccountCategories(updated);
+            addToast('Account Categories updated!', 'success');
+        } catch (error) { addToast(`Failed to update: ${(error as Error).message}`, 'error'); }
+    }, [addToast]);
+    const handleUpdateAccountSubCategories = useCallback(async (newData: AccountSubCategory[]) => {
+        try {
+            const updated = await updateAccountSubCategories(newData);
+            setAccountSubCategories(updated);
+            addToast('Account Sub-Categories updated!', 'success');
+        } catch (error) { addToast(`Failed to update: ${(error as Error).message}`, 'error'); }
+    }, [addToast]);
+    const handleUpdateAccountHeads = useCallback(async (newData: AccountHead[]) => {
+        try {
+            const updated = await updateAccountHeads(newData);
+            setAccountHeads(updated);
+            addToast('Account Heads updated!', 'success');
+        } catch (error) { addToast(`Failed to update: ${(error as Error).message}`, 'error'); }
+    }, [addToast]);
     const handleUpdateReligions = useCallback((newData: Religion[]) => setReligions([...newData]), []);
     const handleUpdateFestivals = useCallback((newData: Festival[]) => setFestivals([...newData]), []);
     const handleUpdateFestivalDates = useCallback((newData: FestivalDate[]) => setFestivalDates([...newData]), []);
@@ -542,46 +556,9 @@ const App: React.FC = () => {
         const newAndUpdatedExpenses: Expense[] = [];
 
         lineItems.forEach(item => {
-            let categoryLevel1Id: string | undefined;
-            let categoryLevel2Id: string | undefined;
+            const accountHeadId = item.accountHeadId || undefined;
 
-            const pathParts = item.fullCategoryPath.split(' > ');
-            if (pathParts.length > 0 && pathParts[0] !== 'Manual Entry') {
-                const l1 = expenseCategoriesLevel1.find(c => c.name === pathParts[0]);
-                if (l1) {
-                    categoryLevel1Id = l1.id;
-                    if (pathParts.length > 1) {
-                        const l2 = expenseCategoriesLevel2.find(c => c.name === pathParts[1] && c.parentId === categoryLevel1Id);
-                        if (l2) {
-                            categoryLevel2Id = l2.id;
-                        }
-                    }
-                }
-            }
-
-            if (item.isNew) {
-                const newExpense: Expense = {
-                    id: `exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                    date,
-                    amount: item.amount,
-                    description: item.description,
-                    paidTo: payeeName,
-                    createdBy: currentUser?.id || 'unknown',
-                    voucherNo,
-                    branch_id,
-                    modeOfPayment: item.modeOfPayment,
-                    expenseHead: item.expenseHead,
-                    categoryLevel1Id,
-                    categoryLevel2Id,
-                    finYearId,
-                    partyId,
-                    partyType,
-                    bankId: item.bankId,
-                    docNo,
-                    docDate,
-                };
-                newAndUpdatedExpenses.push(newExpense);
-            } else {
+            if (item.isNew === false && item.id) {
                 const existingExpense = existingExpensesMap.get(item.id);
                 if (existingExpense) {
                     const updatedExpense = {
@@ -593,9 +570,7 @@ const App: React.FC = () => {
                         voucherNo,
                         branch_id,
                         modeOfPayment: item.modeOfPayment,
-                        expenseHead: item.expenseHead,
-                        categoryLevel1Id: categoryLevel1Id || existingExpense.categoryLevel1Id,
-                        categoryLevel2Id: categoryLevel2Id || existingExpense.categoryLevel2Id,
+                        accountHeadId: accountHeadId || existingExpense.accountHeadId,
                         finYearId,
                         partyId,
                         partyType,
@@ -606,6 +581,26 @@ const App: React.FC = () => {
                     newAndUpdatedExpenses.push(updatedExpense);
                     processedExistingIds.add(item.id);
                 }
+            } else {
+                const newExpense: Expense = {
+                    id: `exp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    date,
+                    amount: item.amount,
+                    description: item.description,
+                    paidTo: payeeName,
+                    createdBy: currentUser?.id || 'unknown',
+                    voucherNo,
+                    branch_id,
+                    modeOfPayment: item.modeOfPayment,
+                    accountHeadId,
+                    finYearId,
+                    partyId,
+                    partyType,
+                    bankId: item.bankId,
+                    docNo,
+                    docDate,
+                };
+                newAndUpdatedExpenses.push(newExpense);
             }
         });
 
@@ -615,7 +610,7 @@ const App: React.FC = () => {
         });
 
         addToast(`Voucher ${voucherNo} has been saved successfully.`, 'success');
-    }, [expenses, currentUser, expenseCategoriesLevel1, expenseCategoriesLevel2, addToast]);
+    }, [expenses, currentUser, addToast]);
 
     const handleSaveReceipt = useCallback((data: Omit<ReceiptSaveData, 'createdBy' | 'id'> & { id?: string }) => {
         if (!currentUser) return;
@@ -705,7 +700,8 @@ const App: React.FC = () => {
                     insuranceTypeDocumentRulesData,
                     leadStageMastersData,
                     occasionTypeMastersData,
-                    openingBalancesData
+                    openingBalancesData,
+                    accCats, accSubCats, accHeads
                 ] = await Promise.all([
                     getMembers(),
                     getLeads(),
@@ -731,7 +727,10 @@ const App: React.FC = () => {
                     getInsuranceTypeDocumentRules(),
                     getLeadStageMasters(),
                     getOccasionTypeMasters(),
-                    getOpeningBalances()
+                    getOpeningBalances(),
+                    getAccountCategories(),
+                    getAccountSubCategories(),
+                    getAccountHeads()
                 ]);
                 setAllMembers(membersData);
                 setAllLeads(leadsData);
@@ -762,6 +761,10 @@ const App: React.FC = () => {
                 setLeadStageMasters(leadStageMastersData);
                 setOccasionTypeMasters(occasionTypeMastersData);
                 setOpeningBalances(openingBalancesData);
+                
+                setAccountCategories(accCats);
+                setAccountSubCategories(accSubCats);
+                setAccountHeads(accHeads);
 
             } catch (error) {
                 console.error("Failed to load initial data:", error);
@@ -2126,7 +2129,58 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                                 <Route path="/employees" element={<EmployeeManagement {...{ users: companyUsers, allMembers: companyMembers, onOpenEmployeeModal: handleOpenEmployeeModal, onToggleStatus: async (userId) => { const user = allUsers.find(u => u.id === userId); if(user) { const newStatus = user.profile?.status === 'Active' ? 'Inactive' : 'Active'; await handleSaveEmployee({...user, profile: {...user.profile, status: newStatus} as EmployeeProfile}); }}, attendance, onUpdateAttendance: handleUpdateAttendanceByAdmin, Branches: companyBranches, addToast, designations, permissions: currentUserPermissions, roles }} />} />
                                 <Route path="/servicesHub" element={<ServicesHub addToast={addToast} allMembers={companyMembers} onViewMember={handleOpenMemberModal} onUpdateCommissionStatus={handleUpdateCommissionStatus} currentUser={currentUser} designations={designations} />} />
                                 <Route path="/actionHub" element={<ActionAutomationHub {...{ notifications: hubNotifications, onRenewPolicy: handleRenewPolicy, activityLog: hubActivityLog, addToast, onNotificationSent: () => {}, appointments: hubAppointments, tasks: hubTasks, onDismissItem: handleDismissItem, savedGreetingUrl: null, setSavedGreetingUrl: () => {}, upsellOpportunities, onDismissOpportunity: (id) => setUpsellOpportunities(prev => prev.filter(o => o.id !== id)), members: companyMembers, onScheduleMessage: (msg) => { setCustomMessages(prev => [...prev, {...msg, id: `cm-${Date.now()}`}]); addToast('Custom message scheduled!', 'success'); }, onClearAll: handleClearActionHubNotifications, onScheduleAppointment: (appt) => { const member = companyMembers.find(m => m.id === appt.memberId); if(member) { setAppointments(prev => [...prev, { ...appt, id: `appt-${Date.now()}`, memberName: member.name }]); addToast('Appointment scheduled!', 'success'); } }, rules: automationRules, onUpdateRule: (rule) => setAutomationRules(prev => prev.map(r => r.id === rule.id ? rule : r)), onAddRule: handleAddAutomationRule, docTemplates, onUpdateTemplates: setDocTemplates, currentUser, users: companyUsers, onViewMember: onViewMember, permissions: currentUserPermissions, occasionTypeMasters, onUpdateOccasionTypeMasters: handleUpdateOccasionTypeMasters,roles }} />} />
-                                <Route path="/masterData/*" element={<MasterData allTasks={[]} {...{ addToast, allMembers: companyMembers, allLeads: companyLeads, users: companyUsers, customerFieldMasters, onUpdateCustomerFieldMasters: handleUpdateCustomerFieldMasters, businessVerticals, onUpdateBusinessVerticals: handleUpdateBusinessVerticals, leadSources, onUpdateLeadSources: handleUpdateLeadSources, schemes, onUpdateSchemes: handleUpdateSchemes, agencies, onUpdateAgencies: handleUpdateAgencies, operatingCompanies, onUpdateOperatingCompanies: handleUpdateOperatingCompany, Branches: allBranches, onUpdateBranches: handleUpdateBranches, CompanyInfo, onUpdateCompanyInfo: setCompanyInfo, geographies, onUpdateGeographies: handleUpdateGeographies, relationshipTypes, onUpdateRelationshipTypes: handleUpdateRelationshipTypes, documentMasters, onUpdateDocumentMasters: handleUpdateDocumentMasters, insuranceTypeDocumentRules, onUpdateInsuranceTypeDocumentRules: handleUpdateInsuranceTypeDocumentRules, giftMasters, onUpdateGiftMasters: handleUpdateGiftMasters, customerTiers, onUpdateCustomerTiers: handleUpdateCustomerTiers, taskStatuses: taskStatusMasters, onUpdateTaskStatuses: handleUpdateTaskStatusMasters, customerCategories, onUpdateCustomerCategories: handleUpdateCustomerCategories, bankMasters, onUpdateBankMasters: handleUpdateBankMasters, customerSubCategories, onUpdateCustomerSubCategories: handleUpdateCustomerSubCategories, customerGroups, onUpdateCustomerGroups: handleUpdateCustomerGroups, taskMasters, onUpdateTaskMasters: handleUpdateTaskMasters, insuranceTypes, onUpdateInsuranceTypes: handleUpdateInsuranceTypes, insuranceFields, onUpdateInsuranceFields: handleUpdateInsuranceFields, routes, onUpdateRoutes: handleUpdateRoutes, designations, onUpdateDesignations: handleUpdateDesignations, currentUser, customerTierCalculationMethod, onUpdateCustomerTierCalculationMethod: handleUpdateAllMemberTiers, expenseCategoriesLevel1, onUpdateExpenseCategoriesLevel1: handleUpdateExpenseCategoriesLevel1, expenseCategoriesLevel2, onUpdateExpenseCategoriesLevel2: handleUpdateExpenseCategoriesLevel2, incomeCategoriesLevel1, onUpdateIncomeCategoriesLevel1: handleUpdateIncomeCategoriesLevel1, incomeCategoriesLevel2, onUpdateIncomeCategoriesLevel2: handleUpdateIncomeCategoriesLevel2, religions, onUpdateReligions: handleUpdateReligions, festivals, onUpdateFestivals: handleUpdateFestivals, festivalDates, onUpdateFestivalDates: handleUpdateFestivalDates, amcs, onUpdateAmcs: handleUpdateAmcs, mutualFundSchemes, onUpdateMutualFundSchemes: handleUpdateMutualFundSchemes, mutualFundFields, onUpdateMutualFundFields: handleUpdateMutualFundFields, rolePermissions, onUpdateRolePermissions: handleUpdateRolePermissions, genders, onUpdateGenders: handleUpdateGenders, maritalStatuses, onUpdateMaritalStatuses: handleUpdateMaritalStatuses, customerTypes, onUpdateCustomerTypes: handleUpdateCustomerTypes, processStageMasters, onUpdateProcessStageMasters: handleUpdateProcessStageMasters, accountTypes: accountTypes, onUpdateAccountTypes: handleUpdateAccountTypes, financialYears, onUpdateFinancialYears: handleUpdateFinancialYears, documentNumbering, onUpdateDocumentNumbering: handleUpdateDocumentNumbering, activeFinancialYearId, roles, onUpdateRoles: handleUpdateRoles, leadStageMasters, onUpdateLeadStageMasters: handleUpdateLeadStageMasters }} />} />
+                                
+                                <Route path="/masterData/*" element={<MasterData allTasks={[]} {...{ 
+                                    addToast, allMembers: companyMembers, allLeads: companyLeads, users: companyUsers, 
+                                    customerFieldMasters, onUpdateCustomerFieldMasters: handleUpdateCustomerFieldMasters, 
+                                    businessVerticals, onUpdateBusinessVerticals: handleUpdateBusinessVerticals, 
+                                    leadSources, onUpdateLeadSources: handleUpdateLeadSources, 
+                                    schemes, onUpdateSchemes: handleUpdateSchemes, 
+                                    agencies, onUpdateAgencies: handleUpdateAgencies, 
+                                    operatingCompanies, onUpdateOperatingCompanies: handleUpdateOperatingCompany, 
+                                    Branches: allBranches, onUpdateBranches: handleUpdateBranches, 
+                                    CompanyInfo, onUpdateCompanyInfo: setCompanyInfo, 
+                                    geographies, onUpdateGeographies: handleUpdateGeographies, 
+                                    relationshipTypes, onUpdateRelationshipTypes: handleUpdateRelationshipTypes, 
+                                    documentMasters, onUpdateDocumentMasters: handleUpdateDocumentMasters, 
+                                    insuranceTypeDocumentRules, onUpdateInsuranceTypeDocumentRules: handleUpdateInsuranceTypeDocumentRules, 
+                                    giftMasters, onUpdateGiftMasters: handleUpdateGiftMasters, 
+                                    customerTiers, onUpdateCustomerTiers: handleUpdateCustomerTiers, 
+                                    taskStatuses: taskStatusMasters, onUpdateTaskStatuses: handleUpdateTaskStatusMasters, 
+                                    customerCategories, onUpdateCustomerCategories: handleUpdateCustomerCategories, 
+                                    bankMasters, onUpdateBankMasters: handleUpdateBankMasters, 
+                                    customerSubCategories, onUpdateCustomerSubCategories: handleUpdateCustomerSubCategories, 
+                                    customerGroups, onUpdateCustomerGroups: handleUpdateCustomerGroups, 
+                                    taskMasters, onUpdateTaskMasters: handleUpdateTaskMasters, 
+                                    insuranceTypes, onUpdateInsuranceTypes: handleUpdateInsuranceTypes, 
+                                    insuranceFields, onUpdateInsuranceFields: handleUpdateInsuranceFields, 
+                                    routes, onUpdateRoutes: handleUpdateRoutes, 
+                                    designations, onUpdateDesignations: handleUpdateDesignations, 
+                                    currentUser, 
+                                    customerTierCalculationMethod, onUpdateCustomerTierCalculationMethod: handleUpdateAllMemberTiers, 
+                                    
+                                    accountCategories: accountCategories, onUpdateAccountCategories: handleUpdateAccountCategories,
+                                    accountSubCategories: accountSubCategories, onUpdateAccountSubCategories: handleUpdateAccountSubCategories,
+                                    accountHeads: accountHeads, onUpdateAccountHeads: handleUpdateAccountHeads,
+
+                                    religions, onUpdateReligions: handleUpdateReligions, 
+                                    festivals, onUpdateFestivals: handleUpdateFestivals, 
+                                    festivalDates, onUpdateFestivalDates: handleUpdateFestivalDates, 
+                                    amcs, onUpdateAmcs: handleUpdateAmcs, 
+                                    mutualFundSchemes, onUpdateMutualFundSchemes: handleUpdateMutualFundSchemes, 
+                                    mutualFundFields, onUpdateMutualFundFields: handleUpdateMutualFundFields, 
+                                    rolePermissions, onUpdateRolePermissions: handleUpdateRolePermissions, 
+                                    genders, onUpdateGenders: handleUpdateGenders, 
+                                    maritalStatuses, onUpdateMaritalStatuses: handleUpdateMaritalStatuses, 
+                                    customerTypes, onUpdateCustomerTypes: handleUpdateCustomerTypes, 
+                                    processStageMasters, onUpdateProcessStageMasters: handleUpdateProcessStageMasters, 
+                                    accountTypes: accountTypes, onUpdateAccountTypes: handleUpdateAccountTypes, 
+                                    financialYears, onUpdateFinancialYears: handleUpdateFinancialYears, 
+                                    documentNumbering, onUpdateDocumentNumbering: handleUpdateDocumentNumbering, 
+                                    activeFinancialYearId, roles, onUpdateRoles: handleUpdateRoles, 
+                                    leadStageMasters, onUpdateLeadStageMasters: handleUpdateLeadStageMasters 
+                                }} />} />
+                                
                                 <Route path="/reports-insights" element={<ReportsAndInsights members={companyMembers} users={companyUsers} tasks={allTasks} attendance={attendance} onUpdateAttendance={handleUpdateAttendanceByAdmin} addToast={addToast} allLeads={companyLeads} currentUser={currentUser} leadSources={leadSources} schemes={schemes} insuranceTypes={insuranceTypes} onOpenAttendanceReport={() => setIsAttendanceReportModalOpen(true)} designations={designations} roles={roles} permissions={currentUserPermissions} />} />
                                 <Route path="/taskManagement" element={<TaskManagement allTasks={allTasks} permissions={currentUserPermissions} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} onCreateTask={handleCreateTask} onCreateBulkTask={handleCreateBulkTask} onOpenTask={handleOpenTask} users={companyUsers} members={companyMembers} leads={companyLeads} taskStatusMasters={taskStatusMasters} taskMasters={taskMasters} addToast={addToast} currentUser={currentUser} Branches={companyBranches} onReassignTask={handleReassignTask} onUpdateTaskWithRemark={handleUpdateTask} designations={designations} roles={roles} />} />
                                 
@@ -2138,18 +2192,19 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                                     manualIncomes={manualIncomes} 
                                     manualCommissions={manualCommissions}
                                     manualReceipts={manualReceipts}
-                                    openingBalances={openingBalances}
                                     onSaveReceipt={handleSaveReceipt}
                                     onDeleteManualReceipt={handleDeleteManualReceipt}
-                                    expenseCategoriesLevel1={expenseCategoriesLevel1} expenseCategoriesLevel2={expenseCategoriesLevel2}
-                                    incomeCategoriesLevel1={incomeCategoriesLevel1} incomeCategoriesLevel2={incomeCategoriesLevel2}
+                                    
+                                    accountCategories={accountCategories}
+                                    accountSubCategories={accountSubCategories}
+                                    accountHeads={accountHeads}
+
                                     onAddExpense={handleAddExpense} onUpdateExpense={handleUpdateExpense} onDeleteExpense={handleDeleteExpense} onDeleteVoucher={handleDeleteVoucher}
                                     onAddManualIncome={handleAddManualIncome} onUpdateManualIncome={handleUpdateManualIncome} onDeleteManualIncome={handleDeleteManualIncome}
                                     onAddManualCommission={handleAddManualCommission} onUpdateManualCommission={handleUpdateManualCommission} onDeleteManualCommission={handleDeleteManualCommission}
-                                    onAddOpeningBalance={handleAddOpeningBalance} onUpdateOpeningBalance={handleUpdateOpeningBalance} onDeleteOpeningBalance={handleDeleteOpeningBalance}
                                     currentUser={currentUser} companyInfo={operatingCompanies.find(c => c.id === currentUser?.comp_id) || null} branches={companyBranches}
                                     onSaveVoucher={handleSaveVoucherDetails}
-                                    insuranceTypes={insuranceTypes} permissions={currentUserPermissions}
+                                    permissions={currentUserPermissions}
                                     activeFinancialYearId={activeFinancialYearId}
                                     financialYears={financialYears}
                                     trueCurrentFinancialYear={trueCurrentFinancialYear}
@@ -2157,18 +2212,29 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                                     currentReceiptDocNumbering={documentNumbering.find(dn => dn.finYearId === trueCurrentFinancialYear?.id && dn.type === 'Receipt') || null}
                                     lastVoucherNumber={lastVoucherNumber}
                                     lastReceiptNumber={lastReceiptNumber}
-                                />} />
+                                /> } />
                                 
-                                 <Route path="/profitAndLoss" element={
-                                    <ProfitAndLoss
+                                 <Route path="/accounts" element={
+                                    <Accounts
                                         expenses={expenses}
                                         manualReceipts={manualReceipts}
                                         allMembers={companyMembers}
                                         users={companyUsers}
-                                        expenseCategoriesLevel1={expenseCategoriesLevel1}
-                                        expenseCategoriesLevel2={expenseCategoriesLevel2}
-                                        incomeCategoriesLevel1={incomeCategoriesLevel1}
-                                        incomeCategoriesLevel2={incomeCategoriesLevel2}
+                                        
+                                        accountCategories={accountCategories}
+                                        accountSubCategories={accountSubCategories}
+                                        accountHeads={accountHeads}
+
+                                        bankMasters={bankMasters}
+                                        openingBalances={openingBalances}
+                                        onAddOpeningBalance={handleAddOpeningBalance}
+                                        onUpdateOpeningBalance={handleUpdateOpeningBalance}
+                                        onDeleteOpeningBalance={handleDeleteOpeningBalance}
+                                        canCreate={currentUserPermissions.incomeAndExpense === 'create' || currentUserPermissions.incomeAndExpense === 'modify'}
+                                        canModify={currentUserPermissions.incomeAndExpense === 'modify'}
+                                        canCreateNew={!!trueCurrentFinancialYear && activeFinancialYearId === trueCurrentFinancialYear?.id}
+                                        creationDisabledReason={""}
+                                        trueCurrentFinancialYear={trueCurrentFinancialYear}
                                     />
                                 } />
 

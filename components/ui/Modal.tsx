@@ -1,4 +1,3 @@
-// --- START OF FILE Modal.tsx (Final, Corrected Version) ---
 
 import React, { useEffect, useRef } from 'react';
 
@@ -8,7 +7,6 @@ interface ModalProps {
   children: React.ReactNode;
   contentClassName?: string;
   initialFocusRef?: React.RefObject<HTMLElement>;
-  // NEW: Add a prop to explicitly receive the element that triggered the modal
   triggerRef?: React.RefObject<HTMLElement | null>;
 }
 
@@ -18,8 +16,6 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, contentClassNa
 
   useEffect(() => {
     if (isOpen) {
-      // PRIORITY 1: Use the explicitly passed triggerRef if it exists.
-      // PRIORITY 2: Fallback to the active element.
       previousFocusRef.current = triggerRef?.current || document.activeElement as HTMLElement;
 
       const handleKeyDown = (event: KeyboardEvent) => {
@@ -45,13 +41,11 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, contentClassNa
       return () => {
         document.removeEventListener('keydown', handleKeyDown);
         clearTimeout(timer);
-        // On close, focus the element we stored.
         previousFocusRef.current?.focus();
       };
     }
   }, [isOpen, onClose, initialFocusRef, triggerRef]);
 
-  // Focus Trapping logic remains the same...
   useEffect(() => {
     if (!isOpen) return;
     const handleFocusTrap = (event: KeyboardEvent) => {

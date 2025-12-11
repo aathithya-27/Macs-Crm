@@ -47,7 +47,7 @@ export const ViewByTierModal: React.FC<ViewByTierModalProps> = ({
                     assignedTier = currentTier;
                     break;
                 }
-            } else { // 'premium'
+            } else {
                  if (totalPremium >= (currentTier.minimumPremium ?? 0)) {
                     assignedTier = currentTier;
                     break;

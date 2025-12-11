@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { ChevronDown, PlusCircle, X } from 'lucide-react';
-import Input from './Input.tsx'; // Placeholder, adjust import path if necessary
+import Input from './Input.tsx';
 
 interface Option {
   value: string;
@@ -70,7 +70,7 @@ const DropdownMenu = ({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown); 
     };
-  }, [onClose, triggerRef]); // Dependency array ensures effect re-runs if onClose/triggerRef changes
+  }, [onClose, triggerRef]);
 
 
 

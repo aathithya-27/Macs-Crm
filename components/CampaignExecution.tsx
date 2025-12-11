@@ -29,24 +29,20 @@ interface CampaignExecutionProps {
     addToast: (message: string, type?: 'success' | 'error') => void;
 }
 
-// --- Parameter Keys ---
 type CustomerParamKey = 
     'category' | 'subcategory' | 'group' | 'type' | 
     'anniversary' | 'gender' | 'bloodGroup' | 'religion' | 'maritalStatus' |
     'branch' | 'advisor' | 'lead' | 'city' | 'area';
 
 type BusinessParamKey = 
-    // Insurance
     'insuranceType' | 'insuranceSubType' | 'agency' | 'scheme' | 
     'coverage' | 'premium' | 'premiumFrequency' | 'policyTerm' |
-    // Mutual Funds
     'amcs' | 'mfScheme' | 'sipLumpsum' | 'sipAmount' | 'lumpsumAmount';
 
 interface FilterState {
     [key: string]: any;
 }
 
-// Campaign Execution Data Interface
 interface CampaignExecutionData {
     id: string;
     campaignId: string;
@@ -60,7 +56,6 @@ interface CampaignExecutionData {
     updatedAt: string;
 }
 
-// Persisted State Interface
 interface PersistedState {
     selectedCampaignId: string;
     selectedCustomerParams: CustomerParamKey[];
@@ -73,7 +68,6 @@ interface PersistedState {
 
 const initialFilters = {};
 
-// --- Export Helpers ---
 const formatCsvCell = (cellData: any): string => {
     if (cellData === null || cellData === undefined) return 'N/A';
     if (Array.isArray(cellData)) cellData = cellData.join('; ');
@@ -97,7 +91,6 @@ const downloadBlob = (content: string, filename: string, contentType: string) =>
 };
 
 const CampaignExecution: React.FC<CampaignExecutionProps> = ({
-    // Providing default values prevents "undefined.map" errors
     members = [],
     geographies = [],
     businessVerticals = [],
@@ -110,7 +103,6 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
     leadSources = [],
     addToast
 }) => {
-    // --- Data Loading ---
     const [campaigns, setCampaigns] = useState<CampaignMaster[]>([]);
     const [branches, setBranches] = useState<Branch[]>([]);
     const [advisors, setAdvisors] = useState<User[]>([]);
@@ -121,25 +113,20 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
         getUsers().then(data => setAdvisors(data.filter(u => u.role === 'Advisor')));
     }, []);
 
-    // --- State Management ---
     
-    // Left Panel Selection
     const [selectedCustomerParams, setSelectedCustomerParams] = useState<Set<CustomerParamKey>>(new Set());
     const [selectedBusinessParams, setSelectedBusinessParams] = useState<Set<BusinessParamKey>>(new Set());
     const [selectedVertical, setSelectedVertical] = useState<'Insurance' | 'Mutual Funds' | ''>(''); 
 
-    // Search Parameters (Right Panel)
     const [activeCustomerParams, setActiveCustomerParams] = useState<Set<CustomerParamKey>>(new Set());
     const [activeBusinessParams, setActiveBusinessParams] = useState<Set<BusinessParamKey>>(new Set());
     const [activeVertical, setActiveVertical] = useState<'Insurance' | 'Mutual Funds' | ''>('');
     const [filterValues, setFilterValues] = useState<FilterState>(initialFilters);
     
-    // Results & Execution
     const [previewResults, setPreviewResults] = useState<Member[]>([]);
     const [executionList, setExecutionList] = useState<Member[]>([]); 
     const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
     
-    // UI States
     const [isSearching, setIsSearching] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -148,32 +135,26 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
     const [isViewModalOpen, setIsViewModalOpen] = useState(false);
     const [viewingCampaignData, setViewingCampaignData] = useState<CampaignExecutionData | null>(null);
     
-    // Modal Table Selection
     const [modalSelectedIds, setModalSelectedIds] = useState<Set<string>>(new Set());
     const [doneStatus, setDoneStatus] = useState<Record<string, boolean>>({});
     
-    // Campaign Executions Storage
     const [campaignExecutions, setCampaignExecutions] = useState<CampaignExecutionData[]>([]);
     
-    // Export Field Selection
     const [exportSelectedFields, setExportSelectedFields] = useState<Set<string>>(new Set(['name', 'mobile', 'city']));
     const [currentEditCampaignId, setCurrentEditCampaignId] = useState<string>('');
     const [currentExportCampaignId, setCurrentExportCampaignId] = useState<string>('');
     
-    // Edit Modal States
     const [editCustomerParams, setEditCustomerParams] = useState<Set<CustomerParamKey>>(new Set());
     const [editBusinessParams, setEditBusinessParams] = useState<Set<BusinessParamKey>>(new Set());
     const [editVertical, setEditVertical] = useState<'Insurance' | 'Mutual Funds' | ''>('');
     const [editFilterValues, setEditFilterValues] = useState<FilterState>({});
     const [editExecutionList, setEditExecutionList] = useState<Member[]>([]);
 
-    // --- Computed Helpers ---
     const filteredSubCategories = useMemo(() => {
         if (!filterValues.categoryId || !customerSubCategories) return [];
         return customerSubCategories.filter(sc => sc.parentId === filterValues.categoryId);
     }, [filterValues.categoryId, customerSubCategories]);
 
-    // --- Persistence Logic ---
     useEffect(() => {
         const savedState = sessionStorage.getItem('campaign_module_state_v3');
         if (savedState) {
@@ -208,7 +189,6 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
         sessionStorage.setItem('campaign_module_state_v3', JSON.stringify(stateToSave));
     }, [selectedCampaignId, selectedCustomerParams, selectedBusinessParams, selectedVertical, filterValues, executionList, campaignExecutions]);
 
-    // Load campaign data when campaign is selected
     useEffect(() => {
         if (selectedCampaignId) {
             const latestExecution = campaignExecutions
@@ -217,13 +197,11 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
             
             if (latestExecution) {
                 setExecutionList(latestExecution.executionList);
-                // Only update parameters if user hasn't configured them yet
                 if (selectedCustomerParams.size === 0 && selectedBusinessParams.size === 0 && !selectedVertical) {
                     setSelectedCustomerParams(new Set(latestExecution.selectedCustomerParams));
                     setSelectedBusinessParams(new Set(latestExecution.selectedBusinessParams));
                     setSelectedVertical(latestExecution.selectedVertical);
                 }
-                // Only update active parameters if they haven't been set by GO button
                 if (activeCustomerParams.size === 0 && activeBusinessParams.size === 0 && !activeVertical) {
                     setActiveCustomerParams(new Set(latestExecution.selectedCustomerParams));
                     setActiveBusinessParams(new Set(latestExecution.selectedBusinessParams));
@@ -231,14 +209,12 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                     setFilterValues(latestExecution.filterValues);
                 }
             } else {
-                // Only reset execution list for new campaign, preserve user's parameter selections
                 setExecutionList([]);
             }
         }
     }, [selectedCampaignId, campaignExecutions]);
 
 
-    // --- Toggles ---
     const toggleCustomerParam = (key: CustomerParamKey) => {
         const newSet = new Set(selectedCustomerParams);
         if (newSet.has(key)) newSet.delete(key);
@@ -253,14 +229,12 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
         setSelectedBusinessParams(newSet);
     };
 
-    // --- Action: GO Button ---
     const handleGo = () => {
         setActiveCustomerParams(new Set(selectedCustomerParams));
         setActiveBusinessParams(new Set(selectedBusinessParams));
         setActiveVertical(selectedVertical);
     };
 
-    // --- Action: Clear All ---
     const handleClearAll = () => {
         setSelectedCustomerParams(new Set());
         setSelectedBusinessParams(new Set());
@@ -272,13 +246,11 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
         addToast('All parameters and filters cleared', 'success');
     };
 
-    // --- Action: View Campaign ---
     const handleViewCampaign = (execution: CampaignExecutionData) => {
         setViewingCampaignData(execution);
         setIsViewModalOpen(true);
     };
 
-    // --- Action: Edit Campaign ---
     const handleEditCampaign = (execution: CampaignExecutionData) => {
         setIsEditMode(true);
         setEditingCampaignId(execution.id);
@@ -294,7 +266,6 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
         addToast(`Editing ${execution.campaignName}`, 'success');
     };
 
-    // --- Action: Save Edit Changes ---
     const handleSaveEditChanges = () => {
         if (!editingCampaignId) return;
         
@@ -313,19 +284,17 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
             setCampaignExecutions(updatedExecutions);
             setIsEditMode(false);
             setEditingCampaignId('');
-            setExecutionList([]); // Hide the table after saving
+            setExecutionList([]);
             addToast('Campaign execution updated successfully', 'success');
         }
     };
 
-    // --- Action: Cancel Edit ---
     const handleCancelEdit = () => {
         setIsEditMode(false);
         setEditingCampaignId('');
         addToast('Edit cancelled', 'success');
     };
 
-    // --- Action: Search ---
     const handleSearch = () => {
         if (!selectedCampaignId) {
             addToast('Please select a campaign first', 'error');
@@ -338,7 +307,6 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
             const results = members.filter(member => {
                 let matches = true;
 
-                // --- Customer Filters ---
                 if (activeCustomerParams.has('city') && filterValues.city) {
                     if (!member.city?.toLowerCase().includes(filterValues.city.toLowerCase())) matches = false;
                 }
@@ -382,30 +350,24 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                    if (!member.anniversary || !member.anniversary.includes(`-${filterValues.anniversaryMonth}-`)) matches = false;
                 }
 
-                // --- Business Filters ---
                 if (matches && activeVertical) {
                     if (activeVertical === 'Insurance') {
                         const policies = member.policies || [];
                         if (policies.length === 0) matches = false;
                         else {
                              let policyMatch = true;
-                             // Filter: Insurance Type
                              if (activeBusinessParams.has('insuranceType') && filterValues.insuranceTypeId) {
                                  if (!policies.some(p => p.insuranceTypeId === filterValues.insuranceTypeId)) policyMatch = false;
                              }
-                             // Filter: Premium
                              if (activeBusinessParams.has('premium') && filterValues.minPremium) {
                                 if (policies.reduce((sum, p) => sum + (p.premium || 0), 0) < parseFloat(filterValues.minPremium)) policyMatch = false;
                              }
-                             // Filter: Coverage
                              if (activeBusinessParams.has('coverage') && filterValues.minCoverage) {
                                 if (policies.reduce((sum, p) => sum + (p.coverage || 0), 0) < parseFloat(filterValues.minCoverage)) policyMatch = false;
                              }
-                             // Filter: Policy Term
                              if (activeBusinessParams.has('policyTerm') && filterValues.minPolicyTerm) {
                                  if (!policies.some(p => (p.policyTerm || 0) >= parseFloat(filterValues.minPolicyTerm))) policyMatch = false;
                              }
-                             // Filter: Scheme
                              if (activeBusinessParams.has('scheme') && filterValues.schemeName) {
                                  if (!policies.some(p => p.schemeName?.toLowerCase().includes(filterValues.schemeName.toLowerCase()))) policyMatch = false;
                              }
@@ -417,12 +379,10 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                         if (holdings.length === 0) matches = false;
                         else {
                             let mfMatch = true;
-                            // Filter: SIP Amount
                             if (activeBusinessParams.has('sipAmount') && filterValues.minSip) {
                                 const totalSip = holdings.filter(h => h.investmentType === 'SIP').reduce((sum, h) => sum + (h.sipAmount || 0), 0);
                                 if (totalSip < parseFloat(filterValues.minSip)) mfMatch = false;
                             }
-                            // Filter: Lumpsum
                             if (activeBusinessParams.has('lumpsumAmount') && filterValues.minLumpsum) {
                                 const totalLumpsum = holdings.filter(h => h.investmentType === 'Lumpsum').reduce((sum, h) => sum + h.totalInvestment, 0);
                                 if (totalLumpsum < parseFloat(filterValues.minLumpsum)) mfMatch = false;
@@ -436,11 +396,9 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
             });
 
             if (isEditMode) {
-                // In edit mode, directly update the execution list
                 setExecutionList(results);
                 addToast(`Updated table with ${results.length} filtered customers`, 'success');
             } else {
-                // In normal mode, show modal for selection
                 setPreviewResults(results);
                 setModalSelectedIds(new Set(results.map(r => r.id)));
                 setIsModalOpen(true);
@@ -449,7 +407,6 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
         }, 500);
     };
 
-    // --- Action: Save from Modal ---
     const handleSaveToTable = () => {
         if (!selectedCampaignId) {
             addToast('Please select a campaign first', 'error');
@@ -459,16 +416,13 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
         const selectedMembers = previewResults.filter(m => modalSelectedIds.has(m.id));
         
         if (isEditMode) {
-            // In edit mode, update the existing execution
             setExecutionList(selectedMembers);
             addToast(`Updated execution list with ${selectedMembers.length} customers.`, 'success');
         } else {
-            // In normal mode, create new execution
             const existingIds = new Set(executionList.map(m => m.id));
             const newMembers = selectedMembers.filter(m => !existingIds.has(m.id));
             const updatedList = [...executionList, ...newMembers];
             
-            // Save to campaign executions array
             const campaignName = campaigns.find(c => c.id === selectedCampaignId)?.name || 'Unknown Campaign';
             const campaignData: CampaignExecutionData = {
                 id: `${selectedCampaignId}_${Date.now()}`,
@@ -491,7 +445,6 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
         setIsModalOpen(false);
     };
 
-    // --- Export Field Options ---
     const getExportFieldOptions = () => {
         const baseFields = [
             { key: 'sno', label: 'S.No' },
@@ -511,7 +464,6 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
         return [...baseFields, ...dynamicFields];
     };
 
-    // --- Export ---
     const handleExport = () => {
         if (executionList.length === 0) {
             addToast('List is empty', 'error');
@@ -554,7 +506,6 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
         addToast('Export completed successfully', 'success');
     };
 
-    // --- Dynamic Column Helpers ---
     const getDynamicColumns = () => {
         const cols: { header: string, key: string }[] = [];
         activeCustomerParams.forEach(param => {
@@ -586,10 +537,10 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
 
     return (
         <div className="flex flex-col h-screen gap-4 p-2 overflow-y-auto">
-            {/* Top Config Section */}
+            {}
             <div className="flex flex-col lg:flex-row gap-4 min-h-[450px]">
                 
-                {/* 1. LEFT PANEL: Selection Parameters */}
+                {}
                 <div className="w-full lg:w-1/2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 flex flex-col overflow-hidden">
                     <h3 className="text-md font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2 border-b pb-2 dark:border-gray-700">
                         <Filter className="w-4 h-4 text-blue-600"/> Selection Parameters
@@ -601,7 +552,7 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                     </h3>
 
                     <div className="flex-1 overflow-y-auto pr-2 space-y-6">
-                        {/* Customer Info */}
+                        {}
                         <div className="space-y-3">
                             <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Customer Info</h4>
                             <div className="grid grid-cols-2 gap-2">
@@ -625,7 +576,7 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                             </div>
                         </div>
 
-                        {/* Business Info */}
+                        {}
                         <div className="space-y-3">
                             <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Business Info</h4>
                             <div>
@@ -644,7 +595,7 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                                 </select>
                             </div>
 
-                            {/* Conditional Business Checkboxes */}
+                            {}
                             {selectedVertical === 'Insurance' && (
                                 <div className="grid grid-cols-2 gap-2 animate-fade-in">
                                     {[
@@ -696,7 +647,7 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                     </div>
                 </div>
 
-                {/* 2. RIGHT PANEL: Search Filters */}
+                {}
                 <div className="w-full lg:w-1/2 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-5 flex flex-col">
                     <h3 className="text-md font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2 border-b pb-2 dark:border-gray-700">
                         <Search className="w-4 h-4 text-blue-600"/> Search Filters
@@ -715,7 +666,7 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {/* --- CUSTOMER INFO INPUTS --- */}
+                                {}
                                 {activeCustomerParams.has('category') && (
                                     <div className="flex flex-col gap-1">
                                         <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Category</label>
@@ -831,7 +782,7 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                                 {activeCustomerParams.has('city') && <Input label="City" value={filterValues.city || ''} onChange={e => setFilterValues({...filterValues, city: e.target.value})} />}
                                 {activeCustomerParams.has('area') && <Input label="Area" value={filterValues.area || ''} onChange={e => setFilterValues({...filterValues, area: e.target.value})} />}
 
-                                {/* --- BUSINESS INFO - INSURANCE --- */}
+                                {}
                                 {activeVertical === 'Insurance' && activeBusinessParams.has('insuranceType') && (
                                     <div className="flex flex-col gap-1">
                                         <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Insurance Type</label>
@@ -872,7 +823,7 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                                     <Input label="Min. Policy Term (Yrs)" type="number" value={filterValues.minPolicyTerm || ''} onChange={e => setFilterValues({...filterValues, minPolicyTerm: e.target.value})} />
                                 )}
 
-                                {/* --- BUSINESS INFO - MUTUAL FUNDS --- */}
+                                {}
                                 {activeVertical === 'Mutual Funds' && activeBusinessParams.has('amcs') && (
                                     <Input label="AMC Name" value={filterValues.amcName || ''} onChange={e => setFilterValues({...filterValues, amcName: e.target.value})} />
                                 )}
@@ -900,7 +851,7 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                     </div>
 
                     <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-4">
-                        {/* Campaign Selector */}
+                        {}
                         <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
                              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 flex items-center gap-2">
                                 <Megaphone size={14} className="text-blue-600"/> Select Campaign
@@ -934,7 +885,7 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                 </div>
             </div>
 
-            {/* Edit Mode: Current Campaign Table */}
+            {}
             {isEditMode && executionList.length > 0 && (
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
                     <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-orange-50 dark:bg-orange-900/20">
@@ -1004,7 +955,7 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                 </div>
             )}
 
-            {/* 3. BOTTOM SECTION: Campaign Execution Lists */}
+            {}
             <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col min-h-[300px] overflow-hidden">
                 <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700/50">
                     <div className="flex items-center gap-3">
@@ -1084,11 +1035,11 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                 </div>
             </div>
 
-            {/* --- MODAL: Search Results Preview & Selection --- */}
+            {}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
                     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-6xl flex flex-col max-h-[90vh]">
-                        {/* Modal Header */}
+                        {}
                         <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                             <div>
                                 <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -1103,7 +1054,7 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                             </button>
                         </div>
 
-                        {/* Modal Body: Table */}
+                        {}
                         <div className="flex-1 overflow-auto p-0">
                             <table className="w-full text-left border-collapse">
                                 <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10 text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase shadow-sm">
@@ -1158,7 +1109,7 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                                                 <td className="p-3 text-sm text-gray-600 dark:text-gray-300">{member.mobile}</td>
                                                 <td className="p-3 text-sm text-gray-600 dark:text-gray-300">{activeVertical || '-'}</td>
                                                 
-                                                {/* Dynamic Values */}
+                                                {}
                                                 {activeCustomerParams.size > 0 && Array.from(activeCustomerParams).map(param => (
                                                     <td key={param} className="p-3 text-sm text-gray-800 dark:text-gray-200 bg-blue-50/20 dark:bg-blue-900/5">
                                                         {getDynamicValue(member, param)}
@@ -1176,7 +1127,7 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                             </table>
                         </div>
 
-                        {/* Modal Footer */}
+                        {}
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex justify-between items-center">
                             <div className="text-sm text-gray-500">
                                 {modalSelectedIds.size} customers selected
@@ -1194,11 +1145,11 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
 
 
 
-            {/* --- MODAL: View Campaign Details --- */}
+            {}
             {isViewModalOpen && viewingCampaignData && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
                     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-6xl max-h-[90vh] flex flex-col">
-                        {/* Modal Header */}
+                        {}
                         <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                             <div>
                                 <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -1213,7 +1164,7 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                             </button>
                         </div>
 
-                        {/* Modal Body: Customer Table */}
+                        {}
                         <div className="flex-1 overflow-hidden p-5">
                             <div className="h-full overflow-auto border border-gray-200 dark:border-gray-700 rounded-lg">
                                 <div className="overflow-x-auto">
@@ -1271,7 +1222,7 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                             </div>
                         </div>
 
-                        {/* Modal Footer */}
+                        {}
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex justify-between items-center">
                             <div className="text-sm text-gray-500">
                                 Total: {viewingCampaignData.executionList.length} customers
@@ -1294,11 +1245,11 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                 </div>
             )}
 
-            {/* --- MODAL: Export Field Selection --- */}
+            {}
             {isExportModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
                     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-full max-w-2xl flex flex-col">
-                        {/* Modal Header */}
+                        {}
                         <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                             <div>
                                 <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -1313,7 +1264,7 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                             </button>
                         </div>
 
-                        {/* Modal Body: Field Selection */}
+                        {}
                         <div className="p-5 space-y-4">
                             <div className="grid grid-cols-2 gap-3">
                                 {getExportFieldOptions().map(field => (
@@ -1335,7 +1286,7 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                             </div>
                         </div>
 
-                        {/* Modal Footer */}
+                        {}
                         <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 flex justify-between items-center">
                             <div className="text-sm text-gray-500">
                                 {exportSelectedFields.size} fields selected

@@ -34,22 +34,19 @@ const Pagination: React.FC<PaginationProps> = ({
   };
 
   const pageNumbers: number[] = [];
-  const pagesToShow = 3; // Show a small, sliding window of pages
+  const pagesToShow = 3;
 
    if (totalPages > 0) {
     
     if (totalPages <= pagesToShow) {
-      // If there are few enough pages, show them all
       for (let i = 1; i <= totalPages; i++) {
         pageNumbers.push(i);
       }
     } else {
-      // Calculate the window of pages to show
       const halfWindow = Math.floor(pagesToShow / 2);
       let startPage = Math.max(1, currentPage - halfWindow);
       let endPage = Math.min(totalPages, startPage + pagesToShow - 1);
       
-      // Adjust the window if it's at the end
       if (endPage - startPage + 1 < pagesToShow) {
         startPage = Math.max(1, endPage - pagesToShow + 1);
       }

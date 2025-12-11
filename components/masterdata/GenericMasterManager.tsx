@@ -45,7 +45,7 @@ interface GenericMasterManagerProps {
     extraFields?: {
         label: string;
         field: string;
-        type: 'select' | 'boolean' | 'multiselect';
+        type: 'select' | 'boolean' | 'multiselect' | 'text';
         options?: {value: string; label: string}[];
     }[];
     reorderable?: boolean;
@@ -163,6 +163,20 @@ const ItemForm = memo<{
                             {field.options?.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                         </select>
                     </div>
+                    );
+                }
+                if (field.type === 'text') {
+                    return (
+                        <div key={field.field}>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{field.label}</label>
+                            <input
+                                type="text"
+                                value={editingItem?.[field.field] || ''}
+                                onChange={e => handleFieldChange(field.field, e.target.value)}
+                                className={modalInputClasses}
+                                placeholder={`Enter ${field.label.toLowerCase()}...`}
+                            />
+                        </div>
                     );
                 }
                 return null;
@@ -361,10 +375,10 @@ const GenericMasterManager: React.FC<GenericMasterManagerProps> = memo(({
             return;
         }
 
-        if (editingItem.id) { // Update
+        if (editingItem.id) {
             onUpdate(items.map(i => i.id === editingItem.id ? editingItem : i));
             addToast(`${noun} updated successfully.`, 'success');
-        } else { // Create
+        } else {
             if (items.some(i => i[displayKey].toLowerCase() === displayName.trim().toLowerCase())) {
                 return addToast(`This ${noun} already exists.`, 'error');
             }
@@ -505,6 +519,12 @@ const GenericMasterManager: React.FC<GenericMasterManagerProps> = memo(({
                                 className={codeColumnDisplay === 'hidden' ? 'hidden' : ''}
                             />
                             <SortableHeader sortKey={displayKey} label="Name" sortConfig={sortConfig} onSort={handleSort} reorderable={reorderable} />
+                            {extraFields?.filter(f => f.type === 'boolean').map(field => (
+                                <SortableHeader key={field.field} sortKey={field.field} label={field.label} sortConfig={sortConfig} onSort={handleSort} reorderable={reorderable} />
+                            ))}
+                            {extraFields?.filter(f => f.type === 'text').map(field => (
+                                <SortableHeader key={field.field} sortKey={field.field} label={field.label} sortConfig={sortConfig} onSort={handleSort} reorderable={reorderable} />
+                            ))}
                             {initialStateKey && <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-300 uppercase">Initial State</th>}
                             {endStateKey && <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-300 uppercase">End State</th>}
                             <SortableHeader sortKey="active" label="Status" sortConfig={sortConfig} onSort={handleSort} reorderable={reorderable} />
@@ -527,6 +547,20 @@ const GenericMasterManager: React.FC<GenericMasterManagerProps> = memo(({
                                     {codeColumnDisplay === 'group' ? (item.group || <span className="italic text-gray-400">N/A</span>) : item.id}
                                 </td>
                                 <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-200">{item[displayKey]}</td>
+                                {extraFields?.filter(f => f.type === 'boolean').map(field => (
+                                    <td key={field.field} className="px-6 py-3 whitespace-nowrap">
+                                        <ToggleSwitch
+                                            enabled={!!item[field.field]}
+                                            onChange={val => onUpdate(items.map(i => i.id === item.id ? { ...i, [field.field]: val } : i))}
+                                            disabled={!canModify}
+                                        />
+                                    </td>
+                                ))}
+                                {extraFields?.filter(f => f.type === 'text').map(field => (
+                                    <td key={field.field} className="px-6 py-3 whitespace-nowrap text-sm text-gray-900 dark:text-gray-200">
+                                        {item[field.field] || '-'}
+                                    </td>
+                                ))}
                                 {initialStateKey && onUpdateInitialState && (
                                     <td className="px-6 py-3 whitespace-nowrap">
                                         <input
@@ -581,7 +615,7 @@ const GenericMasterManager: React.FC<GenericMasterManagerProps> = memo(({
                                 onUpdate={handleEditingItemUpdate}
                                 noun={noun}
                                 displayKey={displayKey}
-                                extraFields={extraFields}
+                                extraFields={extraFields?.filter(f => f.field !== 'postingBankName')}
                                 groupOptions={groupOptions}
                                 onGroupOptionsUpdate={handleGroupOptionsUpdate}
                                 canModify={canModify}

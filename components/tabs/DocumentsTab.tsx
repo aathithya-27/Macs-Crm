@@ -106,11 +106,10 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
       if(documentType === 'Photo') onChange('photoUrl', objectUrl);
       
       addToast(`'${file.name}' uploaded for ${documentType}.`, 'success');
-      event.target.value = ''; // Reset file input
+      event.target.value = '';
     }
   }, [onChange, addToast]);
 
-    // --- MODIFICATION START: Logic now groups strictly by the policy's specific insurance type ---
     const groupedDocumentRequirements = useMemo(() => {
         const activePolicies = (data.policies || []).filter(p => p.status === 'Active');
         if (activePolicies.length === 0) return {};
@@ -118,7 +117,6 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
         const insuranceTypeMap = new Map(insuranceTypes.map(it => [it.id, it]));
         const requirements: Record<string, { docId: string; name: string; isMandatory: boolean; }[]> = {};
         
-        // Get unique insurance type IDs from active policies
         const uniqueTypeIds = [...new Set(activePolicies.map(p => p.insuranceTypeId).filter(Boolean))];
 
         uniqueTypeIds.forEach(typeId => {
@@ -130,7 +128,6 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
                 requirements[groupName] = [];
             }
 
-            // Get rules ONLY for this specific type
             const rulesForThisType = insuranceTypeDocumentRules.filter(rule => rule.insuranceTypeId === typeId);
 
             rulesForThisType.forEach(rule => {
@@ -145,12 +142,10 @@ export const DocumentsTab: React.FC<DocumentsTabProps> = ({
             });
         });
         
-        // Sort docs within each group
         Object.values(requirements).forEach(group => group.sort((a, b) => a.name.localeCompare(b.name)));
         
         return requirements;
     }, [data.policies, insuranceTypes, insuranceTypeDocumentRules, documentMasters]);
-    // --- MODIFICATION END ---
 
 
     const handleBankDetailsChange = useCallback((field: keyof BankDetails, value: string) => {

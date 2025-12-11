@@ -127,14 +127,12 @@ const Chatbot: React.FC<ChatbotProps> = ({ members, leads, tasks, expenses, manu
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [selectedSegments, setSelectedSegments] = useState<string[]>([]);
   
-  // AI Assistant State
   const assistantInitialMsg: Message = { id: 1, sender: 'bot', text: "Hello! I am your AI Chatbot Assistant for  CRM. How can I help you today?" };
   const [assistantMessages, setAssistantMessages] = useState<Message[]>([assistantInitialMsg]);
   const [assistantInput, setAssistantInput] = useState('');
   const [isAssistantTyping, setIsAssistantTyping] = useState(false);
   const assistantInitialSuggestions = ["Who is Priya Sharma?", "Renewals due this month", "Upsell ideas for Kavya Reddy", "Show my recent expenses"];
 
-  // Client Simulator State
   const simulatorInitialMsg: Message = { id: 1, sender: 'bot', text: "Welcome to  support! How can I assist you today?" };
   const [simulatorMessages, setSimulatorMessages] = useState<Message[]>([simulatorInitialMsg]);
   const [simulatorInput, setSimulatorInput] = useState('');
@@ -171,7 +169,6 @@ const Chatbot: React.FC<ChatbotProps> = ({ members, leads, tasks, expenses, manu
     let suggestions: string[] = [];
     let actions: BotAction[] = [];
 
-    // Simple frontend logic to find mentioned members and create actions
     members.forEach(member => {
       if (botText.toLowerCase().includes(member.name.toLowerCase())) {
         suggestions.push(`What are ${member.name}'s policies?`);
@@ -204,13 +201,11 @@ const Chatbot: React.FC<ChatbotProps> = ({ members, leads, tasks, expenses, manu
     setIsSimulatorTyping(true);
 
     let botText = '';
-    // 1. Check for keyword matches
     const matchedResponse = botResponses.find(r => text.toLowerCase().includes(r.keyword.toLowerCase()));
 
     if (matchedResponse) {
         botText = matchedResponse.response;
     } else {
-    // 2. If no keyword, use AI fallback
         botText = await getAutomatedClientResponse(text, addToast);
     }
     

@@ -71,7 +71,6 @@ export const NotesAndRemindersTab: React.FC<NotesAndRemindersTabProps> = ({
   const canModify = permissions?.customers === 'modify';
   const canCreateTask = (permissions?.taskManagement === 'create' || permissions?.taskManagement === 'modify') && !isCurrentUserAdvisor;
 
-  // --- NEW: Memoize options for the searchable select ---
   const occasionOptions = useMemo(() => {
     return occasionTypeMasters.filter(o => o.active).map(o => ({ value: o.id, label: o.name }));
   }, [occasionTypeMasters]);
@@ -218,7 +217,7 @@ export const NotesAndRemindersTab: React.FC<NotesAndRemindersTabProps> = ({
         };
         const updatedList = [...occasionTypeMasters, newOccasionType];
         await updateOccasionTypeMasters(updatedList);
-        onUpdateOccasionTypeMasters(updatedList); // Update parent state
+        onUpdateOccasionTypeMasters(updatedList);
         addToast(`New occasion type "${name}" created.`, 'success');
         
         setNewOccasionTypeId(newOccasionType.id); 
@@ -253,7 +252,7 @@ export const NotesAndRemindersTab: React.FC<NotesAndRemindersTabProps> = ({
 
   return (
     <div className="space-y-8">
-      {/* Voice Notes Section */}
+      {}
       <div className="space-y-4">
         {canModify && (
             <div className="p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg border dark:border-gray-600/50">

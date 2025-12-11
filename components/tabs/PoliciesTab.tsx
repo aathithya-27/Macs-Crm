@@ -1,8 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-// CORRECTED: Fixed import path and added permission types
 import { Member, Policy, PolicyType, GeneralInsuranceType, LICData, LICFamilyMember, LICPreviousPolicy, CoveredMember, Traveler, User, SchemeMaster, Company, InsuranceTypeMaster, InsuranceFieldMaster, HealthInsuranceData, Designation, AppModule, PermissionLevel, Gender } from '../../types.ts';
 import Input from '../ui/Input.tsx';
-// CORRECTED: Fixed import path
 import Button from '../ui/Button.tsx';
 import { getPolicySuggestions, analyzePaymentProof } from '../../services/geminiService.ts';
 import { calculatePremium } from '../../services/apiService.ts';
@@ -38,7 +36,6 @@ const calculateAge = (dobString: string): number | null => {
     return age;
 };
 
-// --- NEW Reusable FormSection Component ---
 const FormSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => {
     return (
         <div className="border dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 overflow-hidden">
@@ -52,12 +49,10 @@ const FormSection: React.FC<{ title: string; children: React.ReactNode }> = ({ t
     );
 };
 
-// --- Reusable Form Components ---
 const SectionHeader: React.FC<{ title: string }> = ({ title }) => (
     <h3 className="text-md font-semibold text-brand-dark dark:text-white border-b-2 border-brand-primary pb-2 mb-4 col-span-full">{title}</h3>
 );
 
-// --- REBUILT Editable Table Component for Custom Fields ---
 const EditableTable: React.FC<{
     masterField: InsuranceFieldMaster;
     tableData: { rows: string[][] };
@@ -94,7 +89,6 @@ const EditableTable: React.FC<{
         onMasterFieldUpdate({ ...masterField, [headerKey]: newHeaders });
     };
 
-    // Sync local data if master headers change
     useEffect(() => {
         const masterCols = masterField.columnHeaders || [];
         const masterRows = masterField.rowHeaders || [];
@@ -129,7 +123,7 @@ const EditableTable: React.FC<{
                 <table className="min-w-full border-separate" style={{ borderSpacing: '0.5rem' }}>
                     <thead>
                         <tr>
-                            <th className="w-10"></th> {/* Empty corner */}
+                            <th className="w-10"></th> {}
                             {(masterField.columnHeaders || []).map((header, colIndex) => (
                                 <th key={`col-header-${colIndex}`} className="p-0 align-top">
                                     <div className="relative flex items-center gap-1 p-1 bg-gray-200 dark:bg-gray-700/80 rounded-md border border-gray-700 dark:border-gray-400">
@@ -341,7 +335,6 @@ const PolicyEditor: React.FC<{
         }
     }, [policy.startDate, policy.premiumFrequency, policy.id, policy.renewalDate, handlePolicyChange, isRenewalDateManual]);
 
-    // MODIFIED: Added effect for maturity date calculation
     useEffect(() => {
         const { startDate, policyTerm, policyTermUnit } = policy;
         if (startDate && policyTerm && policyTermUnit) {
@@ -351,7 +344,7 @@ const PolicyEditor: React.FC<{
             let maturityDate = new Date(start);
             if (policyTermUnit === 'Years') {
                 maturityDate.setFullYear(start.getFullYear() + policyTerm);
-            } else { // Months
+            } else {
                 maturityDate.setMonth(start.getMonth() + policyTerm);
             }
 
@@ -556,7 +549,6 @@ const PolicyEditor: React.FC<{
         return getPremiumForFrequency(policy.premium, policy.premiumFrequency);
     }, [policy.premium, policy.premiumFrequency]);
 
-    // MODIFIED: Added totalInstallments calculation
     const totalInstallments = useMemo(() => {
         const { policyTerm, policyTermUnit, premiumFrequency } = policy;
         if (!policyTerm || !policyTermUnit || !premiumFrequency) return null;
@@ -728,7 +720,7 @@ const PolicyEditor: React.FC<{
                     </FormSection>
                 )}
 
-                {/* MODIFIED: Re-structured layout and added new fields */}
+                {}
                 <FormSection title="Coverage & Premium">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                         <Input 
@@ -1174,7 +1166,6 @@ const PolicyEditor: React.FC<{
     );
 };
 
-// --- Main Component ---
 interface PoliciesTabProps {
     allMembers: Member[];
     data: Partial<Member>;
@@ -1192,14 +1183,14 @@ interface PoliciesTabProps {
     editingPolicyId: string | null;
     setEditingPolicyId: (id: string | null) => void;
     designations: Designation[];
-    permissions: { [key in AppModule]?: PermissionLevel }; // CORRECTED: Added permissions prop
-    genders: Gender[]; // MODIFIED: Added genders prop
+    permissions: { [key in AppModule]?: PermissionLevel };
+    genders: Gender[];
 }
 export const PoliciesTab: React.FC<PoliciesTabProps> = ({
     allMembers, data, onChange, onSave, addToast, onGenerateProposal, currentUser,
     onFindUpsell, schemes, companies, insuranceTypes, insuranceFields, 
     onUpdateInsuranceFields, editingPolicyId, setEditingPolicyId, designations, permissions,
-    genders // MODIFIED
+    genders
 }) => {
     const [verifyingPayment, setVerifyingPayment] = useState<string | null>(null);
     const [isFindingUpsell, setIsFindingUpsell] = useState(false);
@@ -1248,7 +1239,6 @@ export const PoliciesTab: React.FC<PoliciesTabProps> = ({
 
     const isReadOnly = (policy: Policy) => policy.isLegacyFamilyPolicy === true || !canModify;
 
-    // MODIFIED: Added default startDate
     const handleAddNewPolicy = () => {
         const newPolicy: Policy = { id: `pol-${Date.now()}`, policyType: '', coverage: 0, premium: 0, startDate: new Date().toISOString().split('T')[0], renewalDate: '', status: 'Active', documentReceived: false, policyHolderType: 'Individual', coveredMembers: [], insuranceTypeId: null, dynamicData: {} };
         onChange('policies', [...(data.policies || []), newPolicy]);

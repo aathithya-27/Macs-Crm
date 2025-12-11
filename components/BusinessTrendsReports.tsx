@@ -25,7 +25,6 @@ ChartJS.register(
 );
 
 export const BusinessTrendsReports: React.FC<{ members: Member[] }> = ({ members }) => {
-    // Top-level guard clause to prevent crashes from invalid props.
     if (!Array.isArray(members)) {
         return (
             <div className="flex items-center justify-center h-full text-center text-red-500 border-2 border-dashed border-red-400 rounded-lg p-8">
@@ -39,7 +38,6 @@ export const BusinessTrendsReports: React.FC<{ members: Member[] }> = ({ members
 
     const abcData = useMemo(() => {
         const schemePremiums = new Map<string, number>();
-        // Robustly filter the members array to prevent crashes.
         members
             .filter(m => m && Array.isArray(m.policies))
             .forEach(m => {
@@ -64,7 +62,6 @@ export const BusinessTrendsReports: React.FC<{ members: Member[] }> = ({ members
         return categories;
     }, [members]);
 
-    // This logic formats the data specifically for Chart.js
     const chartJsData = useMemo(() => {
         const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         const dataPoints = Array.from({ length: 6 }, (_, i) => {
@@ -167,7 +164,7 @@ export const BusinessTrendsReports: React.FC<{ members: Member[] }> = ({ members
 
             <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700">
                 <h4 className="font-semibold mb-4 text-gray-800 dark:text-white">Profit & Loss Trend</h4>
-                {/* The new, stable chart from react-chartjs-2 */}
+                {}
                  <div style={{ height: '300px' }}>
                     <ChartJsLine options={chartOptions} data={chartJsData} />
                 </div>

@@ -1,4 +1,131 @@
+
 import React from 'react';
+
+
+export type RootAccountType = 'Asset' | 'Liability' | 'Income' | 'Expense';
+
+export interface AccountCategory { 
+    id: string;
+    name: string;
+    type: RootAccountType; 
+    active?: boolean;
+    order?: number;
+}
+
+export interface AccountSubCategory { 
+    id: string;
+    name: string;
+    categoryId: string; 
+    active?: boolean;
+    order?: number;
+}
+
+export interface AccountHead { 
+    id: string;
+    name: string;
+    subCategoryId: string; 
+    active?: boolean;
+    order?: number;
+    
+    postingBank?: boolean;
+    isCash?: boolean;
+}
+
+
+export interface Expense {
+  id: string;
+  date: string;       
+  amount: number;
+  description: string;
+  paidTo?: string;    
+  billUrl?: string;   
+  createdBy: string;  
+  relatedMemberId?: string;
+  
+  accountHeadId?: string;
+
+  voucherNo?: string; 
+  modeOfPayment?: 'Cash' | 'UPI' | 'Net Banking' | 'Cheque';
+  
+  bankId?: string; 
+
+  chequeDrawnOnBankId?: string; 
+  
+  branch_id?: string;
+  finYearId: string;
+  partyId?: string;
+  partyType?: 'Customer' | 'Staff'; 
+  docNo?: string;
+  docDate?: string;
+  isPaymentReturned?: boolean;
+}
+
+export interface ReceiptLineItem {
+    id: string;
+    
+    accountHeadId: string;
+    
+    description: string;    
+    paymentMode: 'Cash' | 'UPI' | 'Cheque' | 'NetBanking'; 
+    amount: number;
+    
+    bankId?: string; 
+
+    chequeDrawnOnBankId?: string;
+}
+
+export interface ManualReceipt {
+    id: string;
+    receiptNo: string;
+    date: string;
+    receivedFrom: string;   
+    partyId: string;        
+    partyType: 'Customer' | 'Staff'; 
+    address?: string;
+    finYearId: string; 
+    lineItems: ReceiptLineItem[];
+    createdBy: string;
+    docNo?: string;         
+    docDate?: string;       
+    isPaymentReturned?: boolean; 
+    branch_id?: string; 
+}
+
+export interface ManualIncome {
+  id: string;
+  date: string;       
+  amount: number;
+  description: string;
+  accountHeadId?: string; 
+  receivedFrom?: string; 
+  receiptUrl?: string;   
+  createdBy: string;    
+}
+
+export interface ManualCommission {
+  id: string;
+  date: string;
+  memberId: string;
+  policyId: string;
+  amount: number;
+  description: string;
+  createdBy: string;
+}
+
+export interface OpeningBalance {
+    id: string;
+    date: string;
+    
+    accountHeadId: string;
+    
+    partyId: string;
+    partyType: 'Customer' | 'Staff' | 'Internal' | 'Wallet';
+    debit: number;  
+    credit: number; 
+    createdBy: string;
+    createdAt: string;
+}
+
 
 export interface CampaignMaster {
     id: string;
@@ -35,32 +162,6 @@ export interface DocumentNumbering {
   startingNumber: number;
   finYearId: string;
   status: 'Active' | 'Inactive';
-}
-
-export interface ReceiptLineItem {
-    id: string;
-    incomeCategory: string; 
-    description: string;    
-    paymentMode: 'Cash' | 'UPI' | 'Cheque' | 'NetBanking'; 
-    amount: number;
-    bankId?: string;        
-}
-
-export interface ManualReceipt {
-    id: string;
-    receiptNo: string;
-    date: string;
-    receivedFrom: string;   
-    partyId: string;        
-    partyType: 'Customer' | 'Staff'; 
-    address?: string;
-    finYearId: string; 
-    lineItems: ReceiptLineItem[];
-    createdBy: string;
-    docNo?: string;         
-    docDate?: string;       
-    isPaymentReturned?: boolean; 
-    branch_id?: string; 
 }
 
 export type PermissionLevel = 'view' | 'create' | 'modify' | 'none';
@@ -695,7 +796,7 @@ export interface Notification {
   dismissed?: boolean;
 }
 
-export type Tab = 'dashboard' | 'reports & insights' | 'pipeline' | 'customers' | 'policies' | 'notes' | 'actionHub' | 'location' | 'chatbot' | 'profile' | 'employees' | 'servicesHub' | 'masterData' | 'taskManagement' | 'incomeAndExpense' | 'profitAndLoss' | 'calendar' | 'advancedReports' | 'upselling' | 'mutualFunds' | 'campaign';
+export type Tab = 'dashboard' | 'reports & insights' | 'pipeline' | 'customers' | 'policies' | 'notes' | 'actionHub' | 'location' | 'chatbot' | 'profile' | 'employees' | 'servicesHub' | 'masterData' | 'taskManagement' | 'incomeAndExpense' | 'accounts' | 'calendar' | 'advancedReports' | 'upselling' | 'mutualFunds' | 'campaign';
 
 export enum ModalTab {
     BasicInfo = 'Basic Info',
@@ -763,7 +864,7 @@ export interface DocTemplate {
 
 export type DeprecatedRole = 'Admin' | 'Advisor' | 'Support';
 
-export type AppModule = 'dashboard' | 'reports & insights' | 'incomeAndExpense' | 'profitAndLoss' | 'calendar' | 'employees' | 'pipeline' | 'customers' | 'taskManagement' | 'policies' | 'notes' | 'actionHub' | 'servicesHub' | 'location' | 'chatbot' | 'masterData' | 'advancedReports' | 'upselling' | 'mutualFunds' | 'campaign';
+export type AppModule = 'dashboard' | 'reports & insights' | 'incomeAndExpense' | 'accounts' | 'calendar' | 'employees' | 'pipeline' | 'customers' | 'taskManagement' | 'policies' | 'notes' | 'actionHub' | 'servicesHub' | 'location' | 'chatbot' | 'masterData' | 'advancedReports' | 'upselling' | 'mutualFunds' | 'campaign';
 
 export interface RolePermissions {
   roleId: string;
@@ -979,6 +1080,7 @@ export interface BankMaster {
     authSign1?: string;
     authSign2?: string;
     order?: number;
+    isOwnBank?: boolean;
 }
 
 export interface BusinessVertical { id: string; name: string; active?: boolean; order?: number; }
@@ -1017,7 +1119,7 @@ export interface CustomerCategory { id: string; name: string; active?: boolean; 
 export interface CustomerSubCategory { id: string; name: string; parentId: string; active?: boolean; order?: number; }
 export interface CustomerGroup { id: string; name: string; active?: boolean; order?: number; }
 export interface TaskMaster { id: string; name: string; active?: boolean; order?: number; }
-export interface AccountType { id: string; name: string; active?: boolean; order?: number; }
+export interface AccountType { id: string; name: string; active?: boolean; order?: number; isOwn?: boolean; postingBank?: string; }
 
 export interface OccasionTypeMaster { 
     id: string; 
@@ -1095,81 +1197,6 @@ export interface UpsellCategory {
   linkedInsuranceTypeIds: string[]; 
 }
 
-export interface IncomeCategoryLevel1 { 
-  id: string;
-  name: string;
-  active?: boolean;
-}
-
-export interface IncomeCategoryLevel2 { 
-  id: string;
-  name: string;
-  parentId: string; 
-  active?: boolean;
-}
-
-export interface ExpenseCategoryLevel1 { 
-  id: string;
-  name: string;
-  active?: boolean;
-}
-
-export interface ExpenseCategoryLevel2 { 
-  id: string;
-  name: string;
-  parentId: string; 
-  active?: boolean;
-}
-
-
-
-export interface Expense {
-  id: string;
-  date: string;       
-  amount: number;
-  description: string;
-  paidTo?: string;    
-  billUrl?: string;   
-  createdBy: string;  
-  relatedMemberId?: string;
-  categoryLevel1Id?: string;
-  categoryLevel2Id?: string;
-
-  voucherNo?: string; 
-  modeOfPayment?: 'Cash' | 'UPI' | 'Net Banking' | 'Cheque';
-  expenseHead?: string;
-  branch_id?: string;
-  finYearId?: string;
-  partyId?: string;
-  partyType?: 'Customer' | 'Staff'; 
-  bankId?: string;
-  docNo?: string;
-  docDate?: string;
-  isPaymentReturned?: boolean;
-}
-
-export interface ManualIncome {
-  id: string;
-  date: string;       
-  amount: number;
-  description: string;
-  categoryLevel1Id?: string;
-  categoryLevel2Id?: string;
-  receivedFrom?: string; 
-  receiptUrl?: string;   
-  createdBy: string;    
-}
-
-export interface ManualCommission {
-  id: string;
-  date: string;
-  memberId: string;
-  policyId: string;
-  amount: number;
-  description: string;
-  createdBy: string;
-}
-
 export interface AdvisorLocation {
   advisorId: string;
   advisorName: string; 
@@ -1244,16 +1271,14 @@ export interface DayBookEntry {
     credit?: number;
 }
 
-export interface OpeningBalance {
+export interface LedgerEntry {
     id: string;
     date: string;
-    categoryType: 'Income' | 'Expense';
-    categoryLevel1Id: string;
-    categoryLevel2Id: string;
-    partyId: string;
-    partyType: 'Customer' | 'Staff';
-    debit: number;  
-    credit: number; 
-    createdBy: string;
-    createdAt: string;
+    sourceDoc: string;
+    category: string;
+    head: string;
+    party: string;
+    debit: number;
+    credit: number;
+    balance: number;
 }

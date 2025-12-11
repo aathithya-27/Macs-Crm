@@ -50,7 +50,7 @@ const DesignationRuleModal: React.FC<{
         onSave({
             ...initialData,
             name,
-            rank: rank === '' ? undefined : parseInt(rank, 10), 
+            rank: rank === '' ? undefined : parseInt(rank, 10),
         });
     };
 
@@ -89,12 +89,11 @@ const DesignationRuleModal: React.FC<{
 };
 
 
-// --- MAIN COMPONENT ---
 const DesignationManager: React.FC<DesignationManagerProps> = ({ items, onUpdate, addToast, users, canCreate, canModify }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<Partial<Designation> | null>(null);
     const triggerButtonRef = useRef<HTMLButtonElement>(null);
-    const [searchQuery, setSearchQuery] = useState(''); // MODIFICATION: Add search state
+    const [searchQuery, setSearchQuery] = useState('');
 
     const openModal = (item: Designation | null, event?: React.MouseEvent<HTMLElement>) => {
         if (event) triggerButtonRef.current = event.currentTarget as HTMLButtonElement;
@@ -140,7 +139,6 @@ const DesignationManager: React.FC<DesignationManagerProps> = ({ items, onUpdate
         addToast('Designation deleted successfully.', 'success');
     };
 
-    // MODIFICATION: Add search query to dependency array and filter logic
     const sortedItems = useMemo(() => {
         const filtered = items.filter(item =>
             item.name.toLowerCase().includes(searchQuery.toLowerCase())

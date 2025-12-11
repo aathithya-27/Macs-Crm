@@ -6,7 +6,6 @@ import { NotebookText, Search, BrainCircuit, Loader2, Calendar, Download, FileTe
 import Input from './ui/Input.tsx';
 import Pagination from './ui/Pagination.tsx';
 
-// SpeechRecognition types
 declare global {
     interface Window {
         SpeechRecognition: any;
@@ -25,7 +24,7 @@ type NoteGroup = {
         note: VoiceNote;
         highlights: string[];
         memberId: string;
-        creator?: User; // --- MODIFICATION: Added creator ---
+        creator?: User;
     }[];
 };
 
@@ -115,7 +114,7 @@ const NoteCard = ({ note, memberName, memberId, highlights = [], onCreateTaskFro
                 </div>
             )}
 
-            {/* --- MODIFICATION BEGINS --- */}
+            {}
             <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700/50 flex flex-wrap justify-between items-center gap-2">
                 <div className="flex gap-2">
                     <Button size="small" variant="light" onClick={() => downloadAudio(note.audioUrl, note.filename)} disabled={!note.audioUrl}>
@@ -133,7 +132,7 @@ const NoteCard = ({ note, memberName, memberId, highlights = [], onCreateTaskFro
                     </div>
                 )}
             </div>
-            {/* --- MODIFICATION ENDS --- */}
+            {}
         </div>
     );
 };
@@ -370,7 +369,6 @@ const NotesPage: React.FC<NotesPageProps> = ({
         resetCreatorState();
     };
 
-    // --- MODIFICATION BEGINS ---
     const allNotesWithContext = useMemo(() => {
         const userLookup = new Map(users.map(u => [u.id, u]));
         const memberNotes = members.flatMap(member => 
@@ -396,7 +394,6 @@ const NotesPage: React.FC<NotesPageProps> = ({
         return [...memberNotes, ...leadNotes]
             .sort((a, b) => new Date(b.note.recording_date).getTime() - new Date(a.note.recording_date).getTime());
     }, [members, leads, users]);
-    // --- MODIFICATION ENDS ---
     
     const visibleNotesForUser = useMemo(() => {
         if (!currentUser) return [];
@@ -456,7 +453,6 @@ const NotesPage: React.FC<NotesPageProps> = ({
         if (e.key === 'Enter') handleSearch();
     };
     
-    // --- MODIFICATION BEGINS ---
     const noteTakers = useMemo(() => {
         const userRole = roles.find(r => r.id === currentUser?.roleId);
         const hasManagementPermission = (permissions?.customers === 'create' || permissions?.customers === 'modify') && !userRole?.isAdvisor;
@@ -465,7 +461,6 @@ const NotesPage: React.FC<NotesPageProps> = ({
         const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
         return users.filter(user => user.roleId && advisorRoleIds.has(user.roleId));
     }, [users, currentUser, roles, permissions]);
-    // --- MODIFICATION ENDS ---
 
     useEffect(() => {
         setCurrentPage(1);
@@ -722,12 +717,12 @@ const NotesPage: React.FC<NotesPageProps> = ({
                         <div className="my-4 p-2 bg-gray-100 dark:bg-gray-900 rounded-lg flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <label htmlFor="advisor-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Filter by Employee:</label>
-                                {/* --- MODIFICATION BEGINS --- */}
+                                {}
                                 <select id="advisor-filter" value={advisorFilter} onChange={(e) => setAdvisorFilter(e.target.value)} className="block w-full md:w-auto px-3 py-1 border border-gray-300 rounded-lg shadow-sm text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                                     <option value="all">All Employees</option>
                                     {noteTakers.map(user => <option key={user.id} value={user.id}>{user.name} {user.profile?.status === 'Inactive' ? '🔴' : ''}</option>)}
                                 </select>
-                                {/* --- MODIFICATION ENDS --- */}
+                                {}
                             </div>
                             <div className="flex items-center gap-1 bg-gray-200 dark:bg-gray-800 p-1 rounded-md">
                                 <button onClick={() => setAdminViewMode('date')} className={`p-1.5 rounded-md ${adminViewMode === 'date' ? 'bg-white dark:bg-gray-700' : ''}`}><List size={16}/></button>

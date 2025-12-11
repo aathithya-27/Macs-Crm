@@ -4,7 +4,6 @@ import CommissionDashboard from './CommissionDashboard.tsx';
 import AgentAppointments from './AgentAppointments.tsx';
 import { Percent, Calendar } from 'lucide-react';
 
-// Define the props interface for clarity
 interface ServicesHubProps {
     addToast: (message: string, type?: 'success' | 'error') => void;
     allMembers: Member[];

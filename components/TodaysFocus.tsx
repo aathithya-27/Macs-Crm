@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
-// MODIFIED: Import permission-related types
 import { Member, Lead, UpsellOpportunity, TodaysFocusItem, ModalTab, AppModule, PermissionLevel } from '../types.ts';
-import { Loader2, Zap, Lightbulb, TrendingUp, AlertTriangle, Phone, Star, Eye, X, RefreshCw, ListTodo } from 'lucide-react'; // MODIFIED: Imported ListTodo
+import { Loader2, Zap, Lightbulb, TrendingUp, AlertTriangle, Phone, Star, Eye, X, RefreshCw, ListTodo } from 'lucide-react';
 import Button from './ui/Button.tsx';
 
 interface TodaysFocusProps {
@@ -17,7 +16,6 @@ interface TodaysFocusProps {
     isLoading: boolean;
     error: string | null;
     onRefresh: () => void;
-    // NEW: Accept permissions prop
     permissions: { [key in AppModule]?: PermissionLevel };
 }
 
@@ -28,7 +26,6 @@ const FocusItemCard: React.FC<{
     onOpenModal: (member: Member | null, initialTab?: ModalTab | null) => void,
     onOpenLeadModal: (lead: Lead | null) => void,
     onDismiss: (itemId: string) => void;
-    // NEW: Accept permissions prop
     permissions: { [key in AppModule]?: PermissionLevel };
 }> = ({ item, members, leads, onOpenModal, onOpenLeadModal, onDismiss, permissions }) => {
     const priorityStyles = {
@@ -53,7 +50,6 @@ const FocusItemCard: React.FC<{
     const member = members.find(m => m.id === item.relatedId);
     const lead = leads.find(l => l.id === item.relatedId);
 
-    // NEW: Permission checks for different actions
     const canViewCustomer = permissions?.customers && permissions.customers !== 'none';
     const canViewLead = permissions?.pipeline && permissions.pipeline !== 'none';
     const canCreateTask = permissions?.taskManagement === 'create' || permissions?.taskManagement === 'modify';
@@ -73,10 +69,7 @@ const FocusItemCard: React.FC<{
         }
     };
 
-    // NEW: Handler for creating a task (simulation)
     const handleCreateTask = () => {
-        // In a real app, this would likely open a task creation modal pre-filled with this info.
-        // For now, we simulate the action.
         console.log(`(Simulated) Creating task: ${item.title} for ${item.relatedName}`);
     };
 
@@ -97,10 +90,10 @@ const FocusItemCard: React.FC<{
                 <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{item.rationale}</p>
             </div>
             <div className="flex-shrink-0 flex items-center gap-2 self-end md:self-start">
-                 {/* MODIFIED: Action buttons are now permission-aware */}
+                 {}
                  {item.action === 'call' && <Button onClick={handleCall} variant="light" size="small" disabled={!member && !lead}><Phone size={14}/> Call</Button>}
                  {(item.action === 'review' || item.action === 'follow-up') && <Button onClick={handleView} variant="secondary" size="small" disabled={!member && !lead}><Eye size={14}/> View</Button>}
-                 {/* NEW: Conditionally render Create Task button */}
+                 {}
                  {item.action === 'task' && (
                     <Button onClick={handleCreateTask} variant="secondary" size="small" disabled={!canCreateTask}>
                         <ListTodo size={14}/> Create Task
@@ -159,7 +152,6 @@ const TodaysFocus: React.FC<TodaysFocusProps> = ({ members, leads, onOpenModal, 
                                 onOpenModal={onOpenModal} 
                                 onOpenLeadModal={onOpenLeadModal} 
                                 onDismiss={onDismissFocusItem} 
-                                // NEW: Pass permissions down
                                 permissions={permissions}
                             />
                         ))}

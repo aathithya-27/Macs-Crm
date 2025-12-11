@@ -36,7 +36,7 @@ const LeadStageManager: React.FC<LeadStageManagerProps> = ({
                 if (!stage) return [];
                 return allLeads
                     .filter(lead => lead.status === stage.name)
-                    .map(lead => ({ name: `Lead: ${lead.name}`, type: 'task' })); // Using 'task' type for a consistent icon
+                    .map(lead => ({ name: `Lead: ${lead.name}`, type: 'task' }));
             }}
 
             canCreate={canCreate}

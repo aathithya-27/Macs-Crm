@@ -75,7 +75,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
             setError('All fields are required.');
             return;
         }
-        if (otp !== '123456') { // Simulated OTP check
+        if (otp !== '123456') {
             setError('Invalid OTP.');
             return;
         }
@@ -100,7 +100,6 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
     };
 
     const handleClose = () => {
-        // Reset state on close
         setStep('enter_id');
         setcomp_code('');
         setCompanyName('');
@@ -116,7 +115,6 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
     
     useEffect(() => {
         if (!isOpen) {
-            // Allow animations to finish before resetting state
             setTimeout(handleClose, 300);
         }
     }, [isOpen]);

@@ -28,7 +28,8 @@ const ALL_NAV_ITEMS: NavItem[] = [
     { tab: 'reports & insights', path: '/reports-insights', label: 'Reports & Insights', icon: <BarChart2 size={20}/> },
     { tab: 'advancedReports', path: '/advancedReports', label: 'Advanced Reports', icon: <BarChart3 size={20}/> },
     { tab: 'incomeAndExpense', path: '/incomeAndExpense', label: 'Income & Expense', icon: <IndianRupee size={20}/> },
-    { tab: 'profitAndLoss', path: '/profitAndLoss', label: 'Profit & Loss', icon: <TrendingUp size={20}/> },    { tab: 'employees', path: '/employees', label: 'Employee Management', icon: <UserCog size={20}/> },
+    { tab: 'accounts', path: '/accounts', label: 'Accounts', icon: <TrendingUp size={20}/> }, 
+    { tab: 'employees', path: '/employees', label: 'Employee Management', icon: <UserCog size={20}/> },
     { tab: 'pipeline', path: '/pipeline', label: 'Lead Management', icon: <Briefcase size={20}/> },
     { tab: 'customers', path: '/customers', label: 'Customers', icon: <Users size={20}/> },
     { tab: 'campaign', path: '/campaign', label: 'Campaigns', icon: <Megaphone size={20}/> },
@@ -155,7 +156,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen, setIsSidebarOpen, onLo
 
     return (
         <>
-            {}
+            {/* Mobile Overlay */}
              <div 
                 className={`fixed inset-0 z-40 md:hidden transition-opacity duration-300 ease-in-out ${isSidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} 
                 onClick={() => setIsSidebarOpen(false)}
@@ -171,7 +172,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isSidebarOpen, setIsSidebarOpen, onLo
                 <SidebarContent />
             </div>
 
-            {}
+            {/* Desktop Sidebar */}
             <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-20">
                 <SidebarContent />
             </aside>

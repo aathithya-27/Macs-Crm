@@ -11,21 +11,20 @@ import Textarea from './ui/Textarea.tsx';
 import SearchableSelect from './ui/SearchableSelect.tsx';
 
 
-// Tell TypeScript that the 'google' global object will exist at runtime.
 declare var google: any;
 
 const digipinToCoords: Record<string, { lat: number; lng: number }> = {
-    '7J4VPQCP+HG': { lat: 11.3410, lng: 77.7172 }, // Erode, Tamil Nadu
-    '7JFJ3Q6H+2V': { lat: 19.1678, lng: 72.8647 }, // Mumbai, Goregaon East
-    '7JFJ3Q6H+3X': { lat: 19.1679, lng: 72.8648 }, // Mumbai, Goregaon East (Offset)
-    '7M52376V+5R': { lat: 13.0604, lng: 80.2495 }, // Chennai, Nungambakkam
-    '7J7JGVCC+5R': { lat: 18.5204, lng: 73.8567 }, // Pune
-    '7J4RXJJ4+M8': { lat: 12.9716, lng: 77.5946 }, // Bengaluru
+    '7J4VPQCP+HG': { lat: 11.3410, lng: 77.7172 },
+    '7JFJ3Q6H+2V': { lat: 19.1678, lng: 72.8647 },
+    '7JFJ3Q6H+3X': { lat: 19.1679, lng: 72.8648 },
+    '7M52376V+5R': { lat: 13.0604, lng: 80.2495 },
+    '7J7JGVCC+5R': { lat: 18.5204, lng: 73.8567 },
+    '7J4RXJJ4+M8': { lat: 12.9716, lng: 77.5946 },
 };
 
 
 const getDistanceFromLatLonInKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-    const R = 6371; // Radius of the earth in km
+    const R = 6371;
     const dLat = deg2rad(lat2 - lat1);
     const dLon = deg2rad(lon2 - lon1);
     const a =
@@ -33,7 +32,7 @@ const getDistanceFromLatLonInKm = (lat1: number, lon1: number, lat2: number, lon
       Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
       Math.sin(dLon / 2) * Math.sin(dLon / 2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const d = R * c; // Distance in km
+    const d = R * c;
     return d;
 }
 
@@ -744,14 +743,12 @@ const LocationServices: React.FC<LocationServicesProps> = ({
       return () => clearInterval(timer);
   }, [activeCheckIn]);
 
-  // --- MODIFICATION BEGINS ---
   const employeesForTracker = useMemo(() => {
     return allUsers.filter(u => {
       const userRole = roles.find(r => r.id === u.roleId);
       return userRole?.isAdvisor === true;
     });
   }, [allUsers, roles]);
-  // --- MODIFICATION ENDS ---
 
 
   const PlannerCustomerCard = ({ customer }: { customer: CustomerWithDistance }) => {
@@ -1243,12 +1240,12 @@ const LocationServices: React.FC<LocationServicesProps> = ({
                                 <button key={employee.id} onClick={() => handleSelectAdvisorForTrail(employee)} className={`w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors ${isSelected ? 'bg-blue-100 dark:bg-blue-900/50' : 'hover:bg-gray-100 dark:hover:bg-gray-700/50'}`}>
                                     <div className={`w-3 h-3 rounded-full flex-shrink-0 ring-2 ring-offset-2 dark:ring-offset-gray-800 ${isActiveMeeting ? 'bg-yellow-400 ring-yellow-300' : location ? 'bg-green-500 ring-green-400' : 'bg-gray-400 ring-gray-300'}`}></div>
                                     <div className="flex-1">
-                                        {/* --- MODIFICATION BEGINS --- */}
+                                        {}
                                         <div className="flex items-center gap-2">
                                             <p className="font-semibold text-gray-800 dark:text-white">{employee.name}</p>
                                             {employee.profile?.status === 'Inactive' && <span className="w-2 h-2 bg-red-500 rounded-full" title="Inactive Employee"></span>}
                                         </div>
-                                        {/* --- MODIFICATION ENDS --- */}
+                                        {}
                                         <p className="text-xs text-gray-500 dark:text-gray-400">
                                             {isEmployeeAdvisor ? (
                                                 isActiveMeeting ? `In a meeting` : location ? `Last seen at ${new Date(location.timestamp).toLocaleTimeString()}` : 'Offline'

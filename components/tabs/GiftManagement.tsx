@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-// --- FIX: Import GiftMaster instead of the non-existent Gift ---
 import { GiftMaster, GiftMapping, Member } from '../../types.ts';
 import Button from '../ui/Button.tsx';
 import Input from '../ui/Input.tsx';
@@ -7,10 +6,8 @@ import { Gift as GiftIcon, Plus, Save, Edit, Trash2, X, Edit2 } from 'lucide-rea
 import ToggleSwitch from '../ui/ToggleSwitch.tsx';
 
 interface GiftManagementProps {
-    // --- FIX: Use GiftMaster[] ---
     gifts: GiftMaster[];
     giftMappings: GiftMapping[];
-    // --- FIX: Use GiftMaster[] ---
     onUpdateGifts: (gifts: GiftMaster[]) => void;
     onUpdateGiftMappings: (mappings: GiftMapping[]) => void;
     addToast: (message: string, type?: 'success' | 'error') => void;
@@ -18,7 +15,6 @@ interface GiftManagementProps {
 
 const GiftManagement: React.FC<GiftManagementProps> = ({ gifts, giftMappings, onUpdateGifts, onUpdateGiftMappings, addToast }) => {
     const [newGiftName, setNewGiftName] = useState('');
-    // --- FIX: Use GiftMaster ---
     const [editingGift, setEditingGift] = useState<GiftMaster | null>(null);
     const [localMappings, setLocalMappings] = useState<GiftMapping[]>(giftMappings);
 
@@ -31,7 +27,6 @@ const GiftManagement: React.FC<GiftManagementProps> = ({ gifts, giftMappings, on
             addToast('A gift with this name already exists.', 'error');
             return;
         }
-        // --- FIX: Create a new object of type GiftMaster ---
         const newGift: GiftMaster = {
             id: `gift-${Date.now()}`,
             name: newGiftName.trim(),
@@ -63,8 +58,6 @@ const GiftManagement: React.FC<GiftManagementProps> = ({ gifts, giftMappings, on
         addToast('Gift mappings saved!', 'success');
     };
 
-    // Note: The 'tier' property in GiftMapping is a simple string.
-    // We are deriving the list of possible tiers from the Member type for UI purposes.
     const tiers: string[] = ['Silver', 'Gold', 'Diamond', 'Platinum'];
     
     return (
@@ -75,7 +68,7 @@ const GiftManagement: React.FC<GiftManagementProps> = ({ gifts, giftMappings, on
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Master Gift List */}
+                {}
                 <div className="lg:col-span-1 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
                     <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Master Gift List</h3>
                     <div className="space-y-3">
@@ -108,7 +101,7 @@ const GiftManagement: React.FC<GiftManagementProps> = ({ gifts, giftMappings, on
                     </div>
                 </div>
 
-                {/* Tier Mapping */}
+                {}
                 <div className="lg:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
                     <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Tier-Gift Mapping</h3>
                     <div className="space-y-4">

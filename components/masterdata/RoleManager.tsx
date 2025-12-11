@@ -1,17 +1,14 @@
 import React, { useState, useRef, useMemo } from 'react';
 
-// Import necessary types
 import { Role, User } from '../../types';
 
-// Import reusable UI components
 import Button from '../ui/Button';
 import Input from '../ui/Input';
 import Modal from '../ui/Modal';
 import ToggleSwitch from '../ui/ToggleSwitch';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
-import SearchBar from '../ui/SearchBar'; // MODIFICATION: Import SearchBar
+import SearchBar from '../ui/SearchBar';
 
-// Define the props specifically for this component
 interface RoleManagerProps {
     items: Role[];
     onUpdate: (items: Role[]) => void;
@@ -21,12 +18,11 @@ interface RoleManagerProps {
     canModify: boolean;
 }
 
-// --- MAIN COMPONENT ---
 const RoleManager: React.FC<RoleManagerProps> = ({ items, onUpdate, addToast, users, canCreate, canModify }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<Partial<Role> | null>(null);
     const triggerButtonRef = useRef<HTMLButtonElement>(null);
-    const [searchQuery, setSearchQuery] = useState(''); // MODIFICATION: Add search state
+    const [searchQuery, setSearchQuery] = useState('');
 
     const openModal = (item: Role | null, event?: React.MouseEvent<HTMLElement>) => {
         if (event) triggerButtonRef.current = event.currentTarget as HTMLButtonElement;
@@ -76,7 +72,6 @@ const RoleManager: React.FC<RoleManagerProps> = ({ items, onUpdate, addToast, us
         addToast('Role deleted successfully.', 'success');
     };
 
-    // MODIFICATION: Add filtering logic
     const filteredItems = useMemo(() => {
         return items.filter(item =>
             item.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -85,7 +80,7 @@ const RoleManager: React.FC<RoleManagerProps> = ({ items, onUpdate, addToast, us
 
     return (
         <div>
-            {/* --- MODIFICATION START --- */}
+            {}
             <div className="flex flex-col md:flex-row justify-between items-center gap-4 my-4">
                 <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Manage Roles</h3>
                 <div className="flex items-center gap-4 w-full md:w-auto">
@@ -102,7 +97,7 @@ const RoleManager: React.FC<RoleManagerProps> = ({ items, onUpdate, addToast, us
                     )}
                 </div>
             </div>
-            {/* --- MODIFICATION END --- */}
+            {}
             <div className="overflow-y-auto border dark:border-gray-700 rounded-lg max-h-96">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0">
@@ -115,7 +110,7 @@ const RoleManager: React.FC<RoleManagerProps> = ({ items, onUpdate, addToast, us
                         </tr>
                     </thead>
                     <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                        {/* MODIFICATION: Use filteredItems */}
+                        {}
                         {filteredItems.map((item, index) => (
                             <tr key={item.id}>
                                 <td className="px-6 py-4 text-sm text-gray-500">{index + 1}</td>

@@ -1,4 +1,3 @@
-// --- MutualFunds.tsx ---
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { TrendingUp, IndianRupee, Repeat, UserPlus, Download, Upload, Users, AlertTriangle, X, Search, FileText } from 'lucide-react';

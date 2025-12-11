@@ -16,7 +16,7 @@ const moduleLabels: Record<AppModule, string> = {
     'reports & insights': 'Reports & Insights',
     advancedReports: 'Advanced Reports',
     incomeAndExpense: 'Income & Expense',
-    profitAndLoss: 'Profit & Loss',
+    accounts: 'Profit & Loss',
     calendar: 'Calendar',
     employees: 'Employee Management',
     pipeline: 'Lead Pipeline',

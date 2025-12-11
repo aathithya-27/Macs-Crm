@@ -16,7 +16,6 @@ export const AttendanceModal: React.FC<AttendanceModalProps> = ({ isOpen, onClos
     const [reason, setReason] = useState('');
 
     useEffect(() => {
-        // Reset state when modal is opened
         if (isOpen) {
             setSelectedStatus(null);
             setReason('');

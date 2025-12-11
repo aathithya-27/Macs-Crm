@@ -36,7 +36,6 @@ interface DashboardProps {
     roles: Role[];
 }
 
-// New Task Detail Modal Component
 const TaskDetailModal: React.FC<{
     task: Task | null;
     isOpen: boolean;
@@ -226,8 +225,6 @@ const TaskOverview: React.FC<{
   const canModifyTasks = permissions?.taskManagement === 'modify';
 
   const tasksForUser = useMemo(() => {
-    // Users with modify or view permissions can see all tasks
-    // Users with create permission or no permission only see their own tasks
     if (permissions?.taskManagement === 'modify' || permissions?.taskManagement === 'view') {
       return tasks;
     }

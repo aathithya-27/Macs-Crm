@@ -3,7 +3,6 @@ import { Member, Festival, Religion, FestivalDate } from '../types';
 import { ChevronLeft, ChevronRight, User as UserIcon, Star as StarIcon, Gift, Users, Plus, Search } from 'lucide-react';
 import SearchableSelect from './ui/SearchableSelect.tsx';
 
-// Define the structure for a calendar event
 interface CalendarEvent {
   date: Date;
   type: 'Festival' | 'Birthday' | 'Special Occasion';
@@ -12,7 +11,6 @@ interface CalendarEvent {
   member?: { id: string; name: string };
 }
 
-// Props for the main calendar component
 interface FestivalCalendarProps {
   allMembers: Member[];
   festivals: Festival[];
@@ -21,7 +19,6 @@ interface FestivalCalendarProps {
   onViewMember: (member: Member) => void;
 }
 
-// --- Reusable UI Components ---
 
 const Button: React.FC<{
     onClick?: () => void;
@@ -73,12 +70,10 @@ const Modal: React.FC<{
     );
 };
 
-// --- Date Helper Functions ---
 const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
 const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
 const areDatesEqual = (date1: Date, date2: Date) => date1.getFullYear() === date2.getFullYear() && date1.getMonth() === date2.getMonth() && date1.getDate() === date2.getDate();
 
-// --- Main FestivalCalendar Component ---
 
 const FestivalCalendar: React.FC<FestivalCalendarProps> = ({ allMembers, festivals, festivalDates, religions, onViewMember }) => {
   const [mainDate, setMainDate] = useState(new Date());
@@ -89,16 +84,13 @@ const FestivalCalendar: React.FC<FestivalCalendarProps> = ({ allMembers, festiva
 
   const memberOptions = useMemo(() => allMembers.map(m => ({ value: m.id, label: m.name })), [allMembers]);
 
-  // --- MODIFIED Event Processing Logic ---
   const calendarEvents = useMemo(() => {
     let events: CalendarEvent[] = [];
     const membersToProcess = selectedMemberId ? allMembers.filter(m => m.id === selectedMemberId) : allMembers;
     
-    // Process festivals
     if (!selectedMemberId) {
         festivalDates.forEach(fd => {
             const festival = festivals.find(f => f.id === fd.festivalId);
-            // ADDED CHECK: Ensure both the festival and the specific date are active
             if (festival && festival.active !== false && fd.active !== false) {
                 events.push({
                     date: new Date(fd.date),
@@ -110,7 +102,6 @@ const FestivalCalendar: React.FC<FestivalCalendarProps> = ({ allMembers, festiva
         });
     }
 
-    // Process member events (birthdays, etc.) by calculating for the currently viewed year
     membersToProcess.forEach(member => {
       if (member.active) {
         const currentYear = mainDate.getFullYear();
@@ -248,7 +239,7 @@ const FestivalCalendar: React.FC<FestivalCalendarProps> = ({ allMembers, festiva
 
     const prevMonthDays = Array.from({ length: firstDay }, (_, i) => daysInPrevMonth - firstDay + i + 1);
     const currentMonthDays = Array.from({ length: daysInCurrentMonth }, (_, i) => i + 1);
-    const totalGridCells = 42; // 6 weeks * 7 days
+    const totalGridCells = 42;
     const nextMonthDaysCount = totalGridCells - (prevMonthDays.length + currentMonthDays.length);
     const nextMonthDays = Array.from({ length: nextMonthDaysCount }, (_, i) => i + 1);
 
@@ -256,13 +247,13 @@ const FestivalCalendar: React.FC<FestivalCalendarProps> = ({ allMembers, festiva
 
     return (
         <div className="grid grid-cols-7 grid-rows-6 flex-grow">
-            {/* Previous Month Days */}
+            {}
             {prevMonthDays.map(day => (
                 <div key={`prev-${day}`} className="border-t border-l border-gray-200 dark:border-gray-700 p-2 text-gray-400 dark:text-gray-500">
                     <span className="font-semibold text-lg">{day}</span>
                 </div>
             ))}
-            {/* Current Month Days */}
+            {}
             {currentMonthDays.map(day => {
                 const date = new Date(year, month, day);
                 const events = calendarEvents.filter(e => areDatesEqual(new Date(e.date), date));
@@ -278,7 +269,7 @@ const FestivalCalendar: React.FC<FestivalCalendarProps> = ({ allMembers, festiva
                     </div>
                 );
             })}
-            {/* Next Month Days */}
+            {}
             {nextMonthDays.map(day => (
                 <div key={`next-${day}`} className="border-t border-l border-gray-200 dark:border-gray-700 p-2 text-gray-400 dark:text-gray-500">
                      <span className="font-semibold text-lg">{day}</span>
@@ -332,7 +323,7 @@ const FestivalCalendar: React.FC<FestivalCalendarProps> = ({ allMembers, festiva
 
   const WeekView = () => {
     const startOfWeek = new Date(mainDate);
-    startOfWeek.setDate(mainDate.getDate() - mainDate.getDay()); // Start from Sunday
+    startOfWeek.setDate(mainDate.getDate() - mainDate.getDay());
     const weekDays = Array.from({ length: 7 }).map((_, i) => {
         const date = new Date(startOfWeek);
         date.setDate(startOfWeek.getDate() + i);
@@ -370,7 +361,7 @@ const FestivalCalendar: React.FC<FestivalCalendarProps> = ({ allMembers, festiva
 
   return (
     <div className="bg-gray-100 dark:bg-gray-900 p-4 h-full flex gap-6">
-        {/* Left Sidebar */}
+        {}
         <div className="w-80 flex-shrink-0 bg-white dark:bg-gray-800 rounded-xl shadow-md flex flex-col">
             <MiniCalendar />
             <div className="p-4 border-t border-gray-200 dark:border-gray-700">
@@ -385,7 +376,7 @@ const FestivalCalendar: React.FC<FestivalCalendarProps> = ({ allMembers, festiva
             </div>
         </div>
 
-        {/* Main Calendar View */}
+        {}
         <div className="flex-1 flex flex-col bg-white dark:bg-gray-800 rounded-xl shadow-md">
             <MainCalendarHeader />
             {(view === 'month' || view === 'week') && <div className="grid grid-cols-7 text-center font-bold text-gray-500 dark:text-gray-400 text-sm py-3 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">

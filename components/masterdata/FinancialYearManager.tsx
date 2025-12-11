@@ -7,7 +7,7 @@ import Input from '../ui/Input';
 import Modal from '../ui/Modal';
 import ToggleSwitch from '../ui/ToggleSwitch';
 import { Plus, Save, Edit2 } from 'lucide-react';
-import SearchBar from '../ui/SearchBar'; // MODIFICATION: Import SearchBar
+import SearchBar from '../ui/SearchBar';
 
 interface FinancialYearManagerProps {
     financialYears: FinancialYear[];
@@ -117,7 +117,7 @@ const FinancialYearManager: React.FC<FinancialYearManagerProps> = ({
     const [isDocNumModalOpen, setIsDocNumModalOpen] = useState(false);
     const [editingDocNum, setEditingDocNum] = useState<Partial<DocumentNumbering> | null>(null);
     const triggerButtonRef = useRef<HTMLButtonElement | null>(null);
-    const [searchQuery, setSearchQuery] = useState(''); // MODIFICATION: Add search state
+    const [searchQuery, setSearchQuery] = useState('');
 
     const openFYModal = (item: FinancialYear | null, event?: React.MouseEvent<HTMLElement>) => {
         if (event) triggerButtonRef.current = event.currentTarget as HTMLButtonElement;

@@ -54,18 +54,14 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: 'createdAt', direction: 'desc' });
   const [currentPage, setCurrentPage] = useState(1);
 
-  // --- MODIFICATION BEGINS ---
   const [createdByFilter, setCreatedByFilter] = useState<string>('all');
   const [assignedToFilter, setAssignedToFilter] = useState<string>('all');
-  // --- MODIFICATION ENDS ---
 
   const canCreate = permissions?.customers === 'create' || permissions?.customers === 'modify';
   
-  // --- MODIFICATION BEGINS ---
   useEffect(() => {
     setCurrentPage(1);
   }, [searchMode, statusFilter, aiSearchQuery, advFilters, advisorViewMode, createdByFilter, assignedToFilter]);
-  // --- MODIFICATION ENDS ---
 
 
   const advisorMembers = useMemo(() => {
@@ -96,7 +92,6 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({
     setIsAiSearching(false);
   }, [aiSearchQuery, advisorMembers, addToast]);
   
-  // --- MODIFICATION BEGINS ---
   const handleClearSearch = useCallback(() => {
       setAiSearchQuery('');
       setAdvFilters({ name: '', city: '', memberType: 'All', createdAtFrom: '', createdAtTo: '' });
@@ -106,7 +101,6 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({
       setCreatedByFilter('all');
       setAssignedToFilter('all');
   }, []);
-  // --- MODIFICATION ENDS ---
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -126,7 +120,6 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({
     }));
   }, []);
 
-  // --- MODIFICATION BEGINS ---
   const displayedMembers = useMemo(() => {
     let baseMembers = advisorMembers;
     if (searchMode === 'ai' && searchPerformed && filteredMemberIds !== null) {
@@ -197,7 +190,6 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({
     return filtered;
 
   }, [advisorMembers, searchMode, searchPerformed, filteredMemberIds, advFilters, statusFilter, sortConfig, createdByFilter, assignedToFilter]);
-  // --- MODIFICATION ENDS ---
   
   const totalPages = Math.ceil(displayedMembers.length / ITEMS_PER_PAGE);
   const currentMembers = useMemo(() => {
@@ -205,7 +197,6 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({
     return displayedMembers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [currentPage, displayedMembers]);
 
-  // --- MODIFICATION BEGINS ---
   const employeeOptions = useMemo(() => [
     { value: 'all', label: 'All Employees' },
     ...users.map(u => ({
@@ -213,7 +204,6 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({
         label: u.profile?.status === 'Inactive' ? `${u.name} 🔴` : u.name
     }))
   ], [users]);
-  // --- MODIFICATION ENDS ---
   
   const SearchToggleButton = ({ mode, label, icon }: { mode: SearchMode, label: string, icon: React.ReactNode }) => (
     <button
@@ -292,7 +282,6 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({
                 </div>
               </div>
           ) : (
-            // --- MODIFICATION BEGINS ---
               <div className="relative z-10 animate-fade-in space-y-4 p-4 border-2 border-dashed dark:border-gray-700 rounded-lg">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                       <Input label="Name" placeholder="Search by name" value={advFilters.name} onChange={(e) => handleAdvancedFilterChange('name', e.target.value)} />
@@ -311,7 +300,6 @@ const MemberDashboard: React.FC<MemberDashboardProps> = ({
                     <Input label="Created To" type="date" value={advFilters.createdAtTo} onChange={(e) => handleAdvancedFilterChange('createdAtTo', e.target.value)} />
                   </div>
               </div>
-            // --- MODIFICATION ENDS ---
           )}
 
            <div className="flex items-center gap-3 animate-fade-in mt-4">

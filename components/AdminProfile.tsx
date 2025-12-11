@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, Member, Designation, AppModule, PermissionLevel, Role } from '../types.ts'; // MODIFIED: Added Role
+import { User, Member, Designation, AppModule, PermissionLevel, Role } from '../types.ts';
 import { Shield, Users, UserPlus, HardDrive, Edit, Database, DollarSign } from 'lucide-react';
 import Button from './ui/Button.tsx';
 
-// --- MODIFIED: Added roles to props interface ---
 interface AdminProfileProps {
     user: User;
     users: User[];
@@ -13,7 +12,7 @@ interface AdminProfileProps {
     addToast: (message: string, type?: 'success' | 'error') => void;
     designations: Designation[];
     permissions: { [key in AppModule]?: PermissionLevel };
-    roles: Role[]; // --- NEW ---
+    roles: Role[];
 }
 
 const StatCard: React.FC<{ icon: React.ReactNode; label: string; value: string | number; color: string; }> = ({ icon, label, value, color }) => (
@@ -40,7 +39,6 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user, users, allMembers, on
         setLocalUser(user);
     }, [user]);
     
-    // --- MODIFIED: This logic now uses Roles ---
     const advisors = useMemo(() => {
         const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
         return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
@@ -74,9 +72,9 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user, users, allMembers, on
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left Column */}
+                {}
                 <div className="lg:col-span-1 space-y-8">
-                    {/* Admin Profile Card */}
+                    {}
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700 text-center">
                         <div className="relative w-24 h-24 mx-auto">
                             <img src={localUser.profile?.photoUrl || `https://i.pravatar.cc/150?u=${localUser.id}`} alt="Admin" className="w-24 h-24 rounded-full object-cover" />
@@ -99,7 +97,7 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user, users, allMembers, on
                         </Button>
                     </div>
 
-                    {/* Quick Actions */}
+                    {}
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
                         <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Quick Actions</h3>
                         <div className="space-y-3">
@@ -132,9 +130,9 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user, users, allMembers, on
                     </div>
                 </div>
                 
-                {/* Right Column */}
+                {}
                 <div className="lg:col-span-2 space-y-8">
-                     {/* System Stats */}
+                     {}
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
                         <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">System Health & Usage</h3>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -145,7 +143,7 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user, users, allMembers, on
                         </div>
                     </div>
                     
-                    {/* System Settings */}
+                    {}
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
                         <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">System Settings</h3>
                         <div className="space-y-4">
@@ -169,7 +167,7 @@ const AdminProfile: React.FC<AdminProfileProps> = ({ user, users, allMembers, on
                         </div>
                     </div>
                     
-                     {/* Security Settings */}
+                     {}
                     <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
                         <h3 className="text-lg font-semibold text-gray-800 dark:text-white mb-4">Security</h3>
                          <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">

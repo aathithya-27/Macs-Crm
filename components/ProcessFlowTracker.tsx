@@ -7,7 +7,6 @@ interface ProcessFlowTrackerProps {
     currentStage: ProcessStage;
     processSteps: ProcessStage[];
     onStageClick: (newStage: ProcessStage) => void;
-    // NEW: Add a prop to control modification ability
     canModify: boolean;
 }
 
@@ -69,7 +68,6 @@ const ProcessFlowTracker: React.FC<ProcessFlowTrackerProps> = ({ currentStage, p
                                 )}
                                  <button 
                                     onClick={() => onStageClick(step)}
-                                    // MODIFIED: The button is now disabled if the stage is already completed OR if the user cannot modify.
                                     disabled={isCompleted || !canModify}
                                     className="relative flex items-center space-x-3 w-full text-left p-1 rounded-lg transition-colors duration-200 disabled:cursor-not-allowed group"
                                     aria-label={isCompleted ? `${step} (Completed)` : `Set stage to ${step}`}

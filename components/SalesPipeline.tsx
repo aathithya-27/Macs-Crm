@@ -38,19 +38,17 @@ const KanbanCard: React.FC<{
 }> = ({ lead, assignee, onUpdateLead, onConvertLead, onOpenLeadModal, leadSources, onDeleteLead, onFindOpportunity, isFindingOpportunity, canModify, activeStageNames }) => {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     
-    // --- NEW: Local State for Suggestion Visibility ---
     const [isSuggestionVisible, setIsSuggestionVisible] = useState(false);
     const prevSuggestion = useRef(lead.upsellSuggestion);
     
     const menuRef = useRef<HTMLDivElement>(null);
 
     const isStale = useMemo(() => {
-        const staleThreshold = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
+        const staleThreshold = 7 * 24 * 60 * 60 * 1000;
         const lastUpdateDate = lead.lastUpdatedAt ? new Date(lead.lastUpdatedAt) : new Date(lead.createdAt);
         return (new Date().getTime() - lastUpdateDate.getTime()) > staleThreshold;
     }, [lead.lastUpdatedAt, lead.createdAt]);
 
-    // --- NEW: Auto-expand when suggestion is populated ---
     useEffect(() => {
         if (lead.upsellSuggestion && lead.upsellSuggestion !== prevSuggestion.current) {
             setIsSuggestionVisible(true);
@@ -97,14 +95,11 @@ const KanbanCard: React.FC<{
         setIsMenuOpen(false);
     };
 
-    // --- NEW: Handle Bulb Click Logic ---
     const handleOpportunityClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (lead.upsellSuggestion) {
-            // If suggestion exists, simply toggle visibility
             setIsSuggestionVisible(prev => !prev);
         } else {
-            // If no suggestion, fetch it (useEffect will handle expansion)
             onFindOpportunity(lead);
         }
     };
@@ -232,7 +227,7 @@ const KanbanCard: React.FC<{
                 </div>
             </div>
             
-            {/* Conditional Rendering of Upsell Suggestion */}
+            {}
             {lead.upsellSuggestion && isSuggestionVisible && (
                 <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700/50 animate-fade-in">
                     <div className="flex items-start gap-2 text-indigo-800 dark:text-indigo-300">
@@ -450,7 +445,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ isOpen, onClose, filters, onF
                             className="w-full h-10 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-brand-primary bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                         >
                             <option value="">All Types</option>
-                            <option value="Mutual Funds">Mutual Funds</option> {/* ADDED MUTUAL FUNDS OPTION */}
+                            <option value="Mutual Funds">Mutual Funds</option> {}
                             {parentInsuranceTypes.map(type => (
                                 <option key={type.id} value={type.name}>{type.name}</option>
                             ))}
@@ -568,12 +563,9 @@ const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadM
             }
     
             if (policyInterestType) {
-                // --- UPDATE: Handle Mutual Funds Logic ---
                 if (policyInterestType === 'Mutual Funds') {
-                    // Check strict equality for Mutual Funds as it doesn't have an ID in insuranceTypes
                     if (lead.policyInterestType !== 'Mutual Funds') return false;
                 } else {
-                    // Existing logic for Insurance Types
                     const leadType = insuranceTypes.find(it => it.id === lead.insuranceTypeId);
                     if (!leadType) return false;
 

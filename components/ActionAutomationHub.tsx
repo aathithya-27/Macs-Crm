@@ -15,7 +15,6 @@ import Modal from './ui/Modal.tsx';
 import SearchableSelect from './ui/SearchableSelect.tsx';
 import { updateOccasionTypeMasters } from '../services/apiService.ts';
 
-// Helper components & functions from original files, slightly adapted
 const handleSendMessage = (type: 'sms' | 'whatsapp', mobile: string, message: string) => {
     const cleanedMobile = mobile.replace(/[^0-9]/g, '');
     const encodedMessage = encodeURIComponent(message);
@@ -206,7 +205,6 @@ const ChannelTag: React.FC<{ channel: 'whatsapp' | 'sms' | 'email' | 'call' | st
     return <span className={`px-2 py-1 text-xs font-medium rounded ${style}`}>{channel}</span>;
 };
 
-// --- MODIFICATION: Add roles to props ---
 interface ActionAutomationHubProps {
     notifications: Notification[];
     onRenewPolicy: (memberId: string, policyId: string) => Promise<boolean>;
@@ -235,7 +233,7 @@ interface ActionAutomationHubProps {
     permissions: { [key in AppModule]?: PermissionLevel };
     occasionTypeMasters: OccasionTypeMaster[]; 
     onUpdateOccasionTypeMasters: (data: OccasionTypeMaster[]) => void;
-    roles: Role[]; // --- NEW ---
+    roles: Role[];
 }
 
 const AddRuleModal: React.FC<{
@@ -495,7 +493,6 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
         handleAction(notificationId);
     };
     
-    // --- MODIFICATION BEGINS ---
     const advisorsForFilter = useMemo(() => {
         const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
         return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
@@ -503,21 +500,18 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
 
     const visibleTasks = useMemo(() => {
         if (!currentUser) return [];
-        // Admin/Manager view
         if (permissions?.actionHub === 'modify' || permissions?.masterData === 'modify') {
             if (adminTaskFilter === 'all') {
                 return tasks;
             }
             return tasks.filter(task => task.primaryContactPerson === adminTaskFilter);
         }
-        // Advisor/Standard user view
         const assignedMemberIds = new Set(members.filter(m => m.assignedTo?.includes(currentUser.id)).map(m => m.id));
         return tasks.filter(task => 
             task.primaryContactPerson === currentUser.id || 
             (task.memberId && assignedMemberIds.has(task.memberId))
         );
     }, [tasks, currentUser, members, adminTaskFilter, permissions]);
-    // --- MODIFICATION ENDS ---
 
     const hasNotifications = overdue.length > 0 || upcoming.length > 0;
     
@@ -635,7 +629,7 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
                         <div className="space-y-4">
                             <div>
                                 <h4 className="font-medium text-gray-700 dark:text-gray-300 mb-2">Tasks</h4>
-                                {/* --- MODIFICATION BEGINS --- */}
+                                {}
                                 {(permissions?.actionHub === 'modify' || permissions?.masterData === 'modify') && (
                                     <div className="mb-4">
                                         <label htmlFor="task-advisor-filter" className="text-sm font-medium text-gray-700 dark:text-gray-300 mr-2">Filter by Advisor:</label>
@@ -652,7 +646,7 @@ export const ActionAutomationHub: React.FC<ActionAutomationHubProps> = ({
                                         </select>
                                     </div>
                                 )}
-                                {/* --- MODIFICATION ENDS --- */}
+                                {}
                                 {visibleTasks.length > 0 ? visibleTasks.map(task => (
                                     <div key={task.id} className="p-3 border-b border-gray-200 dark:border-gray-700 last:border-b-0">
                                         <div className="flex items-start justify-between">

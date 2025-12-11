@@ -3,8 +3,6 @@ import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, BarChart, Ba
 import { Member, Lead, SchemeMaster, InsuranceTypeMaster } from '../types.ts';
 import { IndianRupee, FileText as FileTextIcon, Star, Donut } from 'lucide-react';
 
-// --- CustomTooltip (Moved from App.tsx) ---
-// This is used by multiple report charts
 export const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
         return (
@@ -25,7 +23,6 @@ export const CustomTooltip = ({ active, payload, label }: any) => {
     }
     return null;
 };
-// --- End of CustomTooltip ---
 
 
 export const SchemeConversionReports: React.FC<{

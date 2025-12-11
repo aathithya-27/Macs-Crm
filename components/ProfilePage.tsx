@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { User, EmployeeModalTab, EmployeeProfile, Member, Geography, BankMaster, Designation, AppModule, PermissionLevel, Gender, AccountType, Role } from '../types.ts'; // MODIFIED: Added Role
+import { User, EmployeeModalTab, EmployeeProfile, Member, Geography, BankMaster, Designation, AppModule, PermissionLevel, Gender, AccountType, Role } from '../types.ts';
 import Button from './ui/Button.tsx';
 import { User as UserIcon, MapPin, BookOpen, Save, Edit, KeyRound, Users } from 'lucide-react';
 import { GeneralInfoTab, AddressTab, EducationTab, EmployeeCustomersTab } from './tabs/EmployeeProfileTabs.tsx';
 import { ChangePasswordModal } from './ChangePasswordModal.tsx';
 
 
-// --- MODIFIED: Added roles to props interface ---
 interface ProfilePageProps {
   user: User | null;
   onUpdateProfile: (user: User, closeModal?: boolean) => void;
@@ -21,7 +20,7 @@ interface ProfilePageProps {
   permissions: { [key in AppModule]?: PermissionLevel };
   genders: Gender[];
   accountTypes: AccountType[];
-  roles: Role[]; // --- NEW ---
+  roles: Role[];
 }
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ 
@@ -64,7 +63,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
     }
   };
   
-  // --- MODIFIED: This logic now uses Roles ---
   const isCurrentUserAdvisor = useMemo(() => {
       const userRole = roles.find(r => r.id === user?.roleId);
       return userRole?.isAdvisor === true;

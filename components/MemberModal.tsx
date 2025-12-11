@@ -23,7 +23,6 @@ import { X, Users, UserCheck, Plus, ListTodo, SlidersHorizontal, UserPlus as Use
 import Input from './ui/Input.tsx';
 import SearchableSelect from './ui/SearchableSelect.tsx';
 
-// Constants for validation and security
 const VALIDATION_PATTERNS = {
     MOBILE: /^\+?[0-9\s-]{10,15}$/,
     EMAIL: /^\S+@\S+\.\S+$/,
@@ -648,7 +647,6 @@ export const MemberModal: React.FC<MemberModalProps> = ({
   const canModify = permissions?.customers === 'modify';
   const isReadOnly = !!member && !canModify;
 
-  // --- MODIFICATION BEGINS ---
   const roleMap = useMemo(() => new Map(roles.map(r => [r.id, r.name])), [roles]);
 
   const creatorInfo = useMemo(() => {
@@ -664,7 +662,6 @@ export const MemberModal: React.FC<MemberModalProps> = ({
     }
     return null;
   }, [formData.createdBy, users, roleMap]); 
-  // --- MODIFICATION ENDS ---
 
   const isCurrentUserAdvisor = useMemo(() => roles.find(r => r.id === currentUser?.roleId)?.isAdvisor === true, [currentUser, roles]);
 
@@ -1218,7 +1215,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     />}
             </div>
         </div>
-        {/* --- MODIFICATION BEGINS --- */}
+        {}
         <div className="flex-shrink-0 flex justify-between items-center p-6 pt-4 border-t border-gray-200 dark:border-gray-700 gap-3">
             <div>
                 {creatorInfo && (
@@ -1229,7 +1226,7 @@ export const MemberModal: React.FC<MemberModalProps> = ({
                     </div>
                 )}
             </div>
-        {/* --- MODIFICATION ENDS --- */}
+        {}
             <div className="flex gap-3">
                 <Button 
                     onClick={onClose} 

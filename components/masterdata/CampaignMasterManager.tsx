@@ -14,7 +14,6 @@ const CampaignMasterManager: React.FC<CampaignMasterManagerProps> = ({ addToast,
     const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     
-    // Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingCampaign, setEditingCampaign] = useState<CampaignMaster | null>(null);
     const [formData, setFormData] = useState<Partial<CampaignMaster>>({

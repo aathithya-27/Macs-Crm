@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-// MODIFIED: Import permission types
 import { Member, Policy, DocTemplate, UploadedDocument, AppModule, PermissionLevel } from '../types.ts';
 import Modal from './ui/Modal.tsx';
 import Button from './ui/Button.tsx';
@@ -14,11 +13,9 @@ interface ProposalGeneratorModalProps {
   templates: DocTemplate[];
   onSave: (member: Member, closeModal?: boolean) => void;
   addToast: (message: string, type?: 'success' | 'error') => void;
-  // NEW: Accept permissions prop
   permissions: { [key in AppModule]?: PermissionLevel };
 }
 
-// Helper to safely encode UTF-8 strings to base64, preventing errors with Unicode characters.
 const utf8_to_b64 = (str: string) => {
     return btoa(unescape(encodeURIComponent(str)));
 }
@@ -37,7 +34,6 @@ export const ProposalGeneratorModal: React.FC<ProposalGeneratorModalProps> = ({
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
   const [generatedContent, setGeneratedContent] = useState('');
 
-  // NEW: Permission check for the customer module
   const canModify = permissions?.customers === 'modify';
 
   useEffect(() => {
@@ -81,7 +77,7 @@ export const ProposalGeneratorModal: React.FC<ProposalGeneratorModalProps> = ({
         documents: [...(member.documents || []), newProposalDoc]
     };
     
-    onSave(updatedMember, false); // Don't close the main member modal
+    onSave(updatedMember, false);
     addToast(`Proposal for ${member.name} sent for signature (Simulated).`, 'success');
     onClose();
   };
@@ -107,7 +103,6 @@ export const ProposalGeneratorModal: React.FC<ProposalGeneratorModalProps> = ({
                 value={selectedTemplateId}
                 onChange={(e) => setSelectedTemplateId(e.target.value)}
                 className="block w-full md:w-1/2 px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                // MODIFIED: Disable select based on permission
                 disabled={!canModify}
             >
                 {templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -120,7 +115,6 @@ export const ProposalGeneratorModal: React.FC<ProposalGeneratorModalProps> = ({
                 onChange={(e) => setGeneratedContent(e.target.value)}
                 rows={15}
                 className="w-full p-4 font-mono text-sm bg-gray-50 dark:bg-gray-900/50 rounded-md border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-brand-primary focus:outline-none text-gray-800 dark:text-gray-200"
-                // MODIFIED: Disable textarea based on permission
                 disabled={!canModify}
              />
         </div>
@@ -131,7 +125,6 @@ export const ProposalGeneratorModal: React.FC<ProposalGeneratorModalProps> = ({
         <Button 
             onClick={handleSendForSignature} 
             variant="primary"
-            // MODIFIED: Disable button based on permission
             disabled={!canModify}
         >
             <Send size={16} /> Send for Signature (Simulated)

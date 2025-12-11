@@ -19,8 +19,7 @@ import TierAndGiftManager from './TierAndGiftManager';
 import TaskStatusManager from './TaskStatusManager';
 import RoutesManager from './RoutesManager';
 import ReligionsAndFestivalsManager from './ReligionsAndFestivalsManager';
-import ExpenseCategoryManager from './ExpenseCategoryManager';
-import IncomeCategoryManager from './IncomeCategoryManager';
+import AccountCategoryManager from './AccountCategoryManager';
 import RelationshipTypesManager from './RelationshipTypesManager';
 import CustomerSegmentsManager from './CustomerSegmentsManager';
 import GendersManager from './GendersManager';
@@ -28,20 +27,20 @@ import MaritalStatusManager from './MaritalStatusManager';
 import CustomerFieldManager from './CustomerFieldManager';
 import TaskTypeManager from './TaskTypeManager';
 import BankMastersManager from './BankMastersManager';
-import CampaignMasterManager from './CampaignMasterManager'; // --- NEW IMPORT ---
+import CampaignMasterManager from './CampaignMasterManager';
 
 import {
     Member, Lead, User, BusinessVertical, LeadSourceMaster, SchemeMaster, Company, Branch, Geography, RelationshipType,
     DocumentMaster, InsuranceTypeDocumentRule, GiftMaster, TaskStatusMaster, CustomerCategory, BankMaster, CompanyInfo,
     CustomerSubCategory, CustomerGroup, TaskMaster, InsuranceTypeMaster, InsuranceFieldMaster, CustomerFieldMaster, Route as RouteType,
-    Designation, Role, RolePermissions, CustomerTier, ExpenseCategoryLevel1, ExpenseCategoryLevel2,
-    IncomeCategoryLevel1, IncomeCategoryLevel2, Religion, Festival, FestivalDate, AMC, MutualFundScheme, MutualFundFieldMaster,
+    Designation, Role, RolePermissions, CustomerTier, 
+    AccountCategory, AccountSubCategory, AccountHead,
+    Religion, Festival, FestivalDate, AMC, MutualFundScheme, MutualFundFieldMaster,
     Gender, MaritalStatus,InsuranceAgency, CustomerType, ProcessStageMaster, AccountType, FinancialYear, DocumentNumbering, LeadStageMaster, Task
 } from '../../types';
 
-import { Database, GitBranch, Building, SlidersHorizontal, Handshake, HandCoins, UserCog, Award, Lock, UserPlus, Calendar as CalendarIcon, Sparkles, Users, Workflow, HeartHandshake, Globe2, FileTextIcon, Landmark, CheckSquare, Heart, Venus, ArrowUp, ArrowDown, Route as RouteIcon, Layers, ChevronDown, Megaphone } from 'lucide-react';
+import { Database, GitBranch, Building, SlidersHorizontal, Handshake, HandCoins, UserCog, Award, Lock, UserPlus, Calendar as CalendarIcon, Sparkles, Users, Workflow, HeartHandshake, Globe2, FileTextIcon, Landmark, CheckSquare, Heart, Venus, Route as RouteIcon, Layers, ChevronDown, Megaphone } from 'lucide-react';
 
-// Props interface
 interface MasterDataProps {
     addToast: (message: string, type?: 'success' | 'error') => void;
     allMembers: Member[];
@@ -103,14 +102,14 @@ interface MasterDataProps {
     onUpdateRolePermissions: (permissions: RolePermissions) => void;
     customerTierCalculationMethod: 'sumAssured' | 'premium';
     onUpdateCustomerTierCalculationMethod: (method: 'sumAssured' | 'premium') => void;
-    expenseCategoriesLevel1: ExpenseCategoryLevel1[];
-    onUpdateExpenseCategoriesLevel1: (data: ExpenseCategoryLevel1[]) => void;
-    expenseCategoriesLevel2: ExpenseCategoryLevel2[];
-    onUpdateExpenseCategoriesLevel2: (data: ExpenseCategoryLevel2[]) => void;
-    incomeCategoriesLevel1: IncomeCategoryLevel1[];
-    onUpdateIncomeCategoriesLevel1: (data: IncomeCategoryLevel1[]) => void;
-    incomeCategoriesLevel2: IncomeCategoryLevel2[];
-    onUpdateIncomeCategoriesLevel2: (data: IncomeCategoryLevel2[]) => void;
+    
+    accountCategories: AccountCategory[];
+    onUpdateAccountCategories: (data: AccountCategory[]) => void;
+    accountSubCategories: AccountSubCategory[];
+    onUpdateAccountSubCategories: (data: AccountSubCategory[]) => void;
+    accountHeads: AccountHead[];
+    onUpdateAccountHeads: (data: AccountHead[]) => void;
+
     religions: Religion[];
     onUpdateReligions: (data: Religion[]) => void;
     festivals: Festival[];
@@ -155,7 +154,6 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
     const contentContainerRef = useRef<HTMLDivElement>(null);
     const navLinkRefs = useRef(new Map<string, HTMLElement>());
 
-    // General Master Data Permissions
     const permissionLevel = useMemo(() => {
         if (!currentUser || !rolePermissions) return 'none';
         const userPermissions = rolePermissions.find(p => p.roleId === currentUser.roleId);
@@ -165,7 +163,6 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
     const canCreate = permissionLevel === 'create' || permissionLevel === 'modify';
     const canModify = permissionLevel === 'modify';
 
-    // Specific Campaign Permissions
     const campaignPermissionLevel = useMemo(() => {
         if (!currentUser || !rolePermissions) return 'none';
         const userPermissions = rolePermissions.find(p => p.roleId === currentUser.roleId);
@@ -179,7 +176,9 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
         { id: 'companyMaster', path: '/masterData/companyMaster', label: 'Company Master', icon: <Building size={18}/> },
         { id: 'branches', path: '/masterData/branches', label: 'Branch', icon: <GitBranch size={18}/> },
         { id: 'businessVerticals', path: '/masterData/businessVerticals', label: 'Business Vertical', icon: <Layers size={18}/> },
-        { id: 'campaign', path: '/masterData/campaign', label: 'Campaign Master', icon: <Megaphone size={18} /> }, // --- NEW ITEM ---
+        { id: 'campaign', path: '/masterData/campaign', label: 'Campaign Master', icon: <Megaphone size={18} /> },
+        { id: 'accountCategories', path: '/masterData/accountCategories', label: 'Account Categories', icon: <Layers size={18}/> },
+        { id: 'bankMasters', path: '/masterData/bankMasters', label: 'Bank Master', icon: <Landmark size={18} /> },
         { id: 'policyConfiguration', path: '/masterData/policyConfiguration', label: 'Policy Configuration', icon: <SlidersHorizontal size={18}/>},
         { id: 'schemesAndMappings', path: '/masterData/schemesAndMappings', label: 'Agency and Scheme', icon: <Handshake size={18}/> },
         { id: 'mutualFunds', path: '/masterData/mutualFunds', label: 'Mutual Funds', icon: <HandCoins size={18}/> },
@@ -194,15 +193,12 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
         { id: 'relationshipTypes', path: '/masterData/relationshipTypes', label: 'Relationship', icon: <HeartHandshake size={18}/> },
         { id: 'geography', path: '/masterData/geography', label: 'Geography', icon: <Globe2 size={18}/> },
         { id: 'documentMasters', path: '/masterData/documentMasters', label: 'Document Master', icon: <FileTextIcon size={18}/> },
-        { id: 'bankMasters', path: '/masterData/bankMasters', label: 'Bank Master', icon: <Landmark size={18} /> },
         { id: 'taskStatuses', path: '/masterData/taskStatuses', label: 'Task Status', icon: <CheckSquare size={18}/> },
         { id: 'customerSegments', path: '/masterData/customerSegments', label: 'Customer Segment', icon: <Users size={18}/> },
         { id: 'genders', path: '/masterData/genders', label: 'Gender', icon: <Venus size={18}/> },
         { id: 'maritalStatuses', path: '/masterData/maritalStatuses', label: 'Marital Status', icon: <Heart size={18}/> },
         { id: 'taskMasters', path: '/masterData/taskMasters', label: 'Task Type', icon: <CheckSquare size={18}/> },
         { id: 'tierManagement', path: '/masterData/tierManagement', label: 'Type & Gift Management', icon: <Award size={18}/> },
-        { id: 'expenseCategories', path: '/masterData/expenseCategories', label: 'Expense Categories', icon: <ArrowUp size={18}/> },
-        { id: 'incomeCategories', path: '/masterData/incomeCategories', label: 'Income Categories', icon: <ArrowDown size={18}/> },
         { id: 'routes', path: '/masterData/routes', label: 'Routes', icon: <RouteIcon size={18}/> },
     ], []);
 
@@ -381,8 +377,10 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                     <Route path="taskStatuses" element={<TaskStatusManager taskStatuses={props.taskStatuses} onUpdateTaskStatuses={props.onUpdateTaskStatuses} addToast={props.addToast} allTasks={props.allTasks} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="routes" element={<RoutesManager routes={props.routes} onUpdateRoutes={props.onUpdateRoutes} addToast={props.addToast} allMembers={props.allMembers} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="religionsAndFestivals" element={<ReligionsAndFestivalsManager {...props} canCreate={canCreate} canModify={canModify} />} />
-                    <Route path="expenseCategories" element={<ExpenseCategoryManager level1Data={props.expenseCategoriesLevel1} level2Data={props.expenseCategoriesLevel2} onUpdateLevel1={props.onUpdateExpenseCategoriesLevel1} onUpdateLevel2={props.onUpdateExpenseCategoriesLevel2} addToast={props.addToast} canCreate={canCreate} canModify={canModify} />} />
-                    <Route path="incomeCategories" element={<IncomeCategoryManager level1Data={props.incomeCategoriesLevel1} level2Data={props.incomeCategoriesLevel2} onUpdateLevel1={props.onUpdateIncomeCategoriesLevel1} onUpdateLevel2={props.onUpdateIncomeCategoriesLevel2} addToast={props.addToast} canCreate={canCreate} canModify={canModify} />} />
+                    
+                    {}
+                    <Route path="accountCategories" element={<AccountCategoryManager categories={props.accountCategories} subCategories={props.accountSubCategories} heads={props.accountHeads} onUpdateCategories={props.onUpdateAccountCategories} onUpdateSubCategories={props.onUpdateAccountSubCategories} onUpdateHeads={props.onUpdateAccountHeads} addToast={props.addToast} canCreate={canCreate} canModify={canModify} />} />
+                    
                     <Route path="relationshipTypes" element={<RelationshipTypesManager relationshipTypes={props.relationshipTypes} onUpdateRelationshipTypes={props.onUpdateRelationshipTypes} addToast={props.addToast} allMembers={props.allMembers} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="customerSegments" element={<CustomerSegmentsManager {...props} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="genders" element={<GendersManager genders={props.genders} onUpdateGenders={props.onUpdateGenders} addToast={props.addToast} allMembers={props.allMembers} canCreate={canCreate} canModify={canModify} />} />

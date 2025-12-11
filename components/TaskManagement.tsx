@@ -247,7 +247,7 @@ const ReassignTaskModal: React.FC<{
 
 const TaskCard: React.FC<{
     task: Task;
-    users: User[]; // --- MODIFICATION: Pass full users array ---
+    users: User[];
     memberMap: Map<string, string>;
     leadMap: Map<string, string>;
     taskStatusMasters: TaskStatusMaster[];
@@ -323,13 +323,11 @@ const TaskCard: React.FC<{
     const clientName = task.memberId ? memberMap.get(task.memberId) : leadMap.get(task.leadId || '');
     const clientType = task.memberId ? 'Customer' : 'Lead';
     
-    // --- MODIFICATION BEGINS ---
     const primaryAssignee = useMemo(() => users.find(u => u.id === task.primaryContactPerson), [users, task.primaryContactPerson]);
     const originalAssignee = useMemo(() => users.find(u => u.id === task.originalAssigneeId), [users, task.originalAssigneeId]);
     const alternateAssignees = useMemo(() => 
         (task.alternateContactPersons || []).map(id => users.find(u => u.id === id)).filter(Boolean) as User[],
     [users, task.alternateContactPersons]);
-    // --- MODIFICATION ENDS ---
 
     const isCustomerTask = !!task.memberId || !!task.leadId;
 
@@ -378,7 +376,7 @@ const TaskCard: React.FC<{
                         <span>{new Date(task.expectedCompletionDateTime).toLocaleDateString()}</span>
                         {isOverdue && <span className="px-1.5 py-0.5 text-white bg-red-500 rounded-full text-[10px] font-bold">OVERDUE</span>}
                     </div>
-                    {/* --- MODIFICATION BEGINS --- */}
+                    {}
                     <div className="flex items-center gap-1.5" title={`Primary: ${primaryAssignee?.name || 'N/A'}${alternateAssignees.length > 0 ? ` | Alternates: ${alternateAssignees.map(a => a.name).join(', ')}`: ''}`}>
                         <UserIcon size={12} />
                         <div className="flex items-center gap-1">
@@ -392,7 +390,7 @@ const TaskCard: React.FC<{
                         )}
                         {alternateAssignees.length > 0 && <span className="text-xs text-gray-400" title={alternateAssignees.map(a=>a.name).join(', ')}>(+{alternateAssignees.length})</span>}
                     </div>
-                    {/* --- MODIFICATION ENDS --- */}
+                    {}
                     {clientName && <div className="flex items-center gap-1.5" title={`Related ${clientType}`}><Briefcase size={12} /><span>{clientName}</span></div>}
                 </div>
                 <div className="pt-3 border-t dark:border-gray-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-2">
@@ -435,7 +433,7 @@ const TaskCard: React.FC<{
 
 const TaskTable: React.FC<{
     tasks: Task[];
-    users: User[]; // --- MODIFICATION: Pass full users array ---
+    users: User[];
     memberMap: Map<string, string>;
     leadMap: Map<string, string>;
     branchMap: Map<string, string>;
@@ -517,7 +515,7 @@ const TaskTable: React.FC<{
                                                       
                             <td className="px-4 py-3 text-sm font-medium text-gray-800 dark:text-gray-200">{task.taskDescription}</td>
                             <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-                                {/* --- MODIFICATION BEGINS --- */}
+                                {}
                                  <div className="flex items-center gap-1" title={title}>
                                     <div className="flex items-center gap-1">
                                         <span>{employee?.name || 'N/A'}</span>
@@ -530,7 +528,7 @@ const TaskTable: React.FC<{
                                     )}
                                     {alternates && <span className="text-xs text-gray-400"> (+{task.alternateContactPersons?.length})</span>}
                                 </div>
-                                {/* --- MODIFICATION ENDS --- */}
+                                {}
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{branch_name}</td>
                             <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{clientName}</td>
@@ -876,7 +874,6 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
         }));
     };
     
-    // --- MODIFICATION BEGINS ---
     const advisorOptions = useMemo(() => 
         advisorsForAssignment.map(adv => ({ 
             value: adv.id, 
@@ -893,7 +890,6 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                 label: adv.profile?.status === 'Inactive' ? `${adv.name} 🔴` : adv.name 
             }));
     }, [advisors, selectedBranches]);
-    // --- MODIFICATION ENDS ---
 
     const clientOptions = useMemo(() => {
         const memberOpts = members.map(mem => ({ value: `member:${mem.id}`, label: `${mem.name} (Customer)` }));
@@ -993,7 +989,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                                     {Branches.map(branch => <option key={branch.id} value={branch.id}>{branch.branch_name}</option>)}
                                 </select>
                             </div>
-                            {/* --- MODIFICATION BEGINS --- */}
+                            {}
                             <div>
                                 <SearchableSelect
                                     label="Employee"
@@ -1009,7 +1005,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                                     placeholder="Select an Employee..."
                                 />
                             </div>
-                            {/* --- MODIFICATION ENDS --- */}
+                            {}
                         </>
                     )}
                 </div>
@@ -1168,7 +1164,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
                                     type="date"
                                     value={editingTask.scheduledCreationDateTime?.split('T')[0] || ''}
                                     onChange={(e) => setEditingTask({...editingTask, scheduledCreationDateTime: e.target.value})}
-                                    min={new Date().toISOString().split('T')[0]} // Prevent selecting past dates
+                                    min={new Date().toISOString().split('T')[0]}
                                     disabled={editingTask.id ? !canModify : !canCreate}
                                 />
                                 <Input

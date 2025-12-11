@@ -72,7 +72,7 @@ const TagsSelectionInput: React.FC<{
                 value=""
                 onChange={(e) => {
                     handleAddItem(e.target.value);
-                    e.target.value = ""; // Reset select
+                    e.target.value = "";
                 }}
                 className={selectClasses}
             >
@@ -93,8 +93,6 @@ const TagsSelectionInput: React.FC<{
     );
 };
 
-// --- MODIFIED: GeneralInfoTab updated ---
-// --- Place this inside your EmployeeProfileTabs.tsx file, replacing the existing GeneralInfoTab ---
 
 export const GeneralInfoTab: React.FC<{ 
     data: Partial<User>; 
@@ -271,7 +269,7 @@ export const GeneralInfoTab: React.FC<{
                 <Input label="Mother Name *" value={profile.motherName || ''} onChange={(e) => handleProfileChange('motherName', e.target.value)} />
             </div>
             
-                        {/* --- RE-ADDED: Password Management Section --- */}
+                        {}
             <div className="md:col-span-2 p-4 border rounded-lg dark:border-gray-600 space-y-3 mt-6">
                 <h4 className="font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-2"><KeyRound size={16}/> Password Management</h4>
                 {!data.id ? (
@@ -314,7 +312,7 @@ export const GeneralInfoTab: React.FC<{
                     </div>
                 )}
             </div>
-            {/* Driving Licence Section */}
+            {}
             <div className="border border-gray-300 dark:border-gray-700 rounded-xl p-4 mt-4">
                 <label className="block text-base font-semibold text-gray-800 dark:text-gray-200 mb-2">
                     Driving Licence
@@ -423,7 +421,6 @@ export const GeneralInfoTab: React.FC<{
     );
 };
 
-// ... (The rest of your components like AddressTab, EducationTab, etc. remain unchanged)
 
 const AddressForm: React.FC<{
   title: string;
@@ -440,14 +437,12 @@ const AddressForm: React.FC<{
     onFormChange(addressType, { ...formData, [field]: value } as AdvisorAddress);
   };
   
-  // --- MODIFICATION START ---
   const countries = useMemo(() => {
     return geographies.filter(g => g.type === 'Country' && g.active !== false)
       .map(c => ({ value: c.name, label: c.name }));
   }, [geographies]);
 
   const selectedCountryObject = useMemo(() => {
-    // Default to India if no country is selected
     const countryName = formData.country || 'India';
     return geographies.find(g => g.name === countryName && g.type === 'Country');
   }, [formData.country, geographies]);
@@ -457,7 +452,6 @@ const AddressForm: React.FC<{
     return geographies.filter(g => g.parentId === selectedCountryObject.id && g.type === 'State' && g.active !== false)
       .map(s => ({ value: s.name, label: s.name }));
   }, [selectedCountryObject, geographies]);
-  // --- MODIFICATION END ---
 
   const selectedStateObject = useMemo(() => {
     return geographies.find(g => g.name === formData.state && g.type === 'State');
@@ -491,11 +485,9 @@ const AddressForm: React.FC<{
         .map(a => ({value: a.name, label: a.name}));
   }, [selectedCityObject, geographies]);
 
-  // --- MODIFICATION START ---
   const handleCountryChange = (newCountryName: string) => {
     onFormChange(addressType, { ...formData, country: newCountryName, state: '', district: '', city: '', area: '' } as AdvisorAddress);
   };
-  // --- MODIFICATION END ---
 
   const handleStateChange = (newStateName: string) => {
     onFormChange(addressType, { ...formData, state: newStateName, district: '', city: '', area: '' } as AdvisorAddress);
@@ -537,7 +529,7 @@ const AddressForm: React.FC<{
         onUpdateGeographies([...geographies, newCity]);
         handleCityChange(name);
         addToast(`City "${name}" created.`, 'success');
-    } else { // Area
+    } else {
         if (!selectedCityObject) return addToast("Please select a city first.", "error");
         const newArea: Geography = { id: `geo-${Date.now()}`, name, type: 'Area', parentId: selectedCityObject.id, active: true };
         onUpdateGeographies([...geographies, newArea]);
@@ -560,7 +552,7 @@ const AddressForm: React.FC<{
         <Input label={`Line 1 ${isPermanent ? '*' : ''}`} value={formData.line1 || ''} onChange={(e) => handleChange('line1', e.target.value)} />
         <Input label="Line 2" value={formData.line2 || ''} onChange={(e) => handleChange('line2', e.target.value)} />
         <Input label="Line 3" value={formData.line3 || ''} onChange={(e) => handleChange('line3', e.target.value)} />
-        {/* --- MODIFICATION START --- */}
+        {}
         <SearchableSelect
             label={`Country ${isPermanent ? '*' : ''}`}
             options={countries}
@@ -578,7 +570,7 @@ const AddressForm: React.FC<{
             placeholder="Select or type to create..."
             disabled={!formData.country && !selectedCountryObject}
         />
-        {/* --- MODIFICATION END --- */}
+        {}
         <SearchableSelect
             label={`District ${isPermanent ? '*' : ''}`}
             options={districts}
@@ -701,9 +693,8 @@ export const EducationTab: React.FC<{ data: Partial<User>; onChange: (field: 'pr
     );
 };
 
-// RENAMED from AdvisorCustomersTab to EmployeeCustomersTab
 export const EmployeeCustomersTab: React.FC<{
-    employee: Partial<User>; // RENAMED
+    employee: Partial<User>;
     allMembers: Member[];
     users: User[];
 }> = ({ employee, allMembers, users }) => {

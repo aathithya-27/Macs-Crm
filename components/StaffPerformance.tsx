@@ -60,7 +60,7 @@ export const StaffPerformance: React.FC<{
         if (status === 'Present' || status === 'Work From Home') {
             onUpdateAttendance(employee.id, status, 'Admin Override');
             setAttendanceMenuFor(null);
-        } else { // Absent
+        } else {
             setEditingEmployeeForReason(employee);
             const today = new Date().toISOString().split('T')[0];
             const todaysRecord = attendance[employee.id]?.slice().reverse().find(rec => rec.timestamp.startsWith(today));
