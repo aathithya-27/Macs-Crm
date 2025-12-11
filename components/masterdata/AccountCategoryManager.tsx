@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { AccountCategory, AccountSubCategory, AccountHead, RootAccountType } from '../../types.ts';
+import { AccountCategory, AccountSubCategory, AccountHead } from '../../types.ts';
 import Button from '../ui/Button.tsx';
 import Input from '../ui/Input.tsx';
 import Modal from '../ui/Modal.tsx';
@@ -45,7 +45,6 @@ const AccountCategoryForm: React.FC<FormProps> = ({
 }) => {
     const [formData, setFormData] = useState({ 
         name: initialData?.name || '', 
-        type: initialData?.type || (type === 'Category' ? 'Asset' : ''), 
         parentId: initialData ? (type === 'SubCategory' ? initialData.categoryId : initialData.subCategoryId) : parentId, 
         postingBank: initialData?.postingBank || false,
         isCash: initialData?.isCash || false 
@@ -230,7 +229,6 @@ const AccountCategoryManager: React.FC<AccountCategoryManagerProps> = ({
             const newCat: AccountCategory = {
                 id,
                 name: formData.name,
-                type: formData.type,
                 active: modal.data?.active ?? true,
                 order: categories.length
             };

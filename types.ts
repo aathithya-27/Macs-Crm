@@ -2,12 +2,9 @@
 import React from 'react';
 
 
-export type RootAccountType = 'Asset' | 'Liability' | 'Income' | 'Expense';
-
 export interface AccountCategory { 
     id: string;
     name: string;
-    type: RootAccountType; 
     active?: boolean;
     order?: number;
 }

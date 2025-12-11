@@ -107,7 +107,6 @@ const getAccountDetails = (headId: string, heads: AccountHead[], subs: AccountSu
         headName: head?.name || 'Unknown',
         subName: sub?.name || 'Unknown',
         catName: cat?.name || 'Unknown',
-        rootType: cat?.type || 'Unknown',
         isCash: head?.isCash || false,
         isPostingBank: head?.postingBank || false
     };

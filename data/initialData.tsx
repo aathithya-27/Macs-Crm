@@ -331,10 +331,10 @@ export const initialTasks: Task[] = [
 
 
 export const initialAccountCategories: AccountCategory[] = [
-    { id: 'ac-1', name: 'Asset', type: 'Asset', active: true, order: 0 },
-    { id: 'ac-2', name: 'Liability', type: 'Liability', active: true, order: 1 },
-    { id: 'ac-3', name: 'Income', type: 'Income', active: true, order: 2 },
-    { id: 'ac-4', name: 'Expenditure', type: 'Expense', active: true, order: 3 },
+    { id: 'ac-1', name: 'Asset', active: true, order: 0 },
+    { id: 'ac-2', name: 'Liability', active: true, order: 1 },
+    { id: 'ac-3', name: 'Income', active: true, order: 2 },
+    { id: 'ac-4', name: 'Expenditure', active: true, order: 3 },
 ];
 
 export const initialAccountSubCategories: AccountSubCategory[] = [

@@ -268,8 +268,7 @@ const getAccountDetails = (headId: string, heads: AccountHead[], subs: AccountSu
     return {
         headName: head?.name || 'Unknown',
         subName: sub?.name || 'Unknown',
-        catName: cat?.name || 'Unknown',
-        rootType: cat?.type || 'Unknown'
+        catName: cat?.name || 'Unknown'
     };
 };
 
