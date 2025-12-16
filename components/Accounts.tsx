@@ -125,17 +125,18 @@ const Accounts: React.FC<AccountsProps> = ({
     const getDefaultFromDate = () => trueCurrentFinancialYear ? trueCurrentFinancialYear.fromDate : new Date().toISOString().split('T')[0];
     const getDefaultToDate = () => new Date().toISOString().split('T')[0];
 
-    const getPartyName = (type: 'Customer' | 'Staff' | 'Internal' | 'Wallet' | undefined, id: string | undefined, fallback: string | undefined) => {
+    const getPartyName = (type: 'Customer' | 'Staff' | 'Internal' | 'Bank/Cash' | undefined, id: string | undefined, fallback: string | undefined) => {
         if (type === 'Customer') return allMembers.find(m => m.id === id)?.name || fallback || 'Unknown Customer';
         if (type === 'Staff') return users.find(u => u.id === id)?.name || fallback || 'Unknown Staff';
-        if (type === 'Wallet') return getInternalWalletName(id) || fallback || 'Unknown Wallet';
+        if (type === 'Bank/Cash') return getInternalBankCashName(id) || fallback || 'Unknown Bank/Cash';
         return fallback || 'Unknown';
     };
 
-    const getInternalWalletName = (bankId?: string) => {
-        if (!bankId) return 'Unknown Wallet';
-        const wallet = accountHeads.find(h => h.id === bankId);
-        return wallet ? wallet.name : 'Unknown Wallet';
+    const getInternalBankCashName = (bankId?: string) => {
+        if (!bankId) return 'Unknown Bank/Cash';
+        const bankCash = accountHeads.find(h => h.id === bankId);
+        if (!bankCash) return 'Unknown Bank/Cash';
+        return bankCash.isCash ? 'Cash' : bankCash.postingBank ? 'Bank' : bankCash.name;
     };
 
     const nonPostingBankHeads = useMemo(() => {
@@ -160,7 +161,7 @@ const Accounts: React.FC<AccountsProps> = ({
             date: new Date().toISOString().split('T')[0],
             accountHeadId: '',
             balanceType: 'Credit', 
-            partyType: 'Wallet', 
+            partyType: 'Bank/Cash', 
             debit: 0, credit: 0
         });
 
@@ -170,7 +171,7 @@ const Accounts: React.FC<AccountsProps> = ({
                     const type = editingItem.debit > 0 ? 'Debit' : 'Credit';
                     setFormData({ ...editingItem, balanceType: type });
                 } else {
-                    setFormData({ date: new Date().toISOString().split('T')[0], accountHeadId: '', balanceType: 'Credit', partyType: 'Wallet', partyId: '', debit: 0, credit: 0 });
+                    setFormData({ date: new Date().toISOString().split('T')[0], accountHeadId: '', balanceType: 'Credit', partyType: 'Bank/Cash', partyId: '', debit: 0, credit: 0 });
                 }
             }
         }, [isModalOpen, editingItem]);
@@ -201,7 +202,7 @@ const Accounts: React.FC<AccountsProps> = ({
         }, [formData.partyType, allMembers, users]);
         
         const headOptions = useMemo(() => {
-            if (formData.partyType === 'Wallet') {
+            if (formData.partyType === 'Bank/Cash') {
                 return allAssetHeads.map(h => {
                     let typeLabel = h.postingBank ? ' (Bank)' : ' (Cash)';
                     return { value: h.id, label: `${h.name}${typeLabel}` };
@@ -220,8 +221,8 @@ const Accounts: React.FC<AccountsProps> = ({
                 return; 
             }
             
-            if (formData.partyType !== 'Wallet' && !formData.partyId) {
-                setWarningMessage("Please select a party or use Wallet type."); 
+            if (formData.partyType !== 'Bank/Cash' && !formData.partyId) {
+                setWarningMessage("Please select a party or use Bank/Cash type."); 
                 return; 
             }
 
@@ -301,10 +302,10 @@ const Accounts: React.FC<AccountsProps> = ({
                                     const details = getAccountDetails(row.accountHeadId, accountHeads, accountSubCategories, accountCategories);
                                     return (
                                         <tr key={row.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
-                                            <td className="border px-4 py-2">{row.date}</td>
+                                            <td className="border px-4 py-2">{new Date(row.date).toLocaleDateString('en-GB')}</td>
                                             <td className="border px-4 py-2">{row.partyType}</td>
                                             <td className="border px-4 py-2 font-medium">{details.headName}</td>
-                                            <td className="border px-4 py-2">{getPartyName(row.partyType, row.partyId, '-')}</td>
+                                            <td className="border px-4 py-2">{row.partyType === 'Bank/Cash' ? getInternalBankCashName(row.accountHeadId) : getPartyName(row.partyType, row.partyId, '-')}</td>
                                             <td className="border px-4 py-2 text-right">{row.debit > 0 ? `₹${row.debit.toLocaleString('en-IN')}` : '-'}</td>
                                             <td className="border px-4 py-2 text-right">{row.credit > 0 ? `₹${row.credit.toLocaleString('en-IN')}` : '-'}</td>
                                             <td className="border px-4 py-2 flex gap-2">
@@ -327,16 +328,16 @@ const Accounts: React.FC<AccountsProps> = ({
                                     <div className="flex justify-between items-center mb-2">
                                         <span className="font-semibold text-sm">Entity Type</span>
                                         <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg text-xs">
-                                            <button type="button" onClick={() => setFormData(p => ({ ...p, partyType: 'Wallet', partyId: '', accountHeadId: '' }))} className={`flex-1 px-2 py-1.5 rounded-md ${formData.partyType === 'Wallet' ? 'bg-white shadow text-blue-600' : ''}`}>Wallet</button>
+                                            <button type="button" onClick={() => setFormData(p => ({ ...p, partyType: 'Bank/Cash', partyId: '', accountHeadId: '' }))} className={`flex-1 px-2 py-1.5 rounded-md ${formData.partyType === 'Bank/Cash' ? 'bg-white shadow text-blue-600' : ''}`}>Bank/Cash</button>
                                             <button type="button" onClick={() => setFormData(p => ({ ...p, partyType: 'Staff', partyId: '', accountHeadId: '' }))} className={`flex-1 px-2 py-1.5 rounded-md ${formData.partyType === 'Staff' ? 'bg-white shadow text-blue-600' : ''}`}>Staff</button>
                                             <button type="button" onClick={() => setFormData(p => ({ ...p, partyType: 'Customer', partyId: '', accountHeadId: '' }))} className={`flex-1 px-2 py-1.5 rounded-md ${formData.partyType === 'Customer' ? 'bg-white shadow text-blue-600' : ''}`}>Customer</button>
                                         </div>
                                     </div>
-                                    {formData.partyType !== 'Wallet' && (
+                                    {formData.partyType !== 'Bank/Cash' && (
                                         <SearchableSelect label="Select Party" options={partyOptions} value={formData.partyId || ''} onChange={(v) => setFormData(p => ({ ...p, partyId: v }))} />
                                     )}
-                                    {formData.partyType === 'Wallet' && (
-                                        <p className="text-sm text-gray-600 mt-2">Wallet opening balance - only Cash/Bank accounts available.</p>
+                                    {formData.partyType === 'Bank/Cash' && (
+                                        <p className="text-sm text-gray-600 mt-2">Bank/Cash opening balance - only Cash/Bank accounts available.</p>
                                     )}
                                 </div>
                                 <div className="grid grid-cols-2 gap-4">
@@ -344,7 +345,7 @@ const Accounts: React.FC<AccountsProps> = ({
                                     <Input label="Date" type="date" value={formData.date} onChange={e => setFormData(p => ({ ...p, date: e.target.value }))} />
                                     <div className="col-span-2">
                                         <label className="block text-xs font-medium text-gray-500 mb-1">
-                                            {formData.partyType === 'Wallet' ? 'Wallet Account (Cash/Bank Only)' : 'Account Head (Income/Expense Categories Only)'}
+                                            {formData.partyType === 'Bank/Cash' ? 'Bank/Cash Account (Cash/Bank Only)' : 'Account Head (Income/Expense Categories Only)'}
                                         </label>
                                         <SearchableSelect label="" options={headOptions} value={formData.accountHeadId || ''} onChange={(v) => setFormData(p => ({ ...p, accountHeadId: v }))} placeholder="Select Account Head..." />
                                     </div>
@@ -385,20 +386,20 @@ const Accounts: React.FC<AccountsProps> = ({
                 const headObj = accountHeads.find(h => h.id === exp.accountHeadId);
                 if (subCategoryId !== 'all' && headObj?.subCategoryId !== subCategoryId) return;
 
-                const walletId = exp.bankId;
-                if (bankId !== 'all' && walletId !== bankId) return;
+                const bankCashId = exp.bankId;
+                if (bankId !== 'all' && bankCashId !== bankId) return;
 
                 const details = getAccountDetails(exp.accountHeadId || '', accountHeads, accountSubCategories, accountCategories);
                 const party = getPartyName(exp.partyType, exp.partyId, exp.paidTo);
-                const walletName = getInternalWalletName(walletId);
+                const bankCashName = getInternalBankCashName(bankCashId);
 
                 entries.push({
                     date: exp.date, sourceDoc: exp.voucherNo || '-', category: details.subName, head: details.headName, party,
-                    remarks: exp.description, debit: exp.amount, credit: 0, isBalanceRow: false
+                    remarks: `${bankCashName} - ${exp.description}`, debit: exp.amount, credit: 0, isBalanceRow: false
                 });
                 entries.push({
-                    date: exp.date, sourceDoc: exp.voucherNo || '-', category: 'SETTLEMENT', head: walletName, party: '-',
-                    remarks: `Paid via ${exp.modeOfPayment}`, debit: 0, credit: exp.amount, isBalanceRow: true
+                    date: exp.date, sourceDoc: exp.voucherNo || '-', category: 'SETTLEMENT', head: bankCashName, party: '-',
+                    remarks: `${details.headName} - Paid via ${exp.modeOfPayment}`, debit: 0, credit: exp.amount, isBalanceRow: true
                 });
             });
 
@@ -412,19 +413,19 @@ const Accounts: React.FC<AccountsProps> = ({
                      const headObj = accountHeads.find(h => h.id === item.accountHeadId);
                      if (subCategoryId !== 'all' && headObj?.subCategoryId !== subCategoryId) return;
 
-                     const walletId = item.bankId;
-                     if (bankId !== 'all' && walletId !== bankId) return;
+                     const bankCashId = item.bankId;
+                     if (bankId !== 'all' && bankCashId !== bankId) return;
 
                      const details = getAccountDetails(item.accountHeadId, accountHeads, accountSubCategories, accountCategories);
-                     const walletName = getInternalWalletName(walletId);
+                     const bankCashName = getInternalBankCashName(bankCashId);
 
                      entries.push({
                         date: rec.date, sourceDoc: rec.receiptNo, category: details.subName, head: details.headName, party, 
-                        remarks: item.description, debit: 0, credit: item.amount, isBalanceRow: false
+                        remarks: `${bankCashName} - ${item.description}`, debit: 0, credit: item.amount, isBalanceRow: false
                      });
                      entries.push({
-                        date: rec.date, sourceDoc: rec.receiptNo, category: 'SETTLEMENT', head: walletName, party: '-',
-                        remarks: `Rec'd via ${item.paymentMode}`, debit: item.amount, credit: 0, isBalanceRow: true
+                        date: rec.date, sourceDoc: rec.receiptNo, category: 'SETTLEMENT', head: bankCashName, party: '-',
+                        remarks: `${details.headName} - Rec'd via ${item.paymentMode}`, debit: item.amount, credit: 0, isBalanceRow: true
                      });
                 });
             });
@@ -447,7 +448,7 @@ const Accounts: React.FC<AccountsProps> = ({
             }
         };
         
-        const walletOptions = useMemo(() => {
+        const bankCashOptions = useMemo(() => {
             return allAssetHeads.map(h => ({ value: h.id, label: h.name }));
         }, [allAssetHeads]);
 
@@ -483,10 +484,10 @@ const Accounts: React.FC<AccountsProps> = ({
                         </select>
                     </div>
                     <div>
-                         <label className="block text-xs font-medium text-gray-500 mb-1">Wallet (Cash/Bank)</label>
+                         <label className="block text-xs font-medium text-gray-500 mb-1">Bank/Cash</label>
                          <select value={filters.bankId} onChange={e => setFilters({...filters, bankId: e.target.value})} className="w-full border p-2 rounded-md text-sm shadow-sm">
                             <option value="all">All</option>
-                            {walletOptions.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
+                            {bankCashOptions.map(b => <option key={b.value} value={b.value}>{b.label}</option>)}
                         </select>
                     </div>
                     <div className="relative">
@@ -503,7 +504,7 @@ const Accounts: React.FC<AccountsProps> = ({
                                 <th className="border border-gray-200 px-4 py-2">Date</th>
                                 <th className="border border-gray-200 px-4 py-2">Source Doc</th>
                                 <th className="border border-gray-200 px-4 py-2">Sub-Cat</th>
-                                <th className="border border-gray-200 px-4 py-2">Head/Wallet</th>
+                                <th className="border border-gray-200 px-4 py-2">Head/Bank/Cash</th>
                                 <th className="border border-gray-200 px-4 py-2">Party</th>
                                 <th className="border border-gray-200 px-4 py-2">Remark</th>
                                 <th className="border border-gray-200 px-4 py-2 text-right">Debit (In)</th>
@@ -513,7 +514,7 @@ const Accounts: React.FC<AccountsProps> = ({
                         <tbody>
                             {dayBookEntries.map((row, idx) => (
                                 <tr key={idx} className={`bg-white border-b border-gray-200 hover:bg-gray-50 ${row.isBalanceRow ? 'bg-blue-50/30' : ''}`}>
-                                    <td className="border border-gray-200 px-4 py-2">{row.date}</td>
+                                    <td className="border border-gray-200 px-4 py-2">{new Date(row.date).toLocaleDateString('en-GB')}</td>
                                     <td className="border border-gray-200 px-4 py-2 font-mono text-xs">{row.sourceDoc}</td>
                                     <td className="border border-gray-200 px-4 py-2">{row.category}</td>
                                     <td className={`border border-gray-200 px-4 py-2 font-medium text-gray-900 ${row.isBalanceRow ? 'text-blue-700' : ''}`}>{row.head}</td>
@@ -546,7 +547,7 @@ const Accounts: React.FC<AccountsProps> = ({
             users.forEach(u => options.push({ value: u.id, label: `${u.name} (Staff)` }));
             allMembers.forEach(m => options.push({ value: m.id, label: `${m.name} (Customer)` }));
             
-            allAssetHeads.forEach(h => options.push({ value: h.id, label: `${h.name} (Wallet Ledger)` }));
+            allAssetHeads.forEach(h => options.push({ value: h.id, label: `${h.name} (Bank/Cash Ledger)` }));
             
             return options.sort((a, b) => a.label.localeCompare(b.label));
         }, [users, allMembers, allAssetHeads]);
@@ -586,7 +587,7 @@ const Accounts: React.FC<AccountsProps> = ({
 
                             const details = getAccountDetails(exp.accountHeadId || '', accountHeads, accountSubCategories, accountCategories);
                             txns.push({
-                                date: exp.date, remarks: exp.description || details.headName, 
+                                date: new Date(exp.date).toLocaleDateString('en-GB'), remarks: exp.description || details.headName, 
                                 debit: exp.amount, credit: 0, rawDate: new Date(exp.date), sourceDoc: exp.voucherNo
                             });
                         }
@@ -603,7 +604,7 @@ const Accounts: React.FC<AccountsProps> = ({
 
                                 const details = getAccountDetails(item.accountHeadId, accountHeads, accountSubCategories, accountCategories);
                                 txns.push({
-                                    date: rec.date, remarks: item.description || details.headName,
+                                    date: new Date(rec.date).toLocaleDateString('en-GB'), remarks: item.description || details.headName,
                                     debit: 0, credit: item.amount, rawDate: new Date(rec.date), sourceDoc: rec.receiptNo
                                 });
                             });
@@ -620,7 +621,7 @@ const Accounts: React.FC<AccountsProps> = ({
                             const party = getPartyName(exp.partyType, exp.partyId, exp.paidTo);
                             const expenseHeadName = getAccountDetails(exp.accountHeadId || '', accountHeads, accountSubCategories, accountCategories).headName;
                             txns.push({
-                                date: exp.date, remarks: `Paid for ${expenseHeadName} to ${party}`, 
+                                date: new Date(exp.date).toLocaleDateString('en-GB'), remarks: `Paid for ${expenseHeadName} to ${party}`, 
                                 debit: 0, credit: exp.amount, rawDate: new Date(exp.date), sourceDoc: exp.voucherNo
                             });
                         }
@@ -636,7 +637,7 @@ const Accounts: React.FC<AccountsProps> = ({
                                 const party = getPartyName(rec.partyType, rec.partyId, rec.receivedFrom);
                                 const incomeHeadName = getAccountDetails(item.accountHeadId, accountHeads, accountSubCategories, accountCategories).headName;
                                 txns.push({
-                                    date: rec.date, remarks: `Rec'd for ${incomeHeadName} from ${party}`, 
+                                    date: new Date(rec.date).toLocaleDateString('en-GB'), remarks: `Rec'd for ${incomeHeadName} from ${party}`, 
                                     debit: item.amount, credit: 0, rawDate: new Date(rec.date), sourceDoc: rec.receiptNo
                                 });
                             }

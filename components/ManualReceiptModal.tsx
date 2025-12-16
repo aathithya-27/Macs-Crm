@@ -152,13 +152,13 @@ const ManualReceiptModal: React.FC<ManualReceiptModalProps> = ({
             .map(head => ({ value: head.id, label: head.name }));
     }, [accountHeads]);
 
-    const internalBankWalletOptions = useMemo(() => {
+    const bankOptions = useMemo(() => {
         return accountHeads
             .filter(head => head.postingBank) 
             .map(head => ({ value: head.id, label: head.name }));
     }, [accountHeads]);
 
-    const cashWalletOptions = useMemo(() => {
+    const cashOptions = useMemo(() => {
         return accountHeads
             .filter(head => head.isCash)
             .map(head => ({ value: head.id, label: head.name }));
@@ -263,7 +263,7 @@ const ManualReceiptModal: React.FC<ManualReceiptModalProps> = ({
             return;
         }
 
-        const defaultCashWallet = cashWalletOptions.length > 0 ? cashWalletOptions[0].value : '';
+        const defaultCash = cashOptions.length > 0 ? cashOptions[0].value : '';
 
         const newLine: LineItem = {
             id: `new-${Date.now()}`,
@@ -273,7 +273,7 @@ const ManualReceiptModal: React.FC<ManualReceiptModalProps> = ({
             description: '',
             paymentMode: 'Cash',
             amount: 0,
-            bankId: defaultCashWallet,
+            bankId: defaultCash,
             isNew: true
         };
         setLineItems(prev => [...prev, newLine]);
@@ -291,7 +291,7 @@ const ManualReceiptModal: React.FC<ManualReceiptModalProps> = ({
                 
                 if (field === 'paymentMode') {
                     if (value === 'Cash') {
-                        updatedItem.bankId = cashWalletOptions.length > 0 ? cashWalletOptions[0].value : ''; 
+                        updatedItem.bankId = cashOptions.length > 0 ? cashOptions[0].value : ''; 
                     } else {
                         updatedItem.bankId = ''; 
                     }
@@ -322,9 +322,9 @@ const ManualReceiptModal: React.FC<ManualReceiptModalProps> = ({
             return;
         }
         
-        const missingWallet = lineItems.find(item => !item.bankId);
-        if (missingWallet) {
-            alert('Please select "Deposit To" (Wallet) for all entries. Check Cash/Bank selection.');
+        const missingBankCash = lineItems.find(item => !item.bankId);
+        if (missingBankCash) {
+            alert('Please select "Deposit To" (Bank/Cash) for all entries. Check Cash/Bank selection.');
             return;
         }
         
@@ -525,7 +525,7 @@ const ManualReceiptModal: React.FC<ManualReceiptModalProps> = ({
                                             <textarea value={item.description} onChange={e => updateLineItem(item.id, 'description', e.target.value)} className="w-full border-none focus:outline-none bg-transparent p-1 resize-none" rows={2} placeholder="Remarks..." disabled={!isEditable} />
                                         </td>
                                         
-                                        {/* Settlement Mode & Target Wallet */}
+                                        {/* Settlement Mode & Target Bank/Cash */}
                                         <td className="border border-black p-1 align-top">
                                             <div className="flex flex-col gap-1 p-1">
                                                 <select value={item.paymentMode} onChange={e => updateLineItem(item.id, 'paymentMode', e.target.value as any)} className="w-full border-none focus:outline-none bg-transparent text-sm font-semibold" disabled={!isEditable}>
@@ -543,11 +543,11 @@ const ManualReceiptModal: React.FC<ManualReceiptModalProps> = ({
                                                         className="w-full bg-transparent focus:outline-none text-gray-700 font-medium text-xs border-b border-dotted border-gray-400"
                                                         disabled={!isEditable}
                                                     >
-                                                        <option value="">Select Wallet...</option>
+                                                        <option value="">Select Bank/Cash...</option>
                                                         {/* Dynamically show Cash or Bank options based on Mode */}
                                                         {item.paymentMode === 'Cash' 
-                                                            ? cashWalletOptions.map(w => <option key={w.value} value={w.value}>{w.label}</option>)
-                                                            : internalBankWalletOptions.map(w => <option key={w.value} value={w.value}>{w.label}</option>)
+                                                            ? cashOptions.map(w => <option key={w.value} value={w.value}>{w.label}</option>)
+                                                            : bankOptions.map(w => <option key={w.value} value={w.value}>{w.label}</option>)
                                                         }
                                                     </select>
                                                 </div>

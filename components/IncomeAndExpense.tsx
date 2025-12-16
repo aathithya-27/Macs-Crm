@@ -281,12 +281,19 @@ const AnalysisTab: React.FC<Pick<IncomeAndExpenseProps, 'expenses' | 'manualRece
         let receipts = manualReceipts;
         let expenseList = expenses;
 
-        if (activeFY) {
-            const start = new Date(activeFY.fromDate);
-            const end = new Date(activeFY.toDate);
-            receipts = receipts.filter(r => { const d = new Date(r.date); return d >= start && d <= end; });
-            expenseList = expenseList.filter(e => { const d = new Date(e.date); return d >= start && d <= end; });
-        }
+        // Filter for MTD (Month to Date) - from start of current month to today
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const today = new Date();
+        
+        receipts = receipts.filter(r => { 
+            const d = new Date(r.date); 
+            return d >= startOfMonth && d <= today; 
+        });
+        expenseList = expenseList.filter(e => { 
+            const d = new Date(e.date); 
+            return d >= startOfMonth && d <= today; 
+        });
 
         const totalRec = receipts.reduce((sum, r) => sum + r.lineItems.reduce((s, i) => s + i.amount, 0), 0);
         const totalExp = expenseList.reduce((sum, e) => sum + e.amount, 0);
@@ -306,8 +313,10 @@ const AnalysisTab: React.FC<Pick<IncomeAndExpenseProps, 'expenses' | 'manualRece
                 const name = details.subName !== 'Unknown' ? details.subName : 'Uncategorized';
                 incCat[name] = (incCat[name] || 0) + i.amount;
                 flatIncomes.push({
-                    id: `${r.id}-${i.id}`, date: r.date, receiptNo: r.receiptNo,
-                    category: name, head: details.headName, amount: i.amount
+                    id: `${r.id}-${i.id}`, 
+                    date: new Date(r.date).toLocaleDateString('en-GB'), 
+                    receiptNo: r.receiptNo,
+                    party: r.receivedFrom || 'N/A', head: details.headName, amount: i.amount
                 });
             });
         });
@@ -332,7 +341,7 @@ const AnalysisTab: React.FC<Pick<IncomeAndExpenseProps, 'expenses' | 'manualRece
             </div>
             
             <div>
-                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Income Analysis</h3>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Income Analysis (MTD)</h3>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <ChartCard title="Income by Sub-Category" viewMode={incomeViewMode} setViewMode={setIncomeViewMode}>
                         <ResponsiveContainer width="100%" height={340}>
@@ -354,7 +363,7 @@ const AnalysisTab: React.FC<Pick<IncomeAndExpenseProps, 'expenses' | 'manualRece
                                 data={flattenedIncomes} 
                                 columns={[
                                     { header: 'Date', accessor: 'date' }, 
-                                    { header: 'Sub Category', accessor: 'category' }, 
+                                    { header: 'Party', accessor: 'party' }, 
                                     { header: 'Head', accessor: 'head' }, 
                                     { header: 'Amount', accessor: 'amount', className: 'text-right', render: (val) => `₹${val.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` }
                                 ]} 
@@ -365,7 +374,7 @@ const AnalysisTab: React.FC<Pick<IncomeAndExpenseProps, 'expenses' | 'manualRece
             </div>
 
             <div>
-                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Expense Analysis</h3>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Expense Analysis (MTD)</h3>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <ChartCard title="Expenses by Sub-Category" viewMode={expenseViewMode} setViewMode={setExpenseViewMode}>
                         <ResponsiveContainer width="100%" height={340}>
@@ -384,11 +393,11 @@ const AnalysisTab: React.FC<Pick<IncomeAndExpenseProps, 'expenses' | 'manualRece
                     <ChartCard title="Recent Expense Transactions">
                         <div className="h-[340px]">
                             <DataTable 
-                                data={expenses} 
+                                data={expenses.map(e => ({...e, date: new Date(e.date).toLocaleDateString('en-GB')}))} 
                                 columns={[
                                     { header: 'Date', accessor: 'date' }, 
+                                    { header: 'Party', accessor: 'paidTo' }, 
                                     { header: 'Head', accessor: 'accountHeadId', render: (id) => getAccountDetails(id, accountHeads, accountSubCategories, accountCategories).headName }, 
-                                    { header: 'Paid To', accessor: 'paidTo' }, 
                                     { header: 'Amount', accessor: 'amount', className: 'text-right', render: (amt) => `₹${amt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` }
                                 ]} 
                             />
@@ -422,10 +431,10 @@ const IncomesTab: React.FC<IncomeAndExpenseProps & { canCreate: boolean, canModi
         return rec.receivedFrom || 'N/A';
     };
 
-    const getInternalWalletName = (bankId?: string) => {
-        if (!bankId) return 'Unknown Wallet';
-        const wallet = accountHeads.find(h => h.id === bankId);
-        return wallet ? wallet.name : 'Unknown Wallet';
+    const getInternalBankCashName = (bankId?: string) => {
+        if (!bankId) return 'Unknown Bank/Cash';
+        const bankCash = accountHeads.find(h => h.id === bankId);
+        return bankCash ? bankCash.name : 'Unknown Bank/Cash';
     };
     
     const incomeHeads = useMemo(() => {
@@ -500,7 +509,7 @@ const IncomesTab: React.FC<IncomeAndExpenseProps & { canCreate: boolean, canModi
                         columns={[
                             { header: 'S.No', accessor: 'id', render: (_, __, idx) => idx + 1 },
                             { header: 'Receipt #', accessor: 'receiptNo' },
-                            { header: 'Date', accessor: 'date' },
+                            { header: 'Date', accessor: 'date', render: (date) => new Date(date).toLocaleDateString('en-GB') },
                             { header: 'Income Details', accessor: 'lineItems', render: (items: any[]) => (
                                 <div className="space-y-1">
                                     {items.map((i, idx) => {
@@ -514,15 +523,15 @@ const IncomesTab: React.FC<IncomeAndExpenseProps & { canCreate: boolean, canModi
                                 </div>
                             )},
                             { header: 'Party', accessor: 'partyId', render: (_, row) => <span className="font-medium">{getPartyName(row)}</span> },
-                            { header: 'Payment Mode (Source -> Wallet)', accessor: 'lineItems', render: (items: any[]) => (
+                            { header: 'Payment Mode (Source -> Bank/Cash)', accessor: 'lineItems', render: (items: any[]) => (
                                 <div className="space-y-1 text-xs">
                                     {items.map((i, idx) => {
-                                        const walletName = getInternalWalletName(i.bankId);
+                                        const bankCashName = getInternalBankCashName(i.bankId);
                                         return (
                                             <div key={idx} className="flex items-center gap-2">
                                                 <span>{i.paymentMode}</span>
                                                 <span className="text-gray-400">→</span>
-                                                <span className="font-medium text-blue-600 dark:text-blue-400">{walletName}</span>
+                                                <span className="font-medium text-blue-600 dark:text-blue-400">{bankCashName}</span>
                                             </div>
                                         );
                                     })}
@@ -585,10 +594,10 @@ const ExpensesTab: React.FC<IncomeAndExpenseProps & { handleOpenVoucherModal: (e
         return row.paidTo || 'N/A';
     };
 
-    const getInternalWalletName = (bankId?: string) => {
-        if (!bankId) return 'Unknown Wallet';
-        const wallet = accountHeads.find(h => h.id === bankId);
-        return wallet ? wallet.name : 'Unknown Wallet';
+    const getInternalBankCashName = (bankId?: string) => {
+        if (!bankId) return 'Unknown Bank/Cash';
+        const bankCash = accountHeads.find(h => h.id === bankId);
+        return bankCash ? bankCash.name : 'Unknown Bank/Cash';
     };
 
     const expenseHeads = useMemo(() => {
@@ -652,13 +661,13 @@ const ExpensesTab: React.FC<IncomeAndExpenseProps & { handleOpenVoucherModal: (e
                         columns={[
                             { header: 'S.No', accessor: 'id', render: (_, __, idx) => idx + 1 },
                             { header: 'Voucher #', accessor: 'voucherNo', render: (v) => <span className="font-mono text-xs">{v}</span> },
-                            { header: 'Date', accessor: 'date' },
-                            { header: 'Sub-Category', accessor: 'accountHeadId', render: (id) => <div className="text-xs bg-gray-100 dark:bg-gray-700 px-1 py-0.5 rounded inline-block">{getAccountDetails(id, accountHeads, accountSubCategories, accountCategories).subName}</div>},
+                            { header: 'Date', accessor: 'date', render: (date) => new Date(date).toLocaleDateString('en-GB') },
+                            { header: 'Party', accessor: 'partyId', render: (_, row) => <span className="font-medium">{getPartyName(row)}</span> },
                             { header: 'Account Head', accessor: 'accountHeadId', render: (id) => <span className="font-semibold">{getAccountDetails(id, accountHeads, accountSubCategories, accountCategories).headName}</span> },
                             { header: 'Party', accessor: 'partyId', render: (_, row) => <span className="font-medium">{getPartyName(row)}</span> },
-                            { header: 'Payment Mode (Wallet -> Mode)', accessor: 'modeOfPayment', render: (val, row) => {
-                                const walletName = getInternalWalletName(row.bankId);
-                                return <div className="text-xs flex items-center gap-2"><span className="font-medium text-blue-600 dark:text-blue-400">{walletName}</span><span className="text-gray-400">→</span><span>{val}</span></div>
+                            { header: 'Payment Mode (Bank/Cash -> Mode)', accessor: 'modeOfPayment', render: (val, row) => {
+                                const bankCashName = getInternalBankCashName(row.bankId);
+                                return <div className="text-xs flex items-center gap-2"><span className="font-medium text-blue-600 dark:text-blue-400">{bankCashName}</span><span className="text-gray-400">→</span><span>{val}</span></div>
                             }},
                             { header: 'Doc/Ref No', accessor: 'docNo', render: (v) => v || '-' },
                             { header: 'Description', accessor: 'description', render: (v) => <span className="truncate max-w-[150px] inline-block" title={v}>{v || '-'}</span> },

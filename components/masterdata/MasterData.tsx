@@ -179,9 +179,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
         { id: 'campaign', path: '/masterData/campaign', label: 'Campaign Master', icon: <Megaphone size={18} /> },
         { id: 'accountCategories', path: '/masterData/accountCategories', label: 'Account Categories', icon: <Layers size={18}/> },
         { id: 'bankMasters', path: '/masterData/bankMasters', label: 'Bank Master', icon: <Landmark size={18} /> },
-        { id: 'policyConfiguration', path: '/masterData/policyConfiguration', label: 'Policy Configuration', icon: <SlidersHorizontal size={18}/>},
         { id: 'schemesAndMappings', path: '/masterData/schemesAndMappings', label: 'Agency and Scheme', icon: <Handshake size={18}/> },
-        { id: 'mutualFunds', path: '/masterData/mutualFunds', label: 'Mutual Funds', icon: <HandCoins size={18}/> },
         { id: 'designation', path: '/masterData/designation', label: 'Designation', icon: <UserCog size={18}/> },
         { id: 'role', path: '/masterData/role', label: 'Role', icon: <Award size={18}/> },
         { id: 'rolePermissions', path: '/masterData/rolePermissions', label: 'Role Permissions', icon: <Lock size={18}/> },
@@ -365,12 +363,10 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                     <Route path="designation" element={<DesignationManager items={props.designations} onUpdate={props.onUpdateDesignations} addToast={props.addToast} users={props.users} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="role" element={<RoleManager items={props.roles} onUpdate={props.onUpdateRoles} addToast={props.addToast} users={props.users} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="rolePermissions" element={<RolePermissionsManager roles={props.roles} rolePermissions={props.rolePermissions} onUpdate={props.onUpdateRolePermissions} addToast={props.addToast} canModify={canModify} />} />
-                    <Route path="policyConfiguration" element={<PolicyConfigurationManager {...props} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="businessVerticals" element={<BusinessVerticalsManager {...props} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="leadSources" element={<LeadSourceManager items={props.leadSources} onUpdate={props.onUpdateLeadSources} addToast={props.addToast} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="schemesAndMappings" element={<SchemesAndMappingsManager {...props} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="leadStageMaster" element={<LeadStageManager leadStageMasters={props.leadStageMasters} onUpdateLeadStageMasters={props.onUpdateLeadStageMasters} addToast={props.addToast} allLeads={props.allLeads} canCreate={canCreate} canModify={canModify} />} />
-                    <Route path="mutualFunds" element={<MutualFundsManager {...props} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="geography" element={<GeographyManager geographies={props.geographies} onUpdateGeographies={props.onUpdateGeographies} addToast={props.addToast} allMembers={props.allMembers} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="documentMasters" element={<DocumentMastersManager documentMasters={props.documentMasters} onUpdateDocumentMasters={props.onUpdateDocumentMasters} addToast={props.addToast} insuranceTypeDocumentRules={props.insuranceTypeDocumentRules} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="tierManagement" element={<TierAndGiftManager tiers={props.customerTiers} onUpdateTiers={props.onUpdateCustomerTiers} gifts={props.giftMasters} onUpdateGifts={props.onUpdateGiftMasters} addToast={props.addToast} calculationMethod={props.customerTierCalculationMethod} onUpdateCalculationMethod={props.onUpdateCustomerTierCalculationMethod} customerTypes={props.customerTypes} canCreate={canCreate} canModify={canModify} />} />

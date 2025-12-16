@@ -166,13 +166,13 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
             .map(head => ({ value: head.id, label: head.name }));
     }, [accountHeads]);
 
-    const bankWalletOptions = useMemo(() => {
+    const bankOptions = useMemo(() => {
         return accountHeads
             .filter(head => head.postingBank) 
             .map(head => ({ value: head.id, label: head.name }));
     }, [accountHeads]);
 
-    const cashWalletOptions = useMemo(() => {
+    const cashOptions = useMemo(() => {
         return accountHeads
             .filter(head => head.isCash)
             .map(head => ({ value: head.id, label: head.name }));
@@ -272,7 +272,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
             return;
         }
 
-        const defaultCashWallet = cashWalletOptions.length > 0 ? cashWalletOptions[0].value : '';
+        const defaultCash = cashOptions.length > 0 ? cashOptions[0].value : '';
 
         const newLine: VoucherLineItem = {
             id: `new-${Date.now()}`,
@@ -282,7 +282,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
             description: '',
             modeOfPayment: 'Cash',
             amount: 0,
-            bankId: defaultCashWallet, 
+            bankId: defaultCash, 
             isNew: true,
         };
         setLineItems(prev => [...prev, newLine]);
@@ -290,7 +290,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
     };
 
     const addManualLine = () => {
-        const defaultCashWallet = cashWalletOptions.length > 0 ? cashWalletOptions[0].value : '';
+        const defaultCash = cashOptions.length > 0 ? cashOptions[0].value : '';
         const newLine: VoucherLineItem = {
             id: `manual-${Date.now()}`,
             expenseHeadId: '',
@@ -299,7 +299,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
             description: '',
             modeOfPayment: 'Cash',
             amount: 0,
-            bankId: defaultCashWallet,
+            bankId: defaultCash,
             isNew: true,
         };
         setLineItems(prev => [...prev, newLine]);
@@ -316,7 +316,7 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                 
                 if (field === 'modeOfPayment') {
                     if (value === 'Cash') {
-                        updatedItem.bankId = cashWalletOptions.length > 0 ? cashWalletOptions[0].value : ''; 
+                        updatedItem.bankId = cashOptions.length > 0 ? cashOptions[0].value : ''; 
                     } else {
                         updatedItem.bankId = ''; 
                     }
@@ -341,9 +341,9 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
             alert('Voucher must have at least one line item.');
             return;
         }
-                const missingWallet = lineItems.find(item => !item.bankId);
-        if (missingWallet) {
-            alert('Please select "Paid From" (Source Wallet) for all entries. Even for Cash, a Cash Wallet must be selected.');
+                const missingBankCash = lineItems.find(item => !item.bankId);
+        if (missingBankCash) {
+            alert('Please select "Paid From" (Source Bank/Cash) for all entries. Even for Cash, a Cash Bank/Cash must be selected.');
             return;
         }
 
@@ -570,10 +570,10 @@ const PaymentVoucherModal: React.FC<PaymentVoucherModalProps> = ({
                                                         className={`w-full bg-transparent focus:outline-none font-medium text-xs border-b border-dotted border-gray-400 ${!item.bankId ? 'text-red-500 border-red-500' : 'text-gray-700'}`}
                                                         disabled={!isEditable}
                                                     >
-                                                        <option value="">Select Wallet...</option>
+                                                        <option value="">Select Bank/Cash...</option>
                                                         {item.modeOfPayment === 'Cash' 
-                                                            ? cashWalletOptions.map(w => <option key={w.value} value={w.value}>{w.label}</option>)
-                                                            : bankWalletOptions.map(w => <option key={w.value} value={w.value}>{w.label}</option>)
+                                                            ? cashOptions.map(w => <option key={w.value} value={w.value}>{w.label}</option>)
+                                                            : bankOptions.map(w => <option key={w.value} value={w.value}>{w.label}</option>)
                                                         }
                                                     </select>
                                                 </div>

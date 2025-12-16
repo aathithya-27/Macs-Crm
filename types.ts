@@ -116,7 +116,7 @@ export interface OpeningBalance {
     accountHeadId: string;
     
     partyId: string;
-    partyType: 'Customer' | 'Staff' | 'Internal' | 'Wallet';
+    partyType: 'Customer' | 'Staff' | 'Internal' | 'Bank/Cash';
     debit: number;  
     credit: number; 
     createdBy: string;
