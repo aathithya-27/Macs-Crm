@@ -352,7 +352,7 @@ export const getPolicySuggestions = async (
         const existingPoliciesStr = policies.length > 0 ? policies.map(p => p.policyType).join(', ') : 'None';
 
         const prompt = `
-            Based on the following customer profile, suggest 2 suitable additional policies for upselling. 
+            Based on the following customer profile, suggest 2 suitable additional policies for CrossSelling. 
             For each suggestion, provide a short (1-2 sentence) rationale explaining why it's a good fit.
             Format the output as a clean, readable text. Do not use markdown.
 

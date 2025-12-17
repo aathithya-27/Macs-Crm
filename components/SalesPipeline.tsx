@@ -128,7 +128,7 @@ const KanbanCard: React.FC<{
             'Other Forum': 'bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-300',
             'Self Generated': 'bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-300',
             'Existing Client': 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300',
-            'Upselling': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300',
+            'CrossSelling': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300',
         };
         
         let fullText = path.join(' > ');

@@ -50,7 +50,7 @@ import FestivalCalendar from './components/FestivalCalendar.tsx';
 import { VoucherSaveData } from './components/PaymentVoucherModal.tsx';
 import { ReceiptSaveData } from './components/ManualReceiptModal.tsx';
 import AdvancedReports from './components/AdvancedReports.tsx';
-import UpsellingDashboard from './components/UpsellingDashboard.tsx';
+import CrossSellingDashboard from './components/CrossSellingDashboard.tsx';
 import ServicesHub from './components/ServicesHub.tsx';
 import CampaignExecution from './components/CampaignExecution.tsx'; 
 import Modal from './components/ui/Modal.tsx'; 
@@ -315,7 +315,7 @@ const App: React.FC = () => {
         const allModules: AppModule[] = [
             'dashboard', 'reports & insights', 'incomeAndExpense', 'accounts', 'calendar', 'employees', 'pipeline', 'customers',
             'taskManagement', 'policies', 'notes', 'actionHub', 'servicesHub', 'location', 'chatbot', 'masterData',
-            'advancedReports', 'upselling', 'mutualFunds', 'campaign'
+            'advancedReports', 'CrossSelling', 'mutualFunds', 'campaign'
         ];
 
         for (const module of allModules) {
@@ -1166,7 +1166,7 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                     activityLog: [{
                         timestamp: new Date().toISOString(),
                         action: 'Created' as const,
-                        details: 'Lead created via Bulk Upselling action.',
+                        details: 'Lead created via Bulk CrossSelling action.',
                         by: currentUser.id
                     }]
                 };
@@ -2254,8 +2254,8 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                                         businessVerticals={businessVerticals}
                                     />
                                 } />
-                                <Route path="/upselling" element={
-                                    <UpsellingDashboard 
+                                <Route path="/CrossSelling" element={
+                                    <CrossSellingDashboard 
                                         members={companyMembers} 
                                         upsellCategories={upsellCategories} 
                                         insuranceTypes={insuranceTypes} 
@@ -2522,7 +2522,7 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                                     <h3 className="text-xl font-bold">Customer Already Exists</h3>
                                 </div>
                                 <p className="text-gray-600 dark:text-gray-300 mb-6">
-                                    The lead <strong>{pendingConversionLead.name}</strong> originated from an existing customer (Upselling). 
+                                    The lead <strong>{pendingConversionLead.name}</strong> originated from an existing customer (CrossSelling). 
                                     Do you want to update the existing customer's profile with the new policy?
                                 </p>
                                 <div className="flex justify-end gap-3">

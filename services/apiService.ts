@@ -102,7 +102,7 @@ let rolePermissionsData: RolePermissions[] = [
         permissions: { 
             dashboard: 'modify', 'reports & insights': 'modify', incomeAndExpense: 'modify', accounts: 'modify', calendar: 'modify', employees: 'modify', 
             pipeline: 'modify', customers: 'modify', taskManagement: 'modify', policies: 'modify', mutualFunds: 'modify', 
-            upselling: 'modify', notes: 'modify', actionHub: 'modify', servicesHub: 'modify', location: 'modify', 
+            CrossSelling: 'modify', notes: 'modify', actionHub: 'modify', servicesHub: 'modify', location: 'modify', 
             chatbot: 'modify', masterData: 'modify', advancedReports: 'modify', campaign: 'modify'
         }
     },
@@ -111,7 +111,7 @@ let rolePermissionsData: RolePermissions[] = [
         permissions: { 
             dashboard: 'view', 'reports & insights': 'view', incomeAndExpense: 'create', accounts: 'none', calendar: 'view', employees: 'none',
             pipeline: 'modify', customers: 'modify', taskManagement: 'modify', policies: 'modify', mutualFunds: 'modify',
-            upselling: 'view', notes: 'modify', actionHub: 'modify', servicesHub: 'view', location: 'modify',
+            CrossSelling: 'view', notes: 'modify', actionHub: 'modify', servicesHub: 'view', location: 'modify',
             chatbot: 'modify', masterData: 'none', advancedReports: 'none', campaign: 'view'
         }
     },
@@ -120,7 +120,7 @@ let rolePermissionsData: RolePermissions[] = [
         permissions: { 
             dashboard: 'view', 'reports & insights': 'none', incomeAndExpense: 'none', accounts: 'none', calendar: 'create', employees: 'none',
             pipeline: 'none', customers: 'create', taskManagement: 'create', policies: 'view', mutualFunds: 'none',
-            upselling: 'none', notes: 'create', actionHub: 'none', servicesHub: 'none', location: 'none',
+            CrossSelling: 'none', notes: 'create', actionHub: 'none', servicesHub: 'none', location: 'none',
             chatbot: 'none', masterData: 'none', advancedReports: 'none', campaign: 'none'
         }
     },
@@ -129,7 +129,7 @@ let rolePermissionsData: RolePermissions[] = [
         permissions: { 
             dashboard: 'view', 'reports & insights': 'view', incomeAndExpense: 'none', accounts: 'none', calendar: 'view', employees: 'view',
             pipeline: 'view', customers: 'view', taskManagement: 'view', policies: 'view', mutualFunds: 'view',
-            upselling: 'view', notes: 'view', actionHub: 'view', servicesHub: 'view', location: 'none',
+            CrossSelling: 'view', notes: 'view', actionHub: 'view', servicesHub: 'view', location: 'none',
             chatbot: 'view', masterData: 'none', advancedReports: 'none', campaign: 'none'
         }
     }

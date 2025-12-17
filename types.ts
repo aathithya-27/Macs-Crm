@@ -793,7 +793,7 @@ export interface Notification {
   dismissed?: boolean;
 }
 
-export type Tab = 'dashboard' | 'reports & insights' | 'pipeline' | 'customers' | 'policies' | 'notes' | 'actionHub' | 'location' | 'chatbot' | 'profile' | 'employees' | 'servicesHub' | 'masterData' | 'taskManagement' | 'incomeAndExpense' | 'accounts' | 'calendar' | 'advancedReports' | 'upselling' | 'mutualFunds' | 'campaign';
+export type Tab = 'dashboard' | 'reports & insights' | 'pipeline' | 'customers' | 'policies' | 'notes' | 'actionHub' | 'location' | 'chatbot' | 'profile' | 'employees' | 'servicesHub' | 'masterData' | 'taskManagement' | 'incomeAndExpense' | 'accounts' | 'calendar' | 'advancedReports' | 'CrossSelling' | 'mutualFunds' | 'campaign';
 
 export enum ModalTab {
     BasicInfo = 'Basic Info',
@@ -861,7 +861,7 @@ export interface DocTemplate {
 
 export type DeprecatedRole = 'Admin' | 'Advisor' | 'Support';
 
-export type AppModule = 'dashboard' | 'reports & insights' | 'incomeAndExpense' | 'accounts' | 'calendar' | 'employees' | 'pipeline' | 'customers' | 'taskManagement' | 'policies' | 'notes' | 'actionHub' | 'servicesHub' | 'location' | 'chatbot' | 'masterData' | 'advancedReports' | 'upselling' | 'mutualFunds' | 'campaign';
+export type AppModule = 'dashboard' | 'reports & insights' | 'incomeAndExpense' | 'accounts' | 'calendar' | 'employees' | 'pipeline' | 'customers' | 'taskManagement' | 'policies' | 'notes' | 'actionHub' | 'servicesHub' | 'location' | 'chatbot' | 'masterData' | 'advancedReports' | 'CrossSelling' | 'mutualFunds' | 'campaign';
 
 export interface RolePermissions {
   roleId: string;

@@ -176,9 +176,9 @@ const LeadModal: React.FC<LeadModalProps> = ({
 
         let leadSource = { sourceId: null, detail: '' };
         if (existingMember) {
-            const upsellSource = leadSources.find(ls => ls.name === 'Upselling');
+            const upsellSource = leadSources.find(ls => ls.name === 'CrossSelling');
             if (upsellSource) {
-                leadSource = { sourceId: upsellSource.id, detail: 'Upselling from Dashboard' };
+                leadSource = { sourceId: upsellSource.id, detail: 'CrossSelling from Dashboard' };
             }
         }
 
@@ -210,7 +210,7 @@ const LeadModal: React.FC<LeadModalProps> = ({
             leadSource: leadSource,
             status: firstStage ? firstStage.name : 'Lead',
             estimatedValue: 0,
-            notes: existingMember ? `Upselling opportunity for ${initialInsuranceType || 'new policy'}.` : '',
+            notes: existingMember ? `CrossSelling opportunity for ${initialInsuranceType || 'new policy'}.` : '',
             assignedTo: assignedTo,
             insuranceTypeId: insuranceTypeId,
             policyInterestType: policyInterestType,

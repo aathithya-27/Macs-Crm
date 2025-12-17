@@ -24,7 +24,7 @@ const moduleLabels: Record<AppModule, string> = {
     taskManagement: 'Task Management',
     policies: 'Policies',
     mutualFunds: 'Mutual Funds',
-    upselling: 'Upselling',
+    CrossSelling: 'CrossSelling',
     campaign: 'Campaigns',
     notes: 'Notes',
     actionHub: 'Action Hub',

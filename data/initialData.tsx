@@ -190,7 +190,7 @@ export const initialLeadSources: LeadSourceMaster[] = [
     { id: 'ls-staff', name: 'Staff', parentId: null, active: true, order: 6 },
     { id: 'ls-self', name: 'Self Generated', parentId: null, active: true, order: 7 },
     { id: 'ls-web', name: 'Website', parentId: null, active: true, order: 8 },
-    { id: 'ls-upsell', name: 'Upselling', parentId: null, active: true, order: 9 },
+    { id: 'ls-upsell', name: 'CrossSelling', parentId: null, active: true, order: 9 },
 ];
 
 export const initialAgencies: InsuranceAgency[] = [
