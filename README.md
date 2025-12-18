@@ -214,4 +214,3 @@ This project is proprietary software. All rights reserved.
 
 ### Getting Help
 
-For technical support or questions, please contact the development team.
