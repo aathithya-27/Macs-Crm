@@ -215,7 +215,3 @@ This project is proprietary software. All rights reserved.
 ### Getting Help
 
 For technical support or questions, please contact the development team.
-
----
-
-**Note**: This is a member management system designed for financial services. Ensure proper data security and compliance measures are in place before deployment.
