@@ -52,14 +52,12 @@ type GraphType = 'pie' | 'bar';
 type ReportMode = 'customer' | 'business' | 'combined';
 type RecordType = 'customer' | 'lead'; 
 
-// Extended Policy type to handle Mutual Funds internally within the report logic
 type ExtendedPolicy = Policy & { 
     isMutualFund?: boolean; 
     mfObject?: MutualFundHolding;
     category?: string; 
 };
 
-// Unified Item Type for rendering
 type ReportItem = Member | Lead | { member: Member, policy: ExtendedPolicy };
 
 interface DrillDownData {
@@ -70,7 +68,6 @@ interface DrillDownData {
 interface ReportSnapshot {
     reportMode: ReportMode;
     recordType: RecordType; 
-    // Common Filters
     dateFrom: string;
     dateTo: string;
     branches: string[];
@@ -81,14 +78,13 @@ interface ReportSnapshot {
     areas: string[];
     parentSources: string[];
     childSources: string[];
-    // Customer/Lead Report Filters
     customerIds: string;
     customerNames: string;
     familyNames: string;
     mobiles: string;
     emails: string;
-    types: string[]; // Tiers
-    statuses: string[]; // Lead Status or Member Status
+    types: string[];
+    statuses: string[];
     categories: string[];
     subCategories: string[];
     groups: string[];
@@ -104,7 +100,6 @@ interface ReportSnapshot {
     followUpTo: string;
     annualIncomeFrom: string;
     annualIncomeTo: string;
-    // Business Vertical Filters (Only for Customers)
     businessVerticals: string[];
     policyTypes: string[];
     policySubTypes: string[];
@@ -118,31 +113,25 @@ interface ReportSnapshot {
     policyMaturityDate: string;
     policyCreatedFrom: string;
     policyCreatedTo: string;
-    // Mutual Fund specific filters
     amcs: string[];
     mutualFundSchemes: string[];
-    // Meta
     visibleFilters: string[];
 }
 
-// Vibrant Colors matching the requested style
 const COLORS = [
     '#0088FE', '#00C49F', '#FFBB28', '#FF8042', 
     '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1', 
     '#a4de6c', '#d0ed57', '#ff6b6b', '#4ecdc4'
 ];
 
-// --- Hardcoded Columns ---
-// Standardized keys to match what getRowCell expects
 const CUSTOMER_REPORT_HARDCODED_COLS = ['sno', 'memberId', 'name', 'customerType', 'status', 'areaCityState', 'assignedTo', 'leadSource', 'isConverted', 'createdAt', 'mobile', 'email', 'branch', 'company'];
-const LEAD_REPORT_HARDCODED_COLS = ['sno', 'name', 'status', 'mobile', 'email', 'leadSource', 'assignedTo', 'businessVertical', 'createdAt', 'followUpDate']; // Specific for Leads
+const LEAD_REPORT_HARDCODED_COLS = ['sno', 'name', 'status', 'mobile', 'email', 'leadSource', 'assignedTo', 'businessVertical', 'createdAt', 'followUpDate'];
 const BUSINESS_VERTICAL_HARDCODED_COLS = ['sno', 'name', 'businessVertical', 'policyNumber', 'policyType', 'policySubType', 'scheme', 'agency', 'policyHolderType', 'premium', 'sumAssured', 'policyStatus', 'assignedTo', 'branch'];
 const COMBINED_REPORT_HARDCODED_COLS = [...new Set([...CUSTOMER_REPORT_HARDCODED_COLS, ...BUSINESS_VERTICAL_HARDCODED_COLS])];
 
-// --- Custom Label for Pie Chart ---
 const RADIAN = Math.PI / 180;
 const renderCustomizedLabel = (props: any) => {
-  const { cx, cy, midAngle, innerRadius, outerRadius, name, fill } = props; // Removed percent
+  const { cx, cy, midAngle, innerRadius, outerRadius, name, fill } = props;
   const sin = Math.sin(-RADIAN * midAngle);
   const cos = Math.cos(-RADIAN * midAngle);
   const sx = cx + (outerRadius + 10) * cos;
@@ -173,15 +162,12 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         amcs, mutualFundSchemes
     } = props;
 
-    // Report Mode State
     const [reportMode, setReportMode] = useState<ReportMode>('customer');
     const [recordType, setRecordType] = useState<RecordType>('customer');
     
-    // Temp states for modal
     const [tempReportMode, setTempReportMode] = useState<ReportMode>('customer');
     const [tempRecordType, setTempRecordType] = useState<RecordType>('customer');
 
-    // Filter States
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -190,7 +176,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     const [visibleFilters, setVisibleFilters] = useState<string[]>([]);
     const [tempSelectedFilters, setTempSelectedFilters] = useState<string[]>([]);
 
-    // All possible filter values
     const [selectedStates, setSelectedStates] = useState<string[]>([]);
     const [selectedDistricts, setSelectedDistricts] = useState<string[]>([]);
     const [selectedCities, setSelectedCities] = useState<string[]>([]);
@@ -219,7 +204,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     const [selectedMutualFundSchemes, setSelectedMutualFundSchemes] = useState<string[]>([]);
     const [selectedIsConverted, setSelectedIsConverted] = useState<string[]>([]);
 
-    // Text and range filters
     const [searchCustomerId, setSearchCustomerId] = useState('');
     const [searchCustomerName, setSearchCustomerName] = useState('');
     const [searchFamilyName, setSearchFamilyName] = useState('');
@@ -240,16 +224,13 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     const [policyCreatedTo, setPolicyCreatedTo] = useState('');
 
 
-    // Report Output State
     const [reportSnapshot, setReportSnapshot] = useState<ReportSnapshot | null>(null);
     const [visibleColumns, setVisibleColumns] = useState<string[]>([]);
     const [activeGraphs, setActiveGraphs] = useState<string[]>([]); 
     const [graphTypes, setGraphTypes] = useState<Record<string, GraphType>>({}); 
     const [drillDownData, setDrillDownData] = useState<DrillDownData | null>(null);
-    // State for interactive Pie Chart
     const [activeIndex, setActiveIndex] = useState<number>(-1);
 
-    // Memoized options
     const uniqueStates = useMemo(() => Array.from(new Set(members.map(m => m.state).filter(Boolean))), [members]);
     const uniqueDistricts = useMemo(() => Array.from(new Set(members.map(m => m.district).filter(Boolean))), [members]);
     const uniqueCities = useMemo(() => Array.from(new Set(members.map(m => m.city).filter(Boolean))), [members]);
@@ -264,7 +245,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     const branchOptions = useMemo(() => branches.map(b => ({ value: b.id, label: b.branch_name })), [branches]);
     const advisorOptions = useMemo(() => users.filter(u => u.role?.toLowerCase().includes('advisor')).map(u => ({ value: u.id, label: u.name })), [users]);
     const tierOptions = useMemo(() => customerTiers.map(t => ({value: t.id, label: t.name || 'Unknown'})), [customerTiers]);
-    // For Leads, Status is dynamic. For Customers, it's Active/Inactive.
     const statusOptions = useMemo(() => {
         if (tempRecordType === 'lead') {
             return Array.from(new Set(allLeads.map(l => l.status))).map(s => ({ value: s, label: s }));
@@ -321,7 +301,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             .map(ls => ({ value: ls.id, label: ls.name }));
     }, [leadSources, selectedParentSources]);
     
-    // --- Filter Definitions ---
     const CUSTOMER_FILTERS = [
         { key: 'customerId', label: 'Customer ID' }, { key: 'customerName', label: 'Customer Name' }, { key: 'familyName', label: 'Family Name' }, { key: 'mobile', label: 'Mobile' }, { key: 'email', label: 'Email' },
         { key: 'state', label: 'State' }, { key: 'district', label: 'District' }, { key: 'city', label: 'City' }, { key: 'area', label: 'Area' },
@@ -350,19 +329,16 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     ];
 
     const FILTER_OPTIONS = useMemo(() => {
-        if (tempRecordType === 'lead') return LEAD_FILTERS; // Specific filters for Leads
+        if (tempRecordType === 'lead') return LEAD_FILTERS;
 
         const mode = isFilterModalOpen ? tempReportMode : reportMode;
         if (mode === 'customer') return CUSTOMER_FILTERS;
         if (mode === 'business') return BUSINESS_FILTERS;
-        // Combined
         const combined = [...CUSTOMER_FILTERS, ...BUSINESS_FILTERS];
         return combined.filter((item, index, self) => index === self.findIndex(t => t.key === item.key));
     }, [reportMode, tempReportMode, isFilterModalOpen, tempRecordType]);
 
     const isPolicyMatch = (p: ExtendedPolicy, snap: ReportSnapshot) => {
-        // --- 1. Global / Common Filters ---
-        // Business Vertical (Applies to both)
         const pType = insuranceTypes.find(t => t.id === p.insuranceTypeId);
         const parentType = pType?.parentId ? insuranceTypes.find(t => t.id === pType.parentId) : null;
         
@@ -374,11 +350,9 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             if (!verticalId || !snap.businessVerticals.includes(verticalId)) return false;
         }
 
-        // --- 2. Vertical-Specific Logic (Contextual/Union Filtering) ---
         const isInsurance = !p.isMutualFund;
         const isMutualFund = !!p.isMutualFund;
 
-        // --- Active Filter Checks ---
         const hasActiveInsuranceFilters = 
             (snap.visibleFilters.includes('policyType') && snap.policyTypes.length > 0) ||
             (snap.visibleFilters.includes('policySubType') && snap.policySubTypes.length > 0) ||
@@ -391,9 +365,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             (snap.visibleFilters.includes('amc') && snap.amcs.length > 0) ||
             (snap.visibleFilters.includes('mutualFundScheme') && snap.mutualFundSchemes.length > 0);
 
-        // --- Matching Logic for Insurance Rows ---
         if (isInsurance) {
-            // A. Must match Insurance Specific Filters if they are active
             if (snap.visibleFilters.includes('policyType') && snap.policyTypes.length > 0) {
                 const typeId = pType?.id;
                 const parentId = pType?.parentId;
@@ -414,15 +386,12 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                 if (!p.maturityDate || parseISO(p.maturityDate).toDateString() !== parseISO(snap.policyMaturityDate).toDateString()) return false;
             }
 
-            // B. Relevance Check: If ONLY Mutual Fund filters are active (and no Insurance filters), drop this Insurance row.
             if (hasActiveMFFilters && !hasActiveInsuranceFilters) {
                 return false; 
             }
         }
 
-        // --- Matching Logic for Mutual Fund Rows ---
         if (isMutualFund) {
-            // A. Must match MF Specific Filters if they are active
             if (snap.visibleFilters.includes('amc') && snap.amcs.length > 0) {
                 if (p.agencyId) { if (!snap.amcs.includes(p.agencyId)) return false; }
                 else return false;
@@ -432,13 +401,11 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                 else return false;
             }
 
-            // B. Relevance Check: If ONLY Insurance filters are active, drop this MF row.
             if (hasActiveInsuranceFilters && !hasActiveMFFilters) {
                 return false;
             }
         }
 
-        // --- 3. Shared Filters (Dates & Amounts) ---
         if (snap.visibleFilters.includes('policyPremiumFrom') && snap.policyPremiumFrom) {
             if (!p.startDate || parseISO(p.startDate) < parseISO(snap.policyPremiumFrom)) return false;
         }
@@ -459,13 +426,12 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         return true;
     };
 
-    const filteredData = useMemo(() => {
+const filteredData = useMemo(() => {
         if (!reportSnapshot) return [];
         const snap = reportSnapshot;
 
         const results: ReportItem[] = [];
 
-        // Logic for Leads
         if (snap.recordType === 'lead') {
             allLeads.forEach(lead => {
                 const created = lead.createdAt ? parseISO(lead.createdAt) : null;
@@ -498,13 +464,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                     if (snap.followUpTo && followUp > parseISO(snap.followUpTo)) return;
                 }
 
-                // Check Interest (Business Vertical)
                 if (snap.visibleFilters.includes('businessVertical') && snap.businessVerticals.length > 0) {
-                    // This assumes policyInterestType maps to Business Vertical somehow, or we check string matching
-                    // Since Lead has policyInterestType which is a string like 'Life Insurance', we might need to find corresponding Vertical ID.
-                    // Simplified: If user selects a Vertical, and Lead's interest matches a Type in that Vertical.
-                    // For exact match, we need to know the vertical of the interest. 
-                    // Let's iterate types to find vertical of interest.
                     const interestType = insuranceTypes.find(t => t.name === lead.policyInterestType);
                     let vId = interestType?.verticalId;
                     if(!vId && interestType?.parentId) {
@@ -519,14 +479,12 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             return results;
         }
 
-        // Logic for Members (Existing Code)
         members.forEach(m => {
             const created = m.createdAt ? parseISO(m.createdAt) : null;
             if (!created || !isValid(created)) return;
             if (snap.dateFrom && created < parseISO(snap.dateFrom)) return;
             if (snap.dateTo && created > new Date(snap.dateTo + 'T23:59:59')) return;
 
-            // Common Member-level filters
             if (snap.visibleFilters.includes('state') && snap.states.length > 0 && !snap.states.includes(m.state)) return;
             if (snap.visibleFilters.includes('district') && snap.districts.length > 0 && !snap.districts.includes(m.district || '')) return;
             if (snap.visibleFilters.includes('city') && snap.cities.length > 0 && !snap.cities.includes(m.city)) return;
@@ -546,7 +504,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             if (snap.visibleFilters.includes('customerName') && snap.customerNames && !m.name.toLowerCase().includes(snap.customerNames.toLowerCase())) return;
             if (snap.visibleFilters.includes('familyName') && snap.familyNames && !m.familyName?.toLowerCase().includes(snap.familyNames.toLowerCase())) return;
 
-            // Customer Report specific filters
             if (snap.reportMode !== 'business') {
                 if (snap.visibleFilters.includes('customerId') && snap.customerIds && !m.memberId.toLowerCase().includes(snap.customerIds.toLowerCase())) return;
                 if (snap.visibleFilters.includes('mobile') && snap.mobiles && !m.mobile.includes(snap.mobiles)) return;
@@ -568,7 +525,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                     if (snap.anniversaryTo && anniv > parseISO(snap.anniversaryTo)) return;
                 }
                 
-                // Manual Customer Logic: If manually created, they are effectively "converted" or "won".
                 if (snap.visibleFilters.includes('isConverted') && snap.isConverted.length > 0) {
                      const isConv = (!!m.isConverted) || (!m.leadCreatedAt); 
                      const match = snap.isConverted.includes(String(isConv));
@@ -588,24 +544,19 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                 }
             }
             
-            // Collect all "Policies" including Mutual Funds
             const allItems: ExtendedPolicy[] = [];
             
-            // 1. Insurance Policies
             (m.policies || []).forEach(p => {
                 allItems.push(p);
             });
             
-            // 2. Mutual Fund Holdings (Mapped to Policy structure)
             (m.mutualFundHoldings || []).forEach(mf => {
                 const scheme = mutualFundSchemes.find(s => s.id === mf.schemeId);
                 const amc = scheme ? amcs.find(a => a.id === scheme.amcId) : null;
                 const isSip = mf.investmentType === 'SIP';
-                // Find earliest transaction date
                 const sortedTxns = [...(mf.transactions || [])].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
                 const firstTxnDate = sortedTxns.length > 0 ? sortedTxns[0].date : ''; 
 
-                // If no txn date, use member creation date as fallback? 
                 const effectiveStartDate = firstTxnDate || m.createdAt || '';
 
                 let derivedRenewal = 'N/A';
@@ -627,16 +578,16 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                     isMutualFund: true,
                     mfObject: mf,
                     businessVerticalId: amc?.verticalId,
-                    insuranceTypeId: undefined, 
+                    insuranceTypeId: undefined,
                     policyType: isSip ? 'SIP' : 'Lumpsum',
                     policyHolderType: 'Individual',
                     schemeId: mf.schemeId,
                     agencyId: amc?.id,
-                    premium: mf.totalInvestment, 
-                    coverage: mf.currentValue, 
+                    premium: isSip ? (mf.sipAmount || 0) : mf.totalInvestment, 
+                    coverage: mf.currentValue || mf.totalInvestment || (isSip ? (mf.sipAmount || 0) : 0), 
                     status: mf.status,
-                    startDate: effectiveStartDate, // Investment Date
-                    renewalDate: derivedRenewal, // SIP Day or N/A
+                    startDate: effectiveStartDate,
+                    renewalDate: derivedRenewal,
                     policyNumber: mf.folioNumber,
                     policyCreatedDate: effectiveStartDate,
                     category: scheme?.category,
@@ -646,15 +597,13 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                 allItems.push(mfPolicy);
             });
 
-            // Check policies/items against filters
             const matchingItems = allItems.filter(p => isPolicyMatch(p, snap));
 
-            // Handle report type logic
             if (snap.reportMode === 'customer') {
                 const policyFilterKeys = [
                     'businessVertical', 'policyType', 'policySubType', 'policyHolderType', 'scheme', 'agency', 
                     'policyPremiumFrom', 'policyPremiumTo', 'policySumAssured', 'policyMaturityDate', 'policyCreatedDate',
-                    'amc', 'mutualFundScheme' // Added MF keys here to ensure correct detection
+                    'amc', 'mutualFundScheme'
                 ];
                 const hasActivePolicyFilters = policyFilterKeys.some(k => snap.visibleFilters.includes(k));
 
@@ -663,7 +612,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                 } else {
                     results.push(m);
                 }
-            } else { // business or combined
+            } else {
                 if (matchingItems.length > 0) {
                     matchingItems.forEach(policy => {
                         results.push({ member: m, policy });
@@ -672,9 +621,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             }
         });
         return results;
-    }, [reportSnapshot, members, allLeads, leadSources, schemes, agencies, amcs, mutualFundSchemes]);
-    
-    // --- Handlers ---
+    }, [reportSnapshot, members, allLeads, leadSources, schemes, agencies, amcs, mutualFundSchemes]); 
     const handleSearch = () => {
         setErrorMsg(null);
         if (!dateFrom || !dateTo) {
@@ -707,40 +654,32 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         };
         setReportSnapshot(snapshot);
 
-        // Normalize visible columns to prevent deduplication of keys
         let hardcoded = reportMode === 'customer' ? CUSTOMER_REPORT_HARDCODED_COLS : reportMode === 'business' ? BUSINESS_VERTICAL_HARDCODED_COLS : COMBINED_REPORT_HARDCODED_COLS;
         
-        // If Leads are selected, use Lead Hardcoded columns
         if (recordType === 'lead') {
             hardcoded = LEAD_REPORT_HARDCODED_COLS;
         }
 
-        // Dynamic filters often have different keys than table renderer expects. Map them.
         const dynamicMapped = visibleFilters
-            .filter(f => f !== 'amc' && f !== 'mutualFundScheme') // These are handled by 'agency' and 'scheme'
+            .filter(f => f !== 'amc' && f !== 'mutualFundScheme')
             .map(f => {
                 if (f === 'customerName') return 'name';
                 if (f === 'customerId') return 'memberId';
                 if (f === 'advisor') return 'assignedTo';
-                // Note: policyPremiumFrom/To are distinct from hardcoded 'premium'/'renewal',
-                // but usually user wants specific columns. We keep them as is in the key, and ensure getRowCell handles them.
                 return f;
             });
             
-        // Combine and dedup
         setVisibleColumns([...new Set([...hardcoded, ...dynamicMapped])]);
 
         const graphsToShow: string[] = [];
         if(visibleFilters.includes('branch')) graphsToShow.push('branch');
         if(visibleFilters.includes('advisor')) graphsToShow.push('advisor');
         
-        // Lead Specific Graph Logic
         if (recordType === 'lead') {
             if(visibleFilters.includes('leadSource')) graphsToShow.push('leadSource');
             if(visibleFilters.includes('status')) graphsToShow.push('status');
-            if(visibleFilters.includes('businessVertical')) graphsToShow.push('businessVertical'); // Interest
+            if(visibleFilters.includes('businessVertical')) graphsToShow.push('businessVertical');
         } else {
-            // Customer Graphs
             if(visibleFilters.includes('state')) graphsToShow.push('state');
             if(visibleFilters.includes('tier')) graphsToShow.push('tier');
             if(visibleFilters.includes('status')) graphsToShow.push('status');
@@ -809,7 +748,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         setRecordType(tempRecordType);
         setIsFilterModalOpen(false);
         
-        // Clear filter values that are not available in the new mode
         if (!availableFilterKeys.includes('customerId')) setSearchCustomerId('');
         if (!availableFilterKeys.includes('customerName')) setSearchCustomerName('');
         if (!availableFilterKeys.includes('familyName')) setSearchFamilyName('');
@@ -862,10 +800,8 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         setVisibleColumns(prev => prev.filter(col => col !== columnKey));
     };
     
-    // Helper function to resolve the value of a parameter for a given item
     const resolveParameterValue = (item: ReportItem, parameter: string): string => {
-        // Guard for Lead type
-        if ('phone' in item && 'estimatedValue' in item) { // Duck typing for Lead
+        if ('phone' in item && 'estimatedValue' in item) {
             const lead = item as Lead;
             switch(parameter) {
                 case 'status': return lead.status;
@@ -970,7 +906,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         return key;
     };
 
-    // Graph and Drilldown Logic
     const generateGraphData = (parameter: string) => {
         const counts: Record<string, number> = {};
         filteredData.forEach(item => {
@@ -995,7 +930,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         });
     };
 
-    // Table rendering logic
     const getColumnHeader = (key: string): string => {
         const map: Record<string, string> = {
             sno: 'S.No', memberId: 'Customer ID', name: 'Customer Name', customerType: 'Tier Type', status: 'Status', areaCityState: 'Area/City/State', assignedTo: 'Advisor', leadSource: 'Lead Source', isConverted: 'Converted', createdAt: 'Created Date', mobile: 'Mobile', email: 'Email', branch: 'Branch', company: 'Company',
@@ -1011,8 +945,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     const leadSourceMasterMap = (id: string | null | undefined) => leadSources.find(ls => ls.id === id)?.name || 'N/A';
 
     const getRowCell = (item: ReportItem, key: string, index: number, policy?: ExtendedPolicy): React.ReactNode => {
-        // Lead specific rendering if item is a Lead
-        if ('phone' in item && 'estimatedValue' in item) { // Duck typing check for Lead
+        if ('phone' in item && 'estimatedValue' in item) {
             const lead = item as Lead;
             switch(key) {
                 case 'sno': return index + 1;
@@ -1029,11 +962,10 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                 case 'followUpDate': return lead.followUpDate ? format(parseISO(lead.followUpDate), 'dd-MM-yyyy') : 'N/A';
                 case 'businessVertical': return lead.policyInterestType || 'N/A';
                 case 'company': return lead.company || 'N/A';
-                case 'country': return 'India'; // Leads don't have country field, default or N/A
+                case 'country': return 'India';
                 case 'state': return 'N/A';
                 case 'city': return 'N/A';
                 case 'area': return 'N/A';
-                // For all other policy/customer specific columns, return N/A for leads
                 default: return 'N/A'; 
             }
         }
@@ -1043,23 +975,22 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         switch (key) {
             case 'sno': return index + 1;
             case 'memberId': return member.memberId;
-            case 'customerId': return member.memberId; // Alias for filter map
+            case 'customerId': return member.memberId;
             case 'name': return member.name;
-            case 'customerName': return member.name; // Alias for filter map
+            case 'customerName': return member.name;
             case 'customerType': return customerTiers.find(t => t.id === member.tierId)?.name || 'N/A';
             case 'status': return <span className={`px-2 py-1 text-xs rounded-full ${member.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{member.active ? 'Active' : 'Inactive'}</span>;
             case 'areaCityState': return [member.area, member.city, member.state].filter(Boolean).join(', ');
             case 'assignedTo': return users.find(u => member.assignedTo.includes(u.id))?.name || 'N/A';
-            case 'advisor': return users.find(u => member.assignedTo.includes(u.id))?.name || 'N/A'; // Alias for filter map
+            case 'advisor': return users.find(u => member.assignedTo.includes(u.id))?.name || 'N/A';
             case 'leadSource': return leadSources.find(ls => ls.id === member.leadSource?.sourceId)?.name || 'N/A';
-            case 'isConverted': return (member.isConverted || !member.leadCreatedAt) ? 'Yes' : 'No'; // Manual customers default to Yes
+            case 'isConverted': return (member.isConverted || !member.leadCreatedAt) ? 'Yes' : 'No';
             case 'createdAt': return member.createdAt ? format(parseISO(member.createdAt), 'dd-MM-yyyy') : 'N/A';
             case 'mobile': return member.mobile;
             case 'email': return member.email || 'N/A';
             case 'branch': return branches.find(b => b.id === member.branch_id)?.branch_name || 'N/A';
             case 'company': return member.company;
             case 'country': return member.country || 'N/A';
-            // Dynamic Customer Columns
             case 'bloodGroup': return member.bloodGroup || 'N/A';
             case 'gender': return genders.find(g => g.id === member.gender)?.name || 'N/A';
             case 'religion': return religions.find(r => r.id === member.religionId)?.name || 'N/A';
@@ -1078,7 +1009,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             case 'processStage': return processStageMasters.find(ps => ps.id === member.processStage)?.name || 'N/A';
             case 'familyName': return member.familyName || 'N/A';
 
-            // Business Vertical Columns
             case 'businessVertical': {
                 const getVerticalName = (pol: ExtendedPolicy) => {
                      if (pol.businessVerticalId) {
@@ -1126,7 +1056,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             case 'policyNumber': return policy?.policyNumber || 'N/A';
             case 'policyType': {
                 if (policy?.isMutualFund) {
-                    // Correctly return based on investmentType, not transactions
                     return policy.policyType || 'Lumpsum';
                 }
                 const policySubTypeForType = insuranceTypes.find(it => it.id === policy?.insuranceTypeId);
@@ -1155,7 +1084,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             case 'policyStatus': return policy?.status || 'N/A';
             case 'policyMaturityDate': return policy?.maturityDate ? format(parseISO(policy.maturityDate), 'dd-MM-yyyy') : 'N/A';
             case 'policyCreatedDate': 
-                // Fix: Use startDate (Premium Start Date) as the primary source for Policy Date
                 if (policy?.startDate) {
                     return format(parseISO(policy.startDate), 'dd-MM-yyyy');
                 }
@@ -1165,7 +1093,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             case 'policyPremiumFrom': return policy?.startDate ? format(parseISO(policy.startDate), 'dd-MM-yyyy') : 'N/A';
             case 'policyPremiumTo': {
                 if (policy?.isMutualFund) {
-                    return policy.renewalDate || 'N/A'; // This holds SIP info or N/A
+                    return policy.renewalDate || 'N/A';
                 }
                 return policy?.renewalDate ? format(parseISO(policy.renewalDate), 'dd-MM-yyyy') : 'N/A';
             }
@@ -1174,7 +1102,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         }
     };
     
-    // Export Logic
     const getExportRow = (item: ReportItem, index: number, policy?: ExtendedPolicy) => {
         return visibleColumns.map(key => {
             const node = getRowCell(item, key, index, policy);
@@ -1223,7 +1150,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
 
     return (
         <div className="space-y-6 pb-20 relative">
-            {/* SVG Filter Definition for Shadow */}
+            {}
             <svg style={{ height: 0, width: 0, position: 'absolute' }}>
                 <defs>
                     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
@@ -1268,7 +1195,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
 
                 {visibleFilters.length > 0 && (
                     <div className="mt-4 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 animate-fadeIn border-t dark:border-gray-700 pt-4">
-                        {/* Render active filter inputs */}
+                        {}
                         {visibleFilters.includes('customerId') && <Input label="Customer ID" value={searchCustomerId} onChange={e => setSearchCustomerId(e.target.value)} />}
                         {visibleFilters.includes('customerName') && <Input label={recordType === 'lead' ? "Lead Name" : "Customer Name"} value={searchCustomerName} onChange={e => setSearchCustomerName(e.target.value)} />}
                         {visibleFilters.includes('familyName') && <Input label="Family Name" value={searchFamilyName} onChange={e => setSearchFamilyName(e.target.value)} />}
@@ -1408,7 +1335,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                                     )}
                                     {filteredData.map((item, i) => {
                                         const policy = 'policy' in item ? item.policy : undefined;
-                                        // Generate a stable key. If item is Lead, use id. If Member, id. If Policy row, composite.
                                         const rowKey = 'policy' in item ? `${item.member.id}-${item.policy.id}` : ('id' in item ? item.id : i);
                                         return <tr key={rowKey} className="hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors">{visibleColumns.map(key => <td key={key} className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">{getRowCell(item, key, i, policy)}</td>)}</tr>
                                     })}
@@ -1507,7 +1433,6 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                                 <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10 shadow-sm"><tr>{['S.No', 'ID', 'Name', 'Mobile', 'Email', 'City'].map(h => <th key={h} className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-200">{h}</th>)}</tr></thead>
                                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                     {drillDownData.data.map((item, i) => {
-                                        // Handle Lead Drilldown Item
                                         if('phone' in item && 'estimatedValue' in item) {
                                             const lead = item as Lead;
                                             return (
@@ -1546,5 +1471,4 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         </div>
     );
 };
-
 export default AdvancedReports;
