@@ -2252,6 +2252,13 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                                         genders={genders}
                                         customerTiers={customerTiers}
                                         businessVerticals={businessVerticals}
+                                        schemes={schemes}
+                                        agencies={agencies}
+                                        maritalStatuses={maritalStatuses}
+                                        processStageMasters={processStageMasters}
+                                        insuranceTypes={insuranceTypes}
+                                        amcs={amcs}
+                                        mutualFundSchemes={mutualFundSchemes}
                                     />
                                 } />
                                 <Route path="/CrossSelling" element={

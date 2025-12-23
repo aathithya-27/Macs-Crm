@@ -486,6 +486,11 @@ export interface Policy {
   generalInsuranceType?: GeneralInsuranceType;
   generalInsuranceData?: MotorInsuranceData | HomeInsuranceData | TravelInsuranceData | PersonalAccidentInsuranceData;
   dynamicData?: Record<string, any>;
+  businessVerticalId?: string;
+  agencyId?: string;
+  policyCreatedDate?: string;
+  sumAssured?: number;
+  memberId?: string;
 }
 
 export interface CoveredMember {
@@ -584,6 +589,13 @@ export interface Member {
   bankDetails?: BankDetails;
   createdBy?: string;
   createdAt?: string;
+  leadCreatedAt?: string;
+  followUpDate?: string;
+  customerType?: string;
+  isConverted?: boolean;
+  conversionStatus?: 'Yes' | 'No';
+  annualIncome?: number;
+  averageMonthlyExpenses?: number;
   company: string;
   comp_id: string;
   branch_id?: string;
