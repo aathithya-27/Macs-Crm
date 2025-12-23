@@ -1,13 +1,13 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { 
     Member, User, Branch, LeadSourceMaster, CustomerCategory, 
     CustomerSubCategory, CustomerGroup, Religion, Gender, CustomerTier,
-    BusinessVertical, SchemeMaster, InsuranceAgency, Policy,MaritalStatus,ProcessStageMaster,
-    InsuranceTypeMaster, AMC, MutualFundScheme, MutualFundHolding
+    BusinessVertical, SchemeMaster, InsuranceAgency, Policy, MaritalStatus, ProcessStageMaster,
+    InsuranceTypeMaster, AMC, MutualFundScheme, MutualFundHolding, Lead
 } from '../types.ts';
 import { 
     Download, BarChart3, PieChart as PieChartIcon, 
-    Filter, X, Search, FileX, AlertCircle, Plus, Check, Users, Briefcase, Combine
+    Filter, X, Search, FileX, AlertCircle, Plus, Check, Users, Briefcase, Combine, UserPlus
 } from 'lucide-react';
 import Button from './ui/Button.tsx';
 import Input from './ui/Input.tsx';
@@ -18,7 +18,7 @@ import 'jspdf-autotable';
 import { format, parseISO, isValid } from 'date-fns';
 import { 
     ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
-    Tooltip, Legend, PieChart, Pie, Cell 
+    Tooltip, PieChart, Pie, Cell, Sector
 } from 'recharts';
 
 
@@ -28,6 +28,7 @@ interface jsPDFWithAutoTable extends jsPDF {
 
 interface AdvancedReportsProps {
     members: Member[];
+    allLeads: Lead[]; 
     users: User[];
     branches: Branch[];
     leadSources: LeadSourceMaster[];
@@ -49,6 +50,7 @@ interface AdvancedReportsProps {
 
 type GraphType = 'pie' | 'bar';
 type ReportMode = 'customer' | 'business' | 'combined';
+type RecordType = 'customer' | 'lead'; 
 
 // Extended Policy type to handle Mutual Funds internally within the report logic
 type ExtendedPolicy = Policy & { 
@@ -57,13 +59,17 @@ type ExtendedPolicy = Policy & {
     category?: string; 
 };
 
+// Unified Item Type for rendering
+type ReportItem = Member | Lead | { member: Member, policy: ExtendedPolicy };
+
 interface DrillDownData {
     title: string;
-    data: (Member | { member: Member, policy: ExtendedPolicy })[];
+    data: ReportItem[];
 }
 
 interface ReportSnapshot {
     reportMode: ReportMode;
+    recordType: RecordType; 
     // Common Filters
     dateFrom: string;
     dateTo: string;
@@ -75,14 +81,14 @@ interface ReportSnapshot {
     areas: string[];
     parentSources: string[];
     childSources: string[];
-    // Customer Report Filters
+    // Customer/Lead Report Filters
     customerIds: string;
     customerNames: string;
     familyNames: string;
     mobiles: string;
     emails: string;
-    types: string[];
-    statuses: string[];
+    types: string[]; // Tiers
+    statuses: string[]; // Lead Status or Member Status
     categories: string[];
     subCategories: string[];
     groups: string[];
@@ -98,7 +104,7 @@ interface ReportSnapshot {
     followUpTo: string;
     annualIncomeFrom: string;
     annualIncomeTo: string;
-    // Business Vertical Filters
+    // Business Vertical Filters (Only for Customers)
     businessVerticals: string[];
     policyTypes: string[];
     policySubTypes: string[];
@@ -119,17 +125,49 @@ interface ReportSnapshot {
     visibleFilters: string[];
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1', '#a4de6c', '#d0ed57', '#ff6b6b', '#4ecdc4'];
+// Vibrant Colors matching the requested style
+const COLORS = [
+    '#0088FE', '#00C49F', '#FFBB28', '#FF8042', 
+    '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1', 
+    '#a4de6c', '#d0ed57', '#ff6b6b', '#4ecdc4'
+];
 
-// --- Hardcoded Columns (as per image) ---
+// --- Hardcoded Columns ---
+// Standardized keys to match what getRowCell expects
 const CUSTOMER_REPORT_HARDCODED_COLS = ['sno', 'memberId', 'name', 'customerType', 'status', 'areaCityState', 'assignedTo', 'leadSource', 'isConverted', 'createdAt', 'mobile', 'email', 'branch', 'company'];
+const LEAD_REPORT_HARDCODED_COLS = ['sno', 'name', 'status', 'mobile', 'email', 'leadSource', 'assignedTo', 'businessVertical', 'createdAt', 'followUpDate']; // Specific for Leads
 const BUSINESS_VERTICAL_HARDCODED_COLS = ['sno', 'name', 'businessVertical', 'policyNumber', 'policyType', 'policySubType', 'scheme', 'agency', 'policyHolderType', 'premium', 'sumAssured', 'policyStatus', 'assignedTo', 'branch'];
 const COMBINED_REPORT_HARDCODED_COLS = [...new Set([...CUSTOMER_REPORT_HARDCODED_COLS, ...BUSINESS_VERTICAL_HARDCODED_COLS])];
+
+// --- Custom Label for Pie Chart ---
+const RADIAN = Math.PI / 180;
+const renderCustomizedLabel = (props: any) => {
+  const { cx, cy, midAngle, innerRadius, outerRadius, name, fill } = props; // Removed percent
+  const sin = Math.sin(-RADIAN * midAngle);
+  const cos = Math.cos(-RADIAN * midAngle);
+  const sx = cx + (outerRadius + 10) * cos;
+  const sy = cy + (outerRadius + 10) * sin;
+  const mx = cx + (outerRadius + 30) * cos;
+  const my = cy + (outerRadius + 30) * sin;
+  const ex = mx + (cos >= 0 ? 1 : -1) * 22;
+  const ey = my;
+  const textAnchor = cos >= 0 ? 'start' : 'end';
+
+  return (
+    <g>
+      <path d={`M${sx},${sy}L${mx},${my}L${ex},${ey}`} stroke={fill} fill="none" />
+      <circle cx={ex} cy={ey} r={2} fill={fill} stroke="none" />
+      <text x={ex + (cos >= 0 ? 1 : -1) * 12} y={ey} dy={5} textAnchor={textAnchor} fill={fill} fontSize={14} fontWeight="bold">
+        {name}
+      </text>
+    </g>
+  );
+};
 
 
 const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     const {
-        members, users, branches, leadSources, customerCategories, 
+        members, allLeads, users, branches, leadSources, customerCategories, 
         customerSubCategories, customerGroups, religions, genders, customerTiers, businessVerticals,
         schemes, agencies, maritalStatuses, processStageMasters, insuranceTypes,
         amcs, mutualFundSchemes
@@ -137,7 +175,11 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
 
     // Report Mode State
     const [reportMode, setReportMode] = useState<ReportMode>('customer');
+    const [recordType, setRecordType] = useState<RecordType>('customer');
+    
+    // Temp states for modal
     const [tempReportMode, setTempReportMode] = useState<ReportMode>('customer');
+    const [tempRecordType, setTempRecordType] = useState<RecordType>('customer');
 
     // Filter States
     const [dateFrom, setDateFrom] = useState('');
@@ -204,8 +246,10 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     const [activeGraphs, setActiveGraphs] = useState<string[]>([]); 
     const [graphTypes, setGraphTypes] = useState<Record<string, GraphType>>({}); 
     const [drillDownData, setDrillDownData] = useState<DrillDownData | null>(null);
+    // State for interactive Pie Chart
+    const [activeIndex, setActiveIndex] = useState<number>(-1);
 
-    // Memoized options for dropdowns
+    // Memoized options
     const uniqueStates = useMemo(() => Array.from(new Set(members.map(m => m.state).filter(Boolean))), [members]);
     const uniqueDistricts = useMemo(() => Array.from(new Set(members.map(m => m.district).filter(Boolean))), [members]);
     const uniqueCities = useMemo(() => Array.from(new Set(members.map(m => m.city).filter(Boolean))), [members]);
@@ -220,7 +264,14 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     const branchOptions = useMemo(() => branches.map(b => ({ value: b.id, label: b.branch_name })), [branches]);
     const advisorOptions = useMemo(() => users.filter(u => u.role?.toLowerCase().includes('advisor')).map(u => ({ value: u.id, label: u.name })), [users]);
     const tierOptions = useMemo(() => customerTiers.map(t => ({value: t.id, label: t.name || 'Unknown'})), [customerTiers]);
-    const statusOptions = [{value: 'Active', label: 'Active'}, {value: 'Inactive', label: 'Inactive'}];
+    // For Leads, Status is dynamic. For Customers, it's Active/Inactive.
+    const statusOptions = useMemo(() => {
+        if (tempRecordType === 'lead') {
+            return Array.from(new Set(allLeads.map(l => l.status))).map(s => ({ value: s, label: s }));
+        }
+        return [{value: 'Active', label: 'Active'}, {value: 'Inactive', label: 'Inactive'}];
+    }, [tempRecordType, allLeads]);
+
     const categoryOptions = useMemo(() => customerCategories.map(c => ({ value: c.id, label: c.name })), [customerCategories]);
     
     const subCategoryOptions = useMemo(() => {
@@ -280,6 +331,13 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         { key: 'leadSource', label: 'Lead Source' }, { key: 'religion', label: 'Religion' }, { key: 'bloodGroup', label: 'Blood Group' },
         { key: 'anniversary', label: 'Anniversary Date' }, { key: 'isConverted', label: 'Is Converted' }, { key: 'followUpDate', label: 'Follow-up Date' }, { key: 'annualIncome', label: 'Annual Income' },
     ];
+
+    const LEAD_FILTERS = [
+        { key: 'customerName', label: 'Lead Name' }, { key: 'mobile', label: 'Mobile' }, { key: 'email', label: 'Email' },
+        { key: 'status', label: 'Lead Status' }, { key: 'leadSource', label: 'Lead Source' },
+        { key: 'branch', label: 'Branch' }, { key: 'advisor', label: 'Assigned To' },
+        { key: 'businessVertical', label: 'Interest (Business Vertical)' }, { key: 'followUpDate', label: 'Follow-up Date' },
+    ];
     
     const BUSINESS_FILTERS = [
         { key: 'customerName', label: 'Customer Name' }, { key: 'leadSource', label: 'Lead Source' },
@@ -287,25 +345,27 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         { key: 'branch', label: 'Branch' }, { key: 'advisor', label: 'Advisor' },
         { key: 'businessVertical', label: 'Business Vertical' }, { key: 'policyType', label: 'Policy Type' }, { key: 'policySubType', label: 'Policy Sub-Type' }, { key: 'policyHolderType', label: 'Policy Holder Type' }, 
         { key: 'agency', label: 'Agency' }, { key: 'scheme', label: 'Scheme' }, { key: 'amc', label: 'AMC' }, { key: 'mutualFundScheme', label: 'Mutual Fund Scheme' },
-        { key: 'policyPremiumFrom', label: 'Premium From (Start Date)' }, { key: 'policyPremiumTo', label: 'Premium To (Renewal Date)' }, { key: 'policySumAssured', label: 'Sum Assured In' },
+        { key: 'policyPremiumFrom', label: 'Premium From / Inv. Date' }, { key: 'policyPremiumTo', label: 'Premium To / SIP Day' }, { key: 'policySumAssured', label: 'Sum Assured / Valuation' },
         { key: 'policyMaturityDate', label: 'Policy Maturity Date' }, { key: 'policyCreatedDate', label: 'Policy Created Date' },
     ];
 
     const FILTER_OPTIONS = useMemo(() => {
+        if (tempRecordType === 'lead') return LEAD_FILTERS; // Specific filters for Leads
+
         const mode = isFilterModalOpen ? tempReportMode : reportMode;
         if (mode === 'customer') return CUSTOMER_FILTERS;
         if (mode === 'business') return BUSINESS_FILTERS;
         // Combined
         const combined = [...CUSTOMER_FILTERS, ...BUSINESS_FILTERS];
         return combined.filter((item, index, self) => index === self.findIndex(t => t.key === item.key));
-    }, [reportMode, tempReportMode, isFilterModalOpen]);
+    }, [reportMode, tempReportMode, isFilterModalOpen, tempRecordType]);
 
     const isPolicyMatch = (p: ExtendedPolicy, snap: ReportSnapshot) => {
-        // Resolve effective IDs
+        // --- 1. Global / Common Filters ---
+        // Business Vertical (Applies to both)
         const pType = insuranceTypes.find(t => t.id === p.insuranceTypeId);
         const parentType = pType?.parentId ? insuranceTypes.find(t => t.id === pType.parentId) : null;
         
-        // Resolve Vertical ID dynamically if not present
         let verticalId = p.businessVerticalId;
         if (!verticalId && pType?.verticalId) verticalId = pType.verticalId;
         if (!verticalId && parentType?.verticalId) verticalId = parentType.verticalId;
@@ -314,75 +374,88 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             if (!verticalId || !snap.businessVerticals.includes(verticalId)) return false;
         }
 
-        if (snap.visibleFilters.includes('policyType') && snap.policyTypes.length > 0) {
-            // Check if p.insuranceTypeId is directly in list (if p is parent) OR if parent of p is in list
-            // The filter dropdown usually selects Parent IDs
-            const typeId = pType?.id;
-            const parentId = pType?.parentId;
-            
-            // Note: If p is a Mutual Fund, it might have a placeholder string ID. 
-            // If the filter has valid IDs from master, strings wont match, effectively filtering MF out if "Health" is selected.
-            // If the user wants to filter specifically for "Mutual Funds" via Policy Type, they can't unless we add a dummy master.
-            // But usually Business Vertical is used for that.
-            
-            const match = (typeId && snap.policyTypes.includes(typeId)) || (parentId && snap.policyTypes.includes(parentId));
-            if (!match) return false;
+        // --- 2. Vertical-Specific Logic (Contextual/Union Filtering) ---
+        const isInsurance = !p.isMutualFund;
+        const isMutualFund = !!p.isMutualFund;
+
+        // --- Active Filter Checks ---
+        const hasActiveInsuranceFilters = 
+            (snap.visibleFilters.includes('policyType') && snap.policyTypes.length > 0) ||
+            (snap.visibleFilters.includes('policySubType') && snap.policySubTypes.length > 0) ||
+            (snap.visibleFilters.includes('policyHolderType') && snap.policyHolderTypes.length > 0) ||
+            (snap.visibleFilters.includes('scheme') && snap.schemes.length > 0) ||
+            (snap.visibleFilters.includes('agency') && snap.agencies.length > 0) ||
+            (snap.visibleFilters.includes('policyMaturityDate') && !!snap.policyMaturityDate);
+
+        const hasActiveMFFilters = 
+            (snap.visibleFilters.includes('amc') && snap.amcs.length > 0) ||
+            (snap.visibleFilters.includes('mutualFundScheme') && snap.mutualFundSchemes.length > 0);
+
+        // --- Matching Logic for Insurance Rows ---
+        if (isInsurance) {
+            // A. Must match Insurance Specific Filters if they are active
+            if (snap.visibleFilters.includes('policyType') && snap.policyTypes.length > 0) {
+                const typeId = pType?.id;
+                const parentId = pType?.parentId;
+                const match = (typeId && snap.policyTypes.includes(typeId)) || (parentId && snap.policyTypes.includes(parentId));
+                if (!match) return false;
+            }
+            if (snap.visibleFilters.includes('policySubType') && snap.policySubTypes.length > 0 && !snap.policySubTypes.includes(p.insuranceTypeId || '')) return false;
+            if (snap.visibleFilters.includes('policyHolderType') && snap.policyHolderTypes.length > 0 && !snap.policyHolderTypes.includes(p.policyHolderType || '')) return false;
+            if (snap.visibleFilters.includes('scheme') && snap.schemes.length > 0 && !snap.schemes.includes(p.schemeId || '')) return false;
+            if (snap.visibleFilters.includes('agency') && snap.agencies.length > 0) {
+                if (p.agencyId) { if (!snap.agencies.includes(p.agencyId)) return false; } 
+                else {
+                    const scheme = (schemes || []).find(s => s.id === p.schemeId);
+                    if (!scheme || !snap.agencies.includes(scheme.agencyId)) return false;
+                }
+            }
+            if (snap.visibleFilters.includes('policyMaturityDate') && snap.policyMaturityDate) {
+                if (!p.maturityDate || parseISO(p.maturityDate).toDateString() !== parseISO(snap.policyMaturityDate).toDateString()) return false;
+            }
+
+            // B. Relevance Check: If ONLY Mutual Fund filters are active (and no Insurance filters), drop this Insurance row.
+            if (hasActiveMFFilters && !hasActiveInsuranceFilters) {
+                return false; 
+            }
         }
 
-        if (snap.visibleFilters.includes('policySubType') && snap.policySubTypes.length > 0 && !snap.policySubTypes.includes(p.insuranceTypeId || '')) return false;
-        if (snap.visibleFilters.includes('policyHolderType') && snap.policyHolderTypes.length > 0 && !snap.policyHolderTypes.includes(p.policyHolderType || '')) return false;
-        if (snap.visibleFilters.includes('scheme') && snap.schemes.length > 0 && !snap.schemes.includes(p.schemeId || '')) return false;
-        if (snap.visibleFilters.includes('agency') && snap.agencies.length > 0) {
-            // For MF, agencyId maps to AMC ID
-            if (p.agencyId) {
-                if (!snap.agencies.includes(p.agencyId)) return false;
-            } else {
-                const scheme = (schemes || []).find(s => s.id === p.schemeId);
-                if (!scheme || !snap.agencies.includes(scheme.agencyId)) return false;
+        // --- Matching Logic for Mutual Fund Rows ---
+        if (isMutualFund) {
+            // A. Must match MF Specific Filters if they are active
+            if (snap.visibleFilters.includes('amc') && snap.amcs.length > 0) {
+                if (p.agencyId) { if (!snap.amcs.includes(p.agencyId)) return false; }
+                else return false;
+            }
+            if (snap.visibleFilters.includes('mutualFundScheme') && snap.mutualFundSchemes.length > 0) {
+                if (p.schemeId) { if (!snap.mutualFundSchemes.includes(p.schemeId)) return false; }
+                else return false;
+            }
+
+            // B. Relevance Check: If ONLY Insurance filters are active, drop this MF row.
+            if (hasActiveInsuranceFilters && !hasActiveMFFilters) {
+                return false;
             }
         }
-        if (snap.visibleFilters.includes('amc') && snap.amcs.length > 0) {
-            if (p.isMutualFund && p.agencyId) {
-                if (!snap.amcs.includes(p.agencyId)) return false;
-            } else if (p.isMutualFund) {
-                return false; // MF without AMC info
-            }
-        }
-        if (snap.visibleFilters.includes('mutualFundScheme') && snap.mutualFundSchemes.length > 0) {
-            if (p.isMutualFund && p.schemeId) {
-                if (!snap.mutualFundSchemes.includes(p.schemeId)) return false;
-            } else if (p.isMutualFund) {
-                return false; // MF without scheme info
-            }
-        }
+
+        // --- 3. Shared Filters (Dates & Amounts) ---
         if (snap.visibleFilters.includes('policyPremiumFrom') && snap.policyPremiumFrom) {
-            // Check startDate for Premium From
             if (!p.startDate || parseISO(p.startDate) < parseISO(snap.policyPremiumFrom)) return false;
         }
         if (snap.visibleFilters.includes('policyPremiumTo') && snap.policyPremiumTo) {
-            // For MF, we might not have a renewal date, so check logic
-            if (p.isMutualFund) {
-               // For MF, maybe check transaction date? Or ignore?
-               // Let's assume ignore for now or check startDate again if no renewal
-               if (!p.startDate || parseISO(p.startDate) > parseISO(snap.policyPremiumTo)) return false;
-            } else {
-                if (!p.renewalDate || parseISO(p.renewalDate) > parseISO(snap.policyPremiumTo)) return false;
-            }
+            if (!p.isMutualFund && (!p.renewalDate || parseISO(p.renewalDate) > parseISO(snap.policyPremiumTo))) return false;
         }
         if (snap.visibleFilters.includes('policySumAssured') && snap.policySumAssuredFrom) {
-            if (p.coverage >= Number(snap.policySumAssuredFrom)) return false;
-        }
-        if (snap.visibleFilters.includes('policyMaturityDate') && snap.policyMaturityDate) {
-            if (!p.maturityDate || parseISO(p.maturityDate).toDateString() !== parseISO(snap.policyMaturityDate).toDateString()) return false;
+            if (p.coverage < Number(snap.policySumAssuredFrom)) return false;
         }
         if (snap.visibleFilters.includes('policyCreatedDate') && (snap.policyCreatedFrom || snap.policyCreatedTo)) {
-            // For MF, assume startDate is creation date if policyCreatedDate missing
             const createdStr = p.policyCreatedDate || p.startDate;
             if (!createdStr) return false;
             const pCreated = parseISO(createdStr);
             if (snap.policyCreatedFrom && pCreated < parseISO(snap.policyCreatedFrom)) return false;
             if (snap.policyCreatedTo && pCreated > parseISO(snap.policyCreatedTo)) return false;
         }
+
         return true;
     };
 
@@ -390,8 +463,63 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         if (!reportSnapshot) return [];
         const snap = reportSnapshot;
 
-        const results: (Member | { member: Member, policy: ExtendedPolicy })[] = [];
+        const results: ReportItem[] = [];
 
+        // Logic for Leads
+        if (snap.recordType === 'lead') {
+            allLeads.forEach(lead => {
+                const created = lead.createdAt ? parseISO(lead.createdAt) : null;
+                if (!created || !isValid(created)) return;
+                if (snap.dateFrom && created < parseISO(snap.dateFrom)) return;
+                if (snap.dateTo && created > new Date(snap.dateTo + 'T23:59:59')) return;
+
+                if (snap.visibleFilters.includes('customerName') && snap.customerNames && !lead.name.toLowerCase().includes(snap.customerNames.toLowerCase())) return;
+                if (snap.visibleFilters.includes('mobile') && snap.mobiles && !lead.phone.includes(snap.mobiles)) return;
+                if (snap.visibleFilters.includes('email') && snap.emails && !(lead.email || '').toLowerCase().includes(snap.emails.toLowerCase())) return;
+                if (snap.visibleFilters.includes('status') && snap.statuses.length > 0 && !snap.statuses.includes(lead.status)) return;
+                if (snap.visibleFilters.includes('branch') && snap.branches.length > 0 && !snap.branches.includes(lead.branch_id || '')) return;
+                if (snap.visibleFilters.includes('advisor') && snap.advisors.length > 0 && !snap.advisors.includes(lead.assignedTo)) return;
+                
+                if (snap.visibleFilters.includes('leadSource') && snap.parentSources.length > 0) {
+                    const sourceId = lead.leadSource?.sourceId;
+                    if (!sourceId) return;
+                    if (snap.childSources.length > 0) { if (!snap.childSources.includes(sourceId)) return; }
+                    else {
+                        const isDirectParent = snap.parentSources.includes(sourceId);
+                        const isChildOfSelectedParent = leadSources.some(ls => ls.id === sourceId && ls.parentId && snap.parentSources.includes(ls.parentId));
+                        if (!isDirectParent && !isChildOfSelectedParent) return;
+                    }
+                }
+
+                if (snap.visibleFilters.includes('followUpDate') && (snap.followUpFrom || snap.followUpTo)) {
+                    if (!lead.followUpDate) return;
+                    const followUp = parseISO(lead.followUpDate);
+                    if (snap.followUpFrom && followUp < parseISO(snap.followUpFrom)) return;
+                    if (snap.followUpTo && followUp > parseISO(snap.followUpTo)) return;
+                }
+
+                // Check Interest (Business Vertical)
+                if (snap.visibleFilters.includes('businessVertical') && snap.businessVerticals.length > 0) {
+                    // This assumes policyInterestType maps to Business Vertical somehow, or we check string matching
+                    // Since Lead has policyInterestType which is a string like 'Life Insurance', we might need to find corresponding Vertical ID.
+                    // Simplified: If user selects a Vertical, and Lead's interest matches a Type in that Vertical.
+                    // For exact match, we need to know the vertical of the interest. 
+                    // Let's iterate types to find vertical of interest.
+                    const interestType = insuranceTypes.find(t => t.name === lead.policyInterestType);
+                    let vId = interestType?.verticalId;
+                    if(!vId && interestType?.parentId) {
+                        const p = insuranceTypes.find(t => t.id === interestType.parentId);
+                        vId = p?.verticalId;
+                    }
+                    if (vId && !snap.businessVerticals.includes(vId)) return;
+                }
+
+                results.push(lead);
+            });
+            return results;
+        }
+
+        // Logic for Members (Existing Code)
         members.forEach(m => {
             const created = m.createdAt ? parseISO(m.createdAt) : null;
             if (!created || !isValid(created)) return;
@@ -439,7 +567,14 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                     if (snap.anniversaryFrom && anniv < parseISO(snap.anniversaryFrom)) return;
                     if (snap.anniversaryTo && anniv > parseISO(snap.anniversaryTo)) return;
                 }
-                if (snap.visibleFilters.includes('isConverted') && snap.isConverted.length > 0 && !snap.isConverted.includes(String(!!m.isConverted))) return;
+                
+                // Manual Customer Logic: If manually created, they are effectively "converted" or "won".
+                if (snap.visibleFilters.includes('isConverted') && snap.isConverted.length > 0) {
+                     const isConv = (!!m.isConverted) || (!m.leadCreatedAt); 
+                     const match = snap.isConverted.includes(String(isConv));
+                     if (!match) return;
+                }
+
                 if (snap.visibleFilters.includes('followUpDate') && (snap.followUpFrom || snap.followUpTo)) {
                     if (!m.followUpDate) return;
                     const followUp = parseISO(m.followUpDate);
@@ -465,28 +600,48 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             (m.mutualFundHoldings || []).forEach(mf => {
                 const scheme = mutualFundSchemes.find(s => s.id === mf.schemeId);
                 const amc = scheme ? amcs.find(a => a.id === scheme.amcId) : null;
-                
+                const isSip = mf.investmentType === 'SIP';
+                // Find earliest transaction date
+                const sortedTxns = [...(mf.transactions || [])].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                const firstTxnDate = sortedTxns.length > 0 ? sortedTxns[0].date : ''; 
+
+                // If no txn date, use member creation date as fallback? 
+                const effectiveStartDate = firstTxnDate || m.createdAt || '';
+
+                let derivedRenewal = 'N/A';
+                if (isSip) {
+                    if (mf.sipDate) {
+                        derivedRenewal = `Day ${mf.sipDate}`;
+                    } else if (effectiveStartDate) {
+                        try {
+                            const d = parseISO(effectiveStartDate).getDate();
+                            derivedRenewal = `Day ${d}`;
+                        } catch(e) { derivedRenewal = 'SIP Active'; }
+                    } else {
+                        derivedRenewal = 'SIP Active';
+                    }
+                }
+
                 const mfPolicy: ExtendedPolicy = {
                     id: mf.id,
                     isMutualFund: true,
                     mfObject: mf,
                     businessVerticalId: amc?.verticalId,
-                    insuranceTypeId: undefined, // Or a special constant
-                    policyType: 'Mutual Funds',
-                    policyHolderType: 'Individual', // Default for MF usually
+                    insuranceTypeId: undefined, 
+                    policyType: isSip ? 'SIP' : 'Lumpsum',
+                    policyHolderType: 'Individual',
                     schemeId: mf.schemeId,
                     agencyId: amc?.id,
-                    premium: mf.totalInvestment, // Using Total Investment as Premium equivalent
-                    coverage: mf.currentValue, // Using Current Value as Sum Assured equivalent
+                    premium: mf.totalInvestment, 
+                    coverage: mf.currentValue, 
                     status: mf.status,
-                    startDate: mf.transactions?.[0]?.date, // First transaction date
-                    renewalDate: '', // N/A
+                    startDate: effectiveStartDate, // Investment Date
+                    renewalDate: derivedRenewal, // SIP Day or N/A
                     policyNumber: mf.folioNumber,
-                    policyCreatedDate: mf.transactions?.[0]?.date,
+                    policyCreatedDate: effectiveStartDate,
                     category: scheme?.category,
-                    // Required props by Policy interface (dummy values)
                     comp_id: m.comp_id
-                } as ExtendedPolicy;
+                } as unknown as ExtendedPolicy;
                 
                 allItems.push(mfPolicy);
             });
@@ -496,10 +651,10 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
 
             // Handle report type logic
             if (snap.reportMode === 'customer') {
-                // In customer mode, if any policy-level filters are active, ensure the customer has matching items.
                 const policyFilterKeys = [
                     'businessVertical', 'policyType', 'policySubType', 'policyHolderType', 'scheme', 'agency', 
-                    'policyPremiumFrom', 'policyPremiumTo', 'policySumAssured', 'policyMaturityDate', 'policyCreatedDate'
+                    'policyPremiumFrom', 'policyPremiumTo', 'policySumAssured', 'policyMaturityDate', 'policyCreatedDate',
+                    'amc', 'mutualFundScheme' // Added MF keys here to ensure correct detection
                 ];
                 const hasActivePolicyFilters = policyFilterKeys.some(k => snap.visibleFilters.includes(k));
 
@@ -517,7 +672,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             }
         });
         return results;
-    }, [reportSnapshot, members, leadSources, schemes, agencies, amcs, mutualFundSchemes]);
+    }, [reportSnapshot, members, allLeads, leadSources, schemes, agencies, amcs, mutualFundSchemes]);
     
     // --- Handlers ---
     const handleSearch = () => {
@@ -528,7 +683,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         }
 
         const snapshot: ReportSnapshot = {
-            reportMode, dateFrom, dateTo,
+            reportMode, recordType, dateFrom, dateTo,
             states: selectedStates, districts: selectedDistricts, cities: selectedCities, areas: selectedAreas,
             branches: selectedBranches, advisors: selectedAdvisors,
             types: selectedTypes, statuses: selectedStatuses,
@@ -552,30 +707,58 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         };
         setReportSnapshot(snapshot);
 
-        const hardcoded = reportMode === 'customer' ? CUSTOMER_REPORT_HARDCODED_COLS : reportMode === 'business' ? BUSINESS_VERTICAL_HARDCODED_COLS : COMBINED_REPORT_HARDCODED_COLS;
-        const dynamic = visibleFilters.filter(f => f !== 'amc' && f !== 'mutualFundScheme');
-        setVisibleColumns([...new Set([...hardcoded, ...dynamic])]);
+        // Normalize visible columns to prevent deduplication of keys
+        let hardcoded = reportMode === 'customer' ? CUSTOMER_REPORT_HARDCODED_COLS : reportMode === 'business' ? BUSINESS_VERTICAL_HARDCODED_COLS : COMBINED_REPORT_HARDCODED_COLS;
+        
+        // If Leads are selected, use Lead Hardcoded columns
+        if (recordType === 'lead') {
+            hardcoded = LEAD_REPORT_HARDCODED_COLS;
+        }
+
+        // Dynamic filters often have different keys than table renderer expects. Map them.
+        const dynamicMapped = visibleFilters
+            .filter(f => f !== 'amc' && f !== 'mutualFundScheme') // These are handled by 'agency' and 'scheme'
+            .map(f => {
+                if (f === 'customerName') return 'name';
+                if (f === 'customerId') return 'memberId';
+                if (f === 'advisor') return 'assignedTo';
+                // Note: policyPremiumFrom/To are distinct from hardcoded 'premium'/'renewal',
+                // but usually user wants specific columns. We keep them as is in the key, and ensure getRowCell handles them.
+                return f;
+            });
+            
+        // Combine and dedup
+        setVisibleColumns([...new Set([...hardcoded, ...dynamicMapped])]);
 
         const graphsToShow: string[] = [];
         if(visibleFilters.includes('branch')) graphsToShow.push('branch');
         if(visibleFilters.includes('advisor')) graphsToShow.push('advisor');
-        if(visibleFilters.includes('state')) graphsToShow.push('state');
-        if(visibleFilters.includes('tier')) graphsToShow.push('tier');
-        if(visibleFilters.includes('status')) graphsToShow.push('status');
-        if(visibleFilters.includes('gender')) graphsToShow.push('gender');
-        if(visibleFilters.includes('leadSource')) graphsToShow.push('leadSource');
-        if(visibleFilters.includes('businessVertical')) graphsToShow.push('businessVertical');
-        if(visibleFilters.includes('category')) graphsToShow.push('category');
-        if(visibleFilters.includes('subCategory')) graphsToShow.push('subCategory');
-        if(visibleFilters.includes('group')) graphsToShow.push('group');
-        if(visibleFilters.includes('religion')) graphsToShow.push('religion');
-        if(visibleFilters.includes('policyType')) graphsToShow.push('policyType');
-        if(visibleFilters.includes('policySubType')) graphsToShow.push('policySubType');
-        if(visibleFilters.includes('policyHolderType')) graphsToShow.push('policyHolderType');
-        if(visibleFilters.includes('agency')) graphsToShow.push('agency');
-        if(visibleFilters.includes('scheme')) graphsToShow.push('scheme');
-        if(visibleFilters.includes('amc')) graphsToShow.push('agency'); // Use agency graph for AMC
-        if(visibleFilters.includes('mutualFundScheme')) graphsToShow.push('scheme'); // Use scheme graph for MF schemes
+        
+        // Lead Specific Graph Logic
+        if (recordType === 'lead') {
+            if(visibleFilters.includes('leadSource')) graphsToShow.push('leadSource');
+            if(visibleFilters.includes('status')) graphsToShow.push('status');
+            if(visibleFilters.includes('businessVertical')) graphsToShow.push('businessVertical'); // Interest
+        } else {
+            // Customer Graphs
+            if(visibleFilters.includes('state')) graphsToShow.push('state');
+            if(visibleFilters.includes('tier')) graphsToShow.push('tier');
+            if(visibleFilters.includes('status')) graphsToShow.push('status');
+            if(visibleFilters.includes('gender')) graphsToShow.push('gender');
+            if(visibleFilters.includes('leadSource')) graphsToShow.push('leadSource');
+            if(visibleFilters.includes('businessVertical')) graphsToShow.push('businessVertical');
+            if(visibleFilters.includes('category')) graphsToShow.push('category');
+            if(visibleFilters.includes('subCategory')) graphsToShow.push('subCategory');
+            if(visibleFilters.includes('group')) graphsToShow.push('group');
+            if(visibleFilters.includes('religion')) graphsToShow.push('religion');
+            if(visibleFilters.includes('policyType')) graphsToShow.push('policyType');
+            if(visibleFilters.includes('policySubType')) graphsToShow.push('policySubType');
+            if(visibleFilters.includes('policyHolderType')) graphsToShow.push('policyHolderType');
+            if(visibleFilters.includes('agency')) graphsToShow.push('agency');
+            if(visibleFilters.includes('scheme')) graphsToShow.push('scheme');
+            if(visibleFilters.includes('amc')) graphsToShow.push('agency'); 
+            if(visibleFilters.includes('mutualFundScheme')) graphsToShow.push('scheme');
+        }
         setActiveGraphs(graphsToShow);
     };
 
@@ -600,29 +783,35 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     const handleOpenFilterModal = () => {
         setTempSelectedFilters([...visibleFilters]);
         setTempReportMode(reportMode);
+        setTempRecordType(recordType);
         setIsFilterModalOpen(true);
     };
 
     const handleApplyFilters = () => {
-        // Get filters available for the new report mode
-        const newModeFilters = tempReportMode === 'customer' ? CUSTOMER_FILTERS : 
-                              tempReportMode === 'business' ? BUSINESS_FILTERS :
-                              [...CUSTOMER_FILTERS, ...BUSINESS_FILTERS].filter((item, index, self) => 
-                                  index === self.findIndex(t => t.key === item.key));
+        let availableFilterKeys: string[] = [];
+
+        if (tempRecordType === 'lead') {
+            availableFilterKeys = LEAD_FILTERS.map(f => f.key);
+        } else {
+            const newModeFilters = tempReportMode === 'customer' ? CUSTOMER_FILTERS : 
+                                  tempReportMode === 'business' ? BUSINESS_FILTERS :
+                                  [...CUSTOMER_FILTERS, ...BUSINESS_FILTERS].filter((item, index, self) => 
+                                      index === self.findIndex(t => t.key === item.key));
+            availableFilterKeys = newModeFilters.map(f => f.key);
+        }
         
-        const availableFilterKeys = newModeFilters.map(f => f.key);
-        
-        // Only keep selected filters that are available in the new mode
         const filteredSelectedFilters = tempSelectedFilters.filter(filter => 
             availableFilterKeys.includes(filter)
         );
         
         setVisibleFilters(filteredSelectedFilters);
         setReportMode(tempReportMode);
+        setRecordType(tempRecordType);
         setIsFilterModalOpen(false);
         
         // Clear filter values that are not available in the new mode
         if (!availableFilterKeys.includes('customerId')) setSearchCustomerId('');
+        if (!availableFilterKeys.includes('customerName')) setSearchCustomerName('');
         if (!availableFilterKeys.includes('familyName')) setSearchFamilyName('');
         if (!availableFilterKeys.includes('mobile')) setSearchMobile('');
         if (!availableFilterKeys.includes('email')) setSearchEmail('');
@@ -673,115 +862,119 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         setVisibleColumns(prev => prev.filter(col => col !== columnKey));
     };
     
+    // Helper function to resolve the value of a parameter for a given item
+    const resolveParameterValue = (item: ReportItem, parameter: string): string => {
+        // Guard for Lead type
+        if ('phone' in item && 'estimatedValue' in item) { // Duck typing for Lead
+            const lead = item as Lead;
+            switch(parameter) {
+                case 'status': return lead.status;
+                case 'leadSource': return leadSourceMasterMap(lead.leadSource?.sourceId);
+                case 'branch': return branches.find(b => b.id === lead.branch_id)?.branch_name || 'N/A';
+                case 'advisor': return users.find(u => u.id === lead.assignedTo)?.name || 'N/A';
+                case 'businessVertical': return lead.policyInterestType || 'N/A'; 
+                default: return 'N/A';
+            }
+        }
+
+        const member = 'member' in item ? item.member : item as Member;
+        let key = 'Unknown';
+        switch (parameter) {
+            case 'branch': key = branches.find(b => b.id === member.branch_id)?.branch_name || 'Unassigned'; break;
+            case 'advisor': key = users.find(u => member.assignedTo.includes(u.id))?.name || 'Unassigned'; break;
+            case 'state': key = member.state || 'Unknown'; break;
+            case 'tier': key = customerTiers.find(t => t.id === member.tierId)?.name || 'No Tier'; break;
+            case 'status': key = member.active ? 'Active' : 'Inactive'; break;
+            case 'gender': key = genders.find(g => g.id === member.gender)?.name || 'Not Specified'; break;
+            case 'leadSource': key = leadSources.find(ls => ls.id === member.leadSource?.sourceId)?.name || 'Unknown'; break;
+            case 'businessVertical':
+                if ('policy' in item) { key = businessVerticals.find(bv => bv.id === item.policy.businessVerticalId)?.name || 'N/A'; }
+                else if (member.policies.length > 0) { key = businessVerticals.find(bv => bv.id === member.policies[0].businessVerticalId)?.name || 'N/A'; }
+                break;
+            case 'policyType':
+                {
+                    const currentPolicy = 'policy' in item ? item.policy : (member.policies.length > 0 ? member.policies[0] : undefined);
+                    if (currentPolicy) {
+                        if ((currentPolicy as ExtendedPolicy).isMutualFund) {
+                            const mfHolding = (currentPolicy as ExtendedPolicy).mfObject;
+                            if (mfHolding?.transactions && mfHolding.transactions.length > 0) {
+                                const hasRecurring = mfHolding.transactions.some(t => t.type === 'SIP Installment');
+                                key = hasRecurring ? 'SIP' : 'Lumpsum';
+                            } else {
+                                key = 'Lumpsum';
+                            }
+                        } else {
+                            const policySubTypeForType = insuranceTypes.find(it => it.id === currentPolicy.insuranceTypeId);
+                            if (policySubTypeForType?.parentId) {
+                                const policyTypeInsurance = insuranceTypes.find(it => it.id === policySubTypeForType.parentId);
+                                key = policyTypeInsurance?.name || 'N/A';
+                            } else {
+                                key = policySubTypeForType?.name || 'N/A';
+                            }
+                        }
+                    } else {
+                        key = 'N/A';
+                    }
+                }
+                break;
+            case 'policySubType':
+                if ('policy' in item) {
+                    const p = item.policy;
+                    if (p.isMutualFund) {
+                        key = p.category || 'N/A';
+                    } else {
+                        const insuranceType = insuranceTypes.find(it => it.id === p.insuranceTypeId && it.parentId);
+                        key = insuranceType?.name || 'N/A';
+                    }
+                } else if (member.policies.length > 0) {
+                    const insuranceType = insuranceTypes.find(it => it.id === member.policies[0].insuranceTypeId && it.parentId);
+                    key = insuranceType?.name || 'N/A';
+                }
+                break;
+            case 'category': key = customerCategories.find(c => c.id === member.customerCategoryId)?.name || 'No Category'; break;
+            case 'subCategory': key = customerSubCategories.find(c => c.id === member.customerSubCategoryId)?.name || 'No Sub-Category'; break;
+            case 'group': key = customerGroups.find(c => c.id === member.customerGroupId)?.name || 'No Group'; break;
+            case 'religion': key = religions.find(r => r.id === member.religionId)?.name || 'Not Specified'; break;
+            case 'policyHolderType':
+                if ('policy' in item) { key = item.policy.policyHolderType || 'N/A'; }
+                else if (member.policies.length > 0) { key = member.policies[0].policyHolderType || 'N/A'; }
+                break;
+            case 'agency':
+                if ('policy' in item) {
+                    const p = item.policy;
+                    if(p.isMutualFund) {
+                        key = (amcs || []).find(a => a.id === p.agencyId)?.name || 'N/A';
+                    } else {
+                        const scheme = (schemes || []).find(s => s.id === p.schemeId);
+                        key = (agencies || []).find(a => a.id === scheme?.agencyId)?.name || 'N/A';
+                    }
+                } else if (member.policies.length > 0) {
+                    const scheme = (schemes || []).find(s => s.id === member.policies[0].schemeId);
+                    key = (agencies || []).find(a => a.id === scheme?.agencyId)?.name || 'N/A';
+                }
+                break;
+            case 'scheme':
+                if ('policy' in item) {
+                    const p = item.policy;
+                    if(p.isMutualFund) {
+                        key = (mutualFundSchemes || []).find(s => s.id === p.schemeId)?.name || 'N/A';
+                    } else {
+                        key = (schemes || []).find(s => s.id === p.schemeId)?.name || 'N/A';
+                    }
+                } else if (member.policies.length > 0) {
+                    key = (schemes || []).find(s => s.id === member.policies[0].schemeId)?.name || 'N/A';
+                }
+                break;
+            default: key = (member as any)[parameter] || 'Unknown';
+        }
+        return key;
+    };
+
     // Graph and Drilldown Logic
     const generateGraphData = (parameter: string) => {
         const counts: Record<string, number> = {};
         filteredData.forEach(item => {
-            const member = 'member' in item ? item.member : item;
-            let key = 'Unknown';
-            switch (parameter) {
-                case 'branch': key = branches.find(b => b.id === member.branch_id)?.branch_name || 'Unassigned'; break;
-                case 'advisor': key = users.find(u => member.assignedTo.includes(u.id))?.name || 'Unassigned'; break;
-                case 'state': key = member.state || 'Unknown'; break;
-                case 'tier': key = customerTiers.find(t => t.id === member.tierId)?.name || 'No Tier'; break;
-                case 'status': key = member.active ? 'Active' : 'Inactive'; break;
-                case 'gender': key = genders.find(g => g.id === member.gender)?.name || 'Not Specified'; break;
-                case 'leadSource': key = leadSources.find(ls => ls.id === member.leadSource?.sourceId)?.name || 'Unknown'; break;
-                case 'businessVertical':
-                    if ('policy' in item) { key = businessVerticals.find(bv => bv.id === item.policy.businessVerticalId)?.name || 'N/A'; }
-                    else if (member.policies.length > 0) { key = businessVerticals.find(bv => bv.id === member.policies[0].businessVerticalId)?.name || 'N/A'; }
-                    break;
-                case 'policyType':
-                    {
-                        const currentPolicy = 'policy' in item ? item.policy : (member.policies.length > 0 ? member.policies[0] : undefined);
-                        if (currentPolicy) {
-                            if ((currentPolicy as ExtendedPolicy).isMutualFund) {
-                                const mfHolding = (currentPolicy as ExtendedPolicy).mfObject;
-                                if (mfHolding?.transactions && mfHolding.transactions.length > 0) {
-                                    const hasRecurring = mfHolding.transactions.some(t => t.type === 'SIP Installment');
-                                    key = hasRecurring ? 'SIP' : 'Lumpsum';
-                                } else {
-                                    key = 'Lumpsum';
-                                }
-                            } else {
-                                const policySubTypeForType = insuranceTypes.find(it => it.id === currentPolicy.insuranceTypeId);
-                                if (policySubTypeForType?.parentId) {
-                                    const policyTypeInsurance = insuranceTypes.find(it => it.id === policySubTypeForType.parentId);
-                                    key = policyTypeInsurance?.name || 'N/A';
-                                } else {
-                                    key = policySubTypeForType?.name || 'N/A';
-                                }
-                            }
-                        } else {
-                            key = 'N/A';
-                        }
-                    }
-                    break;
-                case 'policySubType':
-                    if ('policy' in item) {
-                        const p = item.policy;
-                        if (p.isMutualFund) {
-                            key = p.category || 'N/A';
-                        } else {
-                            const insuranceType = insuranceTypes.find(it => it.id === p.insuranceTypeId && it.parentId);
-                            key = insuranceType?.name || 'N/A';
-                        }
-                    } else if (member.policies.length > 0) {
-                        // This fallback is only valid if not in Business Mode, usually takes first policy.
-                        const insuranceType = insuranceTypes.find(it => it.id === member.policies[0].insuranceTypeId && it.parentId);
-                        key = insuranceType?.name || 'N/A';
-                    }
-                    break;
-                case 'category': key = customerCategories.find(c => c.id === member.customerCategoryId)?.name || 'No Category'; break;
-                case 'subCategory': key = customerSubCategories.find(c => c.id === member.customerSubCategoryId)?.name || 'No Sub-Category'; break;
-                case 'group': key = customerGroups.find(c => c.id === member.customerGroupId)?.name || 'No Group'; break;
-                case 'religion': key = religions.find(r => r.id === member.religionId)?.name || 'Not Specified'; break;
-                case 'policyHolderType':
-                    if ('policy' in item) { key = item.policy.policyHolderType || 'N/A'; }
-                    else if (member.policies.length > 0) { key = member.policies[0].policyHolderType || 'N/A'; }
-                    break;
-                case 'agency':
-                    if ('policy' in item) {
-                        const p = item.policy;
-                        if(p.isMutualFund) {
-                            key = (amcs || []).find(a => a.id === p.agencyId)?.name || 'N/A';
-                        } else {
-                            const scheme = (schemes || []).find(s => s.id === p.schemeId);
-                            key = (agencies || []).find(a => a.id === scheme?.agencyId)?.name || 'N/A';
-                        }
-                    } else if (member.policies.length > 0) {
-                        const scheme = (schemes || []).find(s => s.id === member.policies[0].schemeId);
-                        key = (agencies || []).find(a => a.id === scheme?.agencyId)?.name || 'N/A';
-                    }
-                    break;
-                case 'scheme':
-                    if ('policy' in item) {
-                        const p = item.policy;
-                        if(p.isMutualFund) {
-                            key = (mutualFundSchemes || []).find(s => s.id === p.schemeId)?.name || 'N/A';
-                        } else {
-                            key = (schemes || []).find(s => s.id === p.schemeId)?.name || 'N/A';
-                        }
-                    } else if (member.policies.length > 0) {
-                        key = (schemes || []).find(s => s.id === member.policies[0].schemeId)?.name || 'N/A';
-                    }
-                    break;
-                case 'amc': 
-                    if ('policy' in item && item.policy.isMutualFund) {
-                        key = (amcs || []).find(a => a.id === item.policy.agencyId)?.name || 'N/A';
-                    } else {
-                        key = 'N/A';
-                    }
-                    break;
-                case 'mutualFundScheme':
-                    if ('policy' in item && item.policy.isMutualFund) {
-                        key = (mutualFundSchemes || []).find(s => s.id === item.policy.schemeId)?.name || 'N/A';
-                    } else {
-                        key = 'N/A';
-                    }
-                    break;
-                default: key = (member as any)[parameter] || 'Unknown';
-            }
+            const key = resolveParameterValue(item, parameter);
             counts[key] = (counts[key] || 0) + 1;
         });
         return Object.entries(counts).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
@@ -792,16 +985,12 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         const clickedName = data.name;
         
         const drillDownMembers = filteredData.filter(item => {
-            const member = 'member' in item ? item.member : item;
-            // ... (Copy logic from generateGraphData to match clickedName)
-            // For brevity, using simplified check. In production, replicate logic exactly or refactor.
-            // Re-using the logic key generation logic would be ideal.
-            // Since this is a user-fix request, I'll trust the user wants the list fixed primarily.
-            return true; // Simplified placeholder. Graph drilldown logic should mimic generateGraphData
+            const itemValue = resolveParameterValue(item, parameter);
+            return itemValue === clickedName; 
         });
 
         setDrillDownData({
-            title: `${parameter.charAt(0).toUpperCase() + parameter.slice(1)}: ${clickedName}`,
+            title: `${getColumnHeader(parameter)}: ${clickedName}`,
             data: drillDownMembers
         });
     };
@@ -809,31 +998,67 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     // Table rendering logic
     const getColumnHeader = (key: string): string => {
         const map: Record<string, string> = {
-            sno: 'S.No', memberId: 'Customer ID', name: 'Name', customerType: 'Tier Type', status: 'Status', areaCityState: 'Area/City/State', assignedTo: 'Assigned To', leadSource: 'Lead Source', isConverted: 'Converted', createdAt: 'Created Date', mobile: 'Mobile', email: 'Email', branch: 'Branch', company: 'Company',
+            sno: 'S.No', memberId: 'Customer ID', name: 'Customer Name', customerType: 'Tier Type', status: 'Status', areaCityState: 'Area/City/State', assignedTo: 'Advisor', leadSource: 'Lead Source', isConverted: 'Converted', createdAt: 'Created Date', mobile: 'Mobile', email: 'Email', branch: 'Branch', company: 'Company',
             businessVertical: 'Biz. Vertical', policyNumber: 'Policy No.', policyType: 'Type', policySubType: 'Sub-Type', scheme: 'Scheme', agency: 'Agency', policyHolderType: 'Holder Type', premium: 'Premium', sumAssured: 'Sum Assured', policyStatus: 'Status',
             state: 'State', district: 'District', city: 'City', area: 'Area', tier: 'Tier', category: 'Category', subCategory: 'Sub-Category', group: 'Group', gender: 'Gender', religion: 'Religion', bloodGroup: 'Blood Group', anniversary: 'Anniversary', followUpDate: 'Follow-up Date', annualIncome: 'Annual Income',
-            maritalStatus: 'Marital Status', processStage: 'Process Stage', familyName: 'Family Name',
+            maritalStatus: 'Marital Status', processStage: 'Process Stage', familyName: 'Family Name', country: 'Country',
             policyPremium: 'Premium', policySumAssured: 'Sum Assured', policyMaturityDate: 'Maturity Date', policyCreatedDate: 'Policy Date',
+            policyPremiumFrom: 'Start/Inv. Date', policyPremiumTo: 'Renewal/SIP Date'
         };
         return map[key] || key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase());
     };
 
-    const getRowCell = (member: Member, key: string, policy?: ExtendedPolicy): React.ReactNode => {
+    const leadSourceMasterMap = (id: string | null | undefined) => leadSources.find(ls => ls.id === id)?.name || 'N/A';
+
+    const getRowCell = (item: ReportItem, key: string, index: number, policy?: ExtendedPolicy): React.ReactNode => {
+        // Lead specific rendering if item is a Lead
+        if ('phone' in item && 'estimatedValue' in item) { // Duck typing check for Lead
+            const lead = item as Lead;
+            switch(key) {
+                case 'sno': return index + 1;
+                case 'name': return lead.name;
+                case 'customerName': return lead.name;
+                case 'mobile': return lead.phone;
+                case 'email': return lead.email || 'N/A';
+                case 'status': return <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">{lead.status}</span>;
+                case 'assignedTo': return users.find(u => u.id === lead.assignedTo)?.name || 'N/A';
+                case 'advisor': return users.find(u => u.id === lead.assignedTo)?.name || 'N/A';
+                case 'leadSource': return leadSourceMasterMap(lead.leadSource?.sourceId);
+                case 'branch': return branches.find(b => b.id === lead.branch_id)?.branch_name || 'N/A';
+                case 'createdAt': return lead.createdAt ? format(parseISO(lead.createdAt), 'dd-MM-yyyy') : 'N/A';
+                case 'followUpDate': return lead.followUpDate ? format(parseISO(lead.followUpDate), 'dd-MM-yyyy') : 'N/A';
+                case 'businessVertical': return lead.policyInterestType || 'N/A';
+                case 'company': return lead.company || 'N/A';
+                case 'country': return 'India'; // Leads don't have country field, default or N/A
+                case 'state': return 'N/A';
+                case 'city': return 'N/A';
+                case 'area': return 'N/A';
+                // For all other policy/customer specific columns, return N/A for leads
+                default: return 'N/A'; 
+            }
+        }
+
+        const member = 'member' in item ? item.member : item as Member;
+        
         switch (key) {
-            case 'sno': return filteredData.findIndex(item => ('member' in item ? item.member.id : item.id) === member.id) + 1;
+            case 'sno': return index + 1;
             case 'memberId': return member.memberId;
+            case 'customerId': return member.memberId; // Alias for filter map
             case 'name': return member.name;
+            case 'customerName': return member.name; // Alias for filter map
             case 'customerType': return customerTiers.find(t => t.id === member.tierId)?.name || 'N/A';
             case 'status': return <span className={`px-2 py-1 text-xs rounded-full ${member.active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{member.active ? 'Active' : 'Inactive'}</span>;
             case 'areaCityState': return [member.area, member.city, member.state].filter(Boolean).join(', ');
             case 'assignedTo': return users.find(u => member.assignedTo.includes(u.id))?.name || 'N/A';
+            case 'advisor': return users.find(u => member.assignedTo.includes(u.id))?.name || 'N/A'; // Alias for filter map
             case 'leadSource': return leadSources.find(ls => ls.id === member.leadSource?.sourceId)?.name || 'N/A';
-            case 'isConverted': return member.isConverted ? 'Yes' : 'No';
+            case 'isConverted': return (member.isConverted || !member.leadCreatedAt) ? 'Yes' : 'No'; // Manual customers default to Yes
             case 'createdAt': return member.createdAt ? format(parseISO(member.createdAt), 'dd-MM-yyyy') : 'N/A';
             case 'mobile': return member.mobile;
             case 'email': return member.email || 'N/A';
             case 'branch': return branches.find(b => b.id === member.branch_id)?.branch_name || 'N/A';
             case 'company': return member.company;
+            case 'country': return member.country || 'N/A';
             // Dynamic Customer Columns
             case 'bloodGroup': return member.bloodGroup || 'N/A';
             case 'gender': return genders.find(g => g.id === member.gender)?.name || 'N/A';
@@ -853,24 +1078,19 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             case 'processStage': return processStageMasters.find(ps => ps.id === member.processStage)?.name || 'N/A';
             case 'familyName': return member.familyName || 'N/A';
 
-
-            // Business Vertical Columns (require a policy object)
+            // Business Vertical Columns
             case 'businessVertical': {
                 const getVerticalName = (pol: ExtendedPolicy) => {
-                     // 1. Check direct property
                      if (pol.businessVerticalId) {
                          const bv = businessVerticals.find(b => b.id === pol.businessVerticalId);
                          if (bv) return bv.name;
                      }
-                     // 2. Derive from Insurance Type
                      const iType = insuranceTypes.find(t => t.id === pol.insuranceTypeId);
                      if (iType) {
-                         // Check Type's vertical
                          if (iType.verticalId) {
                               const bv = businessVerticals.find(b => b.id === iType.verticalId);
                               if (bv) return bv.name;
                          }
-                         // Check Parent's vertical
                          if (iType.parentId) {
                              const pType = insuranceTypes.find(t => t.id === iType.parentId);
                              if (pType && pType.verticalId) {
@@ -882,15 +1102,11 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                      return null;
                 };
 
-                // If in Business/Combined mode where 'policy' is available in the row
                 if (policy) return getVerticalName(policy) || 'N/A';
                 
-                // If in Customer mode, aggregate from member's policies AND mutual funds
-                // Helper to create all items for logic reuse
                 const allMemberItems: ExtendedPolicy[] = [];
                 (member.policies || []).forEach(p => allMemberItems.push(p));
                 (member.mutualFundHoldings || []).forEach(mf => {
-                     // Simplified mapping just for vertical check
                      const scheme = mutualFundSchemes.find(s => s.id === mf.schemeId);
                      const amc = scheme ? amcs.find(a => a.id === scheme.amcId) : null;
                      allMemberItems.push({ 
@@ -910,13 +1126,8 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             case 'policyNumber': return policy?.policyNumber || 'N/A';
             case 'policyType': {
                 if (policy?.isMutualFund) {
-                    // For mutual funds, show transaction type (Lumpsum/SIP)
-                    const mfHolding = policy.mfObject;
-                    if (mfHolding?.transactions && mfHolding.transactions.length > 0) {
-                        const hasRecurring = mfHolding.transactions.some(t => t.type === 'SIP Installment');
-                        return hasRecurring ? 'SIP' : 'Lumpsum';
-                    }
-                    return 'Lumpsum'; // Default
+                    // Correctly return based on investmentType, not transactions
+                    return policy.policyType || 'Lumpsum';
                 }
                 const policySubTypeForType = insuranceTypes.find(it => it.id === policy?.insuranceTypeId);
                 if (policySubTypeForType?.parentId) {
@@ -943,18 +1154,30 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
             case 'sumAssured': return policy?.coverage.toLocaleString('en-IN') || 'N/A';
             case 'policyStatus': return policy?.status || 'N/A';
             case 'policyMaturityDate': return policy?.maturityDate ? format(parseISO(policy.maturityDate), 'dd-MM-yyyy') : 'N/A';
-            case 'policyCreatedDate': return policy?.policyCreatedDate ? format(parseISO(policy.policyCreatedDate), 'dd-MM-yyyy') : 'N/A';
+            case 'policyCreatedDate': 
+                // Fix: Use startDate (Premium Start Date) as the primary source for Policy Date
+                if (policy?.startDate) {
+                    return format(parseISO(policy.startDate), 'dd-MM-yyyy');
+                }
+                return policy?.policyCreatedDate ? format(parseISO(policy.policyCreatedDate), 'dd-MM-yyyy') : 'N/A';
             case 'policyPremium': return policy?.premium.toLocaleString('en-IN') || 'N/A';
             case 'policySumAssured': return policy?.coverage.toLocaleString('en-IN') || 'N/A';
+            case 'policyPremiumFrom': return policy?.startDate ? format(parseISO(policy.startDate), 'dd-MM-yyyy') : 'N/A';
+            case 'policyPremiumTo': {
+                if (policy?.isMutualFund) {
+                    return policy.renewalDate || 'N/A'; // This holds SIP info or N/A
+                }
+                return policy?.renewalDate ? format(parseISO(policy.renewalDate), 'dd-MM-yyyy') : 'N/A';
+            }
 
             default: return 'N/A';
         }
     };
     
     // Export Logic
-    const getExportRow = (member: Member, policy?: ExtendedPolicy) => {
+    const getExportRow = (item: ReportItem, index: number, policy?: ExtendedPolicy) => {
         return visibleColumns.map(key => {
-            const node = getRowCell(member, key, policy);
+            const node = getRowCell(item, key, index, policy);
             if (React.isValidElement(node)) {
                 return (node.props as any)?.children || String(node);
             }
@@ -965,10 +1188,9 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     const exportPDF = () => {
         const doc = new jsPDF({ orientation: 'landscape' });
         const headers = [visibleColumns.map(key => getColumnHeader(key))];
-        const data = filteredData.map(item => {
-            const member = 'member' in item ? item.member : item;
+        const data = filteredData.map((item, i) => {
             const policy = 'policy' in item ? item.policy : undefined;
-            return getExportRow(member, policy);
+            return getExportRow(item, i, policy);
         });
         
         doc.text("Advanced Report", 14, 15);
@@ -982,10 +1204,9 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
 
     const exportCSV = () => {
         const headers = visibleColumns.map(key => getColumnHeader(key));
-        const data = filteredData.map(item => {
-            const member = 'member' in item ? item.member : item;
+        const data = filteredData.map((item, i) => {
             const policy = 'policy' in item ? item.policy : undefined;
-            return getExportRow(member, policy);
+            return getExportRow(item, i, policy);
         });
 
         const csvContent = [
@@ -1002,11 +1223,21 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
 
     return (
         <div className="space-y-6 pb-20 relative">
+            {/* SVG Filter Definition for Shadow */}
+            <svg style={{ height: 0, width: 0, position: 'absolute' }}>
+                <defs>
+                    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="2" dy="2" stdDeviation="3" floodOpacity="0.3"/>
+                    </filter>
+                </defs>
+            </svg>
+
             <div className="flex justify-between items-center">
                 <div className="flex items-center gap-4">
                      <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
                         <BarChart3 size={24} /> 
-                        {reportMode.charAt(0).toUpperCase() + reportMode.slice(1)} Report
+                        {reportMode.charAt(0).toUpperCase() + reportMode.slice(1)} Report 
+                        {recordType === 'lead' && <span className="text-sm bg-purple-100 text-purple-700 px-2 py-1 rounded ml-2">Leads</span>}
                     </h2>
                     <Button variant="ghost" size="small" onClick={handleOpenFilterModal}>Change Report / Filters</Button>
                 </div>
@@ -1039,7 +1270,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                     <div className="mt-4 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 animate-fadeIn border-t dark:border-gray-700 pt-4">
                         {/* Render active filter inputs */}
                         {visibleFilters.includes('customerId') && <Input label="Customer ID" value={searchCustomerId} onChange={e => setSearchCustomerId(e.target.value)} />}
-                        {visibleFilters.includes('customerName') && <Input label="Customer Name" value={searchCustomerName} onChange={e => setSearchCustomerName(e.target.value)} />}
+                        {visibleFilters.includes('customerName') && <Input label={recordType === 'lead' ? "Lead Name" : "Customer Name"} value={searchCustomerName} onChange={e => setSearchCustomerName(e.target.value)} />}
                         {visibleFilters.includes('familyName') && <Input label="Family Name" value={searchFamilyName} onChange={e => setSearchFamilyName(e.target.value)} />}
                         {visibleFilters.includes('mobile') && <Input label="Mobile" value={searchMobile} onChange={e => setSearchMobile(e.target.value)} />}
                         {visibleFilters.includes('email') && <Input label="Email" value={searchEmail} onChange={e => setSearchEmail(e.target.value)} />}
@@ -1048,7 +1279,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                         {visibleFilters.includes('city') && <MultiSelectDropdown label="City" selectedValues={selectedCities} onChange={setSelectedCities} options={cityOptions} />}
                         {visibleFilters.includes('area') && <MultiSelectDropdown label="Area" selectedValues={selectedAreas} onChange={setSelectedAreas} options={areaOptions} />}
                         {visibleFilters.includes('branch') && <MultiSelectDropdown label="Branch" options={branchOptions} selectedValues={selectedBranches} onChange={setSelectedBranches} />}
-                        {visibleFilters.includes('advisor') && <MultiSelectDropdown label="Advisor" options={advisorOptions} selectedValues={selectedAdvisors} onChange={setSelectedAdvisors} />}
+                        {visibleFilters.includes('advisor') && <MultiSelectDropdown label={recordType === 'lead' ? "Assigned To" : "Advisor"} options={advisorOptions} selectedValues={selectedAdvisors} onChange={setSelectedAdvisors} />}
                         {visibleFilters.includes('tier') && <MultiSelectDropdown label="Tier Type" selectedValues={selectedTypes} onChange={setSelectedTypes} options={tierOptions} />}
                         {visibleFilters.includes('status') && <MultiSelectDropdown label="Status" selectedValues={selectedStatuses} onChange={setSelectedStatuses} options={statusOptions} />}
                         {visibleFilters.includes('category') && <MultiSelectDropdown label="Category" selectedValues={selectedCategories} onChange={(val) => { setSelectedCategories(val); setSelectedSubCategories([]); }} options={categoryOptions} />}
@@ -1114,23 +1345,33 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                                                         <CartesianGrid strokeDasharray="3 3" />
                                                         <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                                                         <YAxis />
-                                                        <Tooltip />
-                                                        <Bar dataKey="value" name="Count" fill="#3B82F6" cursor="pointer">
+                                                        <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
+                                                        <Bar dataKey="value" name="Count" fill="#3B82F6" cursor="pointer" filter="url(#shadow)">
                                                             {data.map((_, i) => <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />)}
                                                         </Bar>
                                                     </BarChart>
                                                 ) : (
                                                     <PieChart>
-                                                        <Pie data={data} innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value" label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`} cursor="pointer" onClick={(state) => handleGraphClick(state, param)}>
-                                                            {data.map((_, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />))}
+                                                        <Pie 
+                                                            data={data} 
+                                                            innerRadius={60} 
+                                                            outerRadius={80} 
+                                                            paddingAngle={5}
+                                                            dataKey="value"
+                                                            label={renderCustomizedLabel}
+                                                            labelLine={true}
+                                                            onClick={(state) => handleGraphClick(state, param)}
+                                                            cursor="pointer"
+                                                            filter="url(#shadow)"
+                                                        >
+                                                            {data.map((_, index) => (<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none" />))}
                                                         </Pie>
-                                                        <Tooltip />
-                                                        <Legend />
+                                                        <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
                                                     </PieChart>
                                                 )}
                                             </ResponsiveContainer>
                                         </div>
-                                        <p className="text-center text-xs text-gray-500 mt-2 italic">Click on graph elements to view details</p>
+                                        <p className="text-center text-xs text-gray-400 mt-4 italic">Click graph elements to view details</p>
                                     </div>
                                 );
                             })}
@@ -1166,10 +1407,10 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                                         <tr><td colSpan={visibleColumns.length} className="px-4 py-12 text-center text-gray-500"><FileX size={40} className="mx-auto mb-3 opacity-40"/><span className="text-lg font-medium">No records found.</span></td></tr>
                                     )}
                                     {filteredData.map((item, i) => {
-                                        const member = 'member' in item ? item.member : item;
                                         const policy = 'policy' in item ? item.policy : undefined;
-                                        const rowKey = 'policy' in item ? `${item.member.id}-${item.policy.id}` : item.id;
-                                        return <tr key={rowKey} className="hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors">{visibleColumns.map(key => <td key={key} className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">{getRowCell(member, key, policy)}</td>)}</tr>
+                                        // Generate a stable key. If item is Lead, use id. If Member, id. If Policy row, composite.
+                                        const rowKey = 'policy' in item ? `${item.member.id}-${item.policy.id}` : ('id' in item ? item.id : i);
+                                        return <tr key={rowKey} className="hover:bg-blue-50 dark:hover:bg-gray-700/50 transition-colors">{visibleColumns.map(key => <td key={key} className="px-4 py-3 text-gray-700 dark:text-gray-300 whitespace-nowrap">{getRowCell(item, key, i, policy)}</td>)}</tr>
                                     })}
                                 </tbody>
                             </table>
@@ -1185,22 +1426,49 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                             <h3 className="font-bold text-lg text-gray-800 dark:text-white">Configure Report & Filters</h3>
                             <button onClick={() => setIsFilterModalOpen(false)} className="text-gray-500 hover:text-red-500"><X size={20}/></button>
                         </div>
+                        
                         <div className="p-4 border-b dark:border-gray-700">
-                             <h4 className="font-semibold text-gray-700 dark:text-gray-200 mb-2">1. Select Report Type</h4>
-                             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                                 <button onClick={() => setTempReportMode('customer')} className={`p-3 border rounded-lg text-center transition-all ${tempReportMode === 'customer' ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-blue-50 hover:border-blue-400 dark:hover:bg-gray-700 dark:border-gray-600'}`}>
-                                    <Users className="mx-auto mb-1" size={20}/><span className="text-sm font-semibold">Customer</span>
-                                </button>
-                                 <button onClick={() => setTempReportMode('business')} className={`p-3 border rounded-lg text-center transition-all ${tempReportMode === 'business' ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-blue-50 hover:border-blue-400 dark:hover:bg-gray-700 dark:border-gray-600'}`}>
-                                    <Briefcase className="mx-auto mb-1" size={20}/><span className="text-sm font-semibold">Business Vertical</span>
-                                </button>
-                                 <button onClick={() => setTempReportMode('combined')} className={`p-3 border rounded-lg text-center transition-all ${tempReportMode === 'combined' ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-blue-50 hover:border-blue-400 dark:hover:bg-gray-700 dark:border-gray-600'}`}>
-                                    <Combine className="mx-auto mb-1" size={20}/><span className="text-sm font-semibold">Combined</span>
-                                </button>
-                            </div>
+                             <div className="flex items-center gap-6 mb-4">
+                                <h4 className="font-semibold text-gray-700 dark:text-gray-200">1. Select Record Type</h4>
+                                <div className="flex gap-4">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="recordType" className="w-4 h-4 text-blue-600" checked={tempRecordType === 'customer'} onChange={() => { setTempRecordType('customer'); setTempReportMode('customer'); setTempSelectedFilters([]); }} />
+                                        <span className="text-gray-700 dark:text-gray-300">Customers</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="recordType" className="w-4 h-4 text-blue-600" checked={tempRecordType === 'lead'} onChange={() => { setTempRecordType('lead'); setTempReportMode('customer'); setTempSelectedFilters([]); }} />
+                                        <span className="text-gray-700 dark:text-gray-300">Leads</span>
+                                    </label>
+                                </div>
+                             </div>
+
+                             {tempRecordType === 'customer' && (
+                                 <>
+                                    <h4 className="font-semibold text-gray-700 dark:text-gray-200 mb-2">2. Select Report Mode</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                                        <button onClick={() => setTempReportMode('customer')} className={`p-3 border rounded-lg text-center transition-all ${tempReportMode === 'customer' ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-blue-50 hover:border-blue-400 dark:hover:bg-gray-700 dark:border-gray-600'}`}>
+                                            <Users className="mx-auto mb-1" size={20}/><span className="text-sm font-semibold">Customer View</span>
+                                        </button>
+                                        <button onClick={() => setTempReportMode('business')} className={`p-3 border rounded-lg text-center transition-all ${tempReportMode === 'business' ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-blue-50 hover:border-blue-400 dark:hover:bg-gray-700 dark:border-gray-600'}`}>
+                                            <Briefcase className="mx-auto mb-1" size={20}/><span className="text-sm font-semibold">Business Vertical View</span>
+                                        </button>
+                                        <button onClick={() => setTempReportMode('combined')} className={`p-3 border rounded-lg text-center transition-all ${tempReportMode === 'combined' ? 'bg-blue-600 text-white border-blue-600' : 'hover:bg-blue-50 hover:border-blue-400 dark:hover:bg-gray-700 dark:border-gray-600'}`}>
+                                            <Combine className="mx-auto mb-1" size={20}/><span className="text-sm font-semibold">Combined View</span>
+                                        </button>
+                                    </div>
+                                </>
+                             )}
+                             {tempRecordType === 'lead' && (
+                                 <div className="p-3 bg-blue-50 dark:bg-gray-900/50 rounded text-sm text-blue-800 dark:text-blue-300 flex items-center gap-2">
+                                     <UserPlus size={16} /> Lead Reports focus on tracking potential customers and their interests.
+                                 </div>
+                             )}
                         </div>
+
                         <div className="p-4 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
-                             <h4 className="font-semibold text-gray-700 dark:text-gray-200">2. Select Filters to Display</h4>
+                             <h4 className="font-semibold text-gray-700 dark:text-gray-200">
+                                 {tempRecordType === 'customer' ? '3' : '2'}. Select Filters to Display
+                             </h4>
                              <div className="flex gap-2">
                                 <button onClick={() => setTempSelectedFilters(FILTER_OPTIONS.map(o => o.key))} className="text-xs font-medium text-blue-600 hover:underline">Select All</button>
                                 <button onClick={() => setTempSelectedFilters([])} className="text-xs font-medium text-gray-600 hover:underline">Deselect All</button>
@@ -1229,7 +1497,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
 
             {drillDownData && (
                  <Modal isOpen={!!drillDownData} onClose={() => setDrillDownData(null)}>
-                     <div className="bg-white dark:bg-gray-800 w-full max-w-4xl max-h-[90vh] rounded-lg shadow-xl flex flex-col overflow-hidden">
+                     <div className="bg-white dark:bg-gray-800 w-full max-w-7xl rounded-lg shadow-xl flex flex-col overflow-hidden">
                         <div className="p-4 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-700">
                             <h3 className="font-bold text-lg text-gray-800 dark:text-white flex items-center gap-2"><Search size={20} className="text-blue-600"/> {drillDownData.title}</h3>
                             <button onClick={() => setDrillDownData(null)} className="text-gray-500 hover:text-red-500 transition-colors bg-white dark:bg-gray-600 rounded-full p-1 shadow-sm"><X size={20}/></button>
@@ -1239,7 +1507,21 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
                                 <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10 shadow-sm"><tr>{['S.No', 'ID', 'Name', 'Mobile', 'Email', 'City'].map(h => <th key={h} className="px-6 py-3 text-left font-semibold text-gray-600 dark:text-gray-200">{h}</th>)}</tr></thead>
                                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                                     {drillDownData.data.map((item, i) => {
-                                        const member = 'member' in item ? item.member : item;
+                                        // Handle Lead Drilldown Item
+                                        if('phone' in item && 'estimatedValue' in item) {
+                                            const lead = item as Lead;
+                                            return (
+                                                <tr key={lead.id} className="hover:bg-blue-50 dark:hover:bg-gray-700/50">
+                                                    <td className="px-6 py-3 text-gray-500">{i+1}</td>
+                                                    <td className="px-6 py-3 font-medium text-gray-900 dark:text-white">N/A</td>
+                                                    <td className="px-6 py-3 text-blue-600 dark:text-blue-400 font-medium">{lead.name}</td>
+                                                    <td className="px-6 py-3 text-gray-500">{lead.phone}</td>
+                                                    <td className="px-6 py-3 text-gray-500">{lead.email || '-'}</td>
+                                                    <td className="px-6 py-3 text-gray-500">N/A</td>
+                                                </tr>
+                                            )
+                                        }
+                                        const member = 'member' in item ? item.member : item as Member;
                                         return (
                                             <tr key={member.id} className="hover:bg-blue-50 dark:hover:bg-gray-700/50">
                                                 <td className="px-6 py-3 text-gray-500">{i+1}</td>
