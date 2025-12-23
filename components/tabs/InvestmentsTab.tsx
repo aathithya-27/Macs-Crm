@@ -130,23 +130,51 @@ export const InvestmentsTab: React.FC<InvestmentsTabProps> = ({ data, onChange, 
         }
 
         if (editingHoldingId) {
+            // UPDATE EXISTING
             const updatedHoldings = (data.mutualFundHoldings || []).map(h => {
                 if (h.id === editingHoldingId) {
-                    const newTotalInvestment = formState.investmentType === 'Lumpsum' ? formState.amount : h.totalInvestment;
+                    const isSip = formState.investmentType === 'SIP';
                     
+                    // Logic for update
                     const updatedHolding = {
                         ...h,
                         investmentType: formState.investmentType,
                         folioNumber: formState.folioNumber,
                         schemeId: formState.schemeId,
                         status: formState.status,
-                        sipAmount: formState.investmentType === 'SIP' ? formState.amount : undefined,
-                        sipDate: formState.investmentType === 'SIP' ? formState.sipDay : undefined,
                         bankMandateId: formState.bankMandateId,
                         dynamicData: formState.dynamicData,
-                        totalInvestment: newTotalInvestment,
-                        currentValue: h.currentValue + (newTotalInvestment - h.totalInvestment),
                     };
+
+                    if (isSip) {
+                        updatedHolding.sipAmount = formState.amount;
+                        updatedHolding.sipDate = formState.sipDay;
+                        // Keep totalInvestment as is for SIP unless logic requires recalculation
+                    } else {
+                        // For Lumpsum, update total investment and the initial transaction date
+                        const oldAmount = h.totalInvestment || 0;
+                        const diff = formState.amount - oldAmount;
+                        
+                        updatedHolding.totalInvestment = formState.amount;
+                        updatedHolding.currentValue = (h.currentValue || 0) + diff;
+                        updatedHolding.sipAmount = undefined;
+                        updatedHolding.sipDate = undefined;
+
+                        // Update the transaction date if it exists, or create one
+                        if (updatedHolding.transactions && updatedHolding.transactions.length > 0) {
+                            updatedHolding.transactions[0].date = formState.date;
+                            updatedHolding.transactions[0].amount = formState.amount;
+                        } else {
+                            updatedHolding.transactions = [{
+                                id: `tx-${Date.now()}`,
+                                date: formState.date,
+                                type: 'Purchase',
+                                amount: formState.amount,
+                                units: 0
+                            }];
+                        }
+                    }
+
                     return updatedHolding;
                 }
                 return h;
@@ -154,15 +182,37 @@ export const InvestmentsTab: React.FC<InvestmentsTabProps> = ({ data, onChange, 
             onChange('mutualFundHoldings', updatedHoldings);
             addToast('Investment updated successfully.', 'success');
         } else {
-            const newHoldingToAdd: MutualFundHolding = {
+            // CREATE NEW
+            const isSip = formState.investmentType === 'SIP';
+            
+            const newHolding: MutualFundHolding = {
                 id: `mfh-${Date.now()}`,
-                totalInvestment: formState.amount,
-                currentValue: formState.amount,
+                schemeId: formState.schemeId,
+                folioNumber: formState.folioNumber,
+                investmentType: formState.investmentType,
+                status: formState.status,
+                bankMandateId: formState.bankMandateId,
+                dynamicData: formState.dynamicData,
+                totalInvestment: isSip ? 0 : formState.amount, // SIP starts at 0 until paid
+                currentValue: isSip ? 0 : formState.amount,
                 units: 0,
-                transactions: [],
-                ...formState
+                sipAmount: isSip ? formState.amount : undefined,
+                sipDate: isSip ? formState.sipDay : undefined,
+                transactions: []
             };
-            const updatedHoldings = [...(data.mutualFundHoldings || []), newHoldingToAdd];
+
+            // If Lumpsum, create the initial transaction to record the Date
+            if (!isSip) {
+                newHolding.transactions.push({
+                    id: `tx-${Date.now()}`,
+                    date: formState.date,
+                    type: 'Purchase',
+                    amount: formState.amount,
+                    units: 0
+                });
+            }
+
+            const updatedHoldings = [...(data.mutualFundHoldings || []), newHolding];
             onChange('mutualFundHoldings', updatedHoldings);
             addToast('Investment added successfully.', 'success');
         }
@@ -174,13 +224,22 @@ export const InvestmentsTab: React.FC<InvestmentsTabProps> = ({ data, onChange, 
         const scheme = schemeMap.get(holding.schemeId);
         if (scheme) setSelectedAmc(scheme.amcId);
 
+        // Correctly retrieving values based on type
+        const isSip = holding.investmentType === 'SIP';
+        const amount = isSip ? (holding.sipAmount || 0) : (holding.totalInvestment || 0);
+        
+        // Retrieve date from first transaction for Lumpsum, or default to today
+        const date = !isSip && holding.transactions && holding.transactions.length > 0 
+            ? holding.transactions[0].date 
+            : new Date().toISOString().split('T')[0];
+
         setFormState({
             investmentType: holding.investmentType,
             folioNumber: holding.folioNumber,
             schemeId: holding.schemeId,
             status: holding.status,
-            amount: holding.investmentType === 'SIP' ? (holding.sipAmount || 0) : (holding.totalInvestment || 0),
-            date: holding.investmentType === 'Lumpsum' ? (holding.transactions[0]?.date || new Date().toISOString().split('T')[0]) : new Date().toISOString().split('T')[0],
+            amount: amount,
+            date: date,
             sipDay: holding.sipDate || 15,
             bankMandateId: holding.bankMandateId || null,
             dynamicData: holding.dynamicData || {}
@@ -255,6 +314,7 @@ export const InvestmentsTab: React.FC<InvestmentsTabProps> = ({ data, onChange, 
                         {(data.mutualFundHoldings || []).map(holding => {
                             const scheme = schemeMap.get(holding.schemeId);
                             const amc = scheme ? amcMap.get(scheme.amcId) : 'Unknown AMC';
+                            const isSip = holding.investmentType === 'SIP';
                             return (
                                 <tr key={holding.id}>
                                     <td className="px-4 py-3 font-medium text-gray-800 dark:text-white">
@@ -264,9 +324,9 @@ export const InvestmentsTab: React.FC<InvestmentsTabProps> = ({ data, onChange, 
                                     <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{holding.folioNumber}</td>
                                     <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{holding.investmentType}</td>
                                     <td className="px-4 py-3 text-right font-semibold">
-                                        {holding.investmentType === 'SIP'
+                                        {isSip
                                             ? `${(holding.sipAmount || 0).toLocaleString('en-IN')} (Day ${holding.sipDate})`
-                                            : `${(holding.totalInvestment || 0).toLocaleString('en-IN')}`
+                                            : `${(holding.totalInvestment || 0).toLocaleString('en-IN')} (${holding.transactions?.[0]?.date || 'N/A'})`
                                         }
                                     </td>
                                     <td className="px-4 py-3 text-center text-sm">
