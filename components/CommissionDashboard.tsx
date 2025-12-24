@@ -3,44 +3,78 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Member, ModalTab, Policy } from '../types.ts';
 import Button from './ui/Button.tsx';
-import { IndianRupee, Percent, CheckCircle, Clock, XCircle, FileText } from 'lucide-react';
+import { IndianRupee, Percent, CheckCircle, Clock, XCircle, FileText, TrendingUp, Calendar } from 'lucide-react';
 import { ViewIcon } from './ui/Icons.tsx';
 import Pagination from './ui/Pagination.tsx';
+import { getMembers } from '../services/apiService.ts';
 
 interface CommissionDashboardProps {
   members: Member[];
   onViewMember: (member: Member, initialTab?: ModalTab) => void;
   onUpdateCommissionStatus: (memberId: string, policyId: string, status: Policy['commission']['status']) => void;
+  comp_id?: string;
 }
 
 const ITEMS_PER_PAGE = 10;
 
-const CommissionDashboard: React.FC<CommissionDashboardProps> = ({ members, onViewMember, onUpdateCommissionStatus }) => {
+const CommissionDashboard: React.FC<CommissionDashboardProps> = ({ members, onViewMember, onUpdateCommissionStatus, comp_id }) => {
   const [statusFilter, setStatusFilter] = useState('All Statuses');
   const [currentPage, setCurrentPage] = useState(1);
+  const [commissionData, setCommissionData] = useState<Member[]>([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     setCurrentPage(1);
   }, [statusFilter]);
 
+  useEffect(() => {
+    const loadCommissionData = async () => {
+      if (comp_id) {
+        setLoading(true);
+        try {
+          const data = await getMembers(comp_id);
+          setCommissionData(data);
+        } catch (error) {
+          console.error('Failed to load commission data:', error);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    loadCommissionData();
+  }, [comp_id]);
+
+  const activeMembers = commissionData.length > 0 ? commissionData : members;
+
   const allCommissions = useMemo(() => {
-    return members.flatMap(member =>
+    return activeMembers.flatMap(member =>
       member.policies
         .filter(policy => policy.commission && policy.commission.amount > 0)
-        .map(policy => ({
-          id: `${member.id}-${policy.id}`,
-          policyId: policy.id,
-          memberId: member.id,
-          memberName: member.name,
-          policyType: policy.policyType,
-          policyPremium: policy.premium,
-          commissionAmount: policy.commission.amount,
-          status: policy.commission.status,
-          renewalDate: policy.renewalDate,
-          fullMember: member,
-        }))
+        .map(policy => {
+          // Calculate commission based on premium if not explicitly set
+          const commissionAmount = policy.commission?.amount || (policy.premium * 0.05); // 5% default
+          const commissionStatus = policy.commission?.status || 'Pending';
+          
+          return {
+            id: `${member.id}-${policy.id}`,
+            policyId: policy.id,
+            memberId: member.id,
+            memberName: member.name,
+            policyType: policy.policyType,
+            policyPremium: policy.premium,
+            commissionAmount,
+            status: commissionStatus,
+            renewalDate: policy.renewalDate,
+            fullMember: member,
+            schemeId: policy.schemeId,
+            schemeName: policy.schemeName,
+            coverage: policy.coverage,
+            createdAt: member.createdAt,
+            assignedTo: member.assignedTo,
+          };
+        })
     ).sort((a, b) => new Date(b.renewalDate).getTime() - new Date(a.renewalDate).getTime());
-  }, [members]);
+  }, [activeMembers]);
 
   const filteredCommissions = useMemo(() => {
     if (statusFilter === 'All Statuses') return allCommissions;
@@ -54,22 +88,38 @@ const CommissionDashboard: React.FC<CommissionDashboardProps> = ({ members, onVi
   }, [currentPage, filteredCommissions]);
 
   const summary = useMemo(() => {
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const thisMonthCommissions = allCommissions.filter(c => 
+      c.renewalDate.startsWith(currentMonth) || c.createdAt?.startsWith(currentMonth)
+    );
+    
     return allCommissions.reduce(
       (acc, comm) => {
         if (comm.status === 'Paid') {
           acc.paid += comm.commissionAmount;
         } else if (comm.status === 'Pending') {
           acc.pending += comm.commissionAmount;
+        } else if (comm.status === 'Cancelled') {
+          acc.cancelled += comm.commissionAmount;
         }
         acc.totalTracked += 1;
+        acc.totalAmount += comm.commissionAmount;
+        
+        // This month's data
+        if (thisMonthCommissions.some(tc => tc.id === comm.id)) {
+          acc.thisMonth += comm.commissionAmount;
+        }
+        
         return acc;
       },
-      { paid: 0, pending: 0, totalTracked: 0 }
+      { paid: 0, pending: 0, cancelled: 0, totalTracked: 0, totalAmount: 0, thisMonth: 0 }
     );
   }, [allCommissions]);
 
   const formattedPaid = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(summary.paid);
   const formattedPending = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(summary.pending);
+  const formattedThisMonth = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(summary.thisMonth);
+  const formattedTotal = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(summary.totalAmount);
 
 
   const StatCard = ({ title, value, icon, colorClass }: { title: string; value: string | number; icon: React.ReactNode; colorClass: string }) => (
@@ -94,6 +144,15 @@ const CommissionDashboard: React.FC<CommissionDashboardProps> = ({ members, onVi
     </div>
   );
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-2 text-gray-600 dark:text-gray-400">Loading commission data...</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
@@ -101,15 +160,17 @@ const CommissionDashboard: React.FC<CommissionDashboardProps> = ({ members, onVi
         <p className="text-gray-500 dark:text-gray-400 mt-1">Track and manage all your policy commissions.</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <StatCard title="Total Paid" value={formattedPaid} icon={<CheckCircle size={24} className="text-green-500"/>} colorClass="dark:border-green-800/50" />
         <StatCard title="Total Pending" value={formattedPending} icon={<Clock size={24} className="text-yellow-500"/>} colorClass="dark:border-yellow-800/50" />
-        <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow-sm border flex items-start justify-between dark:border-gray-700 dark:border-blue-800/50">
+        <StatCard title="This Month" value={formattedThisMonth} icon={<TrendingUp size={24} className="text-blue-500"/>} colorClass="dark:border-blue-800/50" />
+        <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow-sm border flex items-start justify-between dark:border-gray-700 dark:border-purple-800/50">
             <div>
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Policies Tracked</p>
                 <p className="text-3xl font-bold text-gray-800 dark:text-white">{summary.totalTracked}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Total Value: {formattedTotal}</p>
             </div>
-            <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg"><Percent size={24} className="text-blue-500"/></div>
+            <div className="p-2 bg-gray-100 dark:bg-gray-700 rounded-lg"><Percent size={24} className="text-purple-500"/></div>
         </div>
       </div>
       
@@ -135,8 +196,10 @@ const CommissionDashboard: React.FC<CommissionDashboardProps> = ({ members, onVi
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">S.No</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Customer</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Policy Type</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Scheme</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Premium</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Commission</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Renewal Date</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Actions</th>
                 </tr>
@@ -147,10 +210,24 @@ const CommissionDashboard: React.FC<CommissionDashboardProps> = ({ members, onVi
                   return (
                   <tr key={c.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{serialNumber}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{c.memberName}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-medium text-gray-900 dark:text-white">{c.memberName}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">{c.fullMember.memberId}</div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{c.policyType}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">{c.schemeName || 'N/A'}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400">Coverage: {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(c.coverage || 0)}</div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(c.policyPremium)}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600 dark:text-green-400">{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', minimumFractionDigits: 0 }).format(c.commissionAmount)}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900 dark:text-white">{new Date(c.renewalDate).toLocaleDateString('en-IN')}</div>
+                      <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1">
+                        <Calendar size={12} />
+                        {Math.ceil((new Date(c.renewalDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} days
+                      </div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                         <select
                             value={c.status}

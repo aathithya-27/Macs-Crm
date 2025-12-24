@@ -1163,7 +1163,7 @@ const filteredData = useMemo(() => {
                 <div className="flex items-center gap-4">
                      <h2 className="text-2xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
                         <BarChart3 size={24} /> 
-                        {reportMode.charAt(0).toUpperCase() + reportMode.slice(1)} Report 
+                        {reportMode === 'customer' ? 'Customer Insights' : reportMode === 'business' ? 'Business Insights' : 'Combined Insights'}
                         {recordType === 'lead' && <span className="text-sm bg-purple-100 text-purple-700 px-2 py-1 rounded ml-2">Leads</span>}
                     </h2>
                     <Button variant="ghost" size="small" onClick={handleOpenFilterModal}>Change Report / Filters</Button>

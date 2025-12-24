@@ -1,9 +1,10 @@
-import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { User, Designation, Role, AttendanceState, AttendanceRecord } from '../types.ts';
 import Modal from './ui/Modal.tsx';
 import Input from './ui/Input.tsx';
 import SearchableSelect from './ui/SearchableSelect.tsx';
 import Button from './ui/Button.tsx';
+import { X, Filter } from 'lucide-react';
 
 export const AttendanceReportModal: React.FC<{
     isOpen: boolean;
@@ -20,19 +21,30 @@ export const AttendanceReportModal: React.FC<{
 
     const [startDate, setStartDate] = useState(last7Days.toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState(today.toISOString().split('T')[0]);
-    const [selectedAdvisor, setSelectedAdvisor] = useState('all');
+    
+    const [selectedEmployee, setSelectedEmployee] = useState('all');
+    const [selectedRoleFilter, setSelectedRoleFilter] = useState<'All' | 'Advisor' | 'Non-Advisor'>('All');
 
-    const advisors = useMemo(() => {
-        const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
-        return users.filter(u => u.roleId && advisorRoleIds.has(u.roleId));
-    }, [users, roles]);
+    const filteredUsers = useMemo(() => {
+        if (selectedRoleFilter === 'All') return users;
+        return users.filter(u => {
+            const role = roles.find(r => r.id === u.roleId);
+            if (selectedRoleFilter === 'Advisor') return role?.isAdvisor;
+            if (selectedRoleFilter === 'Non-Advisor') return !role?.isAdvisor;
+            return true;
+        });
+    }, [users, roles, selectedRoleFilter]);
+
+    useEffect(() => {
+        if (selectedEmployee !== 'all' && !filteredUsers.find(u => u.id === selectedEmployee)) {
+            setSelectedEmployee('all');
+        }
+    }, [selectedRoleFilter, filteredUsers]);
 
     useEffect(() => {
         if (!isOpen) return;
-
         const modalNode = modalRef.current;
         if (!modalNode) return;
-
         const focusableElements = modalNode.querySelectorAll<HTMLElement>(
             'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
         );
@@ -40,10 +52,7 @@ export const AttendanceReportModal: React.FC<{
         const lastElement = focusableElements[focusableElements.length - 1];
 
         const handleKeyDown = (event: KeyboardEvent) => {
-            if (event.key === 'Escape') {
-                onClose();
-            }
-
+            if (event.key === 'Escape') onClose();
             if (event.key === 'Tab') {
                 if (event.shiftKey) {
                     if (document.activeElement === firstElement) {
@@ -58,27 +67,27 @@ export const AttendanceReportModal: React.FC<{
                 }
             }
         };
-
         firstElement?.focus();
-
         document.addEventListener('keydown', handleKeyDown);
-        return () => {
-            document.removeEventListener('keydown', handleKeyDown);
-        };
+        return () => document.removeEventListener('keydown', handleKeyDown);
     }, [isOpen, onClose]);
 
-
     const reportData = useMemo(() => {
-        let flattenedData: (AttendanceRecord & { userId: string, userName: string, userStatus: 'Active' | 'Inactive' })[] = [];
+        let flattenedData: (AttendanceRecord & { userId: string, userName: string, userRole: string, userStatus: 'Active' | 'Inactive' })[] = [];
 
-        for (const userId in attendance) {
-            const user = advisors.find(u => u.id === userId);
-            if (user) {
-                attendance[userId].forEach(record => {
-                    flattenedData.push({ ...record, userId, userName: user.name, userStatus: user.profile?.status || 'Inactive' });
+        filteredUsers.forEach(user => {
+            const records = attendance[user.id] || [];
+            const roleName = roles.find(r => r.id === user.roleId)?.name || 'Unknown';
+            records.forEach(record => {
+                flattenedData.push({ 
+                    ...record, 
+                    userId: user.id, 
+                    userName: user.name, 
+                    userRole: roleName,
+                    userStatus: user.profile?.status || 'Inactive' 
                 });
-            }
-        }
+            });
+        });
 
         const start = new Date(startDate);
         start.setHours(0, 0, 0, 0);
@@ -88,12 +97,12 @@ export const AttendanceReportModal: React.FC<{
         const filtered = flattenedData.filter(record => {
             const recordDate = new Date(record.timestamp);
             const dateMatch = recordDate >= start && recordDate <= end;
-            const advisorMatch = selectedAdvisor === 'all' || record.userId === selectedAdvisor;
-            return dateMatch && advisorMatch;
+            const employeeMatch = selectedEmployee === 'all' || record.userId === selectedEmployee;
+            return dateMatch && employeeMatch;
         });
 
         return filtered.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-    }, [attendance, advisors, startDate, endDate, selectedAdvisor]);
+    }, [attendance, filteredUsers, startDate, endDate, selectedEmployee, roles]);
 
     const setDateRange = (days: number) => {
         const end = new Date();
@@ -105,70 +114,124 @@ export const AttendanceReportModal: React.FC<{
 
     return (
         <Modal isOpen={isOpen} onClose={onClose}>
-            <div ref={modalRef}>
-                <div className="p-6">
-                    <h2 className="text-xl font-bold text-brand-dark dark:text-white">Attendance Report</h2>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Review historical attendance records for all employees.</p>
+            <div ref={modalRef} className="flex flex-col h-[85vh]">
+                {}
+                <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-start bg-white dark:bg-gray-800 rounded-t-lg shrink-0">
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                            <span className="p-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-600 rounded-lg"><Filter size={20}/></span>
+                            Attendance Report
+                        </h2>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Review historical attendance records.</p>
+                    </div>
+                    <button 
+                        onClick={onClose} 
+                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                        <X size={20} />
+                    </button>
                 </div>
-                <div className="p-6 border-y dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+
+                {}
+                <div className="p-5 border-b border-gray-100 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-900/50 shrink-0">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                        {}
+                        <div className="flex flex-col gap-1">
+                            <label className="text-xs font-semibold text-gray-500 uppercase">Role Type</label>
+                            <select 
+                                className="w-full p-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:ring-2 focus:ring-blue-500 outline-none"
+                                value={selectedRoleFilter}
+                                onChange={(e) => setSelectedRoleFilter(e.target.value as any)}
+                            >
+                                <option value="All">All Roles</option>
+                                <option value="Advisor">Advisors Only</option>
+                                <option value="Non-Advisor">Employees (Non-Advisors)</option>
+                            </select>
+                        </div>
+
+                        {}
+                        <div className="lg:col-span-2">
+                            <SearchableSelect
+                                label="Employee Name"
+                                options={[{ value: 'all', label: 'All Selected Users' }, ...filteredUsers.map(u => ({ value: u.id, label: u.name }))]}
+                                value={selectedEmployee}
+                                onChange={setSelectedEmployee}
+                                placeholder="Select employee..."
+                            />
+                        </div>
+
+                        {}
                         <Input label="Start Date" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
                         <Input label="End Date" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
-                        {}
-                        <SearchableSelect
-                            label="Filter by Employee"
-                            options={[{ value: 'all', label: 'All Employees' }, ...advisors.map(a => ({ value: a.id, label: a.profile?.status === 'Inactive' ? `${a.name} 🔴` : a.name }))]}
-                            value={selectedAdvisor}
-                            onChange={setSelectedAdvisor}
-                        />
-                        {}
-                        <div className="flex items-center gap-2">
-                            <Button variant="light" size="small" onClick={() => setDateRange(0)}>Today</Button>
-                            <Button variant="light" size="small" onClick={() => setDateRange(7)}>7 Days</Button>
-                            <Button variant="light" size="small" onClick={() => setDateRange(30)}>30 Days</Button>
-                        </div>
+                    </div>
+                    
+                    {}
+                    <div className="flex gap-2 mt-4">
+                        <button onClick={() => setDateRange(0)} className="px-3 py-1 text-xs font-medium bg-white border border-gray-200 rounded-full hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300">Today</button>
+                        <button onClick={() => setDateRange(7)} className="px-3 py-1 text-xs font-medium bg-white border border-gray-200 rounded-full hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300">Last 7 Days</button>
+                        <button onClick={() => setDateRange(30)} className="px-3 py-1 text-xs font-medium bg-white border border-gray-200 rounded-full hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-600 dark:text-gray-300">Last 30 Days</button>
                     </div>
                 </div>
-                <div className="p-6 overflow-y-auto max-h-[60vh]">
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-                            <thead className="bg-gray-50 dark:bg-gray-700/50 sticky top-0">
-                                <tr>
-                                    <th className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Date</th>
-                                    <th className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Employee Name</th>
-                                    <th className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Status</th>
-                                    <th className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Reason for Absence</th>
-                                    <th className="px-4 py-2 text-left font-medium text-gray-500 dark:text-gray-400">Timestamp</th>
+
+                {}
+                <div className="flex-1 overflow-auto p-0 bg-white dark:bg-gray-800">
+                    <table className="min-w-full divide-y divide-gray-100 dark:divide-gray-700 text-sm">
+                        <thead className="bg-gray-50 dark:bg-gray-700/30 sticky top-0 z-10">
+                            <tr>
+                                <th className="px-6 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-xs">Date</th>
+                                <th className="px-6 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-xs">Employee</th>
+                                <th className="px-6 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-xs">Role</th>
+                                <th className="px-6 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-xs">Status</th>
+                                <th className="px-6 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-xs">Reason</th>
+                                <th className="px-6 py-3 text-left font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-xs">Time</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                            {reportData.map((record, index) => (
+                                <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-700/20 transition-colors">
+                                    <td className="px-6 py-3 whitespace-nowrap text-gray-600 dark:text-gray-300">
+                                        {new Date(record.timestamp).toLocaleDateString()}
+                                    </td>
+                                    <td className="px-6 py-3 font-medium text-gray-900 dark:text-white">
+                                        <div className="flex items-center gap-2">
+                                            {record.userName}
+                                            {record.userStatus === 'Inactive' && <span className="w-2 h-2 bg-red-500 rounded-full" title="Inactive"></span>}
+                                        </div>
+                                    </td>
+                                    <td className="px-6 py-3 text-gray-500 dark:text-gray-400 text-xs">
+                                        {record.userRole}
+                                    </td>
+                                    <td className="px-6 py-3">
+                                        <span className={`px-2.5 py-0.5 text-xs font-bold rounded-full ${
+                                            record.status === 'Present' ? 'bg-green-100 text-green-700 border border-green-200' : 
+                                            record.status === 'Absent' ? 'bg-red-100 text-red-700 border border-red-200' : 
+                                            'bg-blue-100 text-blue-700 border border-blue-200'
+                                        }`}>
+                                            {record.status}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-3 text-gray-500 dark:text-gray-400 italic max-w-xs truncate" title={record.reason}>
+                                        {record.reason || '-'}
+                                    </td>
+                                    <td className="px-6 py-3 text-gray-400 text-xs">
+                                        {new Date(record.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                {reportData.map((record, index) => (
-                                    <tr key={index}>
-                                        <td className="px-4 py-3 whitespace-nowrap">{new Date(record.timestamp).toLocaleDateString()}</td>
-                                        {}
-                                        <td className="px-4 py-3 font-medium text-gray-800 dark:text-white">
-                                            <div className="flex items-center gap-2">
-                                                {record.userName}
-                                                {record.userStatus === 'Inactive' && <span className="w-2 h-2 bg-red-500 rounded-full" title="Inactive Employee"></span>}
-                                            </div>
-                                        </td>
-                                        {}
-                                        <td className="px-4 py-3">
-                                            <span className={`px-2 py-1 text-xs font-semibold rounded-full ${record.status === 'Present' ? 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'}`}>
-                                                {record.status}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-gray-600 dark:text-gray-300">{record.reason || 'N/A'}</td>
-                                        <td className="px-4 py-3 whitespace-nowrap text-gray-500 dark:text-gray-400">{new Date(record.timestamp).toLocaleString()}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                        {reportData.length === 0 && <p className="text-center py-8 text-gray-500">No records found for the selected filters.</p>}
-                    </div>
+                            ))}
+                            {reportData.length === 0 && (
+                                <tr>
+                                    <td colSpan={6} className="text-center py-12 text-gray-400">
+                                        No attendance records found for these filters.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
-                <div className="flex justify-end p-6 gap-3 border-t border-gray-200 dark:border-gray-700">
-                    <Button variant="secondary" onClick={onClose}>Close</Button>
+                
+                {}
+                <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 flex justify-between items-center text-xs text-gray-500">
+                    <span>Showing {reportData.length} records</span>
                 </div>
             </div>
         </Modal>

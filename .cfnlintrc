@@ -1,0 +1,7 @@
+ignore_checks:
+- E0000
+ignore_bad_template: true
+include_checks: []
+exclude_checks: []
+ignore_templates:
+- metadata.json

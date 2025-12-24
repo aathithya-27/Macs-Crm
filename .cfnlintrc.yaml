@@ -1,0 +1,4 @@
+ignore_bad_template: true
+ignore_templates:
+  - "**/metadata.json"
+  - "metadata.json"

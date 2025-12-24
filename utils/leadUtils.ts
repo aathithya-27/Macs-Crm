@@ -40,4 +40,5 @@ export const generateLeadActivityLog = (oldLead: Partial<Lead>, newLead: Partial
     }
 
     return logs;
+    
 };
