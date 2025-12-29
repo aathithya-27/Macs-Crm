@@ -401,7 +401,7 @@ export const EmployeePerformance: React.FC<{
                                         <h2 className="text-2xl font-bold">{selectedEmpData.user.name}</h2>
                                         <p className="text-indigo-100">{designationMap.get(selectedEmpData.user.designationId)}</p>
                                         <div className="mt-2 flex gap-2">
-                                            <span className="bg-white/20 px-2 py-0.5 rounded text-xs font-medium backdrop-blur-sm">Rank
+                                            <span className="bg-white/20 px-2 py-0.5 rounded text-xs font-medium backdrop-blur-sm">Rank</span>
                                             <span className="bg-white/20 px-2 py-0.5 rounded text-xs font-medium backdrop-blur-sm">Score: {selectedEmpData.score}</span>
                                         </div>
                                     </div>
