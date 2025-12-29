@@ -144,12 +144,18 @@ export const BusinessTrendsReports: React.FC<{
             profitData.push(totalSystemProfit * factor);
         }
 
+        // Calculate growth percentage
+        const currentRevenue = revenueData[revenueData.length - 1];
+        const previousRevenue = revenueData[revenueData.length - 2];
+        const growthPercentage = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
+
         return { 
             items: sortedItems, 
             totalRevenue: totalSystemRevenue,
             totalProfit: totalSystemProfit,
             abcStats,
-            chart: { labels: chartLabels, revenue: revenueData, profit: profitData }
+            chart: { labels: chartLabels, revenue: revenueData, profit: profitData },
+            growthPercentage
         };
 
     }, [members, schemeMap, agencyMap, typeMap, thresholds]);
@@ -276,9 +282,19 @@ export const BusinessTrendsReports: React.FC<{
                             </div>
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 px-3 py-1.5 rounded-lg border border-green-100 dark:border-green-900/30">
-                        <ArrowUpRight size={16} className="text-green-600"/>
-                        <span className="text-sm font-semibold text-green-700 dark:text-green-400">+18% Growth</span>
+                    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
+                        data.growthPercentage >= 0 
+                        ? 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-900/30'
+                        : 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-900/30'
+                    }`}>
+                        <ArrowUpRight size={16} className={data.growthPercentage >= 0 ? 'text-green-600' : 'text-red-600'}/>
+                        <span className={`text-sm font-semibold ${
+                            data.growthPercentage >= 0 
+                            ? 'text-green-700 dark:text-green-400' 
+                            : 'text-red-700 dark:text-red-400'
+                        }`}>
+                            {data.growthPercentage >= 0 ? '+' : ''}{data.growthPercentage.toFixed(1)}% Growth
+                        </span>
                     </div>
                 </div>
                 <div className="h-[350px] w-full">
