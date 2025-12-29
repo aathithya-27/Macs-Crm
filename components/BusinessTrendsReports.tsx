@@ -510,7 +510,7 @@ export const BusinessTrendsReports: React.FC<{
                                 <span className="text-sm font-bold">{tempThresholds.A}%</span>
                             </div>
                             <input 
-                                type="range" min="10" max="90" step="5"
+                                type="range" min="10" max="90" step="1"
                                 value={tempThresholds.A}
                                 onChange={(e) => setTempThresholds({...tempThresholds, A: Number(e.target.value)})}
                                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
@@ -524,7 +524,7 @@ export const BusinessTrendsReports: React.FC<{
                                 <span className="text-sm font-bold">{tempThresholds.B}%</span>
                             </div>
                             <input 
-                                type="range" min="5" max="50" step="5"
+                                type="range" min="5" max="50" step="1"
                                 value={tempThresholds.B}
                                 onChange={(e) => setTempThresholds({...tempThresholds, B: Number(e.target.value)})}
                                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-yellow-500"
