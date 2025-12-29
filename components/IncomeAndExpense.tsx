@@ -484,9 +484,21 @@ const IncomesTab: React.FC<IncomeAndExpenseProps & { canCreate: boolean, canModi
 
     return (
         <div className="space-y-6">
+            {/* Top Section: Action Card */}
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
-                <h3 className="text-lg font-semibold mb-4">Manual Receipt Log</h3>
-                <div className="mb-4">
+                <h3 className="text-lg font-semibold mb-4">Receipt</h3>
+                <div className="flex items-center gap-4">
+                    <Button onClick={() => { setEditingReceipt(null); setTriggerReceiptExport(false); setIsReceiptModalOpen(true); }} disabled={!canCreate || !canCreateNew} title={!canCreateNew ? creationDisabledReason : "Create Receipt"}>
+                        <FilePlus2 size={16} /> Create Receipt
+                    </Button>
+                </div>
+            </div>
+
+            {/* Bottom Section: Log, Filters, Table */}
+            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700 flex flex-col h-full">
+                <h3 className="text-lg font-semibold mb-4">Receipt Log</h3>
+                
+                <div className="my-4">
                     <StatCard title="Total Filtered Receipts" value={totalReceiptAmount} icon={<TrendingUp />} isProfit={true} />
                 </div>
                 
@@ -497,13 +509,7 @@ const IncomesTab: React.FC<IncomeAndExpenseProps & { canCreate: boolean, canModi
                     heads={incomeHeads}
                 />
 
-                <div className="flex justify-end mb-4">
-                    <Button onClick={() => { setEditingReceipt(null); setTriggerReceiptExport(false); setIsReceiptModalOpen(true); }} disabled={!canCreate || !canCreateNew} title={!canCreateNew ? creationDisabledReason : "Create"}>
-                        <FilePlus2 size={16} /> Create Receipt
-                    </Button>
-                </div>
-
-                <div className="h-[500px] overflow-y-auto">
+                <div className="flex-1 overflow-y-auto mt-4 min-h-0">
                     <DataTable 
                         data={filteredReceipts} 
                         columns={[
