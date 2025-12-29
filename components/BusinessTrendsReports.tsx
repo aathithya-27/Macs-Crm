@@ -82,7 +82,7 @@ export const BusinessTrendsReports: React.FC<{
                 const { agency, typeName, subTypeName, schemeName } = getPolicyDetails(p);
                 const premium = p.premium || 0;
                 totalSystemRevenue += premium;
-                const profit = p.commission?.amount || (premium * 0.15); 
+                const profit = p.commission?.amount || 0;
                 totalSystemProfit += profit;
 
                 const key = `${schemeName}-${agency}`;
@@ -130,24 +130,55 @@ export const BusinessTrendsReports: React.FC<{
             }
         });
 
+        const monthlyRevenue = new Map<string, number>();
+        const monthlyProfit = new Map<string, number>();
+        
+        members.forEach(m => {
+            m.policies.forEach(p => {
+                if (p.startDate) {
+                    const policyDate = new Date(p.startDate);
+                    const monthKey = `${policyDate.getFullYear()}-${String(policyDate.getMonth() + 1).padStart(2, '0')}`;
+                    const premium = p.premium || 0;
+                    const profit = p.commission?.amount || 0;
+                    
+                    monthlyRevenue.set(monthKey, (monthlyRevenue.get(monthKey) || 0) + premium);
+                    monthlyProfit.set(monthKey, (monthlyProfit.get(monthKey) || 0) + profit);
+                }
+            });
+        });
+
         const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         const chartLabels = [];
         const revenueData = [];
         const profitData = [];
 
-        for(let i=5; i>=0; i--) {
+        for(let i = 5; i >= 0; i--) {
             const date = new Date();
             date.setMonth(date.getMonth() - i);
+            const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            
             chartLabels.push(`${months[date.getMonth()]} '${String(date.getFullYear()).slice(2)}`);
-            const factor = i === 0 ? 1 : 0.7 + (Math.random() * 0.4);
-            revenueData.push(totalSystemRevenue * factor);
-            profitData.push(totalSystemProfit * factor);
+            revenueData.push(monthlyRevenue.get(monthKey) || 0);
+            profitData.push(monthlyProfit.get(monthKey) || 0);
         }
 
-        // Calculate growth percentage
         const currentRevenue = revenueData[revenueData.length - 1];
         const previousRevenue = revenueData[revenueData.length - 2];
-        const growthPercentage = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
+        
+        let growthPercentage = 0;
+        if (previousRevenue > 0) {
+            growthPercentage = ((currentRevenue - previousRevenue) / previousRevenue) * 100;
+        } else if (currentRevenue > 0 && previousRevenue === 0) {
+            growthPercentage = 100;
+        }
+        
+        console.log('Monthly Revenue Data:', {
+            labels: chartLabels,
+            revenue: revenueData,
+            currentRevenue,
+            previousRevenue,
+            growthPercentage
+        });
 
         return { 
             items: sortedItems, 
@@ -538,3 +569,4 @@ export const BusinessTrendsReports: React.FC<{
 };
 
 
+    
