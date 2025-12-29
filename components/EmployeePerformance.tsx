@@ -389,7 +389,8 @@ export const EmployeePerformance: React.FC<{
             {}
             {selectedEmpData && (
                 <Modal isOpen={!!selectedEmployeeId} onClose={() => setSelectedEmployeeId(null)}>
-                    <div className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden w-full max-w-4xl mx-auto flex flex-col h-auto max-h-[90vh] shadow-2xl">
+                    {}
+                    <div className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden w-full max-w-5xl mx-auto flex flex-col h-auto max-h-[90vh] shadow-2xl relative">
                         {}
                         <div className="bg-gradient-to-r from-indigo-600 to-purple-700 p-6 text-white shrink-0">
                             <div className="flex justify-between items-start">
@@ -476,7 +477,12 @@ export const EmployeePerformance: React.FC<{
                                         d.setDate(d.getDate() - (6 - i));
                                         const dateStr = d.toISOString().split('T')[0];
                                         const rec = attendance[selectedEmpData.user.id]?.find(r => r.timestamp.startsWith(dateStr));
-                                        const statusColor = rec?.status === 'Present' ? 'bg-green-500' : rec?.status === 'Absent' ? 'bg-red-500' : 'bg-gray-200 dark:bg-gray-700';
+                                        
+                                        const statusColor = 
+                                            rec?.status === 'Present' ? 'bg-green-500' : 
+                                            rec?.status === 'Absent' ? 'bg-red-500' : 
+                                            rec?.status === 'Work From Home' ? 'bg-blue-500' : 
+                                            'bg-gray-200 dark:bg-gray-700';
                                         
                                         return (
                                             <div key={i} className="flex-1 flex flex-col items-center gap-1">

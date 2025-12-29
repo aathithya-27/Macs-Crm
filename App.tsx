@@ -1124,7 +1124,7 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                 return { ...prev, [userId]: [...userRecords, newRecord] };
             }
         });
-        addToast("Attendance updated by Admin.", "success");
+        addToast("Attendance updated.", "success");
 
         if (status === 'Absent') {
             handleAutomaticTaskReassignment(userId);
