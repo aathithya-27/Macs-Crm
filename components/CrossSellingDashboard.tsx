@@ -9,6 +9,7 @@ import { CheckCircle, Search, PlusCircle, AlertCircle, Filter, CheckSquare, Squa
 import Button from './ui/Button.tsx';
 import SearchableSelect from './ui/SearchableSelect.tsx';
 import Modal from './ui/Modal.tsx';
+import Pagination from './ui/Pagination.tsx';
 
 const FILTER_OPTIONS_CONFIG = [
     { key: 'vertical', label: 'Business Vertical' },
@@ -16,9 +17,6 @@ const FILTER_OPTIONS_CONFIG = [
     { key: 'branch', label: 'Branch' },
     { key: 'advisor', label: 'Advisor' },
     { key: 'leadSource', label: 'Lead Source' },
-    { key: 'agency', label: 'Agency' },
-    { key: 'scheme', label: 'Scheme' },
-    { key: 'amc', label: 'AMC' },
     { key: 'state', label: 'State' },
     { key: 'district', label: 'District' },
     { key: 'city', label: 'City' },
@@ -203,10 +201,8 @@ const BulkCreationModal: React.FC<BulkCreationModalProps> = ({
     );
 };
 
-
 interface CrossSellingDashboardProps {
     members: Member[];
-    upsellCategories: UpsellCategory[];
     insuranceTypes: InsuranceTypeMaster[];
     addToast: (message: string, type?: 'success' | 'error') => void;
     users: User[];
@@ -214,11 +210,7 @@ interface CrossSellingDashboardProps {
     roles: Role[];
     onCreateLead: (member: Member, insuranceTypeName: string) => void;
     onBulkCreateLeads: (leads: Lead[]) => void;
-    
     businessVerticals: BusinessVertical[];
-    schemes: SchemeMaster[];
-    amcs: AMC[];
-    agencies: InsuranceAgency[];
     geographies: Geography[];
     customerCategories: CustomerCategory[];
     customerSubCategories: CustomerSubCategory[];
@@ -231,9 +223,6 @@ interface CrossSellingDashboardProps {
 interface FilterState {
     vertical: string;
     insuranceType: string;
-    agency: string;
-    scheme: string;
-    amc: string;
     ownership: string;
     state: string;
     district: string;
@@ -250,9 +239,9 @@ interface FilterState {
 }
 
 const CrossSellingDashboard: React.FC<CrossSellingDashboardProps> = ({ 
-    members, upsellCategories, insuranceTypes, addToast, users, branches, roles, 
+    members, insuranceTypes, addToast, users, branches, roles, 
     onCreateLead, onBulkCreateLeads,
-    businessVerticals, schemes, amcs, agencies, geographies, 
+    businessVerticals, geographies, 
     customerCategories, customerSubCategories, customerGroups, customerTypes, genders, leadSources
 }) => {
     const [searchQuery, setSearchQuery] = useState('');
@@ -262,13 +251,16 @@ const CrossSellingDashboard: React.FC<CrossSellingDashboardProps> = ({
     const [tempVisibleFilters, setTempVisibleFilters] = useState<string[]>([]);
 
     const initialFilters: FilterState = {
-        vertical: 'all', insuranceType: 'all', agency: 'all', scheme: 'all', amc: 'all', ownership: 'all',
+        vertical: 'all', insuranceType: 'all', ownership: 'all',
         state: 'all', district: 'all', city: 'all', area: 'all',
         category: 'all', subCategory: 'all', group: 'all', tier: 'all', gender: 'all',
         leadSource: 'all', branch: 'all', advisor: 'all'
     };
 
     const [filters, setFilters] = useState<FilterState>(initialFilters);
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(10);
 
     const [selectedMemberIds, setSelectedMemberIds] = useState<Set<string>>(new Set());
     const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
@@ -279,6 +271,11 @@ const CrossSellingDashboard: React.FC<CrossSellingDashboardProps> = ({
         eligibleLeads: Lead[];
         allLeads: Lead[];
     }>({ isOpen: false, ineligibleNames: [], eligibleLeads: [], allLeads: [] });
+
+    const geographiesMap = useMemo(() => new Map(geographies.map(g => [g.id, g])), [geographies]);
+    const customerSubCategoriesMap = useMemo(() => new Map(customerSubCategories.map(sc => [sc.id, sc])), [customerSubCategories]);
+    const advisorsMap = useMemo(() => new Map(users.map(u => [u.id, u])), [users]);
+    const insuranceTypesMap = useMemo(() => new Map(insuranceTypes.map(it => [it.id, it])), [insuranceTypes]);
 
     const advisors = useMemo(() => {
         const advisorRoleIds = new Set(roles.filter(r => r.isAdvisor).map(r => r.id));
@@ -294,7 +291,7 @@ const CrossSellingDashboard: React.FC<CrossSellingDashboardProps> = ({
         if (filters.category === 'all') return customerSubCategories;
         return customerSubCategories.filter(sc => sc.parentId === filters.category);
     }, [customerSubCategories, filters.category]);
-
+    
     const parentInsuranceTypes = useMemo(() => 
         [...insuranceTypes]
             .filter(it => !it.parentId && it.active)
@@ -304,26 +301,74 @@ const CrossSellingDashboard: React.FC<CrossSellingDashboardProps> = ({
     const mfVerticalId = useMemo(() => businessVerticals.find(v => v.name.includes('Mutual Fund') || v.name.includes('Investment'))?.id, [businessVerticals]);
     const insuranceVerticalId = useMemo(() => businessVerticals.find(v => v.name === 'Insurance')?.id, [businessVerticals]);
 
-    const isMutualFundView = filters.vertical !== 'all' && filters.vertical === mfVerticalId;
-    const isInsuranceView = filters.vertical !== 'all' && filters.vertical === insuranceVerticalId;
+    const handleFilterChange = (key: keyof FilterState, value: string) => {
+        const updates: Partial<FilterState> = { [key]: value };
+
+        if (key === 'state') {
+            updates.district = 'all';
+            updates.city = 'all';
+            updates.area = 'all';
+        } else if (key === 'district') {
+            updates.city = 'all';
+            updates.area = 'all';
+        } else if (key === 'city') {
+            updates.area = 'all';
+        } else if (key === 'category') {
+            updates.subCategory = 'all';
+        } else if (key === 'branch') {
+            updates.advisor = 'all';
+        } else if (key === 'vertical' && value !== insuranceVerticalId) {
+            updates.insuranceType = 'all';
+        }
+
+        if (value !== 'all') {
+            if (key === 'area') {
+                const area = geographiesMap.get(value);
+                const city = area && geographiesMap.get(area.parentId);
+                const district = city && geographiesMap.get(city.parentId);
+                const state = district && geographiesMap.get(district.parentId);
+                if (city) updates.city = city.id;
+                if (district) updates.district = district.id;
+                if (state) updates.state = state.id;
+            } else if (key === 'city') {
+                const city = geographiesMap.get(value);
+                const district = city && geographiesMap.get(city.parentId);
+                const state = district && geographiesMap.get(district.parentId);
+                if (district) updates.district = district.id;
+                if (state) updates.state = state.id;
+            } else if (key === 'district') {
+                const district = geographiesMap.get(value);
+                const state = district && geographiesMap.get(district.parentId);
+                if (state) updates.state = state.id;
+            } else if (key === 'subCategory') {
+                const subCat = customerSubCategoriesMap.get(value);
+                if (subCat && subCat.parentId) {
+                    updates.category = subCat.parentId;
+                }
+            } else if (key === 'advisor') {
+                const advisor = advisorsMap.get(value);
+                const branchId = (advisor as any)?.branch_id; 
+                if (branchId) {
+                    updates.branch = branchId;
+                }
+            } else if (key === 'insuranceType' && insuranceVerticalId) {
+                updates.vertical = insuranceVerticalId;
+            }
+        }
+
+        setFilters(prev => ({ ...prev, ...updates }));
+    };
+
     const isSpecificInsuranceTypeView = filters.insuranceType !== 'all';
 
     const parentToChildrenMap = useMemo(() => {
         const map = new Map<string, Set<string>>();
-        const insuranceTypeMap = new Map(insuranceTypes.map(it => [it.id, it]));
-
         const getAllDescendantIds = (parentId: string): string[] => {
-            const children = Array.from(insuranceTypeMap.values()).filter(it => it.parentId === parentId).map(it => it.id);
-            let descendantIds: string[] = [...children];
-            for (const childId of children) {
-                descendantIds = [...descendantIds, ...getAllDescendantIds(childId)];
-            }
-            return descendantIds;
+            const children = insuranceTypes.filter(it => it.parentId === parentId).map(it => it.id);
+            return children.reduce((acc, childId) => [...acc, childId, ...getAllDescendantIds(childId)], [] as string[]);
         };
-
         parentInsuranceTypes.forEach(parent => {
-            const allLinkedIds = new Set<string>([parent.id, ...getAllDescendantIds(parent.id)]);
-            map.set(parent.id, allLinkedIds);
+            map.set(parent.id, new Set([parent.id, ...getAllDescendantIds(parent.id)]));
         });
         return map;
     }, [parentInsuranceTypes, insuranceTypes]);
@@ -349,50 +394,39 @@ const CrossSellingDashboard: React.FC<CrossSellingDashboardProps> = ({
             
             if (filters.ownership !== 'all') {
                 let hasProduct = false;
-                if (isMutualFundView) {
+                const isInsuranceView = filters.vertical === 'all' || filters.vertical === insuranceVerticalId;
+                const isMfView = filters.vertical === 'all' || filters.vertical === mfVerticalId;
+
+                if (isInsuranceView) {
+                    if (filters.insuranceType !== 'all') {
+                        const relevantIds = parentToChildrenMap.get(filters.insuranceType) || new Set([filters.insuranceType]);
+                        hasProduct = member.policies.some(p => p.status === 'Active' && p.insuranceTypeId && relevantIds.has(p.insuranceTypeId));
+                    } else {
+                        hasProduct = member.policies.some(p => p.status === 'Active');
+                    }
+                }
+                
+                if (isMfView && !hasProduct) {
                     hasProduct = (member.mutualFundHoldings?.length || 0) > 0;
-                } else if (isSpecificInsuranceTypeView) {
-                    const relevantIds = parentToChildrenMap.get(filters.insuranceType) || new Set([filters.insuranceType]);
-                    hasProduct = member.policies.some(p => p.status === 'Active' && p.insuranceTypeId && relevantIds.has(p.insuranceTypeId));
-                } else if (isInsuranceView) {
-                    hasProduct = member.policies.some(p => p.status === 'Active');
-                } else {
-                    const hasIns = member.policies.some(p => p.status === 'Active');
-                    const hasMF = (member.mutualFundHoldings?.length || 0) > 0;
-                    hasProduct = hasIns || hasMF;
                 }
 
                 if (filters.ownership === 'owned' && !hasProduct) return false;
                 if (filters.ownership === 'not_owned' && hasProduct) return false;
             }
-
-            if (filters.agency !== 'all' || filters.scheme !== 'all') {
-                const hasMatchingPolicy = member.policies.some(p => {
-                    let match = true;
-                    if (filters.scheme !== 'all' && p.schemeId !== filters.scheme) match = false;
-                    return match;
-                });
-                if (!hasMatchingPolicy) return false; 
-            }
-
             return true;
         });
     }, [
         members, searchQuery, filters,
-        states, districts, cities, areas,
-        isMutualFundView, isSpecificInsuranceTypeView, isInsuranceView, parentToChildrenMap
+        states, districts, cities, areas, parentToChildrenMap, insuranceVerticalId, mfVerticalId
     ]);
 
     const showMutualFundsColumn = useMemo(() => {
-        if (isSpecificInsuranceTypeView) return false;
-        if (isInsuranceView) return false;
-        return true;
-    }, [isSpecificInsuranceTypeView, isInsuranceView]);
+        return filters.vertical === 'all' || filters.vertical === mfVerticalId;
+    }, [filters.vertical, mfVerticalId]);
 
     const showInsuranceColumns = useMemo(() => {
-        if (isMutualFundView) return false;
-        return true;
-    }, [isMutualFundView]);
+        return filters.vertical === 'all' || filters.vertical === insuranceVerticalId;
+    }, [filters.vertical, insuranceVerticalId]);
 
     const visibleInsuranceTypes = useMemo(() => {
         if (!showInsuranceColumns) return [];
@@ -402,7 +436,6 @@ const CrossSellingDashboard: React.FC<CrossSellingDashboardProps> = ({
         return parentInsuranceTypes;
     }, [showInsuranceColumns, isSpecificInsuranceTypeView, parentInsuranceTypes, filters.insuranceType]);
 
-
     const getProductPenetration = (parentTypeId: string) => {
         const count = filteredMembers.filter(m => {
             const childIds = parentToChildrenMap.get(parentTypeId);
@@ -411,16 +444,34 @@ const CrossSellingDashboard: React.FC<CrossSellingDashboardProps> = ({
         return { count, total: filteredMembers.length };
     };
 
+    const paginatedMembers = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return filteredMembers.slice(startIndex, endIndex);
+    }, [filteredMembers, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
+
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page);
+        setSelectedMemberIds(new Set()); // Clear selections when changing pages
+    };
+
+    // Reset to first page when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filters, searchQuery]);
+
     const getMutualFundPenetration = () => {
         const count = filteredMembers.filter(m => (m.mutualFundHoldings?.length || 0) > 0).length;
         return { count, total: filteredMembers.length };
     };
 
     const toggleSelectAll = () => {
-        if (selectedMemberIds.size === filteredMembers.length) {
+        if (selectedMemberIds.size === paginatedMembers.length) {
             setSelectedMemberIds(new Set());
         } else {
-            setSelectedMemberIds(new Set(filteredMembers.map(m => m.id)));
+            setSelectedMemberIds(new Set(paginatedMembers.map(m => m.id)));
         }
     };
 
@@ -502,20 +553,29 @@ const CrossSellingDashboard: React.FC<CrossSellingDashboardProps> = ({
         setIsAddFilterModalOpen(true);
     };
 
+    // --- FIX: This is the corrected function ---
     const applyVisibleFilters = () => {
+        const newVisibleSet = new Set(tempVisibleFilters);
+        const removedFilterKeys = visibleFilters.filter(key => !newVisibleSet.has(key));
+
+        // If any filters were removed, reset their values in the main filter state
+        if (removedFilterKeys.length > 0) {
+            const resets: Partial<FilterState> = {};
+            removedFilterKeys.forEach(key => {
+                resets[key as keyof FilterState] = initialFilters[key as keyof FilterState];
+            });
+            setFilters(prev => ({ ...prev, ...resets }));
+        }
+        
         setVisibleFilters(tempVisibleFilters);
         setIsAddFilterModalOpen(false);
     };
 
     const handleSelectAllFilters = () => setTempVisibleFilters(FILTER_OPTIONS_CONFIG.map(o => o.key));
     const handleDeselectAllFilters = () => setTempVisibleFilters([]);
-
-    useEffect(() => {
-    }, [visibleFilters]);
-
+    
     return (
         <div className="space-y-6">
-            {}
             <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700 flex justify-between items-center">
                 <div>
                     <h1 className="text-2xl font-bold text-brand-dark dark:text-white">CrossSelling & Business Promotion</h1>
@@ -530,10 +590,8 @@ const CrossSellingDashboard: React.FC<CrossSellingDashboardProps> = ({
                 </div>
             </div>
 
-            {}
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 p-4">
                 <div className="flex flex-wrap items-end gap-4">
-                    {}
                     <div className="w-full md:w-64">
                         <label className="text-xs font-medium text-gray-500 mb-1 block">Search</label>
                         <div className="relative">
@@ -553,11 +611,10 @@ const CrossSellingDashboard: React.FC<CrossSellingDashboardProps> = ({
                             label="Product Status"
                             options={[{value:'all', label:'All'}, {value:'owned', label:'Owned'}, {value:'not_owned', label:'Not Owned'}]}
                             value={filters.ownership}
-                            onChange={(v) => setFilters(p => ({...p, ownership: v}))}
+                            onChange={(v) => handleFilterChange('ownership', v)}
                         />
                     </div>
 
-                    {}
                     <button 
                         onClick={openAddFilterModal}
                         className="h-10 px-4 rounded-md border border-dashed border-gray-400 text-gray-600 hover:bg-gray-50 dark:border-gray-500 dark:text-gray-300 dark:hover:bg-gray-700 flex items-center gap-2 transition-colors"
@@ -566,8 +623,7 @@ const CrossSellingDashboard: React.FC<CrossSellingDashboardProps> = ({
                         Add Filter
                     </button>
 
-                    {}
-                    {(visibleFilters.length > 0 || searchQuery) && (
+                    {(visibleFilters.length > 0 || searchQuery ) && (
                         <button 
                             onClick={() => { setFilters(initialFilters); setSearchQuery(''); setVisibleFilters([]); }}
                             className="h-10 px-4 text-sm text-red-600 hover:bg-red-50 rounded-md transition-colors"
@@ -577,37 +633,38 @@ const CrossSellingDashboard: React.FC<CrossSellingDashboardProps> = ({
                     )}
                 </div>
 
-                {}
                 {visibleFilters.length > 0 && (
                     <div className="mt-4 pt-4 border-t dark:border-gray-700 grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 animate-fadeIn">
-                        {visibleFilters.includes('vertical') && <SearchableSelect label="Business Vertical" options={[{value:'all', label:'All'}, ...businessVerticals.map(v=>({value:v.id, label:v.name}))]} value={filters.vertical} onChange={(v) => setFilters(p => ({...p, vertical: v}))} />}
-                        {visibleFilters.includes('insuranceType') && <SearchableSelect label="Insurance Type" options={[{value:'all', label:'All'}, ...insuranceTypes.map(t=>({value:t.id, label:t.name}))]} value={filters.insuranceType} onChange={(v) => setFilters(p => ({...p, insuranceType: v}))} />}
-
+                        {visibleFilters.includes('vertical') && <SearchableSelect label="Business Vertical" options={[{value:'all', label:'All'}, ...businessVerticals.map(v=>({value:v.id, label:v.name}))]} value={filters.vertical} onChange={(v) => handleFilterChange('vertical', v)} />}
                         
-                        {visibleFilters.includes('branch') && <SearchableSelect label="Branch" options={[{value:'all', label:'All'}, ...branches.map(b=>({value:b.id, label:b.branch_name}))]} value={filters.branch} onChange={(v) => setFilters(p => ({...p, branch: v}))} />}
-                        {visibleFilters.includes('advisor') && <SearchableSelect label="Advisor" options={[{value:'all', label:'All'}, ...advisors.map(a=>({value:a.id, label:a.name}))]} value={filters.advisor} onChange={(v) => setFilters(p => ({...p, advisor: v}))} />}
-                        {visibleFilters.includes('leadSource') && <SearchableSelect label="Lead Source" options={[{value:'all', label:'All'}, ...leadSources.map(l=>({value:l.id, label:l.name}))]} value={filters.leadSource} onChange={(v) => setFilters(p => ({...p, leadSource: v}))} />}
-
-                        {visibleFilters.includes('agency') && <SearchableSelect label="Agency" options={[{value:'all', label:'All'}, ...agencies.map(a=>({value:a.id, label:a.name}))]} value={filters.agency} onChange={(v) => setFilters(p => ({...p, agency: v}))} />}
-                        {visibleFilters.includes('scheme') && <SearchableSelect label="Scheme" options={[{value:'all', label:'All'}, ...schemes.map(s=>({value:s.id, label:s.name}))]} value={filters.scheme} onChange={(v) => setFilters(p => ({...p, scheme: v}))} />}
-                        {visibleFilters.includes('amc') && <SearchableSelect label="AMC" options={[{value:'all', label:'All'}, ...amcs.map(a=>({value:a.id, label:a.name}))]} value={filters.amc} onChange={(v) => setFilters(p => ({...p, amc: v}))} />}
+                        {visibleFilters.includes('insuranceType') && showInsuranceColumns && (
+                            <SearchableSelect 
+                                label="Insurance Type" 
+                                options={[{value:'all', label:'All'}, ...parentInsuranceTypes.map(t=>({value:t.id, label:t.name}))]} 
+                                value={filters.insuranceType} 
+                                onChange={(v) => handleFilterChange('insuranceType', v)} 
+                            />
+                        )}
                         
-                        {visibleFilters.includes('state') && <SearchableSelect label="State" options={[{value:'all', label:'All'}, ...states.map(s=>({value:s.id, label:s.name}))]} value={filters.state} onChange={(v) => setFilters(p => ({...p, state: v}))} />}
-                        {visibleFilters.includes('district') && <SearchableSelect label="District" options={[{value:'all', label:'All'}, ...districts.map(d=>({value:d.id, label:d.name}))]} value={filters.district} onChange={(v) => setFilters(p => ({...p, district: v}))} />}
-                        {visibleFilters.includes('city') && <SearchableSelect label="City" options={[{value:'all', label:'All'}, ...cities.map(c=>({value:c.id, label:c.name}))]} value={filters.city} onChange={(v) => setFilters(p => ({...p, city: v}))} />}
-                        {visibleFilters.includes('area') && <SearchableSelect label="Area" options={[{value:'all', label:'All'}, ...areas.map(a=>({value:a.id, label:a.name}))]} value={filters.area} onChange={(v) => setFilters(p => ({...p, area: v}))} />}
+                        {visibleFilters.includes('branch') && <SearchableSelect label="Branch" options={[{value:'all', label:'All'}, ...branches.map(b=>({value:b.id, label:b.branch_name}))]} value={filters.branch} onChange={(v) => handleFilterChange('branch', v)} />}
+                        {visibleFilters.includes('advisor') && <SearchableSelect label="Advisor" options={[{value:'all', label:'All'}, ...advisors.map(a=>({value:a.id, label:a.name}))]} value={filters.advisor} onChange={(v) => handleFilterChange('advisor', v)} />}
+                        {visibleFilters.includes('leadSource') && <SearchableSelect label="Lead Source" options={[{value:'all', label:'All'}, ...leadSources.map(l=>({value:l.id, label:l.name}))]} value={filters.leadSource} onChange={(v) => handleFilterChange('leadSource', v)} />}
                         
-                        {visibleFilters.includes('category') && <SearchableSelect label="Category" options={[{value:'all', label:'All'}, ...customerCategories.map(c=>({value:c.id, label:c.name}))]} value={filters.category} onChange={(v) => setFilters(p => ({...p, category: v, subCategory: 'all'}))} />}
-                        {visibleFilters.includes('subCategory') && <SearchableSelect label="Sub-Category" options={[{value:'all', label:'All'}, ...filteredSubCategories.map(c=>({value:c.id, label:c.name}))]} value={filters.subCategory} onChange={(v) => setFilters(p => ({...p, subCategory: v}))} />}
+                        {visibleFilters.includes('state') && <SearchableSelect label="State" options={[{value:'all', label:'All'}, ...states.map(s=>({value:s.id, label:s.name}))]} value={filters.state} onChange={(v) => handleFilterChange('state', v)} />}
+                        {visibleFilters.includes('district') && <SearchableSelect label="District" options={[{value:'all', label:'All'}, ...districts.map(d=>({value:d.id, label:d.name}))]} value={filters.district} onChange={(v) => handleFilterChange('district', v)} />}
+                        {visibleFilters.includes('city') && <SearchableSelect label="City" options={[{value:'all', label:'All'}, ...cities.map(c=>({value:c.id, label:c.name}))]} value={filters.city} onChange={(v) => handleFilterChange('city', v)} />}
+                        {visibleFilters.includes('area') && <SearchableSelect label="Area" options={[{value:'all', label:'All'}, ...areas.map(a=>({value:a.id, label:a.name}))]} value={filters.area} onChange={(v) => handleFilterChange('area', v)} />}
                         
-                        {visibleFilters.includes('group') && <SearchableSelect label="Group" options={[{value:'all', label:'All'}, ...customerGroups.map(c=>({value:c.id, label:c.name}))]} value={filters.group} onChange={(v) => setFilters(p => ({...p, group: v}))} />}
-                        {visibleFilters.includes('tier') && <SearchableSelect label="Customer Tier" options={[{value:'all', label:'All'}, ...customerTypes.map(t=>({value:t.id, label:t.name}))]} value={filters.tier} onChange={(v) => setFilters(p => ({...p, tier: v}))} />}
-                        {visibleFilters.includes('gender') && <SearchableSelect label="Gender" options={[{value:'all', label:'All'}, ...genders.map(g=>({value:g.id, label:g.name}))]} value={filters.gender} onChange={(v) => setFilters(p => ({...p, gender: v}))} />}
+                        {visibleFilters.includes('category') && <SearchableSelect label="Category" options={[{value:'all', label:'All'}, ...customerCategories.map(c=>({value:c.id, label:c.name}))]} value={filters.category} onChange={(v) => handleFilterChange('category', v)} />}
+                        {visibleFilters.includes('subCategory') && <SearchableSelect label="Sub-Category" options={[{value:'all', label:'All'}, ...filteredSubCategories.map(c=>({value:c.id, label:c.name}))]} value={filters.subCategory} onChange={(v) => handleFilterChange('subCategory', v)} />}
+                        
+                        {visibleFilters.includes('group') && <SearchableSelect label="Group" options={[{value:'all', label:'All'}, ...customerGroups.map(c=>({value:c.id, label:c.name}))]} value={filters.group} onChange={(v) => handleFilterChange('group', v)} />}
+                        {visibleFilters.includes('tier') && <SearchableSelect label="Customer Tier" options={[{value:'all', label:'All'}, ...customerTypes.map(t=>({value:t.id, label:t.name}))]} value={filters.tier} onChange={(v) => handleFilterChange('tier', v)} />}
+                        {visibleFilters.includes('gender') && <SearchableSelect label="Gender" options={[{value:'all', label:'All'}, ...genders.map(g=>({value:g.id, label:g.name}))]} value={filters.gender} onChange={(v) => handleFilterChange('gender', v)} />}
                     </div>
                 )}
             </div>
-
-            {}
+            
             <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
@@ -615,7 +672,7 @@ const CrossSellingDashboard: React.FC<CrossSellingDashboardProps> = ({
                             <tr>
                                 <th className="px-4 py-3 w-10 text-center">
                                     <button onClick={toggleSelectAll} className="text-gray-500 hover:text-brand-primary">
-                                        {selectedMemberIds.size > 0 && selectedMemberIds.size === filteredMembers.length ? <CheckSquare size={18} /> : <Square size={18} />}
+                                        {selectedMemberIds.size > 0 && selectedMemberIds.size === paginatedMembers.length ? <CheckSquare size={18} /> : <Square size={18} />}
                                     </button>
                                 </th>
                                 <th className="px-4 py-3 text-left font-semibold text-gray-600 dark:text-gray-300 min-w-[200px]">
@@ -648,7 +705,7 @@ const CrossSellingDashboard: React.FC<CrossSellingDashboardProps> = ({
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                            {filteredMembers.map(member => {
+                            {paginatedMembers.map(member => {
                                 const isSelected = selectedMemberIds.has(member.id);
                                 const hasMF = (member.mutualFundHoldings?.length || 0) > 0;
                                 
@@ -698,6 +755,16 @@ const CrossSellingDashboard: React.FC<CrossSellingDashboardProps> = ({
                         <div className="p-8 text-center text-gray-500">No customers found matching these filters.</div>
                     )}
                 </div>
+                
+                {filteredMembers.length > 0 && (
+                    <Pagination
+                        currentPage={currentPage}
+                        totalPages={totalPages}
+                        onPageChange={handlePageChange}
+                        itemsPerPage={itemsPerPage}
+                        totalItems={filteredMembers.length}
+                    />
+                )}
             </div>
 
             <BulkCreationModal 
@@ -705,7 +772,6 @@ const CrossSellingDashboard: React.FC<CrossSellingDashboardProps> = ({
                 advisors={advisors} branches={branches} insuranceTypes={insuranceTypes} leadSources={leadSources} onSubmit={handleBulkSubmit} addToast={addToast}
             />
 
-            {}
             {isAddFilterModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fadeIn" onClick={() => setIsAddFilterModalOpen(false)}>
                     <div className="bg-white dark:bg-gray-800 w-full max-w-2xl flex flex-col max-h-[70vh] rounded-lg shadow-xl" onClick={(e) => e.stopPropagation()}>

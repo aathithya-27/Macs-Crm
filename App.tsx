@@ -2265,7 +2265,6 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                                 <Route path="/CrossSelling" element={
                                     <CrossSellingDashboard 
                                         members={companyMembers} 
-                                        upsellCategories={upsellCategories} 
                                         insuranceTypes={insuranceTypes} 
                                         addToast={addToast} 
                                         users={companyUsers} 
@@ -2274,9 +2273,6 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                                         onCreateLead={handleCreateLeadFromUpsell} 
                                         onBulkCreateLeads={handleBulkCreateLeads}
                                         businessVerticals={businessVerticals}
-                                        schemes={schemes}
-                                        amcs={amcs}
-                                        agencies={agencies}
                                         geographies={geographies}
                                         customerCategories={customerCategories}
                                         customerSubCategories={customerSubCategories}
