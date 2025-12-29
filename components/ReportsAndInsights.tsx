@@ -108,7 +108,6 @@ export const ReportsAndInsights: React.FC<{
                         attendance={attendance} 
                         onUpdateAttendance={onUpdateAttendance}
                         allLeads={allLeads} 
-                        onOpenAttendanceReport={onOpenAttendanceReport}
                         designations={designations} 
                         roles={roles} 
                     />

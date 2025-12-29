@@ -1,12 +1,13 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo,useEffect } from 'react';
 import { User, Member, Branch, AttendanceState, Designation, AppModule, PermissionLevel, Role, AttendanceRecord } from '../types.ts';
 import Button from './ui/Button.tsx';
-import { Plus, Search, Edit, Users, Building, Info, ArrowUp, ArrowDown, Edit2, Briefcase, Clock, X } from 'lucide-react';
+import { Plus, Search, Edit, Users, Building, Info, ArrowUp, ArrowDown, Edit2, Briefcase, Clock, X, Calendar, Filter } from 'lucide-react';
 import ToggleSwitch from './ui/ToggleSwitch.tsx';
 import { ViewByBranchModal } from './ViewByBranchModal.tsx';
 import Pagination from './ui/Pagination.tsx';
 import Modal from './ui/Modal.tsx';
 import Input from './ui/Input.tsx';
+import { AttendanceReportModal } from './AttendanceReportModal.tsx';
 
 type SortKey = 'name' | 'joiningDate' | 'branch' | 'attendance';
 type SortConfig = { key: SortKey; direction: 'asc' | 'desc' };
@@ -81,6 +82,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
   const [isReasonModalOpen, setIsReasonModalOpen] = useState(false);
   const [editingEmployeeForReason, setEditingEmployeeForReason] = useState<User | null>(null);
   const [attendanceMenuFor, setAttendanceMenuFor] = useState<string | null>(null);
+  const [isAttendanceReportOpen, setIsAttendanceReportOpen] = useState(false);
 
   const canCreate = permissions?.employees === 'create' || permissions?.employees === 'modify';
   const canModify = permissions?.employees === 'modify';
@@ -94,10 +96,20 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
   const roleMap = useMemo(() => new Map(roles.map(r => [r.id, r.name])), [roles]);
 
   const employees = useMemo(() => {
-    let filteredEmployees = users.filter(user => 
-        (user.employeeId.toLowerCase().includes(searchQuery.toLowerCase()) || 
-         user.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
+    let filteredEmployees = users.filter(user => {
+        const query = searchQuery.toLowerCase();
+        const designation = designationMap.get(user.designationId) || '';
+        const role = user.roleId ? roleMap.get(user.roleId) || '' : '';
+        const branch = branchMap.get(user.profile?.employeebranch_id || '') || '';
+        const joiningDate = user.profile?.dateOfJoining ? new Date(user.profile.dateOfJoining).toLocaleDateString('en-GB') : '';
+        
+        return user.employeeId.toLowerCase().includes(query) ||
+               user.name.toLowerCase().includes(query) ||
+               designation.toLowerCase().includes(query) ||
+               role.toLowerCase().includes(query) ||
+               branch.toLowerCase().includes(query) ||
+               joiningDate.includes(query);
+    });
 
     if (statusFilter !== 'All Employees') {
         filteredEmployees = filteredEmployees.filter(emp => emp.profile?.status === statusFilter);
@@ -213,11 +225,16 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
           <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Employee Management</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">Create, view, and manage employee profiles.</p>
         </div>
-        {canCreate && (
-            <Button onClick={() => onOpenEmployeeModal(null)} variant="success">
-                <Plus size={16} /> Create New Employee
-            </Button>
-        )}
+        <div className="flex gap-2">
+          <Button onClick={() => setIsAttendanceReportOpen(true)} variant="secondary" size="small" className="flex items-center gap-2">
+            <Calendar size={16} /> Attendance Report
+          </Button>
+          {canCreate && (
+              <Button onClick={() => onOpenEmployeeModal(null)} variant="success">
+                  <Plus size={16} /> Create New Employee
+              </Button>
+          )}
+        </div>
       </div>
       
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border dark:border-gray-700">
@@ -227,7 +244,7 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                     <input
                         type="text"
-                        placeholder="Search by Employee ID or Name..."
+                        placeholder="Search by ID, Name, Designation, Role, Branch, or Date..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
@@ -299,32 +316,51 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                             {employee.profile?.dateOfJoining ? new Date(employee.profile.dateOfJoining).toLocaleDateString('en-GB') : 'N/A'}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm relative">
-                            {attendanceMenuFor === employee.id ? (
-                                <div className="absolute z-10 top-0 left-0 bg-white dark:bg-gray-900 shadow-lg rounded-lg p-2 flex items-center gap-2 border dark:border-gray-600">
-                                    <Button size="small" variant="light" className="!p-2" onClick={() => handleAdminMarkAttendance(employee, 'Present')} title="Present"><Users size={18}/></Button>
-                                    <Button size="small" variant="light" className="!p-2" onClick={() => handleAdminMarkAttendance(employee, 'Work From Home')} title="Work From Home"><Briefcase size={18}/></Button>
-                                    <Button size="small" variant="light" className="!p-2" onClick={() => handleAdminMarkAttendance(employee, 'Absent')} title="Absent"><X size={18}/></Button>
-                                    <div className="border-l h-6 mx-1 dark:border-gray-600"></div>
-                                    <Button size="small" variant="light" className="!p-2" onClick={() => setAttendanceMenuFor(null)} title="Cancel"><X size={18} className="text-red-500"/></Button>
-                                </div>
-                            ) : todaysRecord ? (
-                                <div className="flex flex-col items-start">
-                                    <div className="flex items-center gap-2">
-                                        {todaysRecord.status === 'Present' && <span className="font-semibold text-green-600 dark:text-green-400 flex items-center gap-2"><Users size={14}/> Present</span>}
-                                        {todaysRecord.status === 'Work From Home' && <span className="font-semibold text-blue-600 dark:text-blue-400 flex items-center gap-2"><Briefcase size={14}/> WFH</span>}
-                                        {todaysRecord.status === 'Absent' && <span className="font-semibold text-red-600 dark:text-red-400 flex items-center gap-2"><X size={14}/> Absent</span>}
-                                        
-                                        {canModify && <Button size="small" variant="light" className="!p-1" onClick={() => setAttendanceMenuFor(employee.id)}><Edit2 size={12}/></Button>}
+                          <td className="px-6 py-4 whitespace-nowrap text-sm relative" onClick={(e) => e.stopPropagation()}>
+                            <div 
+                                className="cursor-pointer inline-flex flex-col items-center group/att"
+                                onClick={() => canModify && setAttendanceMenuFor(attendanceMenuFor === employee.id ? null : employee.id)}
+                            >
+                                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold border transition-colors ${
+                                    todaysRecord?.status === 'Present' ? 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800' : 
+                                    todaysRecord?.status === 'Absent' ? 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800' :
+                                    todaysRecord?.status === 'Work From Home' ? 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' :
+                                    'bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-600'
+                                }`}>
+                                    {todaysRecord?.status === 'Present' && <><Users size={12}/> Present</>}
+                                    {todaysRecord?.status === 'Work From Home' && <><Briefcase size={12}/> WFH</>}
+                                    {todaysRecord?.status === 'Absent' && <><X size={12}/> Absent</>}
+                                    {!todaysRecord && 'Mark'}
+                                </span>
+                                {canModify && <span className="text-[10px] text-gray-400 group-hover/att:text-blue-500">Update</span>}
+                            </div>
+
+                            {todaysRecord?.reason && todaysRecord.status === 'Absent' && (
+                                <p className="text-xs text-gray-400 truncate max-w-[150px] mt-1" title={todaysRecord.reason}>{todaysRecord.reason}</p>
+                            )}
+
+                            {/* Attendance Selection Menu */}
+                            {attendanceMenuFor === employee.id && (
+                                <>
+                                    <div 
+                                        className="fixed inset-0 z-10 cursor-default" 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setAttendanceMenuFor(null);
+                                        }}
+                                    />
+                                    <div className="absolute top-12 left-1/2 transform -translate-x-1/2 z-20 bg-white dark:bg-gray-800 shadow-xl rounded-lg border dark:border-gray-600 p-1 flex flex-col gap-1 w-32 animate-in fade-in zoom-in duration-200">
+                                        <button onClick={() => handleAdminMarkAttendance(employee, 'Present')} className="px-2 py-1.5 hover:bg-green-50 dark:hover:bg-green-900/20 text-green-700 dark:text-green-300 text-xs font-medium rounded text-left flex items-center gap-2">
+                                            <Users size={12}/> Present
+                                        </button>
+                                        <button onClick={() => handleAdminMarkAttendance(employee, 'Work From Home')} className="px-2 py-1.5 hover:bg-blue-50 dark:hover:bg-blue-900/20 text-blue-700 dark:text-blue-300 text-xs font-medium rounded text-left flex items-center gap-2">
+                                            <Briefcase size={12}/> WFH
+                                        </button>
+                                        <button onClick={() => handleAdminMarkAttendance(employee, 'Absent')} className="px-2 py-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 text-red-700 dark:text-red-300 text-xs font-medium rounded text-left flex items-center gap-2">
+                                            <X size={12}/> Absent
+                                        </button>
                                     </div>
-                                    {todaysRecord.reason && todaysRecord.status === 'Absent' && (
-                                        <p className="text-xs text-gray-400 truncate max-w-[150px]" title={todaysRecord.reason}>{todaysRecord.reason}</p>
-                                    )}
-                                </div>
-                            ) : (
-                                <button onClick={() => canModify && setAttendanceMenuFor(employee.id)} className="text-gray-500 italic hover:text-gray-700 dark:hover:text-gray-300 disabled:cursor-not-allowed" disabled={!canModify}>
-                                    Not Marked
-                                </button>
+                                </>
                             )}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -376,6 +412,14 @@ const EmployeeManagement: React.FC<EmployeeManagementProps> = ({ users, allMembe
         employee={editingEmployeeForReason}
         initialReason={todaysRecordForModal?.reason || ''}
         onSave={(newReason) => handleSaveReason(newReason)}
+      />
+      <AttendanceReportModal
+        isOpen={isAttendanceReportOpen}
+        onClose={() => setIsAttendanceReportOpen(false)}
+        attendance={attendance}
+        users={users}
+        designations={designations}
+        roles={roles}
       />
     </div>
   );

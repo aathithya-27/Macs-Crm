@@ -27,10 +27,9 @@ export const EmployeePerformance: React.FC<{
     attendance: AttendanceState;
     onUpdateAttendance: (userId: string, status: AttendanceRecord['status'], reason?: string) => void;
     allLeads: Lead[];
-    onOpenAttendanceReport: () => void;
     designations: Designation[];
     roles: Role[];
-}> = ({ members, users, tasks, attendance, onUpdateAttendance, allLeads, onOpenAttendanceReport, designations, roles }) => {
+}> = ({ members, users, tasks, attendance, onUpdateAttendance, allLeads, designations, roles }) => {
     
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
     const [viewAdvisorsOnly, setViewAdvisorsOnly] = useState(false);
@@ -173,11 +172,6 @@ export const EmployeePerformance: React.FC<{
                     </h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Track targets, tasks, and team availability.</p>
                 </div>
-                <div>
-                    <Button onClick={onOpenAttendanceReport} variant="secondary" size="small" className="flex items-center gap-2">
-                        <Calendar size={16} /> Full Attendance Report
-                    </Button>
-                </div>
             </div>
 
             {}
@@ -228,21 +222,17 @@ export const EmployeePerformance: React.FC<{
                 </div>
 
                 {}
-                <div 
-                    className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col justify-between cursor-pointer hover:border-purple-300 transition-colors group"
-                    onClick={onOpenAttendanceReport}
-                >
+                <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col justify-between">
                     <div>
                         <div className="flex justify-between items-start">
                             <p className="text-gray-500 text-xs font-bold uppercase">Present Today</p>
-                            <ChevronRight size={16} className="text-gray-400 group-hover:text-purple-500"/>
                         </div>
                         <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">
                             {presentTodayCount} <span className="text-sm font-normal text-gray-400">/ {totalStaff}</span>
                         </h3>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-purple-600 font-medium">
-                        <Users size={14} /> View Full Report
+                        <Users size={14} /> Team Status
                     </div>
                 </div>
             </div>

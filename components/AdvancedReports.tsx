@@ -7,7 +7,7 @@ import {
 } from '../types.ts';
 import { 
     Download, BarChart3, PieChart as PieChartIcon, 
-    Filter, X, Search, FileX, AlertCircle, Plus, Check, Users, Briefcase, Combine, UserPlus
+    Filter, X, Search, FileX, AlertCircle, Plus, Check, Users, Briefcase, Combine, UserPlus, Printer
 } from 'lucide-react';
 import Button from './ui/Button.tsx';
 import Input from './ui/Input.tsx';
@@ -1148,6 +1148,74 @@ const filteredData = useMemo(() => {
         link.click();
     };
 
+    const handlePrint = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+
+        const headers = visibleColumns.map(key => getColumnHeader(key));
+        const data = filteredData.map((item, i) => {
+            const policy = 'policy' in item ? item.policy : undefined;
+            return getExportRow(item, i, policy);
+        });
+
+        const reportTitle = `${reportMode === 'customer' ? 'Customer' : reportMode === 'business' ? 'Business' : 'Combined'} Report${recordType === 'lead' ? ' - Leads' : ''}`;
+        const dateRange = `${dateFrom ? format(parseISO(dateFrom), 'dd/MM/yyyy') : 'N/A'} to ${dateTo ? format(parseISO(dateTo), 'dd/MM/yyyy') : 'N/A'}`;
+
+        const printContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${reportTitle}</title>
+                <style>
+                    @media print {
+                        body { margin: 0; font-family: Arial, sans-serif; font-size: 12px; }
+                        .no-print { display: none !important; }
+                        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                        th { background-color: #f5f5f5; font-weight: bold; }
+                        .header { margin-bottom: 20px; }
+                        .title { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
+                        .subtitle { font-size: 14px; color: #666; }
+                        @page { margin: 1cm; }
+                    }
+                    body { margin: 20px; font-family: Arial, sans-serif; font-size: 12px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    th { background-color: #f5f5f5; font-weight: bold; }
+                    .header { margin-bottom: 20px; }
+                    .title { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
+                    .subtitle { font-size: 14px; color: #666; }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="title">${reportTitle}</div>
+                    <div class="subtitle">Date Range: ${dateRange}</div>
+                    <div class="subtitle">Generated: ${format(new Date(), 'dd/MM/yyyy HH:mm')}</div>
+                    <div class="subtitle">Total Records: ${filteredData.length}</div>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            ${headers.map(header => `<th>${header}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(row => 
+                            `<tr>${row.map(cell => `<td>${String(cell)}</td>`).join('')}</tr>`
+                        ).join('')}
+                    </tbody>
+                </table>
+            </body>
+            </html>
+        `;
+
+        printWindow.document.write(printContent);
+        printWindow.document.close();
+        printWindow.focus();
+        printWindow.print();
+    };
+
     return (
         <div className="space-y-6 pb-20 relative">
             {}
@@ -1310,6 +1378,7 @@ const filteredData = useMemo(() => {
                             <div className="flex gap-2">
                                 <Button variant="ghost" onClick={exportPDF} disabled={filteredData.length === 0}><Download size={16} /> PDF</Button>
                                 <Button variant="ghost" onClick={exportCSV} disabled={filteredData.length === 0}><Download size={16} /> CSV</Button>
+                                <Button variant="ghost" onClick={handlePrint} disabled={filteredData.length === 0}><Printer size={16} /> Print</Button>
                             </div>
                         </div>
                         
