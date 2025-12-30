@@ -540,14 +540,30 @@ let members: Member[] = [
       policies: [],
       mutualFundHoldings: [
           {
-              id: 'mfh-2', 
+              id: 'mfh-2a', 
               schemeId: 'mf-1', 
               folioNumber: '12345', 
               investmentType: 'Lumpsum',
-              totalInvestment: 500000, 
-              units: 5000, 
-              currentValue: 750000,
-              transactions: [], 
+              totalInvestment: 550000, 
+              units: 5450, 
+              currentValue: 650000,
+              transactions: [
+                  { id: 'tx-1', date: '2025-11-15', type: 'Additional Purchase', amount: 50000, units: 450, nav: 111.11 }
+              ], 
+              status: 'Active'
+          },
+          {
+              id: 'mfh-2b', 
+              schemeId: 'mf-2', 
+              folioNumber: '12346', 
+              investmentType: 'Lumpsum',
+              totalInvestment: 120777, 
+              units: 1050, 
+              currentValue: 140000,
+              transactions: [
+                  { id: 'tx-2', date: '2025-12-10', type: 'Additional Purchase', amount: 75000, units: 650, nav: 115.38 },
+                  { id: 'tx-3', date: '2025-12-30', type: 'Additional Purchase', amount: 45777, units: 400, nav: 114.44 }
+              ], 
               status: 'Active'
           }
       ],
@@ -710,14 +726,17 @@ let members: Member[] = [
       mutualFundHoldings: [
           {
               id: 'mfh-1', 
-              schemeId: 'mf-2', 
+              schemeId: 'mf-1', 
               folioNumber: '987654321', 
               investmentType: 'SIP',
-              totalInvestment: 200000, 
-              units: 2000, 
+              totalInvestment: 220000, 
+              units: 2167, 
               currentValue: 250000, 
               status: 'Active', 
-              transactions: []
+              transactions: [
+                  { id: 'tx-4', date: '2025-11-05', type: 'SIP Installment', amount: 10000, units: 85, nav: 117.65 },
+                  { id: 'tx-5', date: '2025-12-05', type: 'SIP Installment', amount: 10000, units: 82, nav: 121.95 }
+              ]
           }
       ],
       leadSource: { sourceId: 'ls-ref', detail: 'Priya Sharma' },
