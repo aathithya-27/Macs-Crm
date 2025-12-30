@@ -38,6 +38,7 @@ export const EmployeePerformance: React.FC<{
     
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [taskModalFilter, setTaskModalFilter] = useState<'All' | 'Pending' | 'Overdue' | 'Completed'>('All');
+    const [isRevenueModalOpen, setIsRevenueModalOpen] = useState(false);
 
     const designationMap = useMemo(() => new Map(designations.map(d => [d.id, d.name])), [designations]);
     const roleMap = useMemo(() => new Map(roles.map(r => [r.id, r])), [roles]);
@@ -51,7 +52,9 @@ export const EmployeePerformance: React.FC<{
             const isAdvisor = roleMap.get(user.roleId || '')?.isAdvisor ?? false;
             
             const myCustomers = members.filter(m => m.assignedTo.includes(user.id));
-            const revenue = myCustomers.reduce((sum, m) => sum + m.policies.reduce((pSum, p) => pSum + p.premium, 0), 0);
+            const insuranceRevenue = myCustomers.reduce((sum, m) => sum + m.policies.reduce((pSum, p) => pSum + p.premium, 0), 0);
+            const mutualFundRevenue = myCustomers.reduce((sum, m) => sum + (m.mutualFundHoldings?.reduce((mfSum, mf) => mfSum + (mf.totalInvestment || 0), 0) || 0), 0);
+            const revenue = insuranceRevenue + mutualFundRevenue;
             
             const myLeads = allLeads.filter(l => l.assignedTo === user.id);
             const convertedCount = myCustomers.filter(m => m.leadSource).length; 
@@ -73,6 +76,8 @@ export const EmployeePerformance: React.FC<{
                 user, 
                 isAdvisor, 
                 revenue, 
+                insuranceRevenue,
+                mutualFundRevenue,
                 conversionRate,
                 convertedCount,
                 tasks: { total: myTasks.length, completed, overdue, all: myTasks }, 
@@ -135,6 +140,8 @@ export const EmployeePerformance: React.FC<{
 
     const topPerformer = stats[0];
     const totalRevenue = stats.reduce((sum, s) => sum + s.revenue, 0);
+    const totalInsuranceRevenue = stats.reduce((sum, s) => sum + s.insuranceRevenue, 0);
+    const totalMutualFundRevenue = stats.reduce((sum, s) => sum + s.mutualFundRevenue, 0);
     const presentTodayCount = stats.filter(s => s.todayStatus === 'Present' || s.todayStatus === 'Work From Home').length;
     const totalStaff = stats.length;
 
@@ -192,13 +199,21 @@ export const EmployeePerformance: React.FC<{
                 </div>
 
                 {}
-                <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col justify-between">
+                <div 
+                    className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col justify-between cursor-pointer hover:border-blue-300 transition-colors group"
+                    onClick={() => setIsRevenueModalOpen(true)}
+                >
                     <div>
-                        <p className="text-gray-500 text-xs font-bold uppercase">Team Revenue (Month)</p>
+                        <div className="flex justify-between items-start">
+                            <p className="text-gray-500 text-xs font-bold uppercase">Team Revenue (Month)</p>
+                            <ChevronRight size={16} className="text-gray-400 group-hover:text-blue-500"/>
+                        </div>
                         <h3 className="text-2xl font-bold text-gray-900 dark:text-white mt-1">{formatCurrency(totalRevenue)}</h3>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs text-green-600 font-medium bg-green-50 dark:bg-green-900/20 w-fit px-2 py-1 rounded">
-                        <TrendingUp size={14} /> Active
+                        {(totalInsuranceRevenue > 0 || totalMutualFundRevenue > 0) && (
+                            <p className="text-xs text-black dark:text-white mt-1">
+                                Ins: {formatCurrency(totalInsuranceRevenue)} | MF: {formatCurrency(totalMutualFundRevenue)}
+                            </p>
+                        )}
                     </div>
                 </div>
 
@@ -304,7 +319,14 @@ export const EmployeePerformance: React.FC<{
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             {emp.isAdvisor ? (
-                                                <span className="font-bold text-gray-800 dark:text-white">{formatCurrency(emp.revenue)}</span>
+                                                <div className="text-right">
+                                                    <span className="font-bold text-gray-800 dark:text-white">{formatCurrency(emp.revenue)}</span>
+                                                    {(emp.insuranceRevenue > 0 || emp.mutualFundRevenue > 0) && (
+                                                        <p className="text-xs text-black dark:text-white">
+                                                            Ins: {formatCurrency(emp.insuranceRevenue)} | MF: {formatCurrency(emp.mutualFundRevenue)}
+                                                        </p>
+                                                    )}
+                                                </div>
                                             ) : <span className="text-xs text-gray-400">-</span>}
                                         </td>
                                         <td className="px-6 py-4">
@@ -434,8 +456,18 @@ export const EmployeePerformance: React.FC<{
                                     <h4 className="font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2"><TrendingUp size={16}/> Sales Performance</h4>
                                     <div className="space-y-6">
                                         <div className="flex justify-between items-center">
-                                            <span className="text-sm text-gray-500 dark:text-gray-400">Total Premium</span>
+                                            <span className="text-sm text-gray-500 dark:text-gray-400">Total Revenue</span>
                                             <span className="text-xl font-bold text-indigo-600 dark:text-indigo-400">{formatCurrency(selectedEmpData.revenue)}</span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-xs text-gray-500 dark:text-gray-400">Insurance</span>
+                                                <span className="text-sm font-bold text-blue-600">{formatCurrency(selectedEmpData.insuranceRevenue)}</span>
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-xs text-gray-500 dark:text-gray-400">Mutual Funds</span>
+                                                <span className="text-sm font-bold text-purple-600">{formatCurrency(selectedEmpData.mutualFundRevenue)}</span>
+                                            </div>
                                         </div>
                                         <div className="flex justify-between items-center">
                                             <span className="text-sm text-gray-500 dark:text-gray-400">Conversion Rate</span>
@@ -559,6 +591,63 @@ export const EmployeePerformance: React.FC<{
                                     )}
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
+            {isRevenueModalOpen && (
+                <Modal isOpen={isRevenueModalOpen} onClose={() => setIsRevenueModalOpen(false)}>
+                    <div className="bg-white dark:bg-gray-800 rounded-lg max-w-6xl w-full mx-auto my-8 flex flex-col max-h-[85vh]">
+                        <div className="p-5 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                            <h3 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                                <TrendingUp size={20} className="text-green-500"/> Team Revenue Breakdown
+                            </h3>
+                            <button onClick={() => setIsRevenueModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1"><X size={20}/></button>
+                        </div>
+                        
+                        <div className="p-6 space-y-6 overflow-auto">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="bg-blue-50 dark:bg-blue-900/20 p-6 rounded-xl border border-blue-200 dark:border-blue-800">
+                                    <h4 className="font-bold text-blue-800 dark:text-blue-300 mb-4 flex items-center gap-2">
+                                        <Shield size={16}/> Insurance Revenue: {formatCurrency(totalInsuranceRevenue)}
+                                    </h4>
+                                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                                        {stats.filter(s => s.isAdvisor && s.insuranceRevenue > 0).map(advisor => {
+                                            const insuranceCustomers = members.filter(m => m.assignedTo.includes(advisor.id) && m.policies.length > 0);
+                                            return (
+                                                <div key={advisor.id} className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg border">
+                                                    <div>
+                                                        <p className="font-medium text-gray-900 dark:text-white">{advisor.user.name}</p>
+                                                        <p className="text-xs text-gray-500">{insuranceCustomers.length} customers</p>
+                                                    </div>
+                                                    <span className="font-bold text-blue-600">{formatCurrency(advisor.insuranceRevenue)}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                                
+                                <div className="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-xl border border-purple-200 dark:border-purple-800">
+                                    <h4 className="font-bold text-purple-800 dark:text-purple-300 mb-4 flex items-center gap-2">
+                                        <TrendingUp size={16}/> Mutual Fund Revenue: {formatCurrency(totalMutualFundRevenue)}
+                                    </h4>
+                                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                                        {stats.filter(s => s.isAdvisor && s.mutualFundRevenue > 0).map(advisor => {
+                                            const mutualFundCustomers = members.filter(m => m.assignedTo.includes(advisor.id) && m.mutualFundHoldings?.length > 0);
+                                            return (
+                                                <div key={advisor.id} className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded-lg border">
+                                                    <div>
+                                                        <p className="font-medium text-gray-900 dark:text-white">{advisor.user.name}</p>
+                                                        <p className="text-xs text-gray-500">{mutualFundCustomers.length} customers</p>
+                                                    </div>
+                                                    <span className="font-bold text-purple-600">{formatCurrency(advisor.mutualFundRevenue)}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </Modal>

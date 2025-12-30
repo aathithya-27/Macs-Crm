@@ -3,7 +3,7 @@ import {
     ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend, 
     BarChart, Bar, CartesianGrid, XAxis, YAxis, Sector
 } from 'recharts';
-import { Member, SchemeMaster, InsuranceTypeMaster, User } from '../types.ts';
+import { Member, SchemeMaster, InsuranceTypeMaster, User, MutualFundScheme, AMC } from '../types.ts';
 import { FileText, Phone, X, MapPin, User as UserIcon, Search, PieChart as PieIcon, BarChart3, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import Modal from './ui/Modal.tsx';
 
@@ -51,7 +51,8 @@ const DrillDownContent: React.FC<{
     customers: Member[];
     onClose: () => void;
     userMap: Map<string, string>;
-}> = ({ title, customers, onClose, userMap }) => {
+    businessVertical: 'All' | 'Insurance' | 'Mutual Funds';
+}> = ({ title, customers, onClose, userMap, businessVertical }) => {
     const [modalSearch, setModalSearch] = useState('');
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
 
@@ -160,10 +161,10 @@ const DrillDownContent: React.FC<{
                                     <div className="flex items-center">Customer Name <SortIcon columnKey="name" sortConfig={sortConfig}/></div>
                                 </th>
                                 <th className="px-6 py-4 text-right font-bold text-gray-500 uppercase cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50" onClick={() => requestSort('premium')}>
-                                    <div className="flex items-center justify-end">Premium <SortIcon columnKey="premium" sortConfig={sortConfig}/></div>
+                                    <div className="flex items-center justify-end">Value <SortIcon columnKey="premium" sortConfig={sortConfig}/></div>
                                 </th>
                                 <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50" onClick={() => requestSort('policyType')}>
-                                    <div className="flex items-center">Policy Type <SortIcon columnKey="policyType" sortConfig={sortConfig}/></div>
+                                    <div className="flex items-center">Type <SortIcon columnKey="policyType" sortConfig={sortConfig}/></div>
                                 </th>
                                 <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50" onClick={() => requestSort('location')}>
                                     <div className="flex items-center">Location <SortIcon columnKey="location" sortConfig={sortConfig}/></div>
@@ -176,8 +177,26 @@ const DrillDownContent: React.FC<{
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                             {filteredCustomers.map((m, i) => {
-                                const policyPremium = m.policies.reduce((sum, p) => sum + p.premium, 0);
-                                const policyType = m.policies.length > 0 ? (m.policies[0].policyType || 'General') : 'N/A';
+                                let customerValue = 0;
+                                let customerType = 'N/A';
+                                
+                                if (businessVertical === 'Insurance') {
+                                    customerValue = m.policies.reduce((sum, p) => sum + p.premium, 0);
+                                    customerType = m.policies[0]?.policyType || 'General';
+                                } else if (businessVertical === 'Mutual Funds') {
+                                    customerValue = m.mutualFundHoldings?.reduce((sum, mf) => sum + (mf.totalInvestment || 0), 0) || 0;
+                                    customerType = m.mutualFundHoldings?.[0]?.investmentType || 'Lumpsum';
+                                } else {
+                                    const insuranceValue = m.policies.reduce((sum, p) => sum + p.premium, 0);
+                                    const mutualFundValue = m.mutualFundHoldings?.reduce((sum, mf) => sum + (mf.totalInvestment || 0), 0) || 0;
+                                    customerValue = insuranceValue + mutualFundValue;
+                                    
+                                    if (insuranceValue >= mutualFundValue && insuranceValue > 0) {
+                                        customerType = m.policies[0]?.policyType || 'General';
+                                    } else if (mutualFundValue > 0) {
+                                        customerType = m.mutualFundHoldings?.[0]?.investmentType || 'Lumpsum';
+                                    }
+                                }
                                 
                                 return (
                                     <tr key={m.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
@@ -185,10 +204,10 @@ const DrillDownContent: React.FC<{
                                             <p className="font-bold text-gray-900 dark:text-white">{m.name}</p>
                                         </td>
                                         <td className="px-6 py-4 text-right font-bold text-gray-800 dark:text-gray-200">
-                                            {formatCurrency(policyPremium)}
+                                            {formatCurrency(customerValue)}
                                         </td>
                                         <td className="px-6 py-4 text-gray-700 dark:text-gray-300">
-                                            {policyType}
+                                            {customerType}
                                         </td>
                                         <td className="px-6 py-4 text-gray-600 dark:text-gray-400">
                                             <div className="flex items-center gap-1.5">
@@ -229,22 +248,28 @@ export const SchemeConversionReports: React.FC<{
     insuranceTypes: InsuranceTypeMaster[];
     users: User[];
     leads: any[];
-}> = ({ members, schemes, insuranceTypes, users }) => {
+    mutualFundSchemes?: MutualFundScheme[];
+    amcs?: AMC[];
+}> = ({ members, schemes, insuranceTypes, users, mutualFundSchemes = [], amcs = [] }) => {
     
     const [drillDownData, setDrillDownData] = useState<{ title: string; customers: Member[] } | null>(null);
     const [chartView, setChartView] = useState<'pie' | 'bar'>('pie');
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
+    const [businessVertical, setBusinessVertical] = useState<'All' | 'Insurance' | 'Mutual Funds'>('All');
 
     const schemeInfoMap = useMemo(() => new Map(schemes.map(s => [s.id, { name: s.name, type: s.type, insuranceTypeId: s.insuranceTypeId }])), [schemes]);
     const insuranceTypeMap = useMemo(() => new Map(insuranceTypes.map(it => [it.id, it])), [insuranceTypes]);
     const userMap = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users]);
+    const mutualFundSchemeMap = useMemo(() => new Map(mutualFundSchemes.map(s => [s.id, s])), [mutualFundSchemes]);
+    const amcMap = useMemo(() => new Map(amcs.map(a => [a.id, a.name])), [amcs]);
 
     const analysis = useMemo(() => {
-        const typeStats = new Map<string, { count: number; premium: number; members: Member[] }>();
-        const schemeStats = new Map<string, { count: number; premium: number; members: Member[], typeName: string }>();
+        const typeStats = new Map<string, { count: number; premium: number; members: Member[]; vertical: 'Insurance' | 'Mutual Funds' }>();
+        const schemeStats = new Map<string, { count: number; premium: number; members: Member[], typeName: string; vertical: 'Insurance' | 'Mutual Funds' }>();
         let totalSystemPremium = 0;
 
         members.forEach(member => {
+            // Process Insurance Policies
             member.policies.forEach(policy => {
                 const sInfo = schemeInfoMap.get(policy.schemeId || '');
                 let typeName = 'Other';
@@ -261,17 +286,39 @@ export const SchemeConversionReports: React.FC<{
                 const premium = policy.premium || 0;
                 totalSystemPremium += premium;
 
-                const tEntry = typeStats.get(typeName) || { count: 0, premium: 0, members: [] };
+                const tEntry = typeStats.get(typeName) || { count: 0, premium: 0, members: [], vertical: 'Insurance' as const };
                 tEntry.count++;
                 tEntry.premium += premium;
                 if(!tEntry.members.find(m => m.id === member.id)) tEntry.members.push(member);
                 typeStats.set(typeName, tEntry);
 
-                const sEntry = schemeStats.get(sName) || { count: 0, premium: 0, members: [], typeName };
+                const sEntry = schemeStats.get(sName) || { count: 0, premium: 0, members: [], typeName, vertical: 'Insurance' as const };
                 sEntry.count++;
                 sEntry.premium += premium;
                 if(!sEntry.members.find(m => m.id === member.id)) sEntry.members.push(member);
                 schemeStats.set(sName, sEntry);
+            });
+
+            // Process Mutual Fund Holdings
+            member.mutualFundHoldings?.forEach(mf => {
+                const investment = mf.totalInvestment || 0;
+                totalSystemPremium += investment;
+                
+                const mfScheme = mutualFundSchemeMap.get(mf.schemeId);
+                const schemeName = mfScheme?.name || `MF Scheme ${mf.schemeId}`;
+                const typeName = mf.investmentType || 'Lumpsum'; // Use investment type instead of 'Mutual Funds'
+                
+                const tEntry = typeStats.get(typeName) || { count: 0, premium: 0, members: [], vertical: 'Mutual Funds' as const };
+                tEntry.count++;
+                tEntry.premium += investment;
+                if(!tEntry.members.find(m => m.id === member.id)) tEntry.members.push(member);
+                typeStats.set(typeName, tEntry);
+
+                const sEntry = schemeStats.get(schemeName) || { count: 0, premium: 0, members: [], typeName, vertical: 'Mutual Funds' as const };
+                sEntry.count++;
+                sEntry.premium += investment;
+                if(!sEntry.members.find(m => m.id === member.id)) sEntry.members.push(member);
+                schemeStats.set(schemeName, sEntry);
             });
         });
 
@@ -282,8 +329,14 @@ export const SchemeConversionReports: React.FC<{
             contribution: totalSystemPremium > 0 ? (d.premium / totalSystemPremium) * 100 : 0
         }));
 
+        // Filter by business vertical
+        let filteredSchemes = allSchemes;
+        if (businessVertical !== 'All') {
+            filteredSchemes = allSchemes.filter(s => s.vertical === businessVertical);
+        }
+
         if (sortConfig) {
-            allSchemes.sort((a, b) => {
+            filteredSchemes.sort((a, b) => {
                 let valA: any = '';
                 let valB: any = '';
 
@@ -301,13 +354,13 @@ export const SchemeConversionReports: React.FC<{
                 return 0;
             });
         } else {
-            allSchemes.sort((a,b) => b.premium - a.premium);
+            filteredSchemes.sort((a,b) => b.premium - a.premium);
         }
 
-        const topSchemes = [...allSchemes].sort((a,b) => b.premium - a.premium).slice(0, 5);
+        const topSchemes = [...filteredSchemes].sort((a,b) => b.premium - a.premium).slice(0, 5);
 
-        return { types, topSchemes, allSchemes };
-    }, [members, schemeInfoMap, insuranceTypeMap, sortConfig]);
+        return { types, topSchemes, allSchemes: filteredSchemes };
+    }, [members, schemeInfoMap, insuranceTypeMap, mutualFundSchemeMap, amcMap, sortConfig, businessVertical]);
 
     const requestSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -320,11 +373,29 @@ export const SchemeConversionReports: React.FC<{
     return (
         <div className="space-y-6 animate-fade-in pb-10">
             {}
-            <div>
-                <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                    <FileText className="text-blue-500"/> Scheme Conversion Analysis
-                </h2>
-                <p className="text-sm text-gray-500">Revenue breakdown by Insurance Type and Top Schemes.</p>
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                <div>
+                    <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                        <FileText className="text-blue-500"/> Scheme Conversion Analysis
+                    </h2>
+                    <p className="text-sm text-gray-500">Revenue breakdown by Insurance Type and Top Schemes.</p>
+                </div>
+                
+                <div className="flex bg-white dark:bg-gray-800 p-1 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                    {['All', 'Insurance', 'Mutual Funds'].map((vertical) => (
+                        <button
+                            key={vertical}
+                            onClick={() => setBusinessVertical(vertical as any)}
+                            className={`px-4 py-2 text-sm font-semibold rounded-md transition-all ${
+                                businessVertical === vertical 
+                                ? 'bg-indigo-600 text-white shadow' 
+                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                            }`}
+                        >
+                            {vertical}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {}
@@ -334,7 +405,7 @@ export const SchemeConversionReports: React.FC<{
                     {}
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                         <h4 className="font-bold text-gray-800 dark:text-white text-lg">
-                            {chartView === 'pie' ? 'Top 5 Schemes (Pie)' : 'Top 5 Schemes (Bar)'}
+                            {chartView === 'pie' ? `Top 5 ${businessVertical === 'All' ? 'Schemes' : businessVertical} (Pie)` : `Top 5 ${businessVertical === 'All' ? 'Schemes' : businessVertical} (Bar)`}
                         </h4>
                         <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
                             <button 
@@ -424,13 +495,13 @@ export const SchemeConversionReports: React.FC<{
                                         <div className="flex items-center">Scheme Name <SortIcon columnKey="name" sortConfig={sortConfig}/></div>
                                     </th>
                                     <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50" onClick={() => requestSort('typeName')}>
-                                        <div className="flex items-center">Category <SortIcon columnKey="typeName" sortConfig={sortConfig}/></div>
+                                        <div className="flex items-center">Vertical <SortIcon columnKey="typeName" sortConfig={sortConfig}/></div>
                                     </th>
                                     <th className="px-6 py-4 text-right font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50" onClick={() => requestSort('count')}>
-                                        <div className="flex items-center justify-end">Policies <SortIcon columnKey="count" sortConfig={sortConfig}/></div>
+                                        <div className="flex items-center justify-end">Count <SortIcon columnKey="count" sortConfig={sortConfig}/></div>
                                     </th>
                                     <th className="px-6 py-4 text-right font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50" onClick={() => requestSort('premium')}>
-                                        <div className="flex items-center justify-end">Premium <SortIcon columnKey="premium" sortConfig={sortConfig}/></div>
+                                        <div className="flex items-center justify-end">Value <SortIcon columnKey="premium" sortConfig={sortConfig}/></div>
                                     </th>
                                     <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase tracking-wider pl-8 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700/50" onClick={() => requestSort('contribution')}>
                                         <div className="flex items-center">Share % <SortIcon columnKey="contribution" sortConfig={sortConfig}/></div>
@@ -442,7 +513,16 @@ export const SchemeConversionReports: React.FC<{
                                     <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer group" onClick={() => { setDrillDownData({ title: `Customers enrolled in ${scheme.name}`, customers: scheme.members }); }}>
                                         <td className="px-6 py-4 font-medium text-gray-900 dark:text-white group-hover:text-blue-600 transition-colors">{scheme.name}</td>
                                         <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
-                                            <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs border border-gray-200 dark:border-gray-600">{scheme.typeName}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className={`inline-flex items-center px-2 py-1 rounded text-xs border font-medium ${
+                                                    scheme.vertical === 'Insurance' 
+                                                    ? 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' 
+                                                    : 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800'
+                                                }`}>
+                                                    {scheme.vertical}
+                                                </span>
+                                                <span className="bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded text-xs border border-gray-200 dark:border-gray-600">{scheme.typeName}</span>
+                                            </div>
                                         </td>
                                         <td className="px-6 py-4 text-right text-gray-600 dark:text-gray-300 font-medium">{scheme.count}</td>
                                         <td className="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">{formatCurrency(scheme.premium)}</td>
@@ -470,6 +550,7 @@ export const SchemeConversionReports: React.FC<{
                         customers={drillDownData.customers}
                         onClose={() => setDrillDownData(null)}
                         userMap={userMap}
+                        businessVertical={businessVertical}
                     />
                 </Modal>
             )}

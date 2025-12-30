@@ -125,7 +125,9 @@ export const ReportsAndInsights: React.FC<{
                         schemes={schemes} 
                         insuranceTypes={insuranceTypes} 
                         users={users} 
-                        leads={allLeads} 
+                        leads={allLeads}
+                        mutualFundSchemes={mutualFundSchemes}
+                        amcs={amcs}
                     />
                 )}
 
