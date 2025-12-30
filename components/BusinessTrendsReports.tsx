@@ -3,8 +3,8 @@ import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler,
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
-import { InsuranceAgency, InsuranceTypeMaster, Member, SchemeMaster } from '../types.ts';
-import { TrendingUp, Layers, ArrowUpRight, Award, Building2, Shield, Filter, Settings, Save, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { InsuranceAgency, InsuranceTypeMaster, Member, SchemeMaster, MutualFundScheme, AMC } from '../types.ts';
+import { TrendingUp, Layers, ArrowUpRight, Award, Building2, Shield, Filter, Settings, Save, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown, PieChart } from 'lucide-react';
 import Button from './ui/Button.tsx'; 
 import Modal from './ui/Modal.tsx'; 
 
@@ -22,6 +22,7 @@ interface ABCItem {
     count: number;
     percentage: number;
     category: 'A' | 'B' | 'C';
+    vertical: 'Insurance' | 'Mutual Funds';
 }
 
 type SortConfig = { key: string; direction: 'asc' | 'desc' } | null;
@@ -37,23 +38,37 @@ export const BusinessTrendsReports: React.FC<{
     schemes: SchemeMaster[];
     insuranceTypes: InsuranceTypeMaster[];
     agencies: InsuranceAgency[];
-}> = ({ members, schemes, insuranceTypes, agencies }) => {
+    mutualFundSchemes?: MutualFundScheme[];
+    amcs?: AMC[];
+}> = ({ members, schemes, insuranceTypes, agencies, mutualFundSchemes = [], amcs = [] }) => {
     
     const [abcFilter, setAbcFilter] = useState<'All' | 'A' | 'B' | 'C'>('All');
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
+    const [businessVertical, setBusinessVertical] = useState<'All' | 'Insurance' | 'Mutual Funds'>('All');
     
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [thresholds, setThresholds] = useState({ A: 80, B: 15, C: 5 }); 
-    const [tempThresholds, setTempThresholds] = useState({ A: 80, B: 15, C: 5 });
+    const [thresholds, setThresholds] = useState({
+        All: { A: 80, B: 15, C: 5 },
+        Insurance: { A: 80, B: 15, C: 5 },
+        'Mutual Funds': { A: 80, B: 15, C: 5 }
+    });
+    const [tempThresholds, setTempThresholds] = useState({
+        All: { A: 80, B: 15, C: 5 },
+        Insurance: { A: 80, B: 15, C: 5 },
+        'Mutual Funds': { A: 80, B: 15, C: 5 }
+    });
 
     const schemeMap = useMemo(() => new Map(schemes.map(s => [s.id, s])), [schemes]);
     const agencyMap = useMemo(() => new Map(agencies.map(a => [a.id, a.name])), [agencies]);
     const typeMap = useMemo(() => new Map(insuranceTypes.map(t => [t.id, t])), [insuranceTypes]);
+    const mutualFundSchemeMap = useMemo(() => new Map(mutualFundSchemes.map(s => [s.id, s])), [mutualFundSchemes]);
+    const amcMap = useMemo(() => new Map(amcs.map(a => [a.id, a.name])), [amcs]);
 
     const data = useMemo(() => {
         const aggregated = new Map<string, ABCItem>();
-        let totalSystemRevenue = 0;
-        let totalSystemProfit = 0;
+        let totalInsuranceRevenue = 0;
+        let totalMutualFundRevenue = 0;
+        let totalInsuranceProfit = 0;
 
         const getPolicyDetails = (policy: any) => {
             const sInfo = schemeMap.get(policy.schemeId);
@@ -77,15 +92,16 @@ export const BusinessTrendsReports: React.FC<{
             return { agency: agencyName, typeName, subTypeName, schemeName: sInfo?.name || policy.schemeName || 'Unknown Scheme' };
         };
 
+        // Process Insurance Policies
         members.forEach(m => {
             m.policies.forEach(p => {
                 const { agency, typeName, subTypeName, schemeName } = getPolicyDetails(p);
                 const premium = p.premium || 0;
-                totalSystemRevenue += premium;
+                totalInsuranceRevenue += premium;
                 const profit = p.commission?.amount || 0;
-                totalSystemProfit += profit;
+                totalInsuranceProfit += profit;
 
-                const key = `${schemeName}-${agency}`;
+                const key = `insurance-${schemeName}-${agency}`;
                 const entry = aggregated.get(key) || {
                     id: key,
                     name: schemeName,
@@ -95,20 +111,52 @@ export const BusinessTrendsReports: React.FC<{
                     premium: 0,
                     count: 0,
                     percentage: 0,
-                    category: 'C'
+                    category: 'C',
+                    vertical: 'Insurance' as const
                 };
 
                 entry.premium += premium;
                 entry.count += 1;
                 aggregated.set(key, entry);
             });
+
+            // Process Mutual Fund Holdings
+            m.mutualFundHoldings?.forEach(mf => {
+                const investment = mf.totalInvestment || 0;
+                totalMutualFundRevenue += investment;
+                
+                const mfScheme = mutualFundSchemeMap.get(mf.schemeId);
+                const schemeName = mfScheme?.name || `MF Scheme ${mf.schemeId}`;
+                const amcName = mfScheme?.amcId ? (amcMap.get(mfScheme.amcId) || 'Unknown AMC') : 'Direct';
+                
+                const key = `mf-${mf.schemeId}-${mf.investmentType}`;
+                const entry = aggregated.get(key) || {
+                    id: key,
+                    name: schemeName,
+                    agencyName: amcName,
+                    policyType: 'Mutual Funds',
+                    subType: mf.investmentType,
+                    premium: 0,
+                    count: 0,
+                    percentage: 0,
+                    category: 'C',
+                    vertical: 'Mutual Funds' as const
+                };
+
+                entry.premium += investment;
+                entry.count += 1;
+                aggregated.set(key, entry);
+            });
         });
+
+        const totalSystemRevenue = totalInsuranceRevenue + totalMutualFundRevenue;
 
         const sortedItems = Array.from(aggregated.values()).sort((a, b) => b.premium - a.premium);
         let cumulativePremium = 0;
         const abcStats = { A: 0, B: 0, C: 0, countA: 0, countB: 0, countC: 0 };
-        const limitA = thresholds.A;
-        const limitB = thresholds.A + thresholds.B;
+        const currentThresholds = thresholds[businessVertical];
+        const limitA = currentThresholds.A;
+        const limitB = currentThresholds.A + currentThresholds.B;
 
         sortedItems.forEach(item => {
             item.percentage = totalSystemRevenue > 0 ? (item.premium / totalSystemRevenue) * 100 : 0;
@@ -130,10 +178,12 @@ export const BusinessTrendsReports: React.FC<{
             }
         });
 
-        const monthlyRevenue = new Map<string, number>();
-        const monthlyProfit = new Map<string, number>();
+        const monthlyInsuranceRevenue = new Map<string, number>();
+        const monthlyMutualFundRevenue = new Map<string, number>();
+        const monthlyInsuranceProfit = new Map<string, number>();
         
         members.forEach(m => {
+            // Insurance revenue tracking
             m.policies.forEach(p => {
                 if (p.startDate) {
                     const policyDate = new Date(p.startDate);
@@ -141,9 +191,28 @@ export const BusinessTrendsReports: React.FC<{
                     const premium = p.premium || 0;
                     const profit = p.commission?.amount || 0;
                     
-                    monthlyRevenue.set(monthKey, (monthlyRevenue.get(monthKey) || 0) + premium);
-                    monthlyProfit.set(monthKey, (monthlyProfit.get(monthKey) || 0) + profit);
+                    monthlyInsuranceRevenue.set(monthKey, (monthlyInsuranceRevenue.get(monthKey) || 0) + premium);
+                    monthlyInsuranceProfit.set(monthKey, (monthlyInsuranceProfit.get(monthKey) || 0) + profit);
                 }
+            });
+
+            // Mutual Fund revenue tracking
+            m.mutualFundHoldings?.forEach(mf => {
+                mf.transactions.forEach(tx => {
+                    if (tx.date) {
+                        const txDate = new Date(tx.date);
+                        const monthKey = `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, '0')}`;
+                        const amount = tx.amount || 0;
+                        
+                        if (tx.type === 'Purchase' || tx.type === 'Additional Purchase' || tx.type === 'SIP Installment') {
+                            // Add positive amount for investments
+                            monthlyMutualFundRevenue.set(monthKey, (monthlyMutualFundRevenue.get(monthKey) || 0) + amount);
+                        } else if (tx.type === 'Redemption' || tx.type === 'Partial Redemption') {
+                            // Subtract amount for redemptions (negative impact on net investment)
+                            monthlyMutualFundRevenue.set(monthKey, (monthlyMutualFundRevenue.get(monthKey) || 0) - amount);
+                        }
+                    }
+                });
             });
         });
 
@@ -158,8 +227,19 @@ export const BusinessTrendsReports: React.FC<{
             const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             
             chartLabels.push(`${months[date.getMonth()]} '${String(date.getFullYear()).slice(2)}`);
-            revenueData.push(monthlyRevenue.get(monthKey) || 0);
-            profitData.push(monthlyProfit.get(monthKey) || 0);
+            
+            const insuranceRev = monthlyInsuranceRevenue.get(monthKey) || 0;
+            const mutualFundRev = monthlyMutualFundRevenue.get(monthKey) || 0;
+            
+            if (businessVertical === 'Insurance') {
+                revenueData.push(insuranceRev);
+            } else if (businessVertical === 'Mutual Funds') {
+                revenueData.push(mutualFundRev);
+            } else {
+                revenueData.push(insuranceRev + mutualFundRev);
+            }
+            
+            profitData.push(monthlyInsuranceProfit.get(monthKey) || 0);
         }
 
         const currentRevenue = revenueData[revenueData.length - 1];
@@ -183,16 +263,28 @@ export const BusinessTrendsReports: React.FC<{
         return { 
             items: sortedItems, 
             totalRevenue: totalSystemRevenue,
-            totalProfit: totalSystemProfit,
+            totalInsuranceRevenue,
+            totalMutualFundRevenue,
+            totalProfit: totalInsuranceProfit,
             abcStats,
             chart: { labels: chartLabels, revenue: revenueData, profit: profitData },
             growthPercentage
         };
 
-    }, [members, schemeMap, agencyMap, typeMap, thresholds]);
+    }, [members, schemeMap, agencyMap, typeMap, mutualFundSchemeMap, amcMap, thresholds, businessVertical]);
 
     const filteredAndSortedItems = useMemo(() => {
-        let items = abcFilter === 'All' ? data.items : data.items.filter(i => i.category === abcFilter);
+        let items = data.items;
+        
+        // Filter by ABC category
+        if (abcFilter !== 'All') {
+            items = items.filter(i => i.category === abcFilter);
+        }
+        
+        // Filter by business vertical
+        if (businessVertical !== 'All') {
+            items = items.filter(i => i.vertical === businessVertical);
+        }
         
         if (sortConfig) {
             items = [...items].sort((a, b) => {
@@ -205,7 +297,7 @@ export const BusinessTrendsReports: React.FC<{
             });
         }
         return items;
-    }, [data.items, abcFilter, sortConfig]);
+    }, [data.items, abcFilter, businessVertical, sortConfig]);
 
     const requestSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -247,7 +339,8 @@ export const BusinessTrendsReports: React.FC<{
         labels: data.chart.labels,
         datasets: [
             {
-                label: 'Revenue',
+                label: businessVertical === 'Insurance' ? 'Insurance Revenue' : 
+                       businessVertical === 'Mutual Funds' ? 'MF Investment' : 'Total Revenue',
                 data: data.chart.revenue,
                 borderColor: '#6366F1',
                 backgroundColor: (ctx: any) => {
@@ -259,20 +352,21 @@ export const BusinessTrendsReports: React.FC<{
                 fill: true,
                 tension: 0.4
             },
-            {
-                label: 'Net Profit',
+            ...(businessVertical !== 'Mutual Funds' ? [{
+                label: 'Insurance Profit',
                 data: data.chart.profit,
                 borderColor: '#10B981',
                 backgroundColor: 'transparent',
                 borderDash: [5, 5],
                 tension: 0.4,
                 pointRadius: 0
-            }
+            }] : [])
         ]
     };
 
     const handleSaveThresholds = () => {
-        const total = Number(tempThresholds.A) + Number(tempThresholds.B) + Number(tempThresholds.C);
+        const current = tempThresholds[businessVertical];
+        const total = Number(current.A) + Number(current.B) + Number(current.C);
         if (total !== 100) {
             alert(`Total percentage must equal 100%. Currently: ${total}%`);
             return;
@@ -282,18 +376,42 @@ export const BusinessTrendsReports: React.FC<{
     };
 
     const handleResetThresholds = () => {
-        setTempThresholds({ A: 80, B: 15, C: 5 });
+        setTempThresholds(prev => ({
+            ...prev,
+            [businessVertical]: { A: 80, B: 15, C: 5 }
+        }));
     };
 
     return (
         <div className="space-y-8 animate-fade-in pb-10">
             {}
-            <div>
-                <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                    <TrendingUp className="text-green-500" size={24} />
-                    Business Performance Trends
-                </h2>
-                <p className="text-sm text-gray-500">Financial trajectory and strategic portfolio analysis (ABC).</p>
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                <div>
+                    <h2 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                        <TrendingUp className="text-green-500" size={24} />
+                        Business Performance Trends
+                    </h2>
+                    <p className="text-sm text-gray-500">Financial trajectory and strategic portfolio analysis (ABC).</p>
+                </div>
+                
+                <div className="flex bg-white dark:bg-gray-800 p-1 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
+                    {['All', 'Insurance', 'Mutual Funds'].map((vertical) => (
+                        <button
+                            key={vertical}
+                            onClick={() => setBusinessVertical(vertical as any)}
+                            className={`px-4 py-2 text-sm font-semibold rounded-md transition-all flex items-center gap-2 ${
+                                businessVertical === vertical 
+                                ? 'bg-indigo-600 text-white shadow' 
+                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                            }`}
+                        >
+                            {vertical === 'Insurance' && <Shield size={16} />}
+                            {vertical === 'Mutual Funds' && <PieChart size={16} />}
+                            {vertical === 'All' && <Layers size={16} />}
+                            {vertical}
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {}
@@ -304,13 +422,24 @@ export const BusinessTrendsReports: React.FC<{
                         <div className="flex items-center gap-4 mt-2">
                             <div>
                                 <p className="text-xs text-gray-500 uppercase font-bold">Total Revenue</p>
-                                <p className="text-lg font-bold text-indigo-600">{formatCurrency(data.totalRevenue)}</p>
+                                <p className="text-lg font-bold text-indigo-600">
+                                    {businessVertical === 'Insurance' ? formatCurrency(data.totalInsuranceRevenue) :
+                                     businessVertical === 'Mutual Funds' ? formatCurrency(data.totalMutualFundRevenue) :
+                                     formatCurrency(data.totalRevenue)}
+                                </p>
+                                {businessVertical === 'All' && (
+                                    <p className="text-xs text-gray-400">Insurance: {formatCurrency(data.totalInsuranceRevenue)} | MF: {formatCurrency(data.totalMutualFundRevenue)}</p>
+                                )}
                             </div>
-                            <div className="w-px h-8 bg-gray-200 dark:bg-gray-700"></div>
-                            <div>
-                                <p className="text-xs text-gray-500 uppercase font-bold">Est. Net Profit</p>
-                                <p className="text-lg font-bold text-green-600">{formatCurrency(data.totalProfit)}</p>
-                            </div>
+                            {businessVertical !== 'Mutual Funds' && (
+                                <>
+                                    <div className="w-px h-8 bg-gray-200 dark:bg-gray-700"></div>
+                                    <div>
+                                        <p className="text-xs text-gray-500 uppercase font-bold">Insurance Profit</p>
+                                        <p className="text-lg font-bold text-green-600">{formatCurrency(data.totalProfit)}</p>
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                     <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border ${
@@ -343,7 +472,7 @@ export const BusinessTrendsReports: React.FC<{
                         <p className="text-sm text-gray-500">
                             Inventory classification based on revenue contribution. 
                             <span className="ml-1 text-xs bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">
-                                Current Split: {thresholds.A}% / {thresholds.B}% / {thresholds.C}%
+                                {businessVertical} Split: {thresholds[businessVertical].A}% / {thresholds[businessVertical].B}% / {thresholds[businessVertical].C}%
                             </span>
                         </p>
                     </div>
@@ -356,7 +485,7 @@ export const BusinessTrendsReports: React.FC<{
                             }}
                             className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg bg-white border border-gray-200 hover:bg-gray-50 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-700 transition-colors"
                         >
-                            <Settings size={14} /> Configure Split
+                            <Settings size={14} /> Configure {businessVertical} Split
                         </button>
 
                         <div className="flex bg-white dark:bg-gray-800 p-1 rounded-lg border border-gray-200 dark:border-gray-700 shadow-sm">
@@ -383,7 +512,7 @@ export const BusinessTrendsReports: React.FC<{
                         <div>
                             <p className="text-xs font-bold text-green-600 uppercase">Class A (High Value)</p>
                             <h4 className="text-xl font-bold text-gray-900 dark:text-white mt-1">{formatCurrency(data.abcStats.A)}</h4>
-                            <p className="text-xs text-gray-500">{data.abcStats.countA} Schemes • {thresholds.A}% Revenue</p>
+                            <p className="text-xs text-gray-500">{data.abcStats.countA} Schemes • {thresholds[businessVertical].A}% Revenue</p>
                         </div>
                         <div className="h-10 w-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center text-green-600">
                             <Award size={20}/>
@@ -393,7 +522,7 @@ export const BusinessTrendsReports: React.FC<{
                         <div>
                             <p className="text-xs font-bold text-yellow-600 uppercase">Class B (Moderate)</p>
                             <h4 className="text-xl font-bold text-gray-900 dark:text-white mt-1">{formatCurrency(data.abcStats.B)}</h4>
-                            <p className="text-xs text-gray-500">{data.abcStats.countB} Schemes • {thresholds.B}% Revenue</p>
+                            <p className="text-xs text-gray-500">{data.abcStats.countB} Schemes • {thresholds[businessVertical].B}% Revenue</p>
                         </div>
                         <div className="h-10 w-10 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center text-yellow-600">
                             <Layers size={20}/>
@@ -403,7 +532,7 @@ export const BusinessTrendsReports: React.FC<{
                         <div>
                             <p className="text-xs font-bold text-red-600 uppercase">Class C (Low Value)</p>
                             <h4 className="text-xl font-bold text-gray-900 dark:text-white mt-1">{formatCurrency(data.abcStats.C)}</h4>
-                            <p className="text-xs text-gray-500">{data.abcStats.countC} Schemes • {thresholds.C}% Revenue</p>
+                            <p className="text-xs text-gray-500">{data.abcStats.countC} Schemes • {thresholds[businessVertical].C}% Revenue</p>
                         </div>
                         <div className="h-10 w-10 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-red-600">
                             <Filter size={20}/>
@@ -427,6 +556,11 @@ export const BusinessTrendsReports: React.FC<{
                                         <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => requestSort('agencyName')}>
                                             <div className="flex items-center">Agency <SortIcon columnKey="agencyName" sortConfig={sortConfig}/></div>
                                         </th>
+                                        {businessVertical === 'All' && (
+                                            <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => requestSort('vertical')}>
+                                                <div className="flex items-center">Vertical <SortIcon columnKey="vertical" sortConfig={sortConfig}/></div>
+                                            </th>
+                                        )}
                                         <th className="px-6 py-4 text-left font-bold text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" onClick={() => requestSort('policyType')}>
                                             <div className="flex items-center">Type / Sub-Type <SortIcon columnKey="policyType" sortConfig={sortConfig}/></div>
                                         </th>
@@ -452,7 +586,7 @@ export const BusinessTrendsReports: React.FC<{
                                             </td>
                                             <td className="px-6 py-4">
                                                 <p className="font-semibold text-gray-900 dark:text-white">{item.name}</p>
-                                                <p className="text-xs text-gray-500">{item.count} Policies Sold</p>
+                                                <p className="text-xs text-gray-500">{item.count} {item.vertical === 'Insurance' ? 'Policies' : 'Holdings'}</p>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2 text-gray-600 dark:text-gray-300">
@@ -460,12 +594,18 @@ export const BusinessTrendsReports: React.FC<{
                                                     {item.agencyName}
                                                 </div>
                                             </td>
+                                            {businessVertical === 'All' && (
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-2">
+                                                        {item.vertical === 'Insurance' ? <Shield size={14} className="text-blue-500"/> : <PieChart size={14} className="text-purple-500"/>}
+                                                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{item.vertical}</span>
+                                                    </div>
+                                                </td>
+                                            )}
                                             <td className="px-6 py-4">
                                                 <div className="flex flex-col">
-                                                    <span className="flex items-center gap-1 text-gray-700 dark:text-gray-300 font-medium">
-                                                        <Shield size={12} className="text-blue-500"/> {item.policyType}
-                                                    </span>
-                                                    <span className="text-xs text-gray-500 ml-4">{item.subType}</span>
+                                                    <span className="text-gray-700 dark:text-gray-300 font-medium">{item.policyType}</span>
+                                                    <span className="text-xs text-gray-500">{item.subType}</span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-right font-bold text-gray-900 dark:text-white">
@@ -488,7 +628,7 @@ export const BusinessTrendsReports: React.FC<{
                                         </tr>
                                     ))}
                                     {filteredAndSortedItems.length === 0 && (
-                                        <tr><td colSpan={6} className="text-center py-12 text-gray-400">No data found in this category.</td></tr>
+                                        <tr><td colSpan={businessVertical === 'All' ? 7 : 6} className="text-center py-12 text-gray-400">No data found in this category.</td></tr>
                                     )}
                                 </tbody>
                             </table>
@@ -500,52 +640,58 @@ export const BusinessTrendsReports: React.FC<{
             {}
             <Modal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)}>
                 <div className="p-6">
-                    <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Configure ABC Thresholds</h3>
-                    <p className="text-sm text-gray-500 mb-6">Adjust the cumulative revenue percentage for each class. Total must equal 100%.</p>
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Configure {businessVertical} ABC Thresholds</h3>
+                    <p className="text-sm text-gray-500 mb-6">Adjust the cumulative revenue percentage for each class in {businessVertical}. Total must equal 100%.</p>
                     
                     <div className="space-y-6">
                         <div>
                             <div className="flex justify-between mb-2">
                                 <label className="text-sm font-bold text-green-600">Class A (High Value)</label>
-                                <span className="text-sm font-bold">{tempThresholds.A}%</span>
+                                <span className="text-sm font-bold">{tempThresholds[businessVertical].A}%</span>
                             </div>
                             <input 
                                 type="range" min="10" max="90" step="1"
-                                value={tempThresholds.A}
-                                onChange={(e) => setTempThresholds({...tempThresholds, A: Number(e.target.value)})}
+                                value={tempThresholds[businessVertical].A}
+                                onChange={(e) => setTempThresholds(prev => ({
+                                    ...prev,
+                                    [businessVertical]: { ...prev[businessVertical], A: Number(e.target.value) }
+                                }))}
                                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
                             />
-                            <p className="text-xs text-gray-400 mt-1">Items contributing to top {tempThresholds.A}% revenue</p>
+                            <p className="text-xs text-gray-400 mt-1">Items contributing to top {tempThresholds[businessVertical].A}% revenue</p>
                         </div>
 
                         <div>
                             <div className="flex justify-between mb-2">
                                 <label className="text-sm font-bold text-yellow-600">Class B (Moderate Value)</label>
-                                <span className="text-sm font-bold">{tempThresholds.B}%</span>
+                                <span className="text-sm font-bold">{tempThresholds[businessVertical].B}%</span>
                             </div>
                             <input 
                                 type="range" min="5" max="50" step="1"
-                                value={tempThresholds.B}
-                                onChange={(e) => setTempThresholds({...tempThresholds, B: Number(e.target.value)})}
+                                value={tempThresholds[businessVertical].B}
+                                onChange={(e) => setTempThresholds(prev => ({
+                                    ...prev,
+                                    [businessVertical]: { ...prev[businessVertical], B: Number(e.target.value) }
+                                }))}
                                 className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-yellow-500"
                             />
-                            <p className="text-xs text-gray-400 mt-1">Next {tempThresholds.B}% revenue contribution</p>
+                            <p className="text-xs text-gray-400 mt-1">Next {tempThresholds[businessVertical].B}% revenue contribution</p>
                         </div>
 
                         <div>
                             <div className="flex justify-between mb-2">
                                 <label className="text-sm font-bold text-red-600">Class C (Low Value)</label>
-                                <span className="text-sm font-bold">{100 - tempThresholds.A - tempThresholds.B}%</span>
+                                <span className="text-sm font-bold">{100 - tempThresholds[businessVertical].A - tempThresholds[businessVertical].B}%</span>
                             </div>
                             <div className="w-full h-2 bg-red-100 rounded-lg relative overflow-hidden">
-                                <div className="absolute top-0 left-0 h-full bg-red-500" style={{width: `${Math.max(0, 100 - tempThresholds.A - tempThresholds.B)}%`}}></div>
+                                <div className="absolute top-0 left-0 h-full bg-red-500" style={{width: `${Math.max(0, 100 - tempThresholds[businessVertical].A - tempThresholds[businessVertical].B)}%`}}></div>
                             </div>
                             <p className="text-xs text-gray-400 mt-1">Remaining tail-end revenue</p>
                         </div>
 
                         <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
                             <span className="text-sm font-medium text-gray-700">Total Check</span>
-                            <span className={`text-lg font-bold ${(Number(tempThresholds.A) + Number(tempThresholds.B) + (100 - tempThresholds.A - tempThresholds.B)) === 100 ? 'text-green-600' : 'text-red-600'}`}>
+                            <span className={`text-lg font-bold ${(tempThresholds[businessVertical].A + tempThresholds[businessVertical].B + (100 - tempThresholds[businessVertical].A - tempThresholds[businessVertical].B)) === 100 ? 'text-green-600' : 'text-red-600'}`}>
                                 {100}%
                             </span>
                         </div>
@@ -555,10 +701,7 @@ export const BusinessTrendsReports: React.FC<{
                         <Button variant="secondary" onClick={handleResetThresholds} className="flex items-center gap-2">
                             <RotateCcw size={16}/> Reset
                         </Button>
-                        <Button variant="primary" onClick={() => {
-                            setThresholds({...tempThresholds, C: 100 - tempThresholds.A - tempThresholds.B});
-                            setIsSettingsOpen(false);
-                        }} className="flex items-center gap-2">
+                        <Button variant="primary" onClick={handleSaveThresholds} className="flex items-center gap-2">
                             <Save size={16}/> Save Changes
                         </Button>
                     </div>

@@ -159,6 +159,7 @@ const BusinessVerticalsManager: React.FC<BusinessVerticalsManagerProps> = (props
                                                                 onUpdateInsuranceTypeDocumentRules={onUpdateInsuranceTypeDocumentRules}
                                                                 canCreate={canCreate}
                                                                 canModify={canModify}
+                                                                currentVerticalId={vertical.id}
                                                             />
                                                         )}
                                                         {isMutualFund && (
@@ -179,6 +180,7 @@ const BusinessVerticalsManager: React.FC<BusinessVerticalsManagerProps> = (props
                                                                 addToast={addToast}
                                                                 canCreate={canCreate}
                                                                 canModify={canModify}
+                                                                currentVerticalId={vertical.id}
                                                             />
                                                         )}
                                                     </div>

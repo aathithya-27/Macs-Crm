@@ -32,6 +32,7 @@ interface PolicyConfigurationManagerProps {
     onUpdateInsuranceTypeDocumentRules: (data: InsuranceTypeDocumentRule[]) => void;
     canCreate: boolean;
     canModify: boolean;
+    currentVerticalId?: string;
 }
 
 const selectClasses = "block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800";
@@ -108,7 +109,7 @@ const PolicyConfigurationManager: React.FC<PolicyConfigurationManagerProps> = ({
     addToast, allMembers, businessVerticals, schemes,
     processStageMasters, onUpdateProcessStageMasters,
     documentMasters, insuranceTypeDocumentRules, onUpdateInsuranceTypeDocumentRules,
-    canCreate, canModify
+    canCreate, canModify, currentVerticalId
 }) => {
     const [selectedParentTypeId, setSelectedParentTypeId] = useState<string | null>(null);
     const [selectedConfigTypeId, setSelectedConfigTypeId] = useState<string | null>(null);
@@ -170,7 +171,7 @@ const PolicyConfigurationManager: React.FC<PolicyConfigurationManagerProps> = ({
         let initialData: Partial<InsuranceTypeMaster>;
         if (item && item.id) { initialData = { ...item }; }
         else if (item && item.parentId) { const parent = parentTypes.find(p => p.id === item.parentId); initialData = { name: '', parentId: item.parentId, active: true, verticalId: parent ? parent.verticalId : '' }; }
-        else { initialData = { name: '', parentId: null, active: true, verticalId: '' }; }
+        else { initialData = { name: '', parentId: null, active: true, verticalId: currentVerticalId || '' }; }
         setEditingType(initialData);
         setIsTypeModalOpen(true);
     };

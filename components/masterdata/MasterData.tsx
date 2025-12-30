@@ -12,7 +12,6 @@ import BusinessVerticalsManager from './BusinessVerticalsManager';
 import LeadSourceManager from './LeadSourceManager';
 import SchemesAndMappingsManager from './SchemesAndMappingsManager';
 import LeadStageManager from './LeadStageManager';
-import MutualFundsManager from './MutualFundsManager';
 import GeographyManager from './GeographyManager';
 import DocumentMastersManager from './DocumentMastersManager';
 import TierAndGiftManager from './TierAndGiftManager';
@@ -179,7 +178,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
         { id: 'campaign', path: '/masterData/campaign', label: 'Campaign Master', icon: <Megaphone size={18} /> },
         { id: 'accountCategories', path: '/masterData/accountCategories', label: 'Account Categories', icon: <Layers size={18}/> },
         { id: 'bankMasters', path: '/masterData/bankMasters', label: 'Bank Master', icon: <Landmark size={18} /> },
-        { id: 'schemesAndMappings', path: '/masterData/schemesAndMappings', label: 'Agency and Scheme', icon: <Handshake size={18}/> },
+        { id: 'schemesAndMappings', path: '/masterData/schemesAndMappings', label: 'Agencies & Schemes', icon: <Handshake size={18}/> },
         { id: 'designation', path: '/masterData/designation', label: 'Designation', icon: <UserCog size={18}/> },
         { id: 'role', path: '/masterData/role', label: 'Role', icon: <Award size={18}/> },
         { id: 'rolePermissions', path: '/masterData/rolePermissions', label: 'Role Permissions', icon: <Lock size={18}/> },
