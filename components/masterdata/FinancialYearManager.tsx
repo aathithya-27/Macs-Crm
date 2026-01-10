@@ -215,7 +215,7 @@ const FinancialYearManager: React.FC<FinancialYearManagerProps> = ({
         <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-white">{title}</h3>
-                {canCreate && <Button variant="primary" onClick={(e) => openDocNumModal(type, null, e)} disabled={!selectedFinYearId}><Plus size={16}/> Add Rule</Button>}
+                {canCreate && <Button variant="primary" onClick={(e) => openDocNumModal(type, null, e)} disabled={!selectedFinYearId} className="whitespace-nowrap"><Plus size={16}/> Add Rule</Button>}
             </div>
             <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -249,17 +249,17 @@ const FinancialYearManager: React.FC<FinancialYearManagerProps> = ({
         <div className="space-y-8">
             <h3 className="text-xl font-semibold text-gray-800 dark:text-white">Financial Year Management</h3>
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
-                 <div className="flex flex-col md:flex-row justify-between items-center gap-4 mb-4">
+                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
                     <h3 className="text-lg font-semibold text-gray-800 dark:text-white">Manage Financial Year</h3>
-                    <div className="flex items-center gap-4 w-full md:w-auto">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
                         <SearchBar
                             searchQuery={searchQuery}
                             onSearchChange={setSearchQuery}
                             placeholder="Search by year label..."
-                            className="w-full md:w-64"
+                            className="w-full sm:w-64"
                         />
                         {canCreate && (
-                            <Button onClick={(e) => openFYModal(null, e)} variant="primary" className="w-full md:w-auto flex-shrink-0">
+                            <Button onClick={(e) => openFYModal(null, e)} variant="primary" className="w-full sm:w-auto whitespace-nowrap">
                                 <Plus size={16}/> Add Financial Year
                             </Button>
                         )}

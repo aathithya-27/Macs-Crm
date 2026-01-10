@@ -45,6 +45,8 @@ export const BusinessTrendsReports: React.FC<{
     const [abcFilter, setAbcFilter] = useState<'All' | 'A' | 'B' | 'C'>('All');
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
     const [businessVertical, setBusinessVertical] = useState<'All' | 'Insurance' | 'Mutual Funds'>('All');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(10);
     
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [thresholds, setThresholds] = useState({
@@ -298,6 +300,13 @@ export const BusinessTrendsReports: React.FC<{
         }
         return items;
     }, [data.items, abcFilter, businessVertical, sortConfig]);
+
+    const paginatedItems = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return filteredAndSortedItems.slice(startIndex, startIndex + itemsPerPage);
+    }, [filteredAndSortedItems, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(filteredAndSortedItems.length / itemsPerPage);
 
     const requestSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -573,7 +582,7 @@ export const BusinessTrendsReports: React.FC<{
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                                    {filteredAndSortedItems.map((item, idx) => (
+                                    {paginatedItems.map((item, idx) => (
                                         <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                                             <td className="px-6 py-4">
                                                 <span className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold ${
@@ -627,13 +636,51 @@ export const BusinessTrendsReports: React.FC<{
                                             </td>
                                         </tr>
                                     ))}
-                                    {filteredAndSortedItems.length === 0 && (
+                                    {paginatedItems.length === 0 && (
                                         <tr><td colSpan={businessVertical === 'All' ? 7 : 6} className="text-center py-12 text-gray-400">No data found in this category.</td></tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
                     </div>
+                    
+                    {/* Pagination */}
+                    {totalPages > 1 && (
+                        <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                            <div className="text-sm text-gray-500">
+                                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedItems.length)} of {filteredAndSortedItems.length} items
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={currentPage === 1}
+                                    className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
+                                >
+                                    Previous
+                                </button>
+                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                    <button
+                                        key={page}
+                                        onClick={() => setCurrentPage(page)}
+                                        className={`px-3 py-1 text-sm border rounded-md ${
+                                            currentPage === page 
+                                            ? 'bg-blue-500 text-white border-blue-500' 
+                                            : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                                        }`}
+                                    >
+                                        {page}
+                                    </button>
+                                ))}
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={currentPage === totalPages}
+                                    className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
+                                >
+                                    Next
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 

@@ -133,7 +133,7 @@ const LocationServices: React.FC<LocationServicesProps> = ({
   }, [currentUserRole]);
   const isAdvisor = currentUserRole?.isAdvisor === true;
 
-  const [activeTab, setActiveTab] = useState<LocationTab>(canViewTracker ? 'tracker' : 'planner');
+  const [activeTab, setActiveTab] = useState<LocationTab>('planner');
 
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -517,10 +517,44 @@ const LocationServices: React.FC<LocationServicesProps> = ({
 
 
   const flyToLocation = (lat: number, lng: number) => {
-      if (map) {
-        map.panTo({ lat, lng });
-        map.setZoom(15);
-      }
+      if (!map) return;
+      
+      const currentCenter = map.getCenter();
+      const startLat = currentCenter.lat();
+      const startLng = currentCenter.lng();
+      const startZoom = map.getZoom();
+      const targetZoom = 15;
+      
+      const distance = Math.sqrt(Math.pow(lat - startLat, 2) + Math.pow(lng - startLng, 2));
+      const duration = Math.min(4000, Math.max(2000, distance * 800));
+      const midZoom = Math.max(6, Math.min(startZoom, targetZoom));
+      
+      const startTime = performance.now();
+      
+      const animate = (currentTime: number) => {
+          const elapsed = currentTime - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          const easeProgress = 0.5 * (1 - Math.cos(progress * Math.PI));
+          
+          const currentLat = startLat + (lat - startLat) * easeProgress;
+          const currentLng = startLng + (lng - startLng) * easeProgress;
+          
+          let currentZoom = midZoom;
+          if (progress < 0.2) {
+              currentZoom = startZoom + (midZoom - startZoom) * (progress / 0.2);
+          } else if (progress > 0.8) {
+              currentZoom = midZoom + (targetZoom - midZoom) * ((progress - 0.8) / 0.2);
+          }
+          
+          map.setCenter({ lat: currentLat, lng: currentLng });
+          map.setZoom(currentZoom);
+          
+          if (progress < 1) {
+              requestAnimationFrame(animate);
+          }
+      };
+      
+      requestAnimationFrame(animate);
   };
   
     const flyToCity = (city: string) => {
@@ -528,8 +562,7 @@ const LocationServices: React.FC<LocationServicesProps> = ({
         const cityCustomers = customersByCity[city].filter(c => c.lat && c.lng);
         if (cityCustomers.length === 0) return;
         if (cityCustomers.length === 1) {
-            map.panTo({ lat: cityCustomers[0].lat!, lng: cityCustomers[0].lng! });
-            map.setZoom(14);
+            flyToLocation(cityCustomers[0].lat!, cityCustomers[0].lng!);
         } else {
             const bounds = new google.maps.LatLngBounds();
             cityCustomers.forEach(customer => {

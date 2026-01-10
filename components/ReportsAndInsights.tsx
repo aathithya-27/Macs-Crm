@@ -15,7 +15,8 @@ import {
     AttendanceRecord,
     InsuranceAgency,
     MutualFundScheme,
-    AMC
+    AMC,
+    TaskStatusMaster
 } from '../types.ts';
 import { EmployeePerformance } from './EmployeePerformance.tsx';
 import { SchemeConversionReports } from './SchemeConversionReports.tsx';
@@ -41,6 +42,7 @@ export const ReportsAndInsights: React.FC<{
     permissions: { [key in AppModule]?: PermissionLevel };
     mutualFundSchemes?: MutualFundScheme[];
     amcs?: AMC[];
+    taskStatuses: TaskStatusMaster[];
 }> = ({ 
     members = [], 
     users = [], 
@@ -59,7 +61,8 @@ export const ReportsAndInsights: React.FC<{
     roles = [], 
     permissions,
     mutualFundSchemes = [],
-    amcs = []
+    amcs = [],
+    taskStatuses = []
 }) => {
     type ReportTab = 'Employee' | 'schemes' | 'leadAnalytics' | 'trends';
     const [activeReportTab, setActiveReportTab] = useState<ReportTab>('Employee');
@@ -115,7 +118,8 @@ export const ReportsAndInsights: React.FC<{
                         onUpdateAttendance={onUpdateAttendance}
                         allLeads={allLeads} 
                         designations={designations} 
-                        roles={roles} 
+                        roles={roles}
+                        taskStatuses={taskStatuses}
                     />
                 )}
 

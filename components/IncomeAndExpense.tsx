@@ -422,6 +422,8 @@ const IncomesTab: React.FC<IncomeAndExpenseProps & { canCreate: boolean, canModi
     const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
     const [editingReceipt, setEditingReceipt] = useState<ManualReceipt | null>(null);
     const [triggerReceiptExport, setTriggerReceiptExport] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(10);
 
     const { items: sortedReceipts } = useSortableData(manualReceipts);
 
@@ -482,6 +484,13 @@ const IncomesTab: React.FC<IncomeAndExpenseProps & { canCreate: boolean, canModi
 
     const totalReceiptAmount = useMemo(() => filteredReceipts.reduce((sum, r) => sum + r.lineItems.reduce((s, i) => s + i.amount, 0), 0), [filteredReceipts]);
 
+    const paginatedReceipts = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return filteredReceipts.slice(startIndex, startIndex + itemsPerPage);
+    }, [filteredReceipts, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(filteredReceipts.length / itemsPerPage);
+
     return (
         <div className="space-y-6">
             {/* Top Section: Action Card */}
@@ -511,9 +520,9 @@ const IncomesTab: React.FC<IncomeAndExpenseProps & { canCreate: boolean, canModi
 
                 <div className="flex-1 overflow-y-auto mt-4 min-h-0">
                     <DataTable 
-                        data={filteredReceipts} 
+                        data={paginatedReceipts} 
                         columns={[
-                            { header: 'S.No', accessor: 'id', render: (_, __, idx) => idx + 1 },
+                            { header: 'S.No', accessor: 'id', render: (_, __, idx) => ((currentPage - 1) * itemsPerPage) + idx + 1 },
                             { header: 'Receipt #', accessor: 'receiptNo' },
                             { header: 'Date', accessor: 'date', render: (date) => new Date(date).toLocaleDateString('en-GB') },
                             { header: 'Income Details', accessor: 'lineItems', render: (items: any[]) => (
@@ -560,6 +569,36 @@ const IncomesTab: React.FC<IncomeAndExpenseProps & { canCreate: boolean, canModi
                             )}
                         ]} 
                     />
+                    
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-4 px-4 py-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredReceipts.length)} of {filteredReceipts.length} receipts
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button 
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} 
+                                    disabled={currentPage === 1}
+                                    variant="secondary"
+                                    size="small"
+                                >
+                                    Previous
+                                </Button>
+                                <span className="text-sm text-gray-600 dark:text-gray-400">
+                                    Page {currentPage} of {totalPages}
+                                </span>
+                                <Button 
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} 
+                                    disabled={currentPage === totalPages}
+                                    variant="secondary"
+                                    size="small"
+                                >
+                                    Next
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -592,6 +631,8 @@ const IncomesTab: React.FC<IncomeAndExpenseProps & { canCreate: boolean, canModi
 const ExpensesTab: React.FC<IncomeAndExpenseProps & { handleOpenVoucherModal: (expenses: Expense[] | null, shouldExport?: boolean) => void, canCreate: boolean, canModify: boolean, canCreateNew: boolean, creationDisabledReason: string, activeFY: FinancialYear | null }> = (props) => {
     const { expenses, onDeleteExpense, onDeleteVoucher, handleOpenVoucherModal, canCreate, canModify, branches, canCreateNew, creationDisabledReason, activeFY, allMembers, users, bankMasters, onUpdateExpense, accountCategories, accountSubCategories, accountHeads } = props;
     const [filters, setFilters] = useState({ startDate: '', endDate: '', searchTerm: '', branch_id: 'all', headId: 'all' });
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(10);
     const { items: sortedItems } = useSortableData(expenses);
 
     const getPartyName = (row: Expense) => {
@@ -639,6 +680,13 @@ const ExpensesTab: React.FC<IncomeAndExpenseProps & { handleOpenVoucherModal: (e
     
     const totalExpenses = useMemo(() => filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0), [filteredExpenses]);
 
+    const paginatedExpenses = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return filteredExpenses.slice(startIndex, startIndex + itemsPerPage);
+    }, [filteredExpenses, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(filteredExpenses.length / itemsPerPage);
+
     return (
         <div className="space-y-6">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border dark:border-gray-700">
@@ -663,14 +711,13 @@ const ExpensesTab: React.FC<IncomeAndExpenseProps & { handleOpenVoucherModal: (e
 
                 <div className="flex-1 overflow-y-auto mt-4 min-h-0">
                     <DataTable 
-                        data={filteredExpenses} 
+                        data={paginatedExpenses} 
                         columns={[
-                            { header: 'S.No', accessor: 'id', render: (_, __, idx) => idx + 1 },
+                            { header: 'S.No', accessor: 'id', render: (_, __, idx) => ((currentPage - 1) * itemsPerPage) + idx + 1 },
                             { header: 'Voucher #', accessor: 'voucherNo', render: (v) => <span className="font-mono text-xs">{v}</span> },
                             { header: 'Date', accessor: 'date', render: (date) => new Date(date).toLocaleDateString('en-GB') },
                             { header: 'Party', accessor: 'partyId', render: (_, row) => <span className="font-medium">{getPartyName(row)}</span> },
                             { header: 'Account Head', accessor: 'accountHeadId', render: (id) => <span className="font-semibold">{getAccountDetails(id, accountHeads, accountSubCategories, accountCategories).headName}</span> },
-                            { header: 'Party', accessor: 'partyId', render: (_, row) => <span className="font-medium">{getPartyName(row)}</span> },
                             { header: 'Payment Mode (Bank/Cash -> Mode)', accessor: 'modeOfPayment', render: (val, row) => {
                                 const bankCashName = getInternalBankCashName(row.bankId);
                                 return <div className="text-xs flex items-center gap-2"><span className="font-medium text-blue-600 dark:text-blue-400">{bankCashName}</span><span className="text-gray-400">→</span><span>{val}</span></div>
@@ -694,6 +741,36 @@ const ExpensesTab: React.FC<IncomeAndExpenseProps & { handleOpenVoucherModal: (e
                             )}
                         ]} 
                     />
+                    
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <div className="flex items-center justify-between mt-4 px-4 py-2 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                                Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredExpenses.length)} of {filteredExpenses.length} expenses
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Button 
+                                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} 
+                                    disabled={currentPage === 1}
+                                    variant="secondary"
+                                    size="small"
+                                >
+                                    Previous
+                                </Button>
+                                <span className="text-sm text-gray-600 dark:text-gray-400">
+                                    Page {currentPage} of {totalPages}
+                                </span>
+                                <Button 
+                                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))} 
+                                    disabled={currentPage === totalPages}
+                                    variant="secondary"
+                                    size="small"
+                                >
+                                    Next
+                                </Button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>

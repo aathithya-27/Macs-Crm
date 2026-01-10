@@ -301,6 +301,7 @@ export interface User {
   initials: string;
   password?: string;
   profile?: EmployeeProfile;
+  company_logo?: string;
 }
 
 export type ConcretePolicyType = 'Health Insurance' | 'Life Insurance' | 'General Insurance' | 'Mutual Funds';
@@ -966,6 +967,7 @@ export interface Company {
     mailingName?: string;
     dateOfCreation?: string;
     active?: boolean;
+    logoUrl?: string;
     address?: {
         line1?: string;
         line2?: string;

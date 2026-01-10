@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Member, User, Task, AttendanceState, AttendanceRecord, Designation, Role, Lead } from '../types.ts';
+import { Member, User, Task, AttendanceState, AttendanceRecord, Designation, Role, Lead, TaskStatusMaster } from '../types.ts';
 import Button from './ui/Button.tsx';
 import Modal from './ui/Modal.tsx';
 import { 
@@ -29,7 +29,8 @@ export const EmployeePerformance: React.FC<{
     allLeads: Lead[];
     designations: Designation[];
     roles: Role[];
-}> = ({ members, users, tasks, attendance, onUpdateAttendance, allLeads, designations, roles }) => {
+    taskStatuses: TaskStatusMaster[];
+}> = ({ members, users, tasks, attendance, onUpdateAttendance, allLeads, designations, roles, taskStatuses }) => {
     
     const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
     const [viewAdvisorsOnly, setViewAdvisorsOnly] = useState(false);
@@ -37,11 +38,39 @@ export const EmployeePerformance: React.FC<{
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
     
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
-    const [taskModalFilter, setTaskModalFilter] = useState<'All' | 'Pending' | 'Overdue' | 'Completed'>('All');
+    const [taskModalFilter, setTaskModalFilter] = useState<string>('All');
     const [isRevenueModalOpen, setIsRevenueModalOpen] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(10);
 
     const designationMap = useMemo(() => new Map(designations.map(d => [d.id, d.name])), [designations]);
     const roleMap = useMemo(() => new Map(roles.map(r => [r.id, r])), [roles]);
+    const taskStatusMap = useMemo(() => new Map(taskStatuses.map(ts => [ts.id, ts.name])), [taskStatuses]);
+    
+    const generateColor = (str: string): string => {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const hue = Math.abs(hash) % 360;
+        return `hsl(${hue}, 65%, 50%)`;
+    };
+    
+    const taskStatusColorMap = useMemo(() => {
+        const map = new Map<string, string>();
+        taskStatuses.forEach((status) => {
+            map.set(status.name, generateColor(status.name));
+        });
+        map.set('Completed', generateColor('Completed'));
+        map.set('Pending', generateColor('Pending'));
+        map.set('Overdue', generateColor('Overdue'));
+        return map;
+    }, [taskStatuses]);
+    
+    const taskStatusOptions = useMemo(() => {
+        const activeStatuses = taskStatuses.filter(ts => ts.active !== false).sort((a, b) => (a.order || 0) - (b.order || 0));
+        return ['All', ...activeStatuses.map(ts => ts.name)];
+    }, [taskStatuses]);
 
     const stats = useMemo(() => {
         const today = new Date();
@@ -130,6 +159,13 @@ export const EmployeePerformance: React.FC<{
         return items;
     }, [stats, viewAdvisorsOnly, sortConfig]);
 
+    const paginatedStats = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return filteredAndSortedStats.slice(startIndex, startIndex + itemsPerPage);
+    }, [filteredAndSortedStats, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(filteredAndSortedStats.length / itemsPerPage);
+
     const requestSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
         if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
@@ -155,11 +191,26 @@ export const EmployeePerformance: React.FC<{
     const filteredTasksList = useMemo(() => {
         if (taskModalFilter === 'All') return allTasksList;
         const today = new Date();
-        if (taskModalFilter === 'Completed') return allTasksList.filter(t => t.isCompleted);
-        if (taskModalFilter === 'Pending') return allTasksList.filter(t => !t.isCompleted);
-        if (taskModalFilter === 'Overdue') return allTasksList.filter(t => !t.isCompleted && new Date(t.expectedCompletionDateTime) < today);
+        
+        // Handle special cases for backward compatibility
+        if (taskModalFilter === 'Completed') {
+            return allTasksList.filter(t => t.isCompleted);
+        }
+        if (taskModalFilter === 'Pending') {
+            return allTasksList.filter(t => !t.isCompleted);
+        }
+        if (taskModalFilter === 'Overdue') {
+            return allTasksList.filter(t => !t.isCompleted && new Date(t.expectedCompletionDateTime) < today);
+        }
+        
+        // Filter by task status from master data
+        const statusId = taskStatuses.find(ts => ts.name === taskModalFilter)?.id;
+        if (statusId) {
+            return allTasksList.filter(t => t.statusId === statusId);
+        }
+        
         return allTasksList;
-    }, [allTasksList, taskModalFilter]);
+    }, [allTasksList, taskModalFilter, taskStatuses]);
 
     const selectedEmpData = selectedEmployeeId ? stats.find(s => s.id === selectedEmployeeId) : null;
 
@@ -296,7 +347,7 @@ export const EmployeePerformance: React.FC<{
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                                {filteredAndSortedStats.map((emp) => (
+                                {paginatedStats.map((emp) => (
                                     <tr key={emp.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer" onClick={() => setSelectedEmployeeId(emp.id)}>
                                         <td className="px-6 py-4">
                                             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${emp.rank === 1 ? 'bg-yellow-100 text-yellow-700' : emp.rank === 2 ? 'bg-gray-200 text-gray-700' : emp.rank === 3 ? 'bg-orange-100 text-orange-800' : 'text-gray-500 dark:bg-gray-700 dark:text-gray-300'}`}>
@@ -385,7 +436,7 @@ export const EmployeePerformance: React.FC<{
                                         </td>
                                     </tr>
                                 ))}
-                                {filteredAndSortedStats.length === 0 && (
+                                {paginatedStats.length === 0 && (
                                     <tr>
                                         <td colSpan={7} className="px-6 py-8 text-center text-gray-500 dark:text-gray-400">
                                             No employees found matching the filter.
@@ -396,6 +447,44 @@ export const EmployeePerformance: React.FC<{
                         </table>
                     </div>
                 </div>
+                
+                {/* Pagination */}
+                {totalPages > 1 && (
+                    <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                        <div className="text-sm text-gray-500">
+                            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredAndSortedStats.length)} of {filteredAndSortedStats.length} employees
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
+                            >
+                                Previous
+                            </button>
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                <button
+                                    key={page}
+                                    onClick={() => setCurrentPage(page)}
+                                    className={`px-3 py-1 text-sm border rounded-md ${
+                                        currentPage === page 
+                                        ? 'bg-blue-500 text-white border-blue-500' 
+                                        : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                                    }`}
+                                >
+                                    {page}
+                                </button>
+                            ))}
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {}
@@ -427,17 +516,21 @@ export const EmployeePerformance: React.FC<{
                         <div className="p-6 space-y-6 overflow-y-auto">
                             {}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="bg-gray-50 dark:bg-gray-900/50 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col justify-center">
+                                    <div className="bg-gray-50 dark:bg-gray-900/50 p-6 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col justify-center">
                                     <h4 className="font-bold text-gray-800 dark:text-white mb-4 flex items-center gap-2"><ListTodo size={16}/> Workload</h4>
                                     <div className="h-48 flex items-center justify-center">
                                         <ResponsiveContainer width="100%" height="100%">
                                             <PieChart>
                                                 <Pie
-                                                    data={[
-                                                        { name: 'Completed', value: selectedEmpData.tasks.completed, fill: '#10B981' },
-                                                        { name: 'Pending', value: selectedEmpData.tasks.total - selectedEmpData.tasks.completed - selectedEmpData.tasks.overdue, fill: '#F59E0B' },
-                                                        { name: 'Overdue', value: selectedEmpData.tasks.overdue, fill: '#EF4444' }
-                                                    ]}
+                                                    data={Object.entries(selectedEmpData.tasks.all.reduce((acc, task) => {
+                                                        const statusName = task.statusId ? (taskStatusMap.get(task.statusId) || 'Unknown') : (task.isCompleted ? 'Completed' : 'Pending');
+                                                        acc[statusName] = (acc[statusName] || 0) + 1;
+                                                        return acc;
+                                                    }, {} as Record<string, number>)).map(([name, value]) => ({
+                                                        name,
+                                                        value,
+                                                        fill: taskStatusColorMap.get(name) || '#6B7280'
+                                                    })).filter(item => item.value > 0)}
                                                     cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={5} dataKey="value"
                                                 >
                                                     {}
@@ -447,8 +540,28 @@ export const EmployeePerformance: React.FC<{
                                             </PieChart>
                                         </ResponsiveContainer>
                                     </div>
-                                    <div className="text-center mt-2 text-xs text-gray-500 dark:text-gray-400">
-                                        {selectedEmpData.tasks.overdue > 0 ? <span className="text-red-500 font-bold flex items-center justify-center gap-1"><AlertCircle size={12}/> {selectedEmpData.tasks.overdue} Critical Tasks</span> : "No Overdue Tasks"}
+                                    <div className="text-center mt-4">
+                                        <div className="flex flex-wrap gap-2 justify-center">
+                                            {Object.entries(selectedEmpData.tasks.all.reduce((acc, task) => {
+                                                const statusName = task.statusId ? (taskStatusMap.get(task.statusId) || 'Unknown') : (task.isCompleted ? 'Completed' : 'Pending');
+                                                acc[statusName] = (acc[statusName] || 0) + 1;
+                                                return acc;
+                                            }, {} as Record<string, number>)).map(([status, count]) => {
+                                                const color = taskStatusColorMap.get(status) || '#6B7280';
+                                                return (
+                                                    <span key={status} className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium" style={{backgroundColor: `${color}20`, color: color}}>
+                                                        {status}: {count}
+                                                    </span>
+                                                );
+                                            })}
+                                        </div>
+                                        {selectedEmpData.tasks.overdue > 0 && (
+                                            <div className="mt-2">
+                                                <span className="text-red-500 font-bold flex items-center justify-center gap-1 text-xs">
+                                                    <AlertCircle size={12}/> {selectedEmpData.tasks.overdue} Critical Tasks
+                                                </span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -531,10 +644,10 @@ export const EmployeePerformance: React.FC<{
                             
                             {}
                             <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
-                                {['All', 'Pending', 'Overdue', 'Completed'].map((tab) => (
+                                {taskStatusOptions.map((tab) => (
                                     <button
                                         key={tab}
-                                        onClick={() => setTaskModalFilter(tab as any)}
+                                        onClick={() => setTaskModalFilter(tab)}
                                         className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
                                             taskModalFilter === tab 
                                             ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm' 
@@ -580,7 +693,7 @@ export const EmployeePerformance: React.FC<{
                                                         isOverdue ? 'bg-red-100 text-red-800' :
                                                         'bg-yellow-100 text-yellow-800'
                                                     }`}>
-                                                        {task.isCompleted ? 'Completed' : isOverdue ? 'Overdue' : 'Pending'}
+                                                        {task.statusId ? (taskStatusMap.get(task.statusId) || 'Unknown') : (task.isCompleted ? 'Completed' : isOverdue ? 'Overdue' : 'Pending')}
                                                     </span>
                                                 </td>
                                             </tr>

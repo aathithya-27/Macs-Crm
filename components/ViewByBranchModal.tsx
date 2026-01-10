@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FinRootsBranch } from '../types.ts';
+import { Branch } from '../types.ts';
 import Modal from './ui/Modal.tsx';
 import Button from './ui/Button.tsx';
 import { X } from 'lucide-react';
@@ -7,7 +7,7 @@ import { X } from 'lucide-react';
 interface ViewByBranchModalProps {
     isOpen: boolean;
     onClose: () => void;
-    branches: FinRootsBranch[];
+    branches: Branch[];
     selectedBranches: string[];
     onApplyFilter: (selectedIds: string[]) => void;
 }

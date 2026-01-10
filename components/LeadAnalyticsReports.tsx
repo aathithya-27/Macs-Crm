@@ -52,6 +52,8 @@ export const LeadAnalyticsReports: React.FC<{
     const [selectedSource, setSelectedSource] = useState<string>('All');
     const [tableSearch, setTableSearch] = useState<string>(''); 
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(10);
 
     const userMap = useMemo(() => new Map(users.map(u => [u.id, u.name])), [users]);
     const sourceMap = useMemo(() => new Map(leadSources.map(s => [s.id, s.name])), [leadSources]);
@@ -141,6 +143,13 @@ export const LeadAnalyticsReports: React.FC<{
 
         return list;
     }, [analytics, selectedSource, tableSearch, userMap, sortConfig]);
+
+    const paginatedList = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return filteredList.slice(startIndex, startIndex + itemsPerPage);
+    }, [filteredList, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(filteredList.length / itemsPerPage);
 
     const handleResetFilter = () => {
         if (selectedSource !== 'All') {
@@ -283,9 +292,9 @@ export const LeadAnalyticsReports: React.FC<{
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                                {filteredList.map((item, i) => (
+                                {paginatedList.map((item, i) => (
                                     <tr key={i} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                                        <td className="px-6 py-4 text-gray-500">{i + 1}</td>
+                                        <td className="px-6 py-4 text-gray-500">{((currentPage - 1) * itemsPerPage) + i + 1}</td>
                                         <td className="px-6 py-4 font-semibold text-gray-900 dark:text-white">{item.name}</td>
                                         <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
                                             <span className="inline-flex items-center gap-1 bg-gray-100 dark:bg-gray-700 px-2.5 py-1 rounded-md text-xs font-medium border border-gray-200 dark:border-gray-600">
@@ -309,13 +318,51 @@ export const LeadAnalyticsReports: React.FC<{
                                         </td>
                                     </tr>
                                 ))}
-                                {filteredList.length === 0 && (
+                                {paginatedList.length === 0 && (
                                     <tr><td colSpan={8} className="text-center py-12 text-gray-400">No data found matching your filter.</td></tr>
                                 )}
                             </tbody>
                         </table>
                     </div>
                 </div>
+                
+                {/* Pagination */}
+                {totalPages > 1 && (
+                    <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                        <div className="text-sm text-gray-500">
+                            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, filteredList.length)} of {filteredList.length} records
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
+                            >
+                                Previous
+                            </button>
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                <button
+                                    key={page}
+                                    onClick={() => setCurrentPage(page)}
+                                    className={`px-3 py-1 text-sm border rounded-md ${
+                                        currentPage === page 
+                                        ? 'bg-blue-500 text-white border-blue-500' 
+                                        : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                                    }`}
+                                >
+                                    {page}
+                                </button>
+                            ))}
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

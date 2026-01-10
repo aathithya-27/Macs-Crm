@@ -7,12 +7,13 @@ import {
     Member, Geography, BusinessVertical, RelationshipType, 
     LeadSourceMaster, CampaignMaster, InsuranceTypeMaster,
     CustomerCategory, CustomerSubCategory, CustomerGroup,
-    Branch, User, Religion, MaritalStatus
+    Branch, User, Religion, MaritalStatus, AMC, SchemeMaster, InsuranceAgency, MutualFundScheme
 } from '../types';
 import { getCampaigns, getBranches, getUsers } from '../services/apiService';
 import SearchableSelect from './ui/SearchableSelect'; 
 import Button from './ui/Button';
 import Input from './ui/Input';
+import Pagination from './ui/Pagination';
 
 interface CampaignExecutionProps {
     members: Member[];
@@ -26,6 +27,10 @@ interface CampaignExecutionProps {
     customerGroups: CustomerGroup[];
     religions: Religion[];
     maritalStatuses: MaritalStatus[];
+    amcs: AMC[];
+    schemes: SchemeMaster[];
+    mutualFundSchemes: MutualFundScheme[];
+    agencies: InsuranceAgency[];
     addToast: (message: string, type?: 'success' | 'error') => void;
 }
 
@@ -67,6 +72,7 @@ interface PersistedState {
 }
 
 const initialFilters = {};
+const ITEMS_PER_PAGE = 10;
 
 const formatCsvCell = (cellData: any): string => {
     if (cellData === null || cellData === undefined) return 'N/A';
@@ -101,6 +107,10 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
     religions = [],
     maritalStatuses = [],
     leadSources = [],
+    amcs = [],
+    schemes = [],
+    mutualFundSchemes = [],
+    agencies = [],
     addToast
 }) => {
     const [campaigns, setCampaigns] = useState<CampaignMaster[]>([]);
@@ -149,11 +159,43 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
     const [editVertical, setEditVertical] = useState<'Insurance' | 'Mutual Funds' | ''>('');
     const [editFilterValues, setEditFilterValues] = useState<FilterState>({});
     const [editExecutionList, setEditExecutionList] = useState<Member[]>([]);
+    
+    const [currentPage, setCurrentPage] = useState(1);
 
     const filteredSubCategories = useMemo(() => {
         if (!filterValues.categoryId || !customerSubCategories) return [];
         return customerSubCategories.filter(sc => sc.parentId === filterValues.categoryId);
     }, [filterValues.categoryId, customerSubCategories]);
+
+    const cities = useMemo(() => {
+        return [...new Set(geographies.filter(g => g.type === 'City').map(g => g.name).filter(Boolean))];
+    }, [geographies]);
+
+    const areas = useMemo(() => {
+        if (!filterValues.city) return [];
+        const cityGeo = geographies.find(g => g.type === 'City' && g.name === filterValues.city);
+        if (!cityGeo) return [];
+        return geographies.filter(g => g.type === 'Area' && g.parentId === cityGeo.id).map(g => g.name).filter(Boolean);
+    }, [filterValues.city, geographies]);
+
+    const filteredInsuranceSubTypes = useMemo(() => {
+        if (!filterValues.insuranceTypeId) return [];
+        return insuranceTypes.filter(it => it.parentId === filterValues.insuranceTypeId);
+    }, [filterValues.insuranceTypeId, insuranceTypes]);
+
+    const parentInsuranceTypes = useMemo(() => {
+        return insuranceTypes.filter(it => !it.parentId);
+    }, [insuranceTypes]);
+
+    const filteredSchemes = useMemo(() => {
+        if (activeVertical === 'Insurance' && filterValues.insuranceSubTypeId) {
+            return schemes.filter(s => s.insuranceTypeId === filterValues.insuranceSubTypeId);
+        }
+        if (activeVertical === 'Mutual Funds' && filterValues.amcId) {
+            return mutualFundSchemes.filter(s => s.amcId === filterValues.amcId);
+        }
+        return [];
+    }, [filterValues.insuranceSubTypeId, filterValues.amcId, activeVertical, schemes, mutualFundSchemes]);
 
     useEffect(() => {
         const savedState = sessionStorage.getItem('campaign_module_state_v3');
@@ -355,30 +397,45 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                         const policies = member.policies || [];
                         if (policies.length === 0) matches = false;
                         else {
-                             let policyMatch = true;
-                             if (activeBusinessParams.has('insuranceType') && filterValues.insuranceTypeId) {
-                                 if (!policies.some(p => p.insuranceTypeId === filterValues.insuranceTypeId)) policyMatch = false;
-                             }
-                             if (activeBusinessParams.has('premium') && filterValues.minPremium) {
+                            let policyMatch = true;
+                            if (activeBusinessParams.has('insuranceType') && filterValues.insuranceTypeId) {
+                                if (!policies.some(p => p.insuranceTypeId === filterValues.insuranceTypeId)) policyMatch = false;
+                            }
+                            if (activeBusinessParams.has('insuranceSubType') && filterValues.insuranceSubTypeId) {
+                                if (!policies.some(p => p.insuranceTypeId === filterValues.insuranceSubTypeId)) policyMatch = false;
+                            }
+                            if (activeBusinessParams.has('agency') && filterValues.agency) {
+                                if (!policies.some(p => p.agencyId === filterValues.agency)) policyMatch = false;
+                            }
+                            if (activeBusinessParams.has('scheme') && filterValues.schemeId) {
+                                if (!policies.some(p => p.schemeId === filterValues.schemeId)) policyMatch = false;
+                            }
+                            if (activeBusinessParams.has('premium') && filterValues.minPremium) {
                                 if (policies.reduce((sum, p) => sum + (p.premium || 0), 0) < parseFloat(filterValues.minPremium)) policyMatch = false;
-                             }
-                             if (activeBusinessParams.has('coverage') && filterValues.minCoverage) {
+                            }
+                            if (activeBusinessParams.has('coverage') && filterValues.minCoverage) {
                                 if (policies.reduce((sum, p) => sum + (p.coverage || 0), 0) < parseFloat(filterValues.minCoverage)) policyMatch = false;
-                             }
-                             if (activeBusinessParams.has('policyTerm') && filterValues.minPolicyTerm) {
-                                 if (!policies.some(p => (p.policyTerm || 0) >= parseFloat(filterValues.minPolicyTerm))) policyMatch = false;
-                             }
-                             if (activeBusinessParams.has('scheme') && filterValues.schemeName) {
-                                 if (!policies.some(p => p.schemeName?.toLowerCase().includes(filterValues.schemeName.toLowerCase()))) policyMatch = false;
-                             }
-
-                             if (!policyMatch) matches = false;
+                            }
+                            if (activeBusinessParams.has('policyTerm') && filterValues.minPolicyTerm) {
+                                if (!policies.some(p => (p.policyTerm || 0) >= parseFloat(filterValues.minPolicyTerm))) policyMatch = false;
+                            }
+                            if (!policyMatch) matches = false;
                         }
                     } else if (activeVertical === 'Mutual Funds') {
                         const holdings = member.mutualFundHoldings || [];
                         if (holdings.length === 0) matches = false;
                         else {
                             let mfMatch = true;
+                            if (activeBusinessParams.has('amcs') && filterValues.amcId) {
+                                const scheme = mutualFundSchemes.find(s => s.id === filterValues.amcId);
+                                if (scheme && !holdings.some(h => {
+                                    const holdingScheme = mutualFundSchemes.find(s => s.id === h.schemeId);
+                                    return holdingScheme?.amcId === scheme.amcId;
+                                })) mfMatch = false;
+                            }
+                            if (activeBusinessParams.has('mfScheme') && filterValues.mfSchemeId) {
+                                if (!holdings.some(h => h.schemeId === filterValues.mfSchemeId)) mfMatch = false;
+                            }
                             if (activeBusinessParams.has('sipAmount') && filterValues.minSip) {
                                 const totalSip = holdings.filter(h => h.investmentType === 'SIP').reduce((sum, h) => sum + (h.sipAmount || 0), 0);
                                 if (totalSip < parseFloat(filterValues.minSip)) mfMatch = false;
@@ -534,6 +591,16 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
             default: return '';
         }
     };
+
+    const totalPages = Math.ceil(executionList.length / ITEMS_PER_PAGE);
+    const currentExecutionList = executionList.slice(
+        (currentPage - 1) * ITEMS_PER_PAGE,
+        currentPage * ITEMS_PER_PAGE
+    );
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [executionList]);
 
     return (
         <div className="flex flex-col h-screen gap-4 p-2 overflow-y-auto">
@@ -779,27 +846,82 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                                         </select>
                                     </div>
                                 )}
-                                {activeCustomerParams.has('city') && <Input label="City" value={filterValues.city || ''} onChange={e => setFilterValues({...filterValues, city: e.target.value})} />}
-                                {activeCustomerParams.has('area') && <Input label="Area" value={filterValues.area || ''} onChange={e => setFilterValues({...filterValues, area: e.target.value})} />}
+                                {activeCustomerParams.has('city') && (
+                                    <div className="flex flex-col gap-1">
+                                        <label className="text-xs font-medium text-gray-600 dark:text-gray-400">City</label>
+                                        <SearchableSelect
+                                            label=""
+                                            options={cities.map(city => ({ value: city, label: city }))}
+                                            value={filterValues.city || ''}
+                                            onChange={value => setFilterValues({...filterValues, city: value, area: ''})}
+                                            placeholder="Select City"
+                                        />
+                                    </div>
+                                )}
+                                {activeCustomerParams.has('area') && (
+                                    <div className="flex flex-col gap-1">
+                                        <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Area</label>
+                                        <SearchableSelect
+                                            label=""
+                                            options={areas.map(area => ({ value: area, label: area }))}
+                                            value={filterValues.area || ''}
+                                            onChange={value => setFilterValues({...filterValues, area: value})}
+                                            placeholder="Select Area"
+                                            disabled={!filterValues.city}
+                                        />
+                                    </div>
+                                )}
 
                                 {}
                                 {activeVertical === 'Insurance' && activeBusinessParams.has('insuranceType') && (
                                     <div className="flex flex-col gap-1">
                                         <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Insurance Type</label>
-                                        <select className="p-2 border rounded-md text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white" value={filterValues.insuranceTypeId || ''} onChange={e => setFilterValues({...filterValues, insuranceTypeId: e.target.value})}>
-                                            <option value="">All Types</option>
-                                            {insuranceTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                        </select>
+                                        <SearchableSelect
+                                            label=""
+                                            options={parentInsuranceTypes.map(t => ({ value: t.id, label: t.name }))}
+                                            value={filterValues.insuranceTypeId || ''}
+                                            onChange={value => setFilterValues({...filterValues, insuranceTypeId: value, insuranceSubTypeId: '', schemeId: ''})}
+                                            placeholder="Select Insurance Type"
+                                        />
                                     </div>
                                 )}
                                 {activeVertical === 'Insurance' && activeBusinessParams.has('insuranceSubType') && (
-                                    <Input label="Sub Type (Name)" value={filterValues.insuranceSubType || ''} onChange={e => setFilterValues({...filterValues, insuranceSubType: e.target.value})} />
+                                    <div className="flex flex-col gap-1">
+                                        <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Insurance Sub Type</label>
+                                        <SearchableSelect
+                                            label=""
+                                            options={filteredInsuranceSubTypes.map(t => ({ value: t.id, label: t.name }))}
+                                            value={filterValues.insuranceSubTypeId || ''}
+                                            onChange={value => setFilterValues({...filterValues, insuranceSubTypeId: value, schemeId: ''})}
+                                            placeholder="Select Sub Type"
+                                            disabled={!filterValues.insuranceTypeId}
+                                        />
+                                    </div>
                                 )}
                                 {activeVertical === 'Insurance' && activeBusinessParams.has('agency') && (
-                                    <Input label="Agency" value={filterValues.agency || ''} onChange={e => setFilterValues({...filterValues, agency: e.target.value})} />
+                                    <div className="flex flex-col gap-1">
+                                        <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Agency</label>
+                                        <SearchableSelect
+                                            label=""
+                                            options={agencies.map(agency => ({ value: agency.name, label: agency.name }))}
+                                            value={filterValues.agency || ''}
+                                            onChange={value => setFilterValues({...filterValues, agency: value})}
+                                            placeholder="Select Agency"
+                                        />
+                                    </div>
                                 )}
                                 {activeVertical === 'Insurance' && activeBusinessParams.has('scheme') && (
-                                    <Input label="Scheme Name" value={filterValues.schemeName || ''} onChange={e => setFilterValues({...filterValues, schemeName: e.target.value})} />
+                                    <div className="flex flex-col gap-1">
+                                        <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Scheme</label>
+                                        <SearchableSelect
+                                            label=""
+                                            options={filteredSchemes.map(s => ({ value: s.id, label: s.name }))}
+                                            value={filterValues.schemeId || ''}
+                                            onChange={value => setFilterValues({...filterValues, schemeId: value})}
+                                            placeholder="Select Scheme"
+                                            disabled={!filterValues.insuranceSubTypeId}
+                                        />
+                                    </div>
                                 )}
                                 {activeVertical === 'Insurance' && activeBusinessParams.has('coverage') && (
                                     <Input label="Min. Sum Assured" type="number" value={filterValues.minCoverage || ''} onChange={e => setFilterValues({...filterValues, minCoverage: e.target.value})} />
@@ -825,10 +947,29 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
 
                                 {}
                                 {activeVertical === 'Mutual Funds' && activeBusinessParams.has('amcs') && (
-                                    <Input label="AMC Name" value={filterValues.amcName || ''} onChange={e => setFilterValues({...filterValues, amcName: e.target.value})} />
+                                    <div className="flex flex-col gap-1">
+                                        <label className="text-xs font-medium text-gray-600 dark:text-gray-400">AMC</label>
+                                        <SearchableSelect
+                                            label=""
+                                            options={amcs.map(amc => ({ value: amc.id, label: amc.name }))}
+                                            value={filterValues.amcId || ''}
+                                            onChange={value => setFilterValues({...filterValues, amcId: value, mfSchemeId: ''})}
+                                            placeholder="Select AMC"
+                                        />
+                                    </div>
                                 )}
                                 {activeVertical === 'Mutual Funds' && activeBusinessParams.has('mfScheme') && (
-                                    <Input label="Scheme Name" value={filterValues.mfSchemeName || ''} onChange={e => setFilterValues({...filterValues, mfSchemeName: e.target.value})} />
+                                    <div className="flex flex-col gap-1">
+                                        <label className="text-xs font-medium text-gray-600 dark:text-gray-400">Mutual Fund Scheme</label>
+                                        <SearchableSelect
+                                            label=""
+                                            options={filteredSchemes.map(s => ({ value: s.id, label: s.name }))}
+                                            value={filterValues.mfSchemeId || ''}
+                                            onChange={value => setFilterValues({...filterValues, mfSchemeId: value})}
+                                            placeholder="Select Scheme"
+                                            disabled={!filterValues.amcId}
+                                        />
+                                    </div>
                                 )}
                                 {activeVertical === 'Mutual Funds' && activeBusinessParams.has('sipLumpsum') && (
                                      <div className="flex flex-col gap-1">
@@ -887,7 +1028,7 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
 
             {}
             {isEditMode && executionList.length > 0 && (
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col h-96">
                     <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center bg-orange-50 dark:bg-orange-900/20">
                         <div className="flex items-center gap-3">
                             <h3 className="font-bold text-gray-800 dark:text-white flex items-center gap-2">
@@ -898,29 +1039,31 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                             </span>
                         </div>
                     </div>
-                    <div className="max-h-80 overflow-auto">
-                        <div className="overflow-x-auto">
+                    <div className="flex-1 overflow-auto">
+                        <div className="overflow-x-scroll">
                             <table className="min-w-full text-left border-collapse">
                             <thead className="bg-gray-100 dark:bg-gray-700 sticky top-0 z-10 text-xs uppercase font-semibold text-gray-600 dark:text-gray-300">
                                 <tr>
                                     <th className="p-3 w-16 whitespace-nowrap">S.No</th>
-                                    <th className="p-3 whitespace-nowrap">Name</th>
-                                    <th className="p-3 whitespace-nowrap">Mobile</th>
-                                    <th className="p-3 whitespace-nowrap">City</th>
-                                    <th className="p-3 whitespace-nowrap">Business Vertical</th>
+                                    <th className="p-3 whitespace-nowrap min-w-[120px]">Name</th>
+                                    <th className="p-3 whitespace-nowrap min-w-[100px]">Mobile</th>
+                                    <th className="p-3 whitespace-nowrap min-w-[100px]">City</th>
+                                    <th className="p-3 whitespace-nowrap min-w-[120px]">Business Vertical</th>
                                     {Array.from(activeCustomerParams).map(param => (
-                                        <th key={param} className="p-3 bg-blue-50/50 dark:bg-blue-900/10 text-blue-800 dark:text-blue-200 whitespace-nowrap">
+                                        <th key={param} className="p-3 bg-blue-50/50 dark:bg-blue-900/10 text-blue-800 dark:text-blue-200 whitespace-nowrap min-w-[100px]">
                                             {param.charAt(0).toUpperCase() + param.slice(1).replace(/([A-Z])/g, ' $1')}
                                         </th>
                                     ))}
-                                    <th className="p-3 whitespace-nowrap">Status</th>
-                                    <th className="p-3 text-center whitespace-nowrap">Is Done</th>
+                                    <th className="p-3 whitespace-nowrap min-w-[80px]">Status</th>
+                                    <th className="p-3 text-center whitespace-nowrap min-w-[80px]">Is Done</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                                {executionList.map((member, idx) => (
+                                {currentExecutionList.map((member, idx) => {
+                                    const serialNumber = (currentPage - 1) * ITEMS_PER_PAGE + idx + 1;
+                                    return (
                                     <tr key={member.id} className="hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                        <td className="p-3 text-sm text-gray-500 whitespace-nowrap">{idx + 1}</td>
+                                        <td className="p-3 text-sm text-gray-500 whitespace-nowrap">{serialNumber}</td>
                                         <td className="p-3 text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">{member.name}</td>
                                         <td className="p-3 text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">{member.mobile}</td>
                                         <td className="p-3 text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap">{member.city}</td>
@@ -947,11 +1090,20 @@ const CampaignExecution: React.FC<CampaignExecutionProps> = ({
                                             />
                                         </td>
                                     </tr>
-                                ))}
+                                )})}
                             </tbody>
                             </table>
                         </div>
                     </div>
+                    {executionList.length > 0 && (
+                        <Pagination
+                            currentPage={currentPage}
+                            totalPages={totalPages}
+                            onPageChange={setCurrentPage}
+                            itemsPerPage={ITEMS_PER_PAGE}
+                            totalItems={executionList.length}
+                        />
+                    )}
                 </div>
             )}
 

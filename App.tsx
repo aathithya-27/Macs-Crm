@@ -163,6 +163,7 @@ type TierCalculationMethod = 'sumAssured' | 'premium';
 const App: React.FC = () => {
     const [theme, setTheme] = useState<Theme>('light');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+    const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
     const navigate = useNavigate();
 
     const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -990,6 +991,13 @@ const handleUpdateAccountCategories = useCallback(async (newData: AccountCategor
     const handleLogin = (user: User, finYearId: string) => {
         setCurrentUser(user);
         setActiveFinancialYearId(finYearId);
+        
+        // Update favicon only on login
+        if (user.company_logo) {
+            const favicon = document.getElementById('favicon') as HTMLLinkElement;
+            if (favicon) favicon.href = user.company_logo;
+        }
+        
         navigate('/dashboard');
 
         const userRole = roles.find(r => r.id === user.roleId);
@@ -1813,7 +1821,13 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
             const updated = await updateOperatingCompany(companyData);
             setOperatingCompanies(prev => prev.map(c => c.id === updated.id ? updated : c));
             if (currentUser && currentUser.comp_id === updated.id) {
-                setCurrentUser(prev => prev ? { ...prev, company: updated.name } : null);
+                setCurrentUser(prev => prev ? { ...prev, company: updated.name, company_logo: updated.logoUrl } : null);
+                
+                // Update favicon only
+                if (updated.logoUrl) {
+                    const favicon = document.getElementById('favicon') as HTMLLinkElement;
+                    if (favicon) favicon.href = updated.logoUrl;
+                }
             }
             addToast("Company profile updated successfully.", "success");
         } catch (error) {
@@ -2081,8 +2095,22 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                         onLogout={handleLogout}
                         user={currentUser}
                         permissions={currentUserPermissions}
+                        onHoverChange={setIsSidebarExpanded}
                     />
-                    <main className="flex-1 bg-gray-100 dark:bg-gray-900 flex flex-col overflow-hidden md:ml-64">
+                    
+                    {/* 
+                        LAYOUT PUSH LOGIC:
+                        1. md:ml-20: Default width (80px) when sidebar is collapsed.
+                        2. md:ml-72: Expanded width (288px) when sidebar is hovered/expanded.
+                        3. transition-all: Smoothly animates the margin change.
+                    */}
+                    <main 
+                        className={`flex-1 bg-gray-100 dark:bg-gray-900 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
+                            isSidebarExpanded ? 'md:ml-72' : 'md:ml-20'
+                        }`}
+                    >
+                        
+                        {/* Header */}
                         <div className="sticky top-0 z-10 bg-gray-100/80 dark:bg-gray-900/80 backdrop-blur-sm p-4 flex justify-between items-center border-b dark:border-gray-800 flex-shrink-0">
                             <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700">
                                 <Menu size={24} />
@@ -2114,10 +2142,12 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                                 </button>
                             </div>
                         </div>
+
+                        {/* Main Content */}
                         <div className="flex-1 p-6 overflow-y-auto">
                             <Routes>
                                 <Route path="/" element={<Navigate to="/dashboard" />} />
-                                <Route path="/dashboard" element={<Dashboard {...{ members: companyMembers, leads: companyLeads, notifications, upsellOpportunities, onOpenModal: handleOpenMemberModal, onOpenLeadModal: handleOpenLeadModal, currentUser, users: companyUsers, dismissedFocusItems, onDismissFocusItem: handleDismissItem, allTasks, onUpdateTask: handleUpdateTask, onDeleteTask: handleDeleteTask, todaysFocusItems, isFocusLoading, focusError, onRefreshFocus: fetchTodaysFocus, customerTiers, onViewTier: handleViewTier, taskStatusMasters, addToast, designations, permissions: currentUserPermissions, roles }} />} />
+                                <Route path="/dashboard" element={<Dashboard {...{ members: companyMembers, leads: companyLeads, notifications, upsellOpportunities, onOpenModal: handleOpenMemberModal, onOpenLeadModal: handleOpenLeadModal, currentUser, users: companyUsers, dismissedFocusItems, onDismissFocusItem: handleDismissFocusItem, allTasks, onUpdateTask: handleUpdateTask, onDeleteTask: handleDeleteTask, todaysFocusItems, isFocusLoading, focusError, onRefreshFocus: fetchTodaysFocus, customerTiers, onViewTier: handleViewTier, taskStatusMasters, addToast, designations, permissions: currentUserPermissions, roles }} />} />
                                 <Route path="/customers" element={<MemberDashboard {...{ members: companyMembers, allMembers, currentUser, users: companyUsers, onEditMember: handleOpenMemberModal, onCreateMember: () => handleOpenMemberModal(null), onConversationalCreate: () => setIsConversationalCreatorOpen(true), onDeleteMember: handleDeleteMember, onToggleStatus: handleToggleMemberStatus, onGenerateReview: handleGenerateReview, addToast, Branches: companyBranches, designations, permissions: currentUserPermissions, roles }} />} />
                                 <Route path="/policies" element={<PolicyManager {...{ members: companyMembers, onRenewPolicy: handleRenewPolicy, onViewMember: handleOpenMemberModal, addToast, users: companyUsers, Branches: companyBranches, insuranceTypes, designations, permissions: currentUserPermissions, roles }} />} />
                                 <Route path="/mutualFunds" element={<MutualFunds {...{ allMembers: companyMembers, onUpdateMember: (member) => handleSaveMember(member, false), amcs, schemes: mutualFundSchemes, addToast, onViewMember: onViewMember, permissions: currentUserPermissions }} />} />
@@ -2128,7 +2158,7 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                                 <Route path="/profile" element={currentUser?.roleId && roles.find(r => r.id === currentUser.roleId)?.name.toLowerCase().includes('admin') ? <AdminProfile {...{ user: currentUser, users: companyUsers, allMembers: companyMembers, onOpenEmployeeModal: () => handleOpenEmployeeModal(null), onUpdateProfile: handleSaveEmployee, addToast, designations, permissions: currentUserPermissions, roles }} /> : <ProfilePage {...{ user: currentUser, onUpdateProfile: handleSaveEmployee, onUpdatePassword: handleUpdatePassword, addToast, allMembers: companyMembers, users: companyUsers, geographies, onUpdateGeographies: handleUpdateGeographies, bankMasters, designations, permissions: currentUserPermissions, genders, accountTypes, roles }} />} />
                                 <Route path="/employees" element={<EmployeeManagement {...{ users: companyUsers, allMembers: companyMembers, onOpenEmployeeModal: handleOpenEmployeeModal, onToggleStatus: async (userId) => { const user = allUsers.find(u => u.id === userId); if(user) { const newStatus = user.profile?.status === 'Active' ? 'Inactive' : 'Active'; await handleSaveEmployee({...user, profile: {...user.profile, status: newStatus} as EmployeeProfile}); }}, attendance, onUpdateAttendance: handleUpdateAttendanceByAdmin, Branches: companyBranches, addToast, designations, permissions: currentUserPermissions, roles }} />} />
                                 <Route path="/servicesHub" element={<ServicesHub addToast={addToast} allMembers={companyMembers} onViewMember={handleOpenMemberModal} onUpdateCommissionStatus={handleUpdateCommissionStatus} currentUser={currentUser} designations={designations} />} />
-                                <Route path="/actionHub" element={<ActionAutomationHub {...{ notifications: hubNotifications, onRenewPolicy: handleRenewPolicy, activityLog: hubActivityLog, addToast, onNotificationSent: () => {}, appointments: hubAppointments, tasks: hubTasks, onDismissItem: handleDismissItem, savedGreetingUrl: null, setSavedGreetingUrl: () => {}, upsellOpportunities, onDismissOpportunity: (id) => setUpsellOpportunities(prev => prev.filter(o => o.id !== id)), members: companyMembers, onScheduleMessage: (msg) => { setCustomMessages(prev => [...prev, {...msg, id: `cm-${Date.now()}`}]); addToast('Custom message scheduled!', 'success'); }, onClearAll: handleClearActionHubNotifications, onScheduleAppointment: (appt) => { const member = companyMembers.find(m => m.id === appt.memberId); if(member) { setAppointments(prev => [...prev, { ...appt, id: `appt-${Date.now()}`, memberName: member.name }]); addToast('Appointment scheduled!', 'success'); } }, rules: automationRules, onUpdateRule: (rule) => setAutomationRules(prev => prev.map(r => r.id === rule.id ? rule : r)), onAddRule: handleAddAutomationRule, docTemplates, onUpdateTemplates: setDocTemplates, currentUser, users: companyUsers, onViewMember: onViewMember, permissions: currentUserPermissions, occasionTypeMasters, onUpdateOccasionTypeMasters: handleUpdateOccasionTypeMasters,roles }} />} />
+                                <Route path="/actionHub" element={<ActionAutomationHub {...{ notifications: hubNotifications, onRenewPolicy: handleRenewPolicy, activityLog: hubActivityLog, addToast, onNotificationSent: () => {}, appointments: hubAppointments, tasks: hubTasks, onDismissItem: handleDismissItem, savedGreetingUrl: null, setSavedGreetingUrl: () => {}, upsellOpportunities, onDismissOpportunity: (id) => setUpsellOpportunities(prev => prev.filter(o => o.id !== id)), members: companyMembers, onScheduleMessage: (msg) => { setCustomMessages(prev => [...prev, {...msg, id: `cm-${Date.now()}`}]); addToast('Custom message scheduled!', 'success'); }, onClearAll: handleClearActionHubNotifications, onScheduleAppointment: (appt) => { const member = companyMembers.find(m => m.id === appt.memberId); if(member) { setAppointments(prev => [...prev, { ...appt, id: `appt-${Date.now()}`, memberName: member.name }]); addToast('Appointment scheduled!', 'success'); } }, rules: automationRules, onUpdateRule: (rule) => setAutomationRules(prev => prev.map(r => r.id === rule.id ? rule : r)), onAddRule: handleAddAutomationRule, docTemplates, onUpdateTemplates: setDocTemplates, currentUser, users: companyUsers, onViewMember: onViewMember, permissions: currentUserPermissions, occasionTypeMasters, onUpdateOccasionTypeMasters: handleUpdateOccasionTypeMasters, roles }} />} />
                                 
                                 <Route path="/masterData/*" element={<MasterData allTasks={[]} {...{ 
                                     addToast, allMembers: companyMembers, allLeads: companyLeads, users: companyUsers, 
@@ -2181,7 +2211,7 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                                     leadStageMasters, onUpdateLeadStageMasters: handleUpdateLeadStageMasters 
                                 }} />} />
                                 
-                                <Route path="/reports-insights" element={<ReportsAndInsights members={companyMembers} users={companyUsers} tasks={allTasks} attendance={attendance} onUpdateAttendance={handleUpdateAttendanceByAdmin} addToast={addToast} allLeads={companyLeads} currentUser={currentUser} leadSources={leadSources} schemes={schemes} insuranceTypes={insuranceTypes} onOpenAttendanceReport={() => setIsAttendanceReportModalOpen(true)} designations={designations} roles={roles} permissions={currentUserPermissions} agencies={agencies} mutualFundSchemes={mutualFundSchemes} amcs={amcs} />} />
+                                <Route path="/reports-insights" element={<ReportsAndInsights members={companyMembers} users={companyUsers} tasks={allTasks} attendance={attendance} onUpdateAttendance={handleUpdateAttendanceByAdmin} addToast={addToast} allLeads={companyLeads} currentUser={currentUser} leadSources={leadSources} schemes={schemes} insuranceTypes={insuranceTypes} onOpenAttendanceReport={() => setIsAttendanceReportModalOpen(true)} designations={designations} roles={roles} permissions={currentUserPermissions} agencies={agencies} mutualFundSchemes={mutualFundSchemes} amcs={amcs} taskStatuses={taskStatusMasters} />} />
                                 <Route path="/taskManagement" element={<TaskManagement allTasks={allTasks} permissions={currentUserPermissions} onUpdateTask={handleUpdateTask} onDeleteTask={handleDeleteTask} onCreateTask={handleCreateTask} onCreateBulkTask={handleCreateBulkTask} onOpenTask={handleOpenTask} users={companyUsers} members={companyMembers} leads={companyLeads} taskStatusMasters={taskStatusMasters} taskMasters={taskMasters} addToast={addToast} currentUser={currentUser} Branches={companyBranches} onReassignTask={handleReassignTask} onUpdateTaskWithRemark={handleUpdateTask} designations={designations} roles={roles} />} />
                                 
                                 <Route path="/incomeAndExpense" element={<IncomeAndExpense
@@ -2296,6 +2326,10 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                                         customerGroups={customerGroups}
                                         religions={religions}
                                         maritalStatuses={maritalStatuses}
+                                        amcs={amcs}
+                                        schemes={schemes}
+                                        mutualFundSchemes={mutualFundSchemes}
+                                        agencies={agencies}
                                         addToast={addToast}
                                     />
                                 } />
@@ -2304,6 +2338,8 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                             </Routes>
                         </div>
                     </main>
+
+                    {/* Modals */}
                     {isAttendanceModalOpen && currentUser && (
                         <AttendanceModal
                             isOpen={isAttendanceModalOpen}
@@ -2517,7 +2553,6 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                             addToast={addToast}
                         />
                     )}
-
                     {isCustomerExistsModalOpen && pendingConversionLead && (
                         <Modal isOpen={isCustomerExistsModalOpen} onClose={() => setIsCustomerExistsModalOpen(false)}>
                             <div className="p-6">

@@ -507,7 +507,14 @@ let members: Member[] = [
       voiceNotes: [], 
       documents: [], 
       checkIns: [],
-      branch_id: 'frb-1'
+      branch_id: 'frb-1',
+      digipin: '7JFJ3Q6H+2V', // Mumbai
+      lat: 19.1678,
+      lng: 72.8647,
+      digipinDetails: {
+          summary: 'A bustling residential area in Goregaon East.',
+          landmarks: ['Oberoi Mall', 'Goregaon Station', 'Film City'],
+      },
   },
 
   {
@@ -573,10 +580,20 @@ let members: Member[] = [
       isSPOC: true, 
       assignedTo: ['user-3'],
       processStage: 'Risk Profiling',
+      processStages: { 'ps-mf-1': 'ps-mf-1', 'ps-mf-2': 'ps-mf-2', 'ps-mf-3': 'ps-mf-3' },
+      stageLastChanged: '2024-02-15T09:30:00Z',
+      automatedGreetingsEnabled: true,
       voiceNotes: [], 
       documents: [], 
       checkIns: [],
-      branch_id: 'frb-1'
+      branch_id: 'frb-1',
+      digipin: '7JXX2P3R+4M', // Delhi
+      lat: 28.6139,
+      lng: 77.2090,
+      digipinDetails: {
+          summary: 'Central business district of New Delhi.',
+          landmarks: ['India Gate', 'Connaught Place', 'Central Park'],
+      },
   },
 
   {
@@ -625,10 +642,20 @@ let members: Member[] = [
       isSPOC: true, 
       assignedTo: ['user-2'],
       processStage: 'Inquiry',
+      processStages: { 'ps-general-1': 'ps-general-1', 'ps-general-2': 'ps-general-2' },
+      stageLastChanged: '2024-03-08T11:20:00Z',
+      automatedGreetingsEnabled: false,
       voiceNotes: [], 
       documents: [], 
       checkIns: [],
-      branch_id: 'frb-2'
+      branch_id: 'frb-2',
+      digipin: '7JXX5P6Q+8R', // Bengaluru
+      lat: 12.9716,
+      lng: 77.5946,
+      digipinDetails: {
+          summary: 'Tech hub area in HSR Layout, Bengaluru.',
+          landmarks: ['HSR BDA Complex', 'Souk Mall', 'Agara Lake'],
+      },
   },
 
   {
@@ -680,10 +707,20 @@ let members: Member[] = [
       isSPOC: true, 
       assignedTo: ['user-7'],
       processStage: 'Lead Generation',
+      processStages: { 'ps-health-1': 'ps-health-1', 'ps-health-2': 'ps-health-2', 'ps-health-3': 'ps-health-3', 'ps-health-4': 'ps-health-4', 'ps-health-5': 'ps-health-5', 'ps-health-6': 'ps-health-6' },
+      stageLastChanged: '2024-01-25T14:15:00Z',
+      automatedGreetingsEnabled: true,
       voiceNotes: [], 
       documents: [], 
       checkIns: [],
-      branch_id: 'frb-2'
+      branch_id: 'frb-2',
+      digipin: '7JXX8M4N+6P', // Chennai
+      lat: 13.0827,
+      lng: 80.2707,
+      digipinDetails: {
+          summary: 'Residential area in Chennai with good connectivity.',
+          landmarks: ['Marina Beach', 'Express Avenue Mall', 'Chennai Central'],
+      },
   },
 
   {
@@ -745,10 +782,20 @@ let members: Member[] = [
       isSPOC: true, 
       assignedTo: ['user-2'],
       processStage: 'Initial Contact',
+      processStages: { 'ps-life-1': 'ps-life-1', 'ps-life-2': 'ps-life-2' },
+      stageLastChanged: '2024-03-01T10:45:00Z',
+      automatedGreetingsEnabled: true,
       voiceNotes: [], 
       documents: [], 
       checkIns: [],
-      branch_id: 'frb-1'
+      branch_id: 'frb-1',
+      digipin: '7JFJ4Q7H+3W', // Mumbai Bandra
+      lat: 19.0596,
+      lng: 72.8295,
+      digipinDetails: {
+          summary: 'Upscale residential area in Bandra West.',
+          landmarks: ['Bandra-Worli Sea Link', 'Linking Road', 'Carter Road Promenade'],
+      },
   },
 
   {
@@ -794,10 +841,20 @@ let members: Member[] = [
       isSPOC: true, 
       assignedTo: ['user-3'],
       processStage: 'Initial Contact',
+      processStages: { 'ps-life-1': 'ps-life-1' },
+      stageLastChanged: '2024-03-12T08:30:00Z',
+      automatedGreetingsEnabled: false,
       voiceNotes: [], 
       documents: [], 
       checkIns: [],
-      branch_id: 'frb-2'
+      branch_id: 'frb-2',
+      digipin: '7JXX6N5M+7Q', // Erode
+      lat: 11.3410,
+      lng: 77.7172,
+      digipinDetails: {
+          summary: 'Industrial city in Tamil Nadu known for textiles.',
+          landmarks: ['Erode Railway Junction', 'Vellode Bird Sanctuary', 'Perundurai'],
+      },
   },
 
   {
@@ -844,10 +901,20 @@ let members: Member[] = [
       isSPOC: true, 
       assignedTo: ['user-2'],
       processStage: 'Initial Contact',
+      processStages: { 'ps-life-1': 'ps-life-1' },
+      stageLastChanged: '2024-11-05T11:00:00Z',
+      automatedGreetingsEnabled: true,
       voiceNotes: [], 
       documents: [], 
       checkIns: [],
-      branch_id: 'frb-1'
+      branch_id: 'frb-1',
+      digipin: '7JXX9P8Q+5S', // Ahmedabad
+      lat: 23.0225,
+      lng: 72.5714,
+      digipinDetails: {
+          summary: 'Modern residential area in Ahmedabad with IT companies.',
+          landmarks: ['ISRO Space Applications Centre', 'Satellite Garden', 'Prahlad Nagar'],
+      },
   },
 
   {
@@ -893,10 +960,20 @@ let members: Member[] = [
       isSPOC: true, 
       assignedTo: ['user-3'],
       processStage: 'Lead Generation',
+      processStages: { 'ps-health-1': 'ps-health-1' },
+      stageLastChanged: '2024-12-02T15:00:00Z',
+      automatedGreetingsEnabled: true,
       voiceNotes: [], 
       documents: [], 
       checkIns: [],
-      branch_id: 'frb-2'
+      branch_id: 'frb-2',
+      digipin: '7JXX7R9S+4T', // Jaipur
+      lat: 26.9124,
+      lng: 75.7873,
+      digipinDetails: {
+          summary: 'Residential area in the Pink City of Jaipur.',
+          landmarks: ['Malviya Nagar Market', 'JLN Marg', 'World Trade Park'],
+      },
   }
 ];
 

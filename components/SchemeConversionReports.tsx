@@ -256,6 +256,8 @@ export const SchemeConversionReports: React.FC<{
     const [chartView, setChartView] = useState<'pie' | 'bar'>('pie');
     const [sortConfig, setSortConfig] = useState<SortConfig>(null);
     const [businessVertical, setBusinessVertical] = useState<'All' | 'Insurance' | 'Mutual Funds'>('All');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage] = useState(10);
 
     const schemeInfoMap = useMemo(() => new Map(schemes.map(s => [s.id, { name: s.name, type: s.type, insuranceTypeId: s.insuranceTypeId }])), [schemes]);
     const insuranceTypeMap = useMemo(() => new Map(insuranceTypes.map(it => [it.id, it])), [insuranceTypes]);
@@ -361,6 +363,13 @@ export const SchemeConversionReports: React.FC<{
 
         return { types, topSchemes, allSchemes: filteredSchemes };
     }, [members, schemeInfoMap, insuranceTypeMap, mutualFundSchemeMap, amcMap, sortConfig, businessVertical]);
+
+    const paginatedSchemes = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return analysis.allSchemes.slice(startIndex, startIndex + itemsPerPage);
+    }, [analysis.allSchemes, currentPage, itemsPerPage]);
+
+    const totalPages = Math.ceil(analysis.allSchemes.length / itemsPerPage);
 
     const requestSort = (key: string) => {
         let direction: 'asc' | 'desc' = 'asc';
@@ -509,7 +518,7 @@ export const SchemeConversionReports: React.FC<{
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                                {analysis.allSchemes.map((scheme, idx) => (
+                                {paginatedSchemes.map((scheme, idx) => (
                                     <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer group" onClick={() => { setDrillDownData({ title: `Customers enrolled in ${scheme.name}`, customers: scheme.members }); }}>
                                         <td className="px-6 py-4 font-medium text-gray-900 dark:text-white group-hover:text-blue-600 transition-colors">{scheme.name}</td>
                                         <td className="px-6 py-4 text-gray-600 dark:text-gray-300">
@@ -540,6 +549,44 @@ export const SchemeConversionReports: React.FC<{
                         </table>
                     </div>
                 </div>
+                
+                {/* Pagination */}
+                {totalPages > 1 && (
+                    <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                        <div className="text-sm text-gray-500">
+                            Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, analysis.allSchemes.length)} of {analysis.allSchemes.length} schemes
+                        </div>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
+                            >
+                                Previous
+                            </button>
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                <button
+                                    key={page}
+                                    onClick={() => setCurrentPage(page)}
+                                    className={`px-3 py-1 text-sm border rounded-md ${
+                                        currentPage === page 
+                                        ? 'bg-blue-500 text-white border-blue-500' 
+                                        : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                                    }`}
+                                >
+                                    {page}
+                                </button>
+                            ))}
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="px-3 py-1 text-sm border rounded-md disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-gray-700"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {}

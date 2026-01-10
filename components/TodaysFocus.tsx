@@ -76,8 +76,12 @@ const FocusItemCard: React.FC<{
     return (
         <div className={`p-4 rounded-lg border-l-4 flex flex-col md:flex-row md:items-start gap-4 ${style.bg} ${style.border} relative group`}>
              <button 
-                onClick={() => onDismiss(item.id)} 
-                className="absolute top-2 right-2 p-1 rounded-full text-gray-400 hover:bg-gray-200/50 hover:text-gray-600 dark:hover:bg-gray-700/50 dark:hover:text-gray-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onDismiss(item.id);
+                }} 
+                className="absolute top-2 right-2 p-1 rounded-full text-gray-400 hover:bg-gray-200/50 hover:text-gray-600 dark:hover:bg-gray-700/50 dark:hover:text-gray-200 opacity-0 group-hover:opacity-100 transition-opacity z-10"
                 aria-label="Dismiss item"
             >
                 <X size={14} />

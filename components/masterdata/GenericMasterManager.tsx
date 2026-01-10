@@ -486,19 +486,19 @@ const GenericMasterManager: React.FC<GenericMasterManagerProps> = memo(({
 
     return (
         <div>
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4 my-4">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 my-4">
                 <h3 className="text-xl font-semibold text-gray-800 dark:text-white">{title}</h3>
-                <div className="flex items-center gap-4 w-full md:w-auto">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
                     {showSearchBar && (
                          <SearchBar
                             searchQuery={searchQuery}
                             onSearchChange={setSearchQuery}
                             placeholder={`Search ${noun}s...`}
-                            className="w-full md:w-64"
+                            className="w-full sm:w-64"
                         />
                     )}
                     {showAddButton && canCreate && (
-                        <Button onClick={(e) => openModal(null, e)} variant="primary" className="w-full md:w-auto flex-shrink-0">
+                        <Button onClick={(e) => openModal(null, e)} variant="primary" className="w-full sm:w-auto whitespace-nowrap">
                             <Plus size={16}/> Add New {noun}
                         </Button>
                     )}

@@ -1,6 +1,6 @@
 import React, { useMemo, useCallback, useState, useRef, useEffect } from 'react';
 import { Member, ModalTab, User, Branch, Designation, AppModule, PermissionLevel } from '../types.ts';
-import { Edit, Users, Mic, Phone, FileSignature, UserCheck, ArrowUp, ArrowDown, ChevronDown } from 'lucide-react';
+import { Edit, Users, Mic, Phone, FileSignature, UserCheck, ArrowUp, ArrowDown, ChevronDown, User as UserIcon, X } from 'lucide-react';
 import { ViewIcon } from './ui/Icons.tsx';
 import ToggleSwitch from './ui/ToggleSwitch.tsx';
 
@@ -30,9 +30,18 @@ const MemberTable: React.FC<MemberTableProps> = ({
 }) => {
 
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [photoModal, setPhotoModal] = useState<{ isOpen: boolean; photoUrl: string; memberName: string }>({ isOpen: false, photoUrl: '', memberName: '' });
   const dropdownRef = useRef<HTMLDivElement>(null);
   
   const canModify = permissions?.customers === 'modify';
+
+  const openPhotoModal = (photoUrl: string, memberName: string) => {
+    setPhotoModal({ isOpen: true, photoUrl, memberName });
+  };
+
+  const closePhotoModal = () => {
+    setPhotoModal({ isOpen: false, photoUrl: '', memberName: '' });
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -140,15 +149,31 @@ const MemberTable: React.FC<MemberTableProps> = ({
             <tr key={member.id} className={`hover:bg-gray-50 dark:hover:bg-gray-700 transition-opacity ${!member.active ? 'opacity-60 hover:opacity-100' : ''}`}>
               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">{serialNumber}</td>
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-900 dark:text-white">{member.name}</span>
-                    {member.isSPOC && <span title="Single Point of Contact" className="px-1.5 py-0.5 text-xs font-semibold bg-blue-100 text-blue-800 rounded-full dark:bg-blue-900/50 dark:text-blue-300">SPOC</span>}
-                </div>
-                {(member.spocId) && (
-                    <div className="text-xs text-gray-400" title={displayFamilyName ? `Family: ${displayFamilyName}` : `Linked to SPOC: ${memberSnoToNameMap.get(member.spocId!)}`}>
-                        {displayFamilyName ? `Family: ${displayFamilyName}` : `SPOC: ${memberSnoToNameMap.get(member.spocId!)}`}
+                <div className="flex items-center gap-3">
+                    {member.photoUrl ? (
+                        <img 
+                            src={member.photoUrl} 
+                            alt={member.name}
+                            className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity border-2 border-gray-200 dark:border-gray-600"
+                            onClick={() => openPhotoModal(member.photoUrl!, member.name)}
+                        />
+                    ) : (
+                        <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                            <UserIcon size={20} className="text-gray-400" />
+                        </div>
+                    )}
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <span className="font-medium text-gray-900 dark:text-white">{member.name}</span>
+                            {member.isSPOC && <span title="Single Point of Contact" className="px-1.5 py-0.5 text-xs font-semibold bg-blue-100 text-blue-800 rounded-full dark:bg-blue-900/50 dark:text-blue-300">SPOC</span>}
+                        </div>
+                        {(member.spocId) && (
+                            <div className="text-xs text-gray-400" title={displayFamilyName ? `Family: ${displayFamilyName}` : `Linked to SPOC: ${memberSnoToNameMap.get(member.spocId!)}`}>
+                                {displayFamilyName ? `Family: ${displayFamilyName}` : `SPOC: ${memberSnoToNameMap.get(member.spocId!)}`}
+                            </div>
+                        )}
                     </div>
-                )}
+                </div>
               </td>
               {/* --- MODIFICATION BEGINS --- */}
               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
@@ -251,14 +276,28 @@ const MemberTable: React.FC<MemberTableProps> = ({
           return (
           <div key={member.id} className={`bg-white p-4 rounded-lg shadow-md border border-gray-200 dark:bg-gray-800 dark:border-gray-700 transition-opacity ${!member.active ? 'opacity-60' : ''}`}>
             <div className="flex justify-between items-start">
-              <div>
-                <p className="font-bold text-brand-dark dark:text-white">{member.name}</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400">ID: {serialNumber} &bull; {member.city}</p>
-                {(member.spocId) && (
-                    <div className="mt-1 text-xs text-gray-400" title={displayFamilyName ? `Family: ${displayFamilyName}` : `Linked to SPOC: ${memberSnoToNameMap.get(member.spocId!)}`}>
-                        {displayFamilyName ? `Family: ${displayFamilyName}` : `SPOC: ${memberSnoToNameMap.get(member.spocId!)}`}
+              <div className="flex items-start gap-3">
+                {member.photoUrl ? (
+                    <img 
+                        src={member.photoUrl} 
+                        alt={member.name}
+                        className="w-12 h-12 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity border-2 border-gray-200 dark:border-gray-600 flex-shrink-0"
+                        onClick={() => openPhotoModal(member.photoUrl!, member.name)}
+                    />
+                ) : (
+                    <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
+                        <UserIcon size={24} className="text-gray-400" />
                     </div>
                 )}
+                <div>
+                    <p className="font-bold text-brand-dark dark:text-white">{member.name}</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">ID: {serialNumber} &bull; {member.city}</p>
+                    {(member.spocId) && (
+                        <div className="mt-1 text-xs text-gray-400" title={displayFamilyName ? `Family: ${displayFamilyName}` : `Linked to SPOC: ${memberSnoToNameMap.get(member.spocId!)}`}>
+                            {displayFamilyName ? `Family: ${displayFamilyName}` : `SPOC: ${memberSnoToNameMap.get(member.spocId!)}`}
+                        </div>
+                    )}
+                </div>
               </div>
               <div className="flex items-center space-x-2 flex-shrink-0">
                   {canModify && (
@@ -338,6 +377,29 @@ const MemberTable: React.FC<MemberTableProps> = ({
           </div>
         )})}
       </div>
+
+      {/* Photo Modal */}
+      {photoModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50" onClick={closePhotoModal}>
+          <div className="relative max-w-3xl max-h-[90vh] p-4">
+            <button 
+              onClick={closePhotoModal}
+              className="absolute top-2 right-2 text-white hover:text-gray-300 bg-black bg-opacity-50 rounded-full p-2 z-10"
+            >
+              <X size={24} />
+            </button>
+            <img 
+              src={photoModal.photoUrl} 
+              alt={photoModal.memberName}
+              className="max-w-full max-h-full object-contain rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 text-white px-3 py-1 rounded">
+              {photoModal.memberName}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
