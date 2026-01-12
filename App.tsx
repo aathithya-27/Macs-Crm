@@ -217,7 +217,8 @@ const App: React.FC = () => {
     const [customMessages, setCustomMessages] = useState<CustomScheduledMessage[]>([]);
     const [docTemplates, setDocTemplates] = useState<DocTemplate[]>(initialDocTemplates);
     const [attendance, setAttendance] = useState<AttendanceState>({});
-
+    const [forgotPasswordCompany, setForgotPasswordCompany] = useState('');
+    const [forgotPasswordEmployeeId, setForgotPasswordEmployeeId] = useState('');
     const [advisorLocations, setAdvisorLocations] = useState<AdvisorLocation[]>([]);
     const [checkIns, setCheckIns] = useState<CheckIn[]>([]);
     const [activeCheckIn, setActiveCheckIn] = useState<CheckIn | null>(null);
@@ -244,7 +245,11 @@ const App: React.FC = () => {
         setDismissedItems(prev => ({ ...prev, [itemId]: true }));
         addToast("Item hidden from this view.", "success");
     }, [addToast]);
-
+    const handleOpenForgotPassword = (company: string, employeeId: string) => {
+    setForgotPasswordCompany(company);
+    setForgotPasswordEmployeeId(employeeId);
+    setIsForgotPasswordModalOpen(true);
+    };
     const [dismissedFocusItems, setDismissedFocusItems] = useState<string[]>([]);
     const [todaysFocusItems, setTodaysFocusItems] = useState<TodaysFocusItem[]>([]);
     const [isFocusLoading, setIsFocusLoading] = useState(false);
@@ -2079,12 +2084,14 @@ const handleMarkAttendance = useCallback((status: AttendanceRecord['status'], re
                     }}
                     addToast={addToast}
                     operatingCompanies={operatingCompanies}
+                    initialCompany={forgotPasswordCompany}
+                    initialEmployeeId={forgotPasswordEmployeeId}
                 />
             )}
 
             {!currentUser ? (
                 <Routes>
-                    <Route path="/login" element={<Login onLogin={handleLogin} onForgotPassword={() => setIsForgotPasswordModalOpen(true)} theme={theme} toggleTheme={toggleTheme} allBranches={allBranches} operatingCompanies={operatingCompanies} roles={roles} />} />
+                    <Route path="/login" element={<Login onLogin={handleLogin} onForgotPassword={handleOpenForgotPassword} theme={theme} toggleTheme={toggleTheme} allBranches={allBranches} operatingCompanies={operatingCompanies} roles={roles} />} />
                     <Route path="*" element={<Navigate to="/login" />} />
                 </Routes>
             ) : (

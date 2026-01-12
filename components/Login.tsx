@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Shield, Lock, Sun, Moon, Building, User as UserIcon, GitBranch, Calendar, Award } from 'lucide-react';
+import { Shield, Lock, Sun, Moon, Building, Calendar, Award, GitBranch } from 'lucide-react';
 import Button from './ui/Button.tsx';
-import { User as UserType, Branch, Company, Designation, FinancialYear, Role } from '../types.ts';
+import { User as UserType, Branch, Company, FinancialYear, Role } from '../types.ts';
 import Input from './ui/Input.tsx';
 import { login, getFinancialYears } from '../services/apiService.ts';
 
 interface LoginProps {
     onLogin: (user: UserType, finYearId: string) => void; 
-    onForgotPassword: () => void;
+    // Updated: function now accepts company and employeeId
+    onForgotPassword: (companyName: string, employeeId: string) => void;
     theme: 'light' | 'dark';
     toggleTheme: () => void;
     allBranches: Branch[];
@@ -100,6 +101,19 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                 setError('An error occurred during login. Please try again.');
             }
         }
+    };
+
+    const handleForgotPasswordClick = () => {
+        setError('');
+        if (!employeeId.trim()) {
+            setError('Please provide your User ID to reset password');
+            return;
+        }
+        if (!company) {
+            setError('Please select a company');
+            return;
+        }
+        onForgotPassword(company, employeeId);
     };
 
     return (
@@ -235,7 +249,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                         </div>
                         <button
                             type="button"
-                            onClick={onForgotPassword}
+                            onClick={handleForgotPasswordClick}
                             className="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
                         >
                             Forgot password?

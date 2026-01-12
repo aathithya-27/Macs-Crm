@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Modal from './ui/Modal.tsx';
 import Button from './ui/Button.tsx';
 import Input from './ui/Input.tsx';
-import { X, KeyRound, Mail, Loader2, CheckCircle, AtSign } from 'lucide-react';
+import { X, KeyRound, Mail, Loader2, CheckCircle, AtSign, Building } from 'lucide-react';
 import { User, Company } from '../types.ts';
 
 interface ForgotPasswordModalProps {
@@ -12,57 +12,65 @@ interface ForgotPasswordModalProps {
     onResetPassword: (company: string, employeeId: string, newPassword: string) => Promise<boolean>;
     addToast: (message: string, type?: 'success' | 'error') => void;
     operatingCompanies: Company[];
+    initialCompany: string;     // Passed from Login
+    initialEmployeeId: string;  // Passed from Login
 }
 
 type Step = 'enter_id' | 'enter_otp_password' | 'success';
 
-export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen, onClose, users, onResetPassword, addToast, operatingCompanies }) => {
+export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ 
+    isOpen, 
+    onClose, 
+    users, 
+    onResetPassword, 
+    addToast, 
+    operatingCompanies,
+    initialCompany,
+    initialEmployeeId
+}) => {
     const [step, setStep] = useState<Step>('enter_id');
-    const [comp_code, setcomp_code] = useState('');
-    const [companyName, setCompanyName] = useState('');
-    const [employeeId, setEmployeeId] = useState('');
-    const [email, setEmail] = useState('');
+    const [companyEmail, setCompanyEmail] = useState('');
+    const [userDisplayName, setUserDisplayName] = useState('');
+    
     const [otp, setOtp] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
     
-    const companyMap = useMemo(() => new Map(operatingCompanies.map(c => [c.comp_code, c.name])), [operatingCompanies]);
+    // Logic to set up the view based on passed props
+    useEffect(() => {
+        if (isOpen) {
+            // 1. Find the User to format "1002 - Rohan Patel"
+            const user = users.find(u => u.employeeId.toLowerCase() === initialEmployeeId.toLowerCase() && u.company === initialCompany);
+            if (user) {
+                setUserDisplayName(`${user.employeeId} - ${user.name}`);
+            } else {
+                setUserDisplayName(initialEmployeeId); // Fallback if user not found in local list (though login check should catch it)
+            }
 
-    useEffect(() => {
-        if(comp_code) {
-            const name = companyMap.get(comp_code.toUpperCase());
-            setCompanyName(name || 'Invalid Code');
-        } else {
-            setCompanyName('');
-        }
-    }, [comp_code, companyMap]);
-    
-    useEffect(() => {
-        setEmail('');
-        if(companyName && companyName !== 'Invalid Code' && employeeId) {
-            const user = users.find(u => u.employeeId.toLowerCase() === employeeId.toLowerCase() && u.company === companyName);
-            if (user && user.email) {
-                setEmail(user.email);
+            // 2. Find the Company Email from Master Data
+            const opComp = operatingCompanies.find(c => c.name === initialCompany);
+            if (opComp && opComp.contact && opComp.contact.emailId) {
+                setCompanyEmail(opComp.contact.emailId);
+            } else {
+                setCompanyEmail(''); // Handle case where company has no email
             }
         }
-    }, [companyName, employeeId, users]);
+    }, [isOpen, initialCompany, initialEmployeeId, users, operatingCompanies]);
+
 
     const handleSendOtp = () => {
         setError('');
-        if (!employeeId || !companyName || companyName === 'Invalid Code') {
-            setError('Please enter a valid company code and employee ID.');
-            return;
-        }
         
-        if (!email) {
-            setError('No account found with that ID for the selected company.');
+        if (!companyEmail) {
+            setError('No registered email found for the selected company. Please contact support.');
             return;
         }
 
-          const maskedEmail = email.replace(/^(.)(.*)(.@.*)$/, (_, a, b, c) => a + b.replace(/./g, '*') + c);
-        addToast(`Simulated OTP (123456) sent to ${maskedEmail}`, 'success');
+        // Mask the company email
+        const maskedEmail = companyEmail.replace(/^(.)(.*)(.@.*)$/, (_, a, b, c) => a + b.replace(/./g, '*') + c);
+        addToast(`Simulated OTP (123456) sent to Company Email: ${maskedEmail}`, 'success');
         setStep('enter_otp_password');
     };
 
@@ -86,7 +94,8 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
         }
 
         setIsLoading(true);
-        const success = await onResetPassword(companyName, employeeId, newPassword);
+        // We use initialCompany and initialEmployeeId for the actual reset action
+        const success = await onResetPassword(initialCompany, initialEmployeeId, newPassword);
         setIsLoading(false);
 
         if (success) {
@@ -98,10 +107,6 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
 
     const handleClose = useCallback(() => {
         setStep('enter_id');
-        setcomp_code('');
-        setCompanyName('');
-        setEmployeeId('');
-        setEmail('');
         setOtp('');
         setNewPassword('');
         setConfirmPassword('');
@@ -123,42 +128,49 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
                 return (
                     <>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                           Please enter your Company Code and Username to receive a one-time password (OTP).
+                           Please verify your details. An OTP will be sent to the registered <strong>Company Email ID</strong>.
                         </p>
-                        <div className="relative">
-                            <Input
-                                id="company-code"
-                                label="Company Code"
-                                value={comp_code}
-                                onChange={e => setcomp_code(e.target.value)}
-                                placeholder="e.g., FIN01"
+                        
+                        {/* Company Name Display (Read Only) */}
+                        <div className="relative mb-4">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Company</label>
+                            <Building className="absolute left-3 top-9 h-5 w-5 text-gray-400" />
+                            <input
+                                type="text"
+                                value={initialCompany}
+                                readOnly
+                                disabled
+                                className="w-full pl-10 pr-4 py-2 mt-1 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-600 dark:bg-gray-700/50 dark:border-gray-600 dark:text-gray-300 cursor-not-allowed"
                             />
-                            {companyName && (
-                                <span className={`absolute right-2 top-9 text-xs font-semibold ${companyName === 'Invalid Code' ? 'text-red-500' : 'text-green-600'}`}>
-                                    {companyName}
-                                </span>
-                            )}
                         </div>
-                        <Input
-                            label="Username / Employee ID"
-                            value={employeeId}
-                            onChange={(e) => setEmployeeId(e.target.value)}
-                            placeholder="e.g., admin or 1002"
-                        />
+
+                        {/* Username Display 1002 - Name (Read Only) */}
+                        <div className="relative mb-4">
+                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">User ID/Username</label>
+                             <input
+                                type="text"
+                                value={userDisplayName}
+                                readOnly
+                                disabled
+                                className="w-full px-4 py-2 mt-1 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-600 dark:bg-gray-700/50 dark:border-gray-600 dark:text-gray-300 cursor-not-allowed"
+                            />
+                        </div>
+
+                        {/* Company Email Display (Read Only) */}
                         <div className="relative mt-2">
-                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Connected Email ID</label>
+                             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Email ID</label>
                             <AtSign className="absolute left-3 top-10 h-5 w-5 text-gray-400" />
                             <input
                                 type="email"
-                                value={email}
+                                value={companyEmail}
                                 readOnly
                                 disabled
                                 placeholder="Email will appear here"
                                 className="w-full pl-10 pr-4 py-2 mt-1 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-500 dark:bg-gray-700/50 dark:border-gray-600 dark:text-gray-400 cursor-not-allowed"
                             />
                         </div>
-                        <Button onClick={handleSendOtp} variant="primary" className="w-full mt-4" disabled={!email}>
-                            <Mail size={16} /> Send OTP
+                        <Button onClick={handleSendOtp} variant="primary" className="w-full mt-4" disabled={!companyEmail}>
+                            <Mail size={16} /> Send OTP to Company Email
                         </Button>
                     </>
                 );
@@ -166,7 +178,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
                 return (
                     <>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                            An OTP has been sent to your email. Please enter it below along with your new password. (Hint: use 123456)
+                            An OTP has been sent to <strong>{companyEmail}</strong>. Please enter it below along with your new password. (Hint: use 123456)
                         </p>
                          <Input
                             label="One-Time Password (OTP)"
