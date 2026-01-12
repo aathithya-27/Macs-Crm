@@ -1,10 +1,8 @@
-
-
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Modal from './ui/Modal.tsx';
 import Button from './ui/Button.tsx';
 import Input from './ui/Input.tsx';
-import { X, KeyRound, Mail, Loader2, CheckCircle, Building, AtSign } from 'lucide-react';
+import { X, KeyRound, Mail, Loader2, CheckCircle, AtSign } from 'lucide-react';
 import { User, Company } from '../types.ts';
 
 interface ForgotPasswordModalProps {
@@ -50,7 +48,6 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
             }
         }
     }, [companyName, employeeId, users]);
-
 
     const handleSendOtp = () => {
         setError('');
@@ -99,7 +96,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
         }
     };
 
-    const handleClose = () => {
+    const handleClose = useCallback(() => {
         setStep('enter_id');
         setcomp_code('');
         setCompanyName('');
@@ -111,13 +108,14 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ isOpen
         setError('');
         setIsLoading(false);
         onClose();
-    };
+    }, [onClose]);
     
     useEffect(() => {
         if (!isOpen) {
-            setTimeout(handleClose, 300);
+            const timer = setTimeout(handleClose, 300);
+            return () => clearTimeout(timer);
         }
-    }, [isOpen]);
+    }, [isOpen, handleClose]);
 
     const renderStepContent = () => {
         switch (step) {
