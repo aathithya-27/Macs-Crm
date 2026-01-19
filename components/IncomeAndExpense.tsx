@@ -273,26 +273,27 @@ const getAccountDetails = (headId: string, heads: AccountHead[], subs: AccountSu
 };
 
 const AnalysisTab: React.FC<Pick<IncomeAndExpenseProps, 'expenses' | 'manualReceipts' | 'financialYears' | 'activeFinancialYearId' | 'accountCategories' | 'accountSubCategories' | 'accountHeads'>> = ({ expenses, manualReceipts, financialYears, activeFinancialYearId, accountCategories, accountSubCategories, accountHeads }) => {
-    const activeFY = useMemo(() => financialYears.find(fy => fy.id === activeFinancialYearId), [financialYears, activeFinancialYearId]);
+    const [selectedFYId, setSelectedFYId] = useState(activeFinancialYearId || '');
+    const [comparisonMode, setComparisonMode] = useState(false);
+    const [compareFYId, setCompareFYId] = useState('');
     const [incomeViewMode, setIncomeViewMode] = useState<'pie' | 'bar'>('pie');
     const [expenseViewMode, setExpenseViewMode] = useState<'pie' | 'bar'>('pie');
     
-    const { totalReceipts, totalExpenses, netFlow, expensesBySubCat, incomeBySubCat, flattenedIncomes } = useMemo(() => {
-        let receipts = manualReceipts;
-        let expenseList = expenses;
-
-        // Filter for MTD (Month to Date) - from start of current month to today
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const today = new Date();
+    const getDataForFY = (fyId: string) => {
+        const fy = financialYears.find(f => f.id === fyId);
+        if (!fy) return { totalReceipts: 0, totalExpenses: 0, netFlow: 0, expensesBySubCat: [], incomeBySubCat: [], flattenedIncomes: [] };
         
-        receipts = receipts.filter(r => { 
-            const d = new Date(r.date); 
-            return d >= startOfMonth && d <= today; 
+        const fyStart = new Date(fy.fromDate);
+        const fyEnd = new Date(fy.toDate);
+        
+        const receipts = manualReceipts.filter(r => {
+            const d = new Date(r.date);
+            return d >= fyStart && d <= fyEnd;
         });
-        expenseList = expenseList.filter(e => { 
-            const d = new Date(e.date); 
-            return d >= startOfMonth && d <= today; 
+        
+        const expenseList = expenses.filter(e => {
+            const d = new Date(e.date);
+            return d >= fyStart && d <= fyEnd;
         });
 
         const totalRec = receipts.reduce((sum, r) => sum + r.lineItems.reduce((s, i) => s + i.amount, 0), 0);
@@ -328,30 +329,134 @@ const AnalysisTab: React.FC<Pick<IncomeAndExpenseProps, 'expenses' | 'manualRece
             incomeBySubCat: Object.entries(incCat).map(([name, value]) => ({ name, value })),
             flattenedIncomes: flatIncomes
         };
-    }, [expenses, manualReceipts, activeFY, accountCategories, accountSubCategories, accountHeads]);
+    };
+    
+    const primaryData = useMemo(() => getDataForFY(selectedFYId), [selectedFYId, expenses, manualReceipts, financialYears, accountCategories, accountSubCategories, accountHeads]);
+    const compareData = useMemo(() => comparisonMode && compareFYId ? getDataForFY(compareFYId) : null, [comparisonMode, compareFYId, expenses, manualReceipts, financialYears, accountCategories, accountSubCategories, accountHeads]);
+    
+    const comparisonChartData = useMemo(() => {
+        if (!compareData) return null;
+        
+        const allCategories = new Set([...primaryData.incomeBySubCat.map(i => i.name), ...compareData.incomeBySubCat.map(i => i.name)]);
+        const incomeComparison = Array.from(allCategories).map(cat => ({
+            name: cat,
+            primary: primaryData.incomeBySubCat.find(i => i.name === cat)?.value || 0,
+            compare: compareData.incomeBySubCat.find(i => i.name === cat)?.value || 0
+        }));
+        
+        const allExpCategories = new Set([...primaryData.expensesBySubCat.map(e => e.name), ...compareData.expensesBySubCat.map(e => e.name)]);
+        const expenseComparison = Array.from(allExpCategories).map(cat => ({
+            name: cat,
+            primary: primaryData.expensesBySubCat.find(e => e.name === cat)?.value || 0,
+            compare: compareData.expensesBySubCat.find(e => e.name === cat)?.value || 0
+        }));
+        
+        return { incomeComparison, expenseComparison };
+    }, [primaryData, compareData]);
 
     const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#F97316'];
+    const selectedFY = financialYears.find(f => f.id === selectedFYId);
+    const compareFY = financialYears.find(f => f.id === compareFYId);
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <StatCard title="Total Receipts" value={totalReceipts} icon={<TrendingUp />} isProfit={true} />
-                <StatCard title="Total Expenses" value={totalExpenses} icon={<TrendingDown />} />
-                <StatCard title="Net Flow" value={netFlow} icon={<IndianRupee />} isProfit={netFlow >= 0} />
+            {/* Controls */}
+            <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Financial Year</label>
+                        <select value={selectedFYId} onChange={e => setSelectedFYId(e.target.value)} className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
+                            {financialYears.map(fy => <option key={fy.id} value={fy.id}>{fy.finYear}</option>)}
+                        </select>
+                    </div>
+                    
+                    <div className="flex items-center">
+                        <input type="checkbox" id="comparison" checked={comparisonMode} onChange={e => setComparisonMode(e.target.checked)} className="w-4 h-4 text-blue-600 rounded" />
+                        <label htmlFor="comparison" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">Compare with another year</label>
+                    </div>
+                    
+                    {comparisonMode && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Compare with</label>
+                            <select value={compareFYId} onChange={e => setCompareFYId(e.target.value)} className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-blue-500 bg-white dark:bg-gray-700 dark:border-gray-600 dark:text-white sm:text-sm">
+                                <option value="">Select year to compare</option>
+                                {financialYears.filter(fy => fy.id !== selectedFYId).map(fy => <option key={fy.id} value={fy.id}>{fy.finYear}</option>)}
+                            </select>
+                        </div>
+                    )}
+                </div>
             </div>
             
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <StatCard title={`Total Receipts${selectedFY ? ` (${selectedFY.finYear})` : ''}`} value={primaryData.totalReceipts} icon={<TrendingUp />} isProfit={true} />
+                <StatCard title={`Total Expenses${selectedFY ? ` (${selectedFY.finYear})` : ''}`} value={primaryData.totalExpenses} icon={<TrendingDown />} />
+                <StatCard title={`Net Flow${selectedFY ? ` (${selectedFY.finYear})` : ''}`} value={primaryData.netFlow} icon={<IndianRupee />} isProfit={primaryData.netFlow >= 0} />
+            </div>
+            
+            {comparisonMode && compareData && compareFY && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-green-100 dark:bg-green-900/50 rounded-full text-green-600 dark:text-green-300"><TrendingUp /></div>
+                            <div>
+                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Receipts Comparison</p>
+                                <p className="text-lg font-bold text-gray-800 dark:text-white">{compareFY.finYear}: ₹{compareData.totalReceipts.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                                <p className={`text-sm font-medium ${compareData.totalReceipts > primaryData.totalReceipts ? 'text-red-600' : 'text-green-600'}`}>
+                                    {compareData.totalReceipts > primaryData.totalReceipts ? '↓' : '↑'} {Math.abs(((primaryData.totalReceipts - compareData.totalReceipts) / (compareData.totalReceipts || 1)) * 100).toFixed(1)}%
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-red-100 dark:bg-red-900/50 rounded-full text-red-600 dark:text-red-300"><TrendingDown /></div>
+                            <div>
+                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Expenses Comparison</p>
+                                <p className="text-lg font-bold text-gray-800 dark:text-white">{compareFY.finYear}: ₹{compareData.totalExpenses.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                                <p className={`text-sm font-medium ${compareData.totalExpenses < primaryData.totalExpenses ? 'text-green-600' : 'text-red-600'}`}>
+                                    {compareData.totalExpenses < primaryData.totalExpenses ? '↓' : '↑'} {Math.abs(((primaryData.totalExpenses - compareData.totalExpenses) / (compareData.totalExpenses || 1)) * 100).toFixed(1)}%
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border dark:border-gray-700">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-blue-100 dark:bg-blue-900/50 rounded-full text-blue-600 dark:text-blue-300"><IndianRupee /></div>
+                            <div>
+                                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Net Flow Comparison</p>
+                                <p className="text-lg font-bold text-gray-800 dark:text-white">{compareFY.finYear}: ₹{compareData.netFlow.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                                <p className={`text-sm font-medium ${compareData.netFlow < primaryData.netFlow ? 'text-green-600' : 'text-red-600'}`}>
+                                    {compareData.netFlow < primaryData.netFlow ? '↓' : '↑'} {Math.abs(((primaryData.netFlow - compareData.netFlow) / (Math.abs(compareData.netFlow) || 1)) * 100).toFixed(1)}%
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
             <div>
-                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Income Analysis (MTD)</h3>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Income Analysis{selectedFY ? ` (${selectedFY.finYear})` : ''}</h3>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <ChartCard title="Income by Sub-Category" viewMode={incomeViewMode} setViewMode={setIncomeViewMode}>
+                    <ChartCard title={comparisonMode && compareData ? "Income Comparison by Sub-Category" : "Income by Sub-Category"} viewMode={incomeViewMode} setViewMode={setIncomeViewMode}>
                         <ResponsiveContainer width="100%" height={340}>
-                            {incomeViewMode === 'pie' ? (
+                            {comparisonMode && compareData && comparisonChartData ? (
+                                <BarChart data={comparisonChartData.incomeComparison} margin={{ left: 100 }}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
+                                    <YAxis />
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Legend />
+                                    <Bar dataKey="primary" name={selectedFY?.finYear || 'Primary'} fill="#10B981" />
+                                    <Bar dataKey="compare" name={compareFY?.finYear || 'Compare'} fill="#3B82F6" />
+                                </BarChart>
+                            ) : incomeViewMode === 'pie' ? (
                                 <PieChart>
-                                    <Pie data={incomeBySubCat} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} label>{incomeBySubCat.map((_, i) => <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />)}</Pie>
+                                    <Pie data={primaryData.incomeBySubCat} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} label>{primaryData.incomeBySubCat.map((_, i) => <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />)}</Pie>
                                     <Tooltip content={<CustomTooltip />} /><Legend />
                                 </PieChart>
                             ) : (
-                                <BarChart data={incomeBySubCat} layout="vertical" margin={{ left: 100 }}>
+                                <BarChart data={primaryData.incomeBySubCat} layout="vertical" margin={{ left: 100 }}>
                                     <CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" /><YAxis dataKey="name" type="category" width={100} /><Tooltip content={<CustomTooltip />} /><Bar dataKey="value" name="Amount" fill="#10B981" />
                                 </BarChart>
                             )}
@@ -360,7 +465,7 @@ const AnalysisTab: React.FC<Pick<IncomeAndExpenseProps, 'expenses' | 'manualRece
                     <ChartCard title="Recent Income Transactions">
                         <div className="h-[340px]">
                             <DataTable 
-                                data={flattenedIncomes} 
+                                data={primaryData.flattenedIncomes.slice(0, 20)} 
                                 columns={[
                                     { header: 'Date', accessor: 'date' }, 
                                     { header: 'Party', accessor: 'party' }, 
@@ -374,17 +479,27 @@ const AnalysisTab: React.FC<Pick<IncomeAndExpenseProps, 'expenses' | 'manualRece
             </div>
 
             <div>
-                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Expense Analysis (MTD)</h3>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Expense Analysis{selectedFY ? ` (${selectedFY.finYear})` : ''}</h3>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <ChartCard title="Expenses by Sub-Category" viewMode={expenseViewMode} setViewMode={setExpenseViewMode}>
+                    <ChartCard title={comparisonMode && compareData ? "Expense Comparison by Sub-Category" : "Expenses by Sub-Category"} viewMode={expenseViewMode} setViewMode={setExpenseViewMode}>
                         <ResponsiveContainer width="100%" height={340}>
-                            {expenseViewMode === 'pie' ? (
+                            {comparisonMode && compareData && comparisonChartData ? (
+                                <BarChart data={comparisonChartData.expenseComparison} margin={{ left: 100 }}>
+                                    <CartesianGrid strokeDasharray="3 3" />
+                                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
+                                    <YAxis />
+                                    <Tooltip content={<CustomTooltip />} />
+                                    <Legend />
+                                    <Bar dataKey="primary" name={selectedFY?.finYear || 'Primary'} fill="#EF4444" />
+                                    <Bar dataKey="compare" name={compareFY?.finYear || 'Compare'} fill="#F59E0B" />
+                                </BarChart>
+                            ) : expenseViewMode === 'pie' ? (
                                 <PieChart>
-                                    <Pie data={expensesBySubCat} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} label>{expensesBySubCat.map((_, i) => <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />)}</Pie>
+                                    <Pie data={primaryData.expensesBySubCat} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={120} label>{primaryData.expensesBySubCat.map((_, i) => <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />)}</Pie>
                                     <Tooltip content={<CustomTooltip />} /><Legend />
                                 </PieChart>
                             ) : (
-                                <BarChart data={expensesBySubCat} layout="vertical" margin={{ left: 100 }}>
+                                <BarChart data={primaryData.expensesBySubCat} layout="vertical" margin={{ left: 100 }}>
                                     <CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" /><YAxis dataKey="name" type="category" width={100} /><Tooltip content={<CustomTooltip />} /><Bar dataKey="value" name="Amount" fill="#EF4444" />
                                 </BarChart>
                             )}
@@ -393,7 +508,11 @@ const AnalysisTab: React.FC<Pick<IncomeAndExpenseProps, 'expenses' | 'manualRece
                     <ChartCard title="Recent Expense Transactions">
                         <div className="h-[340px]">
                             <DataTable 
-                                data={expenses.map(e => ({...e, date: new Date(e.date).toLocaleDateString('en-GB')}))} 
+                                data={expenses.filter(e => {
+                                    if (!selectedFY) return false;
+                                    const d = new Date(e.date);
+                                    return d >= new Date(selectedFY.fromDate) && d <= new Date(selectedFY.toDate);
+                                }).slice(0, 20).map(e => ({...e, date: new Date(e.date).toLocaleDateString('en-GB')}))} 
                                 columns={[
                                     { header: 'Date', accessor: 'date' }, 
                                     { header: 'Party', accessor: 'paidTo' }, 
@@ -404,6 +523,46 @@ const AnalysisTab: React.FC<Pick<IncomeAndExpenseProps, 'expenses' | 'manualRece
                         </div>
                     </ChartCard>
                 </div>
+            </div>
+            
+            {/* Income vs Expense Summary */}
+            <div>
+                <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Income vs Expense Summary</h3>
+                <ChartCard title={comparisonMode && compareData ? "Income vs Expense Comparison" : "Income vs Expense Overview"}>
+                    <ResponsiveContainer width="100%" height={400}>
+                        {comparisonMode && compareData && compareFY ? (
+                            <BarChart data={[
+                                { category: 'Income', [selectedFY?.finYear || 'Primary']: primaryData.totalReceipts, [compareFY.finYear]: compareData.totalReceipts },
+                                { category: 'Expense', [selectedFY?.finYear || 'Primary']: primaryData.totalExpenses, [compareFY.finYear]: compareData.totalExpenses },
+                                { category: 'Net Flow', [selectedFY?.finYear || 'Primary']: primaryData.netFlow, [compareFY.finYear]: compareData.netFlow }
+                            ]} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="category" />
+                                <YAxis />
+                                <Tooltip content={<CustomTooltip />} />
+                                <Legend />
+                                <Bar dataKey={selectedFY?.finYear || 'Primary'} fill="#10B981" />
+                                <Bar dataKey={compareFY.finYear} fill="#3B82F6" />
+                            </BarChart>
+                        ) : (
+                            <BarChart data={[
+                                { category: 'Income', amount: primaryData.totalReceipts },
+                                { category: 'Expense', amount: primaryData.totalExpenses },
+                                { category: 'Net Flow', amount: primaryData.netFlow }
+                            ]} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="category" />
+                                <YAxis />
+                                <Tooltip content={<CustomTooltip />} />
+                                <Bar dataKey="amount">
+                                    <Cell fill="#10B981" />
+                                    <Cell fill="#EF4444" />
+                                    <Cell fill={primaryData.netFlow >= 0 ? '#10B981' : '#EF4444'} />
+                                </Bar>
+                            </BarChart>
+                        )}
+                    </ResponsiveContainer>
+                </ChartCard>
             </div>
         </div>
     );

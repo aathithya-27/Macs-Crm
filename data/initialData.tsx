@@ -407,6 +407,26 @@ export const initialExpenses: Expense[] = [
         docDate: '',
         isPaymentReturned: false
     },
+    {
+        id: 'exp-3',
+        date: '2024-08-20',
+        accountHeadId: 'ah-4-2-1',
+        amount: 8000,
+        description: 'Marketing expenses FY 2024-25',
+        paidTo: 'Print Media Agency',
+        modeOfPayment: 'Cheque',
+        voucherNo: 'PAY-2024-001',
+        branch_id: 'frb-1',
+        finYearId: 'fy-1',
+        createdBy: 'user-1',
+        partyId: '',
+        partyType: 'Staff',
+        bankId: 'ah-1-2-2',
+        chequeDrawnOnBankId: 'bank-1',
+        docNo: 'CHQ-445566',
+        docDate: '2024-08-20',
+        isPaymentReturned: false
+    },
 ];
 
 export const initialReceipts: ManualReceipt[] = [
@@ -432,6 +452,32 @@ export const initialReceipts: ManualReceipt[] = [
                 paymentMode: 'NetBanking', 
                 amount: 52000,
                 bankId: 'ah-1-2-3',
+                chequeDrawnOnBankId: 'bank-1'
+            }
+        ]
+    },
+    {
+        id: 'rec-2',
+        receiptNo: 'REC-2024-001',
+        date: '2024-06-15',
+        receivedFrom: 'Premium Collections',
+        partyId: '2',
+        partyType: 'Customer',
+        address: 'Chennai',
+        finYearId: 'fy-1',
+        docNo: 'UPI-789012',
+        docDate: '2024-06-15',
+        branch_id: 'frb-1',
+        isPaymentReturned: false,
+        createdBy: 'user-1',
+        lineItems: [
+            {
+                id: 'li-2',
+                accountHeadId: 'ah-3-1-1',
+                description: 'Commission FY 2024-25',
+                paymentMode: 'UPI',
+                amount: 25000,
+                bankId: 'ah-1-2-2',
                 chequeDrawnOnBankId: 'bank-1'
             }
         ]
