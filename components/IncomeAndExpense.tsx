@@ -462,11 +462,20 @@ const AnalysisTab: React.FC<Pick<IncomeAndExpenseProps, 'expenses' | 'manualRece
                             )}
                         </ResponsiveContainer>
                     </ChartCard>
-                    <ChartCard title="Recent Income Transactions">
+                    <ChartCard title={comparisonMode && compareData ? "Income Transactions Comparison" : "Recent Income Transactions"}>
                         <div className="h-[340px]">
                             <DataTable 
-                                data={primaryData.flattenedIncomes.slice(0, 20)} 
-                                columns={[
+                                data={comparisonMode && compareData ? [
+                                    ...primaryData.flattenedIncomes.slice(0, 10).map(item => ({...item, year: selectedFY?.finYear || 'Primary'})),
+                                    ...compareData.flattenedIncomes.slice(0, 10).map(item => ({...item, year: compareFY?.finYear || 'Compare'}))
+                                ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) : primaryData.flattenedIncomes.slice(0, 20)} 
+                                columns={comparisonMode && compareData ? [
+                                    { header: 'Year', accessor: 'year' },
+                                    { header: 'Date', accessor: 'date' }, 
+                                    { header: 'Party', accessor: 'party' }, 
+                                    { header: 'Head', accessor: 'head' }, 
+                                    { header: 'Amount', accessor: 'amount', className: 'text-right', render: (val) => `₹${val.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` }
+                                ] : [
                                     { header: 'Date', accessor: 'date' }, 
                                     { header: 'Party', accessor: 'party' }, 
                                     { header: 'Head', accessor: 'head' }, 
@@ -505,15 +514,32 @@ const AnalysisTab: React.FC<Pick<IncomeAndExpenseProps, 'expenses' | 'manualRece
                             )}
                         </ResponsiveContainer>
                     </ChartCard>
-                    <ChartCard title="Recent Expense Transactions">
+                    <ChartCard title={comparisonMode && compareData ? "Expense Transactions Comparison" : "Recent Expense Transactions"}>
                         <div className="h-[340px]">
                             <DataTable 
-                                data={expenses.filter(e => {
+                                data={comparisonMode && compareData ? [
+                                    ...expenses.filter(e => {
+                                        if (!selectedFY) return false;
+                                        const d = new Date(e.date);
+                                        return d >= new Date(selectedFY.fromDate) && d <= new Date(selectedFY.toDate);
+                                    }).slice(0, 10).map(e => ({...e, date: new Date(e.date).toLocaleDateString('en-GB'), year: selectedFY?.finYear || 'Primary'})),
+                                    ...expenses.filter(e => {
+                                        if (!compareFY) return false;
+                                        const d = new Date(e.date);
+                                        return d >= new Date(compareFY.fromDate) && d <= new Date(compareFY.toDate);
+                                    }).slice(0, 10).map(e => ({...e, date: new Date(e.date).toLocaleDateString('en-GB'), year: compareFY?.finYear || 'Compare'}))
+                                ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) : expenses.filter(e => {
                                     if (!selectedFY) return false;
                                     const d = new Date(e.date);
                                     return d >= new Date(selectedFY.fromDate) && d <= new Date(selectedFY.toDate);
                                 }).slice(0, 20).map(e => ({...e, date: new Date(e.date).toLocaleDateString('en-GB')}))} 
-                                columns={[
+                                columns={comparisonMode && compareData ? [
+                                    { header: 'Year', accessor: 'year' },
+                                    { header: 'Date', accessor: 'date' }, 
+                                    { header: 'Party', accessor: 'paidTo' }, 
+                                    { header: 'Head', accessor: 'accountHeadId', render: (id) => getAccountDetails(id, accountHeads, accountSubCategories, accountCategories).headName }, 
+                                    { header: 'Amount', accessor: 'amount', className: 'text-right', render: (amt) => `₹${amt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}` }
+                                ] : [
                                     { header: 'Date', accessor: 'date' }, 
                                     { header: 'Party', accessor: 'paidTo' }, 
                                     { header: 'Head', accessor: 'accountHeadId', render: (id) => getAccountDetails(id, accountHeads, accountSubCategories, accountCategories).headName }, 
