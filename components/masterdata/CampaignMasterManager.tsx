@@ -164,13 +164,13 @@ const CampaignMasterManager: React.FC<CampaignMasterManagerProps> = ({ addToast,
                                 <th className="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Start Date</th>
                                 <th className="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">End Date</th>
                                 <th className="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-center">Status</th>
-                                {canModify && <th className="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-right">Actions</th>}
+                                <th className="p-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
                             {filteredCampaigns.length === 0 ? (
                                 <tr>
-                                    <td colSpan={canModify ? 7 : 6} className="p-12 text-center text-gray-500 dark:text-gray-400">
+                                    <td colSpan={7} className="p-12 text-center text-gray-500 dark:text-gray-400">
                                         <Megaphone className="mx-auto h-12 w-12 text-gray-300 dark:text-gray-600 mb-3" />
                                         <p>No campaigns found.</p>
                                         <p className="text-sm mt-1">Create a new campaign to get started.</p>
@@ -187,24 +187,32 @@ const CampaignMasterManager: React.FC<CampaignMasterManagerProps> = ({ addToast,
                                         <td className="p-4 text-center">
                                             <button 
                                                 onClick={() => toggleStatus(campaign)}
-                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${campaign.active ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                                disabled={!canModify}
+                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                                                    campaign.active ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'
+                                                } ${
+                                                    !canModify ? 'opacity-50 cursor-not-allowed' : ''
+                                                }`}
                                             >
                                                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${campaign.active ? 'translate-x-6' : 'translate-x-1'}`} />
                                             </button>
                                         </td>
-                                        {canModify && (
-                                            <td className="p-4 text-right">
-                                                <div className="flex justify-end gap-3">
-                                                    <button
-                                                        onClick={() => handleOpenModal(campaign)}
-                                                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 p-1 rounded-md hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                                                        title="Edit"
-                                                    >
-                                                        <Edit2 size={16} />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        )}
+                                        <td className="p-4 text-right">
+                                            <div className="flex justify-end gap-3">
+                                                <button
+                                                    onClick={() => canModify && handleOpenModal(campaign)}
+                                                    disabled={!canModify}
+                                                    className={`p-1 rounded-md transition-colors ${
+                                                        canModify 
+                                                            ? 'text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20' 
+                                                            : 'text-gray-400 dark:text-gray-600 cursor-not-allowed'
+                                                    }`}
+                                                    title={canModify ? "Edit" : "View Only - Edit Disabled"}
+                                                >
+                                                    <Edit2 size={16} />
+                                                </button>
+                                            </div>
+                                        </td>
                                     </tr>
                                 ))
                             )}

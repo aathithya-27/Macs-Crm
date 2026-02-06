@@ -1,5 +1,6 @@
 
 import React, { useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 
 interface ModalProps {
   isOpen: boolean;
@@ -59,7 +60,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, contentClassNa
         if (focusableElements.length === 0) return;
         const firstElement = focusableElements[0];
         const lastElement = focusableElements[focusableElements.length - 1];
-        
+
         if (event.shiftKey) {
           if (document.activeElement === firstElement) {
             lastElement.focus();
@@ -82,23 +83,27 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children, contentClassNa
 
   if (!isOpen) return null;
 
-  const defaultClasses = "bg-white rounded-lg shadow-xl w-full max-w-5xl transform transition-all dark:bg-gray-800 flex flex-col max-h-[90vh]";
+  const defaultClasses = "bg-white rounded-lg shadow-xl w-full max-w-5xl transition-all dark:bg-gray-800 flex flex-col max-h-[90vh]";
 
-  return (
-    <div 
-      className="fixed inset-0 bg-black bg-opacity-50 z-[1001] flex justify-center items-center p-2" 
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-    >
-      <div 
-        ref={modalRef}
-        className={contentClassName || defaultClasses}
-        onClick={e => e.stopPropagation()}
-      >
-        {children}
+  return ReactDOM.createPortal(
+    <div className="relative z-[1001]" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onClose} />
+
+      {/* Scrollable Container */}
+      <div className="fixed inset-0 z-10 overflow-y-auto" onClick={onClose}>
+        <div className="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+          <div
+            ref={modalRef}
+            className={`${contentClassName || defaultClasses} relative text-left overflow-hidden shadow-xl sm:my-8`}
+            onClick={e => e.stopPropagation()}
+          >
+            {children}
+          </div>
+        </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

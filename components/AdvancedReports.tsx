@@ -115,6 +115,8 @@ interface ReportSnapshot {
     policyCreatedTo: string;
     amcs: string[];
     mutualFundSchemes: string[];
+    wonLeads: boolean;
+    lostLeads: boolean;
     visibleFilters: string[];
 }
 
@@ -203,6 +205,8 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     const [selectedAMCs, setSelectedAMCs] = useState<string[]>([]);
     const [selectedMutualFundSchemes, setSelectedMutualFundSchemes] = useState<string[]>([]);
     const [selectedIsConverted, setSelectedIsConverted] = useState<string[]>([]);
+    const [selectedWonLeads, setSelectedWonLeads] = useState<boolean>(false);
+    const [selectedLostLeads, setSelectedLostLeads] = useState<boolean>(false);
 
     const [searchCustomerId, setSearchCustomerId] = useState('');
     const [searchCustomerName, setSearchCustomerName] = useState('');
@@ -316,6 +320,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
         { key: 'status', label: 'Lead Status' }, { key: 'leadSource', label: 'Lead Source' },
         { key: 'branch', label: 'Branch' }, { key: 'advisor', label: 'Assigned To' },
         { key: 'businessVertical', label: 'Interest (Business Vertical)' }, { key: 'followUpDate', label: 'Follow-up Date' },
+        { key: 'wonLeads', label: 'Won Leads' }, { key: 'lostLeads', label: 'Lost Leads' },
     ];
     
     const BUSINESS_FILTERS = [
@@ -472,6 +477,15 @@ const filteredData = useMemo(() => {
                         vId = p?.verticalId;
                     }
                     if (vId && !snap.businessVerticals.includes(vId)) return;
+                }
+
+                if (snap.visibleFilters.includes('wonLeads') || snap.visibleFilters.includes('lostLeads')) {
+                    const showWon = snap.visibleFilters.includes('wonLeads') && snap.wonLeads;
+                    const showLost = snap.visibleFilters.includes('lostLeads') && snap.lostLeads;
+                    if (showWon && showLost) {
+                        if (lead.status !== 'Won' && lead.status !== 'Lost') return;
+                    } else if (showWon && lead.status !== 'Won') return;
+                    else if (showLost && lead.status !== 'Lost') return;
                 }
 
                 results.push(lead);
@@ -650,6 +664,7 @@ const filteredData = useMemo(() => {
             followUpFrom, followUpTo,
             annualIncomeFrom, annualIncomeTo,
             customerIds: searchCustomerId, customerNames: searchCustomerName, familyNames: searchFamilyName, mobiles: searchMobile, emails: searchEmail,
+            wonLeads: selectedWonLeads, lostLeads: selectedLostLeads,
             visibleFilters: [...visibleFilters] 
         };
         setReportSnapshot(snapshot);
@@ -716,6 +731,7 @@ const filteredData = useMemo(() => {
         setSelectedAMCs([]); setSelectedMutualFundSchemes([]);
         setPolicyPremiumFrom(''); setPolicyPremiumTo(''); setPolicySumAssuredFrom(''); setPolicySumAssuredTo('');
         setPolicyMaturityDate(''); setPolicyCreatedFrom(''); setPolicyCreatedTo('');
+        setSelectedWonLeads(false); setSelectedLostLeads(false);
         setActiveGraphs([]); setVisibleColumns([]); setVisibleFilters([]);
     };
 
@@ -794,6 +810,8 @@ const filteredData = useMemo(() => {
             setPolicyCreatedFrom('');
             setPolicyCreatedTo('');
         }
+        if (!availableFilterKeys.includes('wonLeads')) setSelectedWonLeads(false);
+        if (!availableFilterKeys.includes('lostLeads')) setSelectedLostLeads(false);
     };
 
     const handleRemoveColumn = (columnKey: string) => {
@@ -953,7 +971,11 @@ const filteredData = useMemo(() => {
                 case 'customerName': return lead.name;
                 case 'mobile': return lead.phone;
                 case 'email': return lead.email || 'N/A';
-                case 'status': return <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">{lead.status}</span>;
+                case 'status': return <span className={`px-2 py-1 text-xs rounded-full ${
+                    lead.status === 'Won' ? 'bg-green-100 text-green-700' : 
+                    lead.status === 'Lost' ? 'bg-red-100 text-red-700' : 
+                    'bg-blue-100 text-blue-700'
+                }`}>{lead.status}</span>;
                 case 'assignedTo': return users.find(u => u.id === lead.assignedTo)?.name || 'N/A';
                 case 'advisor': return users.find(u => u.id === lead.assignedTo)?.name || 'N/A';
                 case 'leadSource': return leadSourceMasterMap(lead.leadSource?.sourceId);
@@ -1306,6 +1328,18 @@ const filteredData = useMemo(() => {
                         {visibleFilters.includes('policySumAssured') && <Input label="Sum Assured Below" type="number" placeholder="Show policies below this amount" value={policySumAssuredFrom} onChange={e => setPolicySumAssuredFrom(e.target.value)} />}
                         {visibleFilters.includes('policyMaturityDate') && <Input label="Maturity Date" type="date" value={policyMaturityDate} onChange={e => setPolicyMaturityDate(e.target.value)} />}
                         {visibleFilters.includes('policyCreatedDate') && <><Input label="Policy Created From" type="date" value={policyCreatedFrom} onChange={e => setPolicyCreatedFrom(e.target.value)} /><Input label="Policy Created To" type="date" value={policyCreatedTo} onChange={e => setPolicyCreatedTo(e.target.value)} /></>}
+                        {visibleFilters.includes('wonLeads') && (
+                            <label className="flex items-center gap-2 p-3 border rounded cursor-pointer hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700">
+                                <input type="checkbox" checked={selectedWonLeads} onChange={e => setSelectedWonLeads(e.target.checked)} className="w-4 h-4 text-blue-600" />
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Won Leads</span>
+                            </label>
+                        )}
+                        {visibleFilters.includes('lostLeads') && (
+                            <label className="flex items-center gap-2 p-3 border rounded cursor-pointer hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-700">
+                                <input type="checkbox" checked={selectedLostLeads} onChange={e => setSelectedLostLeads(e.target.checked)} className="w-4 h-4 text-blue-600" />
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Lost Leads</span>
+                            </label>
+                        )}
                     </div>
                 )}
                 <div className="mt-6 pt-4 border-t dark:border-gray-700 flex justify-end gap-3">

@@ -129,7 +129,7 @@ const BusinessVerticalsManager: React.FC<BusinessVerticalsManagerProps> = (props
                                             </td>
                                             <td className="px-6 py-4">
                                                 <ToggleSwitch 
-                                                    enabled={vertical.active} 
+                                                    enabled={vertical.active ?? false} 
                                                     onChange={() => handleToggleVertical(vertical.id)}
                                                     disabled={!canModify}
                                                 />

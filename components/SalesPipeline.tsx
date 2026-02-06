@@ -480,6 +480,11 @@ const SalesPipeline: React.FC<SalesPipelineProps> = ({ leads, users, onOpenLeadM
     const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
     const [isFindingOpportunityFor, setIsFindingOpportunityFor] = useState<string | null>(null);
 
+    // Close filter panel when leads change (after creation)
+    useEffect(() => {
+        setIsFilterPanelOpen(false);
+    }, [leads.length]);
+
     const canCreate = permissions?.pipeline === 'create' || permissions?.pipeline === 'modify';
     const canModify = permissions?.pipeline === 'modify';
 

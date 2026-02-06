@@ -751,10 +751,10 @@ const UnifiedAgencySchemeManager: React.FC<UnifiedAgencySchemeManagerProps> = ({
                                         <div>
                                             <label className="block text-sm font-medium mb-1">Insurance Sub-Type</label>
                                             <select 
-                                                value="" 
+                                                value={(schemeModal.scheme as SchemeMaster)?.insuranceSubTypeId || ''} 
                                                 onChange={e => setSchemeModal(prev => ({ 
                                                     ...prev, 
-                                                    scheme: prev.scheme ? { ...prev.scheme, insuranceTypeId: e.target.value } : null 
+                                                    scheme: prev.scheme ? { ...prev.scheme, insuranceSubTypeId: e.target.value } : null 
                                                 }))}
                                                 className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-brand-primary focus:border-brand-primary sm:text-sm bg-white text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                             >
