@@ -114,7 +114,7 @@ const KanbanCard: React.FC<{
         const path = [current.name];
         while(current?.parentId && leadSourceMap.has(current.parentId)) {
             current = leadSourceMap.get(current.parentId);
-            path.unshift(current.name);
+            if (current) path.unshift(current.name);
         }
         
         const rootSource = path[0];

@@ -135,7 +135,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
 
     return (
         <div className="relative w-full min-h-screen overflow-hidden flex font-sans">
-            {/* Background */}
+            {}
             <div className="absolute inset-0 z-0">
                 <img 
                     src="./img/loginscreen5.png" 
@@ -145,7 +145,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                 <div className="absolute inset-0 bg-black/10"></div>
             </div>
 
-            {/* Theme Toggle */}
+            {}
             <div className="absolute top-6 right-6 z-50">
                 <button 
                     onClick={toggleTheme} 
@@ -155,21 +155,15 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                 </button>
             </div>
 
-            {/* Left Side - Hero Text & Bento Grid */}
+            {}
             <div className="hidden md:flex md:w-[60%] lg:w-1/2 relative z-10 flex-col justify-center p-6 lg:p-12">
-                {/* Hero Text */}
-                {/* <div className="mb-12 text-white">
-                    <h1 className="text-5xl font-bold mb-4 leading-tight">
-                        Streamline your Finance Workflow.
-                    </h1>
-                    <p className="text-xl opacity-90 max-w-lg">
-                        The all-in-one CRM for Insurance, Mutual Funds, and Wealth Management.
-                    </p>
-                </div> */}
+                {}
+                {
+}
 
-                {/* Bento Grid */}
+                {}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 w-full max-w-3xl h-auto lg:h-96">
-                {/* Calendar Widget - Always full width of the grid */}
+                {}
                 <div className="col-span-full bg-black/30 backdrop-blur-2xl border border-white/10 rounded-2xl p-4 lg:p-6 shadow-2xl text-white flex flex-col justify-between min-h-[120px]">
                     <div className="flex justify-between items-center mb-2 opacity-90">
                         <span className="text-lg lg:text-xl font-bold">{calendarData.currentMonth}</span>
@@ -192,7 +186,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                     </div>
                 </div>
 
-                {/* Daily Meeting */}
+                {}
                 <div className="col-span-1 bg-white rounded-2xl p-5 shadow-2xl flex flex-col justify-between min-h-[100px]">
                     <div className="flex justify-between items-start">
                         <div>
@@ -210,7 +204,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                     </div>
                 </div>
 
-                {/* Voice Note */}
+                {}
                 <div className="col-span-1 bg-white rounded-2xl p-5 shadow-2xl flex flex-col justify-between min-h-[100px]">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-red-100 rounded-full text-red-500">
@@ -231,8 +225,8 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
                     </div>
                 </div>
 
-                {/* Sales Trend */}
-                {/* CHANGE: On tablet (md), this spans both columns (col-span-2) to maximize width */}
+                {}
+                {}
                 <div className="col-span-1 md:col-span-2 lg:col-span-1 bg-white rounded-2xl p-5 shadow-2xl flex flex-col justify-between min-h-[100px]">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="font-bold text-gray-900 text-sm lg:text-base">Sales Trend</h3>
@@ -253,7 +247,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onForgotPassword, theme, toggleT
         </div>
 
 
-            {/* Right Side - Login Form */}
+            {}
             <div className="w-full md:w-[40%] lg:w-1/2 flex items-center justify-center lg:justify-end lg:pr-12 p-4 relative z-10">
                 <div className="w-full max-w-md p-8 space-y-6 bg-white dark:bg-gray-800 rounded-2xl shadow-lg animate-fade-in">
                     <div className="text-center">

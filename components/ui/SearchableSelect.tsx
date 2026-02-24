@@ -78,7 +78,7 @@ const DropdownMenu = ({
     <div 
       ref={dropdownRef}
       style={{maxHeight: maxHeight || '18rem'}}
-      className="absolute top-full left-0 right-0 z-50 bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700 flex flex-col mt-1"
+      className="absolute top-full left-0 right-0 z-[9999] bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700 flex flex-col mt-1"
     >
       <div className="p-2 flex-shrink-0">
         <Input

@@ -241,10 +241,10 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     const uniqueAreas = useMemo(() => Array.from(new Set(members.map(m => m.area).filter(Boolean))), [members]);
     const uniqueBloodGroups = useMemo(() => Array.from(new Set(members.map(m => m.bloodGroup).filter(Boolean))), [members]);
 
-    const stateOptions = useMemo(() => uniqueStates.map(s => ({ value: s, label: s })), [uniqueStates]);
-    const districtOptions = useMemo(() => uniqueDistricts.map(d => ({ value: d, label: d })), [uniqueDistricts]);
-    const cityOptions = useMemo(() => uniqueCities.map(c => ({ value: c, label: c })), [uniqueCities]);
-    const areaOptions = useMemo(() => uniqueAreas.map(a => ({ value: a, label: a })), [uniqueAreas]);
+    const stateOptions = useMemo(() => uniqueStates.filter(s => s).map(s => ({ value: s!, label: s! })), [uniqueStates]);
+    const districtOptions = useMemo(() => uniqueDistricts.filter(d => d).map(d => ({ value: d!, label: d! })), [uniqueDistricts]);
+    const cityOptions = useMemo(() => uniqueCities.filter(c => c).map(c => ({ value: c!, label: c! })), [uniqueCities]);
+    const areaOptions = useMemo(() => uniqueAreas.filter(a => a).map(a => ({ value: a!, label: a! })), [uniqueAreas]);
 
     const branchOptions = useMemo(() => branches.map(b => ({ value: b.id, label: b.branch_name })), [branches]);
     const advisorOptions = useMemo(() => users.filter(u => u.role?.toLowerCase().includes('advisor')).map(u => ({ value: u.id, label: u.name })), [users]);
@@ -267,7 +267,7 @@ const AdvancedReports: React.FC<AdvancedReportsProps> = (props) => {
     const groupOptions = useMemo(() => customerGroups.map(g => ({value: g.id, label: g.name})), [customerGroups]);
     const genderOptions = useMemo(() => genders.map(g => ({value: g.id, label: g.name})), [genders]);
     const religionOptions = useMemo(() => religions.map(r => ({value: r.id, label: r.name})), [religions]);
-    const bloodGroupOptions = useMemo(() => uniqueBloodGroups.map(b => ({value: b, label: b})), [uniqueBloodGroups]);
+    const bloodGroupOptions = useMemo(() => uniqueBloodGroups.filter(b => b).map(b => ({value: b!, label: b!})), [uniqueBloodGroups]);
     const maritalStatusOptions = useMemo(() => maritalStatuses.map(ms => ({value: ms.id, label: ms.name})), [maritalStatuses]);
     const processStageOptions = useMemo(() => processStageMasters.map(ps => ({value: ps.id, label: ps.name})), [processStageMasters]);
     const businessVerticalOptions = useMemo(() => businessVerticals.map(bv => ({ value: bv.id, label: bv.name })), [businessVerticals]);

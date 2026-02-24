@@ -174,7 +174,7 @@ const LeadModal: React.FC<LeadModalProps> = ({
         
         const firstStage = leadStageMasters.filter(s => s.active).sort((a,b) => a.order - b.order)[0];
 
-        let leadSource = { sourceId: null, detail: '' };
+        let leadSource: { sourceId: string | null; detail: string } = { sourceId: null, detail: '' };
         if (existingMember) {
             const upsellSource = leadSources.find(ls => ls.name === 'CrossSelling');
             if (upsellSource) {
@@ -187,7 +187,7 @@ const LeadModal: React.FC<LeadModalProps> = ({
             assignedTo = existingMember.assignedTo[0];
         }
 
-        let insuranceTypeId = null;
+        let insuranceTypeId: string | null = null;
         let policyInterestType: PolicyType | undefined;
 
         if (initialInsuranceType) {
@@ -371,7 +371,7 @@ const LeadModal: React.FC<LeadModalProps> = ({
                             </div>
 
                             <div>
-                                <Input label="Email *" id="email" type="email" value={formData.email || ''} onChange={(e) => handleChange('email', e.target.value)} disabled={isReadOnly || isUpsellCreation} />
+                                <Input label="Email" id="email" type="email" value={formData.email || ''} onChange={(e) => handleChange('email', e.target.value)} disabled={isReadOnly || isUpsellCreation} />
                                 {errors.email && <p className="text-red-600 text-xs mt-1">{errors.email}</p>}
                             </div>
                             
@@ -411,7 +411,7 @@ const LeadModal: React.FC<LeadModalProps> = ({
                             </div>
 
                             <div>
-                                <Input label="Estimated Value*" type="number" value={formData.estimatedValue > 0 ? String(formData.estimatedValue) : ''} onChange={(e) => handleChange('estimatedValue', parseFloat(e.target.value) || 0)} disabled={isReadOnly} />
+                                <Input label="Estimated Value*" type="number" value={(formData.estimatedValue || 0) > 0 ? String(formData.estimatedValue) : ''} onChange={(e) => handleChange('estimatedValue', parseFloat(e.target.value) || 0)} disabled={isReadOnly} />
                                 {errors.estimatedValue && <p className="text-red-600 text-xs mt-1">{errors.estimatedValue}</p>}
                             </div>
 

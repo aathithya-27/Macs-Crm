@@ -38,7 +38,7 @@ const calculateAge = (dobString: string): number | null => {
 
 const FormSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => {
     return (
-        <div className="border dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 overflow-hidden">
+        <div className="border dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800">
             <div className="w-full p-4 text-left font-semibold text-gray-800 dark:text-white bg-gray-50 dark:bg-gray-700/50 border-b dark:border-gray-700">
                 {title}
             </div>

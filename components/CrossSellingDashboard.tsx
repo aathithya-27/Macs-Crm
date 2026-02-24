@@ -324,21 +324,21 @@ const CrossSellingDashboard: React.FC<CrossSellingDashboardProps> = ({
         if (value !== 'all') {
             if (key === 'area') {
                 const area = geographiesMap.get(value);
-                const city = area && geographiesMap.get(area.parentId);
-                const district = city && geographiesMap.get(city.parentId);
-                const state = district && geographiesMap.get(district.parentId);
+                const city = area && area.parentId ? geographiesMap.get(area.parentId) : undefined;
+                const district = city && city.parentId ? geographiesMap.get(city.parentId) : undefined;
+                const state = district && district.parentId ? geographiesMap.get(district.parentId) : undefined;
                 if (city) updates.city = city.id;
                 if (district) updates.district = district.id;
                 if (state) updates.state = state.id;
             } else if (key === 'city') {
                 const city = geographiesMap.get(value);
-                const district = city && geographiesMap.get(city.parentId);
-                const state = district && geographiesMap.get(district.parentId);
+                const district = city && city.parentId ? geographiesMap.get(city.parentId) : undefined;
+                const state = district && district.parentId ? geographiesMap.get(district.parentId) : undefined;
                 if (district) updates.district = district.id;
                 if (state) updates.state = state.id;
             } else if (key === 'district') {
                 const district = geographiesMap.get(value);
-                const state = district && geographiesMap.get(district.parentId);
+                const state = district && district.parentId ? geographiesMap.get(district.parentId) : undefined;
                 if (state) updates.state = state.id;
             } else if (key === 'subCategory') {
                 const subCat = customerSubCategoriesMap.get(value);

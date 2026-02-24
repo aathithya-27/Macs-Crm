@@ -27,6 +27,7 @@ import CustomerFieldManager from './CustomerFieldManager';
 import TaskTypeManager from './TaskTypeManager';
 import BankMastersManager from './BankMastersManager';
 import CampaignMasterManager from './CampaignMasterManager';
+import MasterDataRolePermissionsManager from './MasterDataRolePermissionsManager';
 
 import {
     Member, Lead, User, BusinessVertical, LeadSourceMaster, SchemeMaster, Company, Branch, Geography, RelationshipType,
@@ -38,7 +39,7 @@ import {
     Gender, MaritalStatus,InsuranceAgency, CustomerType, ProcessStageMaster, AccountType, FinancialYear, DocumentNumbering, LeadStageMaster, Task
 } from '../../types';
 
-import { Database, GitBranch, Building, SlidersHorizontal, Handshake, HandCoins, UserCog, Award, Lock, UserPlus, Calendar as CalendarIcon, Sparkles, Users, Workflow, HeartHandshake, Globe2, FileTextIcon, Landmark, CheckSquare, Heart, Venus, Route as RouteIcon, Layers, ChevronDown, Megaphone } from 'lucide-react';
+import { Database, GitBranch, Building, SlidersHorizontal, Handshake, HandCoins, UserCog, Award, Lock, UserPlus, Calendar as CalendarIcon, Sparkles, Users, Workflow, HeartHandshake, Globe2, FileTextIcon, Landmark, CheckSquare, Heart, Venus, Route as RouteIcon, Layers, ChevronDown, Megaphone, Shield } from 'lucide-react';
 
 interface MasterDataProps {
     addToast: (message: string, type?: 'success' | 'error') => void;
@@ -171,7 +172,13 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
     const canCreateCampaign = campaignPermissionLevel === 'create' || campaignPermissionLevel === 'modify';
     const canModifyCampaign = campaignPermissionLevel === 'modify';
 
-    const navItems = useMemo(() => [
+    const masterDataVisibility = useMemo(() => {
+        if (!currentUser || !rolePermissions) return {};
+        const userPermissions = rolePermissions.find(p => p.roleId === currentUser.roleId);
+        return (userPermissions?.permissions as any)?.masterDataVisibility || {};
+    }, [currentUser, rolePermissions]);
+
+    const allNavItems = useMemo(() => [
         { id: 'companyMaster', path: '/masterData/companyMaster', label: 'Company Master', icon: <Building size={18}/> },
         { id: 'branches', path: '/masterData/branches', label: 'Branch', icon: <GitBranch size={18}/> },
         { id: 'businessVerticals', path: '/masterData/businessVerticals', label: 'Business Vertical', icon: <Layers size={18}/> },
@@ -182,6 +189,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
         { id: 'designation', path: '/masterData/designation', label: 'Designation', icon: <UserCog size={18}/> },
         { id: 'role', path: '/masterData/role', label: 'Role', icon: <Award size={18}/> },
         { id: 'rolePermissions', path: '/masterData/rolePermissions', label: 'Role Permissions', icon: <Lock size={18}/> },
+        { id: 'masterDataPermissions', path: '/masterData/masterDataPermissions', label: 'Master Data Permissions', icon: <Shield size={18}/> },
         { id: 'customerMaster', path: '/masterData/customerMaster', label: 'Add Customer Field', icon: <UserPlus size={18} /> },
         { id: 'financialYear', path: '/masterData/financialYear', label: 'Financial Year', icon: <CalendarIcon size={18}/> },
         { id: 'religionsAndFestivals', path: '/masterData/religionsAndFestivals', label: 'Religions & Festivals', icon: <Sparkles size={18}/> },
@@ -198,6 +206,13 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
         { id: 'tierManagement', path: '/masterData/tierManagement', label: 'Type & Gift Management', icon: <Award size={18}/> },
         { id: 'routes', path: '/masterData/routes', label: 'Routes', icon: <RouteIcon size={18}/> },
     ], []);
+
+    const navItems = useMemo(() => {
+        return allNavItems.filter(item => {
+            const visibility = masterDataVisibility[item.id];
+            return visibility !== 'hidden';
+        });
+    }, [allNavItems, masterDataVisibility]);
 
     const activeNavItem = useMemo(() => {
         return navItems.find(item => location.pathname.startsWith(item.path));
@@ -384,6 +399,7 @@ export const MasterData: React.FC<MasterDataProps> = (props) => {
                     <Route path="taskMasters" element={<TaskTypeManager taskMasters={props.taskMasters} onUpdateTaskMasters={props.onUpdateTaskMasters} addToast={props.addToast} allTasks={props.allTasks} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="bankMasters" element={<BankMastersManager bankMasters={props.bankMasters} onUpdateBankMasters={props.onUpdateBankMasters} accountTypes={props.accountTypes} onUpdateAccountTypes={props.onUpdateAccountTypes} addToast={props.addToast} allMembers={props.allMembers} canCreate={canCreate} canModify={canModify} />} />
                     <Route path="campaign" element={<CampaignMasterManager addToast={props.addToast} canCreate={canCreateCampaign} canModify={canModifyCampaign} />} />
+                    <Route path="masterDataPermissions" element={<MasterDataRolePermissionsManager roles={props.roles} rolePermissions={props.rolePermissions} onUpdate={props.onUpdateRolePermissions} addToast={props.addToast} canModify={canModify} />} />
                 </Routes>
             </div>
         </div>
