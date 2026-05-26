@@ -51,6 +51,7 @@ import {
 let financialYearsData: FinancialYear[] = [
     { id: 'fy-1', finYear: '2024-2025', fromDate: '2024-04-01', toDate: '2025-03-31', status: 'Inactive' },
     { id: 'fy-2', finYear: '2025-2026', fromDate: '2025-04-01', toDate: '2026-03-31', status: 'Active' },
+    { id: 'fy-3', finYear: '2026-2027', fromDate: '2026-04-01', toDate: '2027-03-31', status: 'Active' },
 ];
 
 let documentNumberingData: DocumentNumbering[] = [
@@ -58,6 +59,8 @@ let documentNumberingData: DocumentNumbering[] = [
     { id: 'dn-2', type: 'Voucher', prefix: 'VOUCHER/', suffix: '/25-26', startingNumber: 1001, finYearId: 'fy-2', status: 'Active' },
     { id: 'dn-3', type: 'Receipt', prefix: 'RECPT/24-25/', suffix: null, startingNumber: 1, finYearId: 'fy-1', status: 'Active' },
     { id: 'dn-4', type: 'Receipt', prefix: 'REC/', suffix: '/25-26', startingNumber: 500, finYearId: 'fy-2', status: 'Active' },
+    { id: 'dn-5', type: 'Voucher', prefix: 'VOUCHER/', suffix: '/26-27', startingNumber: 2001, finYearId: 'fy-3', status: 'Active' },
+    { id: 'dn-6', type: 'Receipt', prefix: 'REC/', suffix: '/26-27', startingNumber: 1000, finYearId: 'fy-3', status: 'Active' },
 ];
 
 let campaignsData: CampaignMaster[] = [

@@ -427,6 +427,64 @@ export const initialExpenses: Expense[] = [
         docDate: '2024-08-20',
         isPaymentReturned: false
     },
+    {
+        id: 'exp-4',
+        date: '2026-04-05',
+        accountHeadId: 'ah-4-1-1',
+        amount: 18000,
+        description: 'Salary for April 2026',
+        paidTo: 'Shankar',
+        modeOfPayment: 'Net Banking',
+        voucherNo: 'VOUCHER/2001/26-27',
+        branch_id: 'frb-1',
+        finYearId: 'fy-3',
+        createdBy: 'user-1',
+        partyId: 'user-2',
+        partyType: 'Staff',
+        bankId: 'ah-1-2-2',
+        chequeDrawnOnBankId: 'bank-1',
+        docNo: 'NEFT-990011',
+        docDate: '2026-04-05',
+        isPaymentReturned: false
+    },
+    {
+        id: 'exp-5',
+        date: '2026-05-10',
+        accountHeadId: 'ah-4-2-2',
+        amount: 12000,
+        description: 'Digital media campaign Q1 FY 2026-27',
+        paidTo: 'Digital Agency',
+        modeOfPayment: 'Net Banking',
+        voucherNo: 'VOUCHER/2002/26-27',
+        branch_id: 'frb-2',
+        finYearId: 'fy-3',
+        createdBy: 'user-1',
+        partyId: '',
+        partyType: 'Staff',
+        bankId: 'ah-1-2-3',
+        docNo: 'NEFT-990022',
+        docDate: '2026-05-10',
+        isPaymentReturned: false
+    },
+    {
+        id: 'exp-6',
+        date: '2026-06-01',
+        accountHeadId: 'ah-4-1-3',
+        amount: 6000,
+        description: 'Office Rent June 2026',
+        paidTo: 'Landlord',
+        modeOfPayment: 'Cash',
+        voucherNo: 'VOUCHER/2003/26-27',
+        branch_id: 'frb-1',
+        finYearId: 'fy-3',
+        createdBy: 'user-1',
+        partyId: '',
+        partyType: 'Staff',
+        bankId: 'ah-1-2-1',
+        docNo: '',
+        docDate: '',
+        isPaymentReturned: false
+    },
 ];
 
 export const initialReceipts: ManualReceipt[] = [
@@ -481,6 +539,58 @@ export const initialReceipts: ManualReceipt[] = [
                 chequeDrawnOnBankId: 'bank-1'
             }
         ]
+    },
+    {
+        id: 'rec-3',
+        receiptNo: 'REC/1000/26-27',
+        date: '2026-04-10',
+        receivedFrom: 'Rajesh Gupta',
+        partyId: '8',
+        partyType: 'Customer',
+        address: 'Ahmedabad',
+        finYearId: 'fy-3',
+        docNo: 'NEFT-260001',
+        docDate: '2026-04-10',
+        branch_id: 'frb-1',
+        isPaymentReturned: false,
+        createdBy: 'user-1',
+        lineItems: [
+            {
+                id: 'li-3',
+                accountHeadId: 'ah-3-1-1',
+                description: 'Policy Renewal Premium FY 2026-27',
+                paymentMode: 'NetBanking',
+                amount: 50000,
+                bankId: 'ah-1-2-2',
+                chequeDrawnOnBankId: 'bank-1'
+            }
+        ]
+    },
+    {
+        id: 'rec-4',
+        receiptNo: 'REC/1001/26-27',
+        date: '2026-05-20',
+        receivedFrom: 'Meera Joshi',
+        partyId: '9',
+        partyType: 'Customer',
+        address: 'Jaipur',
+        finYearId: 'fy-3',
+        docNo: 'UPI-260002',
+        docDate: '2026-05-20',
+        branch_id: 'frb-2',
+        isPaymentReturned: false,
+        createdBy: 'user-1',
+        lineItems: [
+            {
+                id: 'li-4',
+                accountHeadId: 'ah-3-1-2',
+                description: 'Health Insurance Premium Renewal',
+                paymentMode: 'UPI',
+                amount: 55000,
+                bankId: 'ah-1-2-3',
+                chequeDrawnOnBankId: 'bank-2'
+            }
+        ]
     }
 ];
 
@@ -531,5 +641,27 @@ export const initialOpeningBalances: OpeningBalance[] = [
         credit: 0,
         createdBy: 'user-1',
         createdAt: '2024-04-01T10:00:00Z'
+    },
+    {
+        id: 'ob-3',
+        date: '2026-04-01',
+        accountHeadId: 'ah-3-2-1',
+        partyId: '5',
+        partyType: 'Customer',
+        debit: 0,
+        credit: 20000,
+        createdBy: 'user-1',
+        createdAt: '2026-04-01T10:00:00Z'
+    },
+    {
+        id: 'ob-4',
+        date: '2026-04-01',
+        accountHeadId: 'ah-4-1-2',
+        partyId: 'user-2',
+        partyType: 'Staff',
+        debit: 60000,
+        credit: 0,
+        createdBy: 'user-1',
+        createdAt: '2026-04-01T10:00:00Z'
     }
 ];

@@ -396,7 +396,7 @@ const App: React.FC = () => {
         }
 
         if (assignedTier) {
-            return { ...member, tierId: assignedTier.id, memberType: assignedTier.name };
+            return { ...member, tierId: assignedTier.id, memberType: assignedTier.name ?? 'No Tier' };
         }
 
         return { ...member, tierId: null, memberType: 'No Tier' };
@@ -1554,7 +1554,7 @@ const App: React.FC = () => {
             ...task,
             creationDateTime: new Date().toISOString(),
             isCompleted: false,
-            primaryContactPerson: task.primaryContactPerson || currentUser?.id,
+            primaryContactPerson: task.primaryContactPerson || currentUser?.id || '',
             statusId: 'ts-created',
             active: true,
             activityLog: [creationLog],

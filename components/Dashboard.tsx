@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Member, UpsellOpportunity, Lead, ModalTab, Tab, User, TodaysFocusItem, Task, CustomerTier, TaskStatusMaster, Designation, AppModule, PermissionLevel, Role, LeadSourceMaster } from '../types.ts';
 import TodaysFocus from './TodaysFocus.tsx';
-import { Users, Bell, Shield, TrendingUp, Gem, Award, Star, ShieldCheck, CheckCircle, ListTodo, ArrowRight, Edit2, Trash2, X, Calendar, User as UserIcon, Briefcase, MessageSquare, Activity, PieChart as PieChartIcon, LayoutDashboard, MoreVertical } from 'lucide-react';
+import { Users, Bell, Shield, TrendingUp, Gem, Award, Star, ShieldCheck, CheckCircle, ListTodo, ArrowRight, Edit2, Trash2, X, Calendar, User as UserIcon, Briefcase, MessageSquare, Activity, PieChart as PieChartIcon, LayoutDashboard, MoreVertical, UserCheck, BarChart2 } from 'lucide-react';
 import Button from './ui/Button.tsx';
 import Modal from './ui/Modal.tsx';
 import Input from './ui/Input.tsx';
@@ -353,6 +353,7 @@ const Dashboard: React.FC<DashboardProps> = ({ members, leads, notifications, up
 
     const navigate = useNavigate();
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+    const [leadSourceChartType, setLeadSourceChartType] = useState<'bar' | 'pie'>('bar');
 
     const undismissedNotificationCount = useMemo(() => {
         return notifications.filter(n => !n.dismissed).length;
@@ -360,6 +361,14 @@ const Dashboard: React.FC<DashboardProps> = ({ members, leads, notifications, up
 
     const totalActivePolicies = members.reduce((sum, member) => sum + member.policies.length, 0);
     const opportunitiesValue = upsellOpportunities.length;
+
+    const totalLeadsStats = useMemo(() => {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        const recentLeads = leads.filter(l => l.createdAt && new Date(l.createdAt) >= thirtyDaysAgo);
+        const pct = leads.length > 0 ? ((recentLeads.length / leads.length) * 100).toFixed(1) : '0.0';
+        return { total: leads.length, recent: recentLeads.length, pct };
+    }, [leads]);
 
     const customerDistribution = useMemo(() => {
         return members.reduce((acc, member) => {
@@ -715,7 +724,7 @@ const Dashboard: React.FC<DashboardProps> = ({ members, leads, notifications, up
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 perspective-[1000px]">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 perspective-[1000px]">
                 <button onClick={() => navigate('/customers')} className="text-left w-full focus:outline-none focus:ring-4 focus:ring-blue-100 rounded-2xl transition-transform duration-300">
                     <StatCard icon={<Users />} title="Total Customers" value={members.length} subtext={`${members.filter(m => m.active).length} active now`} colorClass="text-blue-600" />
                 </button>
@@ -728,6 +737,9 @@ const Dashboard: React.FC<DashboardProps> = ({ members, leads, notifications, up
 
                 <button onClick={() => navigate('/actionHub')} className="text-left w-full focus:outline-none focus:ring-4 focus:ring-purple-100 rounded-2xl transition-transform duration-300 delay-[150ms]">
                     <StatCard icon={<TrendingUp />} title="Opportunities" value={opportunitiesValue} subtext="Potential revenue" colorClass="text-purple-600" />
+                </button>
+                <button onClick={() => navigate('/pipeline')} className="text-left w-full focus:outline-none focus:ring-4 focus:ring-rose-100 rounded-2xl transition-transform duration-300 delay-[200ms]">
+                    <StatCard icon={<UserCheck />} title="Total Leads" value={totalLeadsStats.total} subtext={`${totalLeadsStats.recent} (${totalLeadsStats.pct}%) in last 30 days`} colorClass="text-rose-500" />
                 </button>
             </div>
 
@@ -786,58 +798,132 @@ const Dashboard: React.FC<DashboardProps> = ({ members, leads, notifications, up
                         </div>
                         Customer Type
                     </h3>
-                    <p className="text-sm font-medium text-gray-500 mb-6 pl-12">Distribution by Membership Tier</p>
-                    <div className="h-[280px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={tierPieData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={90}
-                                    paddingAngle={5}
-                                    dataKey="value"
-                                >
-                                    {tierPieData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
-                                <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                            </PieChart>
-                        </ResponsiveContainer>
+                    <p className="text-sm font-medium text-gray-500 mb-4 pl-12">Distribution by Membership Tier</p>
+                    <div className="flex gap-3 flex-1 min-h-0">
+                        <div className="h-[240px] flex-1">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={tierPieData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={55}
+                                        outerRadius={85}
+                                        paddingAngle={5}
+                                        dataKey="value"
+                                    >
+                                        {tierPieData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                        <div className="w-28 overflow-y-auto custom-scrollbar space-y-2 py-1 flex-shrink-0">
+                            {tierPieData.map((entry, index) => (
+                                <div key={entry.name} className="flex items-center gap-1.5">
+                                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 truncate">{entry.name}</p>
+                                        <p className="text-xs text-gray-400">{entry.value}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* Secondary Row: Lead Source & Staff Attendance & Top Staff & Renewals & Lead Follow-ups */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                {/* Lead Source (Replced Demographics) */}
+                {/* Lead Source Analysis */}
                 <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-all lg:col-span-2">
-                    <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-6 flex items-center gap-3">
-                        <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                            <Briefcase size={20} className="text-purple-600 dark:text-purple-400" />
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-3">
+                            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                                <Briefcase size={20} className="text-purple-600 dark:text-purple-400" />
+                            </div>
+                            Lead Source Analysis
+                        </h3>
+                        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
+                            <button
+                                onClick={() => setLeadSourceChartType('bar')}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                                    leadSourceChartType === 'bar'
+                                        ? 'bg-white dark:bg-gray-600 text-purple-600 dark:text-purple-300 shadow-sm'
+                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                                }`}
+                            >
+                                <BarChart2 size={14} /> Bar
+                            </button>
+                            <button
+                                onClick={() => setLeadSourceChartType('pie')}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                                    leadSourceChartType === 'pie'
+                                        ? 'bg-white dark:bg-gray-600 text-purple-600 dark:text-purple-300 shadow-sm'
+                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+                                }`}
+                            >
+                                <PieChartIcon size={14} /> Pie
+                            </button>
                         </div>
-                        Lead Source Analysis
-                    </h3>
-                    <div className="h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <BarChart layout="vertical" data={leadSourceData} margin={{ top: 20, right: 30, left: 40, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.2} />
-                                <XAxis type="number" tick={{ fontSize: 12, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
-                                <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 11, fill: '#6B7280', fontWeight: 500 }} axisLine={false} tickLine={false} />
-                                <Tooltip
-                                    cursor={{ fill: 'rgba(255, 255, 255, 0.1)' }}
-                                    contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: 'rgba(255, 255, 255, 0.9)' }}
-                                />
-                                <Bar dataKey="value" radius={[0, 4, 4, 0]} animationDuration={1500} barSize={20}>
-                                    {leadSourceData.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Bar>
-                            </BarChart>
-                        </ResponsiveContainer>
+                    </div>
+                    <div className={`flex gap-4 ${leadSourceChartType === 'pie' ? '' : 'h-[300px]'}`}>
+                        <div className={`${leadSourceChartType === 'pie' ? 'h-[300px]' : 'h-full'} flex-1`}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                {leadSourceChartType === 'bar' ? (
+                                    <BarChart layout="vertical" data={leadSourceData} margin={{ top: 20, right: 30, left: 40, bottom: 5 }}>
+                                        <CartesianGrid strokeDasharray="3 3" horizontal={false} opacity={0.2} />
+                                        <XAxis type="number" tick={{ fontSize: 12, fill: '#9CA3AF' }} axisLine={false} tickLine={false} />
+                                        <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 11, fill: '#6B7280', fontWeight: 500 }} axisLine={false} tickLine={false} />
+                                        <Tooltip
+                                            cursor={{ fill: 'rgba(255, 255, 255, 0.1)' }}
+                                            contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: 'rgba(255, 255, 255, 0.9)' }}
+                                        />
+                                        <Bar dataKey="value" radius={[0, 4, 4, 0]} animationDuration={1500} barSize={20}>
+                                            {leadSourceData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Bar>
+                                    </BarChart>
+                                ) : (
+                                    <PieChart>
+                                        <Pie
+                                            data={leadSourceData}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={60}
+                                            outerRadius={100}
+                                            paddingAngle={3}
+                                            dataKey="value"
+                                            animationDuration={1500}
+                                        >
+                                            {leadSourceData.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip
+                                            contentStyle={{ borderRadius: '12px', border: 'none', backgroundColor: 'rgba(255, 255, 255, 0.9)' }}
+                                            formatter={(value, name) => [value, name]}
+                                        />
+                                    </PieChart>
+                                )}
+                            </ResponsiveContainer>
+                        </div>
+                        {leadSourceChartType === 'pie' && (
+                            <div className="w-32 overflow-y-auto custom-scrollbar space-y-2 py-1 flex-shrink-0">
+                                {leadSourceData.map((entry, index) => (
+                                    <div key={entry.name} className="flex items-center gap-1.5">
+                                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 truncate">{entry.name}</p>
+                                            <p className="text-xs text-gray-400">{entry.value}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
 
